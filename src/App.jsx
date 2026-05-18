@@ -274,7 +274,7 @@ function Landing({ onLaunch }) {
             <Logo small />
             <span>ATELIER LOGISTIQUE © 2023 — Outillage par WALYCONSEIL</span>
           </div>
-          <span>Fait à Casablanca ⵎ</span>
+          <span>Contactez-nous sur contact@walyconseil.com</span>
         </div>
       </footer>
     </div>
