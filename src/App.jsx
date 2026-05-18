@@ -7,7 +7,9 @@ import {
   Copy, Check, RotateCw, FileDown, ArrowRight, Zap,
   Tag, Map, Wrench, AlertTriangle,
   ChevronLeft, ChevronRight, Files,
-  FileArchive, ChevronDown
+  FileArchive, ChevronDown,
+  Factory, Warehouse, Ship, Plane, Anchor, Info,
+  Shield, ShieldCheck, X
 } from 'lucide-react';
 
 const BLUE = '#2563EB';
@@ -75,8 +77,8 @@ const TOOLS = [
   { id: 'pallet', cat: 'planification', name: 'Palettisation', icon: Package, desc: 'Calcul du plan optimal · EUR, US, ISO, custom · vue 3D isométrique.', status: 'live' },
   { id: 'safety', cat: 'planification', name: 'Stock de sécurité', icon: TrendingUp, desc: 'Calcul σL, taux de service, ROP · courbe de distribution.', status: 'live' },
   { id: 'ddmrp', cat: 'planification', name: 'Buffers DDMRP', icon: Box, desc: 'Dimensionnement des buffers stratégiques.', status: 'soon' },
-  { id: 'incoterms', cat: 'transport', name: 'Incoterms 2020', icon: Map, desc: 'Comparateur visuel des 11 incoterms.', status: 'soon' },
-  { id: 'cmr', cat: 'transport', name: 'CMR / eCMR', icon: FileText, desc: 'Génération de lettres de voiture.', status: 'soon' },
+  { id: 'incoterms', cat: 'transport', name: 'Incoterms 2020', icon: Map, desc: 'Comparateur visuel des 11 incoterms, transferts coûts/risques sur la chaîne logistique.', status: 'live' },
+  { id: 'cmr', cat: 'transport', name: 'CMR / eCMR', icon: FileText, desc: 'Lettre de voiture internationale aux normes européennes, mode papier ou électronique.', status: 'live' },
   { id: 'sla', cat: 'transport', name: 'OTIF / SLA', icon: Calculator, desc: 'Taux de service logistique.', status: 'soon' },
   { id: 'units', cat: 'utilitaires', name: 'Convertisseur', icon: Shuffle, desc: 'Unités logistiques, volumes, poids.', status: 'soon' },
 ];
@@ -94,6 +96,8 @@ export default function App() {
   if (active === 'barcode') return <BarcodeGenerator onBack={() => setActive(null)} />;
   if (active === 'pallet') return <PalletCalculator onBack={() => setActive(null)} />;
   if (active === 'safety') return <SafetyStockCalculator onBack={() => setActive(null)} />;
+  if (active === 'incoterms') return <IncotermsComparator onBack={() => setActive(null)} />;
+  if (active === 'cmr') return <CmrGenerator onBack={() => setActive(null)} />;
   return <Landing onLaunch={setActive} />;
 }
 
@@ -110,8 +114,8 @@ function Landing({ onLaunch }) {
           <div className="flex items-center gap-3">
             <Logo />
             <div>
-              <div className="font-bricolage font-bold text-lg tracking-tight">ATELIER</div>
-              <div className="font-jetbrains text-[10px] text-slate-500 -mt-1 tracking-wider">SUPPLY.CHAIN / v0.1</div>
+              <div className="font-bricolage font-bold text-lg tracking-tight">ATELIER LOGISTIQUE</div>
+              <div className="font-jetbrains text-[10px] text-slate-500 -mt-1 tracking-wider">SUITE D'OUTILS · v0.2 · BARKco</div>
             </div>
           </div>
           <div className="hidden md:flex items-center gap-5 font-jetbrains text-xs text-slate-500">
@@ -138,32 +142,32 @@ function Landing({ onLaunch }) {
               <br />pour la supply <span style={{ color: BLUE }}>chain.</span>
             </h1>
             <p className="text-slate-600 text-lg md:text-xl max-w-2xl leading-relaxed">
-              Petits outils, gros gain de temps. Du rendu ZPL au dimensionnement des buffers DDMRP — directement dans le navigateur, sans installation, sans compte.
+              Une boîte à outils web pour les professionnels de la logistique. Étiquettes ZPL, codes-barres, palettisation, stock de sécurité, Incoterms — tout dans votre navigateur, sans installation, sans compte.
             </p>
             <div className="flex flex-wrap items-center gap-3 mt-10 font-jetbrains text-xs">
-              <button
-                onClick={() => onLaunch('zpl')}
+              <a
+                href="#tools"
                 className="px-5 py-3 rounded-md font-medium transition-all hover:translate-y-[-1px] flex items-center gap-2 text-white"
                 style={{ background: BLUE }}
               >
-                ESSAYER ZPL VIEWER
-                <ArrowRight size={13} />
-              </button>
-              <a href="#tools" className="px-5 py-3 rounded-md font-medium border border-slate-300 text-slate-700 hover:bg-slate-50 transition-all">
                 VOIR L'ÉTABLI
+                <ArrowRight size={13} />
+              </a>
+              <a href="#how" className="px-5 py-3 rounded-md font-medium border border-slate-300 text-slate-700 hover:bg-slate-50 transition-all">
+                COMMENT ÇA MARCHE
               </a>
             </div>
           </div>
 
           <div className="lg:col-span-4 hidden lg:block">
             <div className="border border-slate-200 rounded-xl p-6 bg-white shadow-sm">
-              <div className="font-jetbrains text-[10px] text-slate-400 tracking-wider mb-4">ÉTAT DU SYSTÈME</div>
+              <div className="font-jetbrains text-[10px] text-slate-400 tracking-wider mb-4">ÉTAT DE L'ATELIER</div>
               <div className="space-y-3">
                 {[
-                  { l: 'Moteur de rendu', v: 'local' },
-                  { l: 'Confidentialité', v: '100%' },
-                  { l: 'Latence', v: '~50ms' },
-                  { l: 'Version', v: '0.2.0' },
+                  { l: 'Outils actifs', v: '6 / 9' },
+                  { l: 'Mode', v: 'navigateur' },
+                  { l: 'Confidentialité', v: '100% local' },
+                  { l: 'Version', v: '0.2' },
                 ].map((r, i) => (
                   <div key={i} className="flex items-center justify-between font-jetbrains text-xs">
                     <span className="text-slate-500">{r.l}</span>
@@ -180,10 +184,10 @@ function Landing({ onLaunch }) {
 
         <div className="mt-20 grid grid-cols-2 md:grid-cols-4 border-y border-slate-200">
           {[
-            { k: '01', v: 'rendu instantané', d: 'aucun appel réseau' },
-            { k: '04', v: 'résolutions', d: '152 → 600 dpi' },
-            { k: 'PDF', v: 'imprimable', d: "à l'échelle exacte" },
-            { k: '∞', v: 'usages', d: 'gratuit & privé' },
+            { k: '05', v: 'outils en ligne', d: 'sur 9 prévus' },
+            { k: '04', v: 'familles', d: 'marquage, stocks, transport...' },
+            { k: '100%', v: 'navigateur', d: 'aucune installation' },
+            { k: '∞', v: 'usages', d: 'sans compte, sans envoi' },
           ].map((s, i) => (
             <div key={i} className={`p-6 ${i > 0 ? 'md:border-l border-slate-200' : ''} ${i === 2 || i === 3 ? 'border-t md:border-t-0 border-slate-200' : ''} ${i === 1 ? 'border-l border-slate-200' : ''}`}>
               <div className="font-bricolage text-3xl md:text-4xl font-bold mb-1" style={{ color: BLUE }}>{s.k}</div>
@@ -208,9 +212,9 @@ function Landing({ onLaunch }) {
             </div>
             <div className="md:col-span-8 grid grid-cols-1 md:grid-cols-3 gap-px bg-slate-200 border border-slate-200">
               {[
-                { n: '01', t: 'Importer', d: "Collez votre code ZPL ou glissez un fichier .zpl directement dans la zone." },
-                { n: '02', t: 'Paramétrer', d: "Choisissez le format d'étiquette et la résolution de votre imprimante Zebra." },
-                { n: '03', t: 'Exporter', d: "Récupérez le rendu en PNG ou en PDF imprimable à l'échelle exacte." },
+                { n: '01', t: 'Importer ou saisir', d: "Glissez un fichier (Excel, CSV, ZPL), saisissez vos paramètres ou collez du code selon l'outil." },
+                { n: '02', t: 'Paramétrer', d: "Ajustez les options : format d'étiquette, taux de service, type de palette, mode de transport, granularité..." },
+                { n: '03', t: 'Exporter', d: "Récupérez le résultat exploitable : PNG, PDF imprimable, fichier Excel pour vos clients, ZIP." },
               ].map((s, i) => (
                 <div key={i} className="bg-white p-6">
                   <div className="font-jetbrains text-xs mb-4" style={{ color: BLUE }}>{s.n}</div>
@@ -268,7 +272,7 @@ function Landing({ onLaunch }) {
         <div className="max-w-7xl mx-auto px-6 md:px-10 py-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 font-jetbrains text-xs text-slate-500">
           <div className="flex items-center gap-3">
             <Logo small />
-            <span>ATELIER © 2026 — Outillage supply chain</span>
+            <span>ATELIER LOGISTIQUE © 2026 — Outillage par BARKco</span>
           </div>
           <span>Fait à Casablanca ⵎ</span>
         </div>
@@ -3379,5 +3383,1638 @@ function ReliabilityBadge({ level, dataPoints }) {
     >
       ● {c.label}
     </span>
+  );
+}
+
+// ============================================================
+// INCOTERMS 2020 · Comparateur visuel
+// ============================================================
+
+const SUPPLY_CHAIN_STEPS = [
+  { id: 0, label: 'Locaux vendeur',       short: 'Vendeur',     icon: Factory },
+  { id: 1, label: 'Pré-acheminement',     short: 'Pré-achem.',  icon: Truck   },
+  { id: 2, label: "Point d'export",       short: 'Export',      icon: Anchor  },
+  { id: 3, label: 'Transport principal',  short: 'Transport',   icon: Ship    },
+  { id: 4, label: "Point d'import",       short: 'Import',      icon: Anchor  },
+  { id: 5, label: 'Post-acheminement',    short: 'Post-achem.', icon: Truck   },
+  { id: 6, label: 'Locaux acheteur',      short: 'Acheteur',    icon: Warehouse },
+];
+
+// 11 obligations à comparer (Incoterms 2020)
+const OBLIGATIONS = [
+  { key: 'packaging',       label: 'Emballage',                hint: 'conformité export incluse' },
+  { key: 'loadingOrigin',   label: 'Chargement origine',       hint: 'sur le 1er véhicule' },
+  { key: 'preCarriage',     label: 'Pré-acheminement',         hint: 'vers le point d\'export' },
+  { key: 'exportCustoms',   label: 'Dédouanement export',      hint: 'formalités, droits' },
+  { key: 'mainCarriage',    label: 'Transport principal',      hint: 'maritime, aérien, routier' },
+  { key: 'insurance',       label: 'Assurance transport',      hint: 'CIF/CIP = obligatoire' },
+  { key: 'importCustoms',   label: 'Dédouanement import',      hint: 'TVA, droits, formalités' },
+  { key: 'postCarriage',    label: 'Post-acheminement',        hint: 'vers locaux acheteur' },
+  { key: 'unloading',       label: 'Déchargement final',       hint: 'au point de livraison' },
+];
+
+const INCOTERMS = [
+  {
+    code: 'EXW',
+    name: 'Ex Works',
+    nameFr: 'À l\'usine',
+    mode: 'multimodal',
+    family: 'E',
+    familyLabel: 'Départ',
+    riskTransfer: 0,
+    costTransfer: 0,
+    summary: 'Obligation minimum pour le vendeur : il met la marchandise à disposition dans ses locaux. L\'acheteur prend tout en charge à partir de là, y compris le dédouanement export.',
+    obligations: {
+      packaging: 'seller', loadingOrigin: 'buyer', preCarriage: 'buyer',
+      exportCustoms: 'buyer', mainCarriage: 'buyer', insurance: 'buyer',
+      importCustoms: 'buyer', postCarriage: 'buyer', unloading: 'buyer',
+    },
+    typical: ['Vente B2B locale', 'Acheteur avec son propre logisticien', 'Pickup direct dans l\'usine'],
+    pitfalls: [
+      'L\'acheteur doit faire les formalités d\'export — souvent compliqué quand il est étranger.',
+      'Mauvais choix pour le commerce international : préférer FCA.',
+    ],
+  },
+  {
+    code: 'FCA',
+    name: 'Free Carrier',
+    nameFr: 'Franco transporteur',
+    mode: 'multimodal',
+    family: 'F',
+    familyLabel: 'Sans transport principal',
+    riskTransfer: 2,
+    costTransfer: 2,
+    summary: 'Le vendeur livre la marchandise dédouanée à l\'export au transporteur désigné par l\'acheteur, au lieu convenu. Recommandé en remplacement de EXW et FOB pour les containers.',
+    obligations: {
+      packaging: 'seller', loadingOrigin: 'seller', preCarriage: 'seller',
+      exportCustoms: 'seller', mainCarriage: 'buyer', insurance: 'buyer',
+      importCustoms: 'buyer', postCarriage: 'buyer', unloading: 'buyer',
+    },
+    typical: ['Conteneurs maritimes', 'Fret aérien', 'Transport multimodal avec hub'],
+    pitfalls: [
+      'Le lieu de livraison doit être précis (adresse exacte).',
+      'Si livraison aux locaux du vendeur, c\'est lui qui charge ; si ailleurs, c\'est le transporteur.',
+    ],
+  },
+  {
+    code: 'FAS',
+    name: 'Free Alongside Ship',
+    nameFr: 'Franco le long du navire',
+    mode: 'maritime',
+    family: 'F',
+    familyLabel: 'Sans transport principal',
+    riskTransfer: 2,
+    costTransfer: 2,
+    summary: 'Le vendeur livre la marchandise le long du navire désigné par l\'acheteur, dans le port d\'embarquement convenu. Réservé au transport maritime de marchandises non-conteneurisées.',
+    obligations: {
+      packaging: 'seller', loadingOrigin: 'seller', preCarriage: 'seller',
+      exportCustoms: 'seller', mainCarriage: 'buyer', insurance: 'buyer',
+      importCustoms: 'buyer', postCarriage: 'buyer', unloading: 'buyer',
+    },
+    typical: ['Vrac sec (minerai, céréales)', 'Cargaisons hors-gabarit', 'Marchandises non-conteneurisées'],
+    pitfalls: [
+      'Inadapté aux conteneurs : utilisez FCA.',
+      'Risque de surcoût si chargement retardé (frais de quai).',
+    ],
+  },
+  {
+    code: 'FOB',
+    name: 'Free On Board',
+    nameFr: 'Franco à bord',
+    mode: 'maritime',
+    family: 'F',
+    familyLabel: 'Sans transport principal',
+    riskTransfer: 2,
+    costTransfer: 2,
+    summary: 'Le vendeur livre la marchandise à bord du navire désigné par l\'acheteur, dans le port d\'embarquement. Le transfert se fait quand la marchandise est chargée sur le bateau.',
+    obligations: {
+      packaging: 'seller', loadingOrigin: 'seller', preCarriage: 'seller',
+      exportCustoms: 'seller', mainCarriage: 'buyer', insurance: 'buyer',
+      importCustoms: 'buyer', postCarriage: 'buyer', unloading: 'buyer',
+    },
+    typical: ['Vrac maritime', 'Transport maritime traditionnel', 'Marchandises non-conteneurisées'],
+    pitfalls: [
+      'Inadapté aux conteneurs (le risque est mal défini avant chargement) : utilisez FCA.',
+      'Très utilisé à tort pour les containers : source fréquente de litiges.',
+    ],
+  },
+  {
+    code: 'CFR',
+    name: 'Cost and Freight',
+    nameFr: 'Coût et fret',
+    mode: 'maritime',
+    family: 'C',
+    familyLabel: 'Avec transport principal',
+    riskTransfer: 2,
+    costTransfer: 4,
+    summary: 'Le vendeur paie le fret jusqu\'au port de destination mais le risque est transféré dès le chargement à bord au départ. Décalage classique des coûts et risques des termes C.',
+    obligations: {
+      packaging: 'seller', loadingOrigin: 'seller', preCarriage: 'seller',
+      exportCustoms: 'seller', mainCarriage: 'seller', insurance: 'buyer',
+      importCustoms: 'buyer', postCarriage: 'buyer', unloading: 'buyer',
+    },
+    typical: ['Vrac maritime', 'Vendeur qui maîtrise les routes maritimes', 'Transports longs'],
+    pitfalls: [
+      'Piège classique : l\'acheteur croit être couvert pendant la traversée. NON — le risque est à lui dès le port de départ.',
+      'L\'acheteur doit souscrire son propre contrat d\'assurance.',
+      'Inadapté aux conteneurs : utilisez CPT.',
+    ],
+  },
+  {
+    code: 'CIF',
+    name: 'Cost, Insurance and Freight',
+    nameFr: 'Coût, assurance et fret',
+    mode: 'maritime',
+    family: 'C',
+    familyLabel: 'Avec transport principal',
+    riskTransfer: 2,
+    costTransfer: 4,
+    summary: 'Comme CFR, mais le vendeur souscrit en plus une assurance maritime au profit de l\'acheteur. Couverture minimale obligatoire (clause C des Institute Cargo Clauses).',
+    obligations: {
+      packaging: 'seller', loadingOrigin: 'seller', preCarriage: 'seller',
+      exportCustoms: 'seller', mainCarriage: 'seller', insurance: 'seller',
+      importCustoms: 'buyer', postCarriage: 'buyer', unloading: 'buyer',
+    },
+    typical: ['Vrac maritime', 'Ventes traditionnelles', 'Marchandises de valeur moyenne'],
+    pitfalls: [
+      'L\'assurance souscrite est minimale (Clause C, ICC) : couverture limitée.',
+      'L\'acheteur peut vouloir renforcer la couverture à ses frais.',
+      'Inadapté aux conteneurs : utilisez CIP.',
+    ],
+  },
+  {
+    code: 'CPT',
+    name: 'Carriage Paid To',
+    nameFr: 'Port payé jusqu\'à',
+    mode: 'multimodal',
+    family: 'C',
+    familyLabel: 'Avec transport principal',
+    riskTransfer: 2,
+    costTransfer: 5,
+    summary: 'Le vendeur paie le transport jusqu\'au lieu de destination convenu, mais le risque est transféré à la remise au 1er transporteur. Équivalent multimodal de CFR.',
+    obligations: {
+      packaging: 'seller', loadingOrigin: 'seller', preCarriage: 'seller',
+      exportCustoms: 'seller', mainCarriage: 'seller', insurance: 'buyer',
+      importCustoms: 'buyer', postCarriage: 'seller', unloading: 'buyer',
+    },
+    typical: ['Conteneurs', 'Fret aérien', 'Transport multimodal'],
+    pitfalls: [
+      'Même piège que CFR : risque transféré tôt, coûts payés tard.',
+      'L\'acheteur doit comprendre qu\'il assume le risque dès le 1er transporteur.',
+    ],
+  },
+  {
+    code: 'CIP',
+    name: 'Carriage and Insurance Paid To',
+    nameFr: 'Port payé, assurance comprise',
+    mode: 'multimodal',
+    family: 'C',
+    familyLabel: 'Avec transport principal',
+    riskTransfer: 2,
+    costTransfer: 5,
+    summary: 'Comme CPT mais le vendeur souscrit une assurance "tous risques" (Clause A des ICC) au profit de l\'acheteur. Niveau de couverture relevé en 2020 — différence majeure avec CIF.',
+    obligations: {
+      packaging: 'seller', loadingOrigin: 'seller', preCarriage: 'seller',
+      exportCustoms: 'seller', mainCarriage: 'seller', insurance: 'seller',
+      importCustoms: 'buyer', postCarriage: 'seller', unloading: 'buyer',
+    },
+    typical: ['Conteneurs', 'Fret aérien', 'Marchandises de forte valeur'],
+    pitfalls: [
+      'Couverture "all risks" obligatoire depuis 2020 (vs minimale en CIF).',
+      'Coût de l\'assurance plus élevé qu\'en CIF — à intégrer au prix de vente.',
+    ],
+  },
+  {
+    code: 'DAP',
+    name: 'Delivered at Place',
+    nameFr: 'Rendu au lieu',
+    mode: 'multimodal',
+    family: 'D',
+    familyLabel: 'Arrivée',
+    riskTransfer: 5,
+    costTransfer: 5,
+    summary: 'Le vendeur livre la marchandise prête à être déchargée au lieu convenu chez l\'acheteur. Il assume tous les coûts et risques jusqu\'à destination, sauf dédouanement import.',
+    obligations: {
+      packaging: 'seller', loadingOrigin: 'seller', preCarriage: 'seller',
+      exportCustoms: 'seller', mainCarriage: 'seller', insurance: 'seller',
+      importCustoms: 'buyer', postCarriage: 'seller', unloading: 'buyer',
+    },
+    typical: ['Livraison entrepôt acheteur', 'Vendeur qui maîtrise toute la chaîne', 'Importations courantes'],
+    pitfalls: [
+      'L\'acheteur doit gérer le dédouanement import — vérifier sa capacité à le faire.',
+      'Le vendeur doit comprendre la réglementation du pays d\'arrivée.',
+    ],
+  },
+  {
+    code: 'DPU',
+    name: 'Delivered at Place Unloaded',
+    nameFr: 'Rendu au lieu déchargé',
+    mode: 'multimodal',
+    family: 'D',
+    familyLabel: 'Arrivée',
+    riskTransfer: 6,
+    costTransfer: 6,
+    summary: 'Comme DAP mais le vendeur prend en charge le déchargement au lieu de destination. Seul Incoterm où le vendeur est responsable du déchargement final. Remplace DAT (2010).',
+    obligations: {
+      packaging: 'seller', loadingOrigin: 'seller', preCarriage: 'seller',
+      exportCustoms: 'seller', mainCarriage: 'seller', insurance: 'seller',
+      importCustoms: 'buyer', postCarriage: 'seller', unloading: 'seller',
+    },
+    typical: ['Livraison sur terminal ou entrepôt avec équipements', 'Marchandises lourdes nécessitant équipement'],
+    pitfalls: [
+      'Le vendeur doit s\'assurer que le déchargement est possible au lieu convenu (équipements, accès).',
+      'Risque si le lieu n\'est pas équipé pour décharger.',
+    ],
+  },
+  {
+    code: 'DDP',
+    name: 'Delivered Duty Paid',
+    nameFr: 'Rendu droits acquittés',
+    mode: 'multimodal',
+    family: 'D',
+    familyLabel: 'Arrivée',
+    riskTransfer: 5,
+    costTransfer: 5,
+    summary: 'Obligation maximum pour le vendeur : il livre la marchandise au lieu convenu, dédouanement import inclus, droits et taxes payés. Symétrique de EXW. Acheteur reçoit en mode "porte-à-porte".',
+    obligations: {
+      packaging: 'seller', loadingOrigin: 'seller', preCarriage: 'seller',
+      exportCustoms: 'seller', mainCarriage: 'seller', insurance: 'seller',
+      importCustoms: 'seller', postCarriage: 'seller', unloading: 'buyer',
+    },
+    typical: ['E-commerce B2C transfrontalier', 'Marchés simples (UE intra)', 'Vendeur installé dans le pays d\'arrivée'],
+    pitfalls: [
+      'Le vendeur supporte les droits/TVA import — capacité fiscale du pays d\'arrivée à vérifier.',
+      'Souvent impossible si le vendeur n\'est pas enregistré localement (TVA, EORI).',
+      'Privilégier DAP si l\'acheteur peut faire l\'import.',
+    ],
+  },
+];
+
+const INCOTERM_FAMILIES = [
+  { id: 'E', label: 'E · Départ',                color: '#94A3B8' },
+  { id: 'F', label: 'F · Sans transport princ.', color: '#0EA5E9' },
+  { id: 'C', label: 'C · Avec transport princ.', color: '#8B5CF6' },
+  { id: 'D', label: 'D · Arrivée',               color: '#10B981' },
+];
+
+const ORANGE = '#F97316';
+const ORANGE_LIGHT = '#FFF7ED';
+
+function IncotermsComparator({ onBack }) {
+  const [view, setView] = useState('explore'); // 'explore' | 'compare'
+  const [selectedCode, setSelectedCode] = useState('FOB');
+  const [compareList, setCompareList] = useState(['EXW', 'FOB', 'DDP']);
+  const [modeFilter, setModeFilter] = useState('all'); // 'all' | 'maritime' | 'multimodal'
+
+  const filteredIncoterms = useMemo(() => {
+    if (modeFilter === 'all') return INCOTERMS;
+    return INCOTERMS.filter(it => it.mode === modeFilter || it.mode === 'multimodal');
+  }, [modeFilter]);
+
+  const selected = INCOTERMS.find(it => it.code === selectedCode) || INCOTERMS[0];
+
+  const toggleCompare = (code) => {
+    setCompareList(list => {
+      if (list.includes(code)) return list.filter(c => c !== code);
+      if (list.length >= 4) return list;
+      return [...list, code];
+    });
+  };
+
+  return (
+    <div className="min-h-screen text-slate-900" style={{ background: '#F8FAFC', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+      <FontsAndStyles />
+
+      <nav className="border-b border-slate-200 bg-white sticky top-0 z-20">
+        <div className="max-w-[1600px] mx-auto px-6 py-4 flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-5">
+            <button onClick={onBack} className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors font-jetbrains text-xs">
+              <ArrowLeft size={14} />
+              RETOUR
+            </button>
+            <div className="w-px h-5 bg-slate-200" />
+            <div className="flex items-center gap-3">
+              <Logo small />
+              <div>
+                <div className="font-bricolage font-semibold text-sm leading-tight text-slate-900">Incoterms 2020</div>
+                <div className="font-jetbrains text-[10px] text-slate-500">ATELIER / 05</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1 p-1 rounded-lg border border-slate-200 bg-slate-50">
+            <button
+              onClick={() => setView('explore')}
+              className="px-3 py-1.5 rounded-md font-jetbrains text-xs transition-all"
+              style={view === 'explore'
+                ? { background: '#FFFFFF', color: BLUE, fontWeight: 600, boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }
+                : { color: '#64748B' }}
+            >
+              EXPLORER
+            </button>
+            <button
+              onClick={() => setView('compare')}
+              className="px-3 py-1.5 rounded-md font-jetbrains text-xs transition-all flex items-center gap-1.5"
+              style={view === 'compare'
+                ? { background: '#FFFFFF', color: BLUE, fontWeight: 600, boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }
+                : { color: '#64748B' }}
+            >
+              COMPARER
+              {compareList.length > 0 && (
+                <span className="px-1.5 py-0.5 rounded-full text-[9px] font-medium" style={{ background: BLUE_LIGHT, color: BLUE }}>{compareList.length}</span>
+              )}
+            </button>
+          </div>
+        </div>
+      </nav>
+
+      {/* MODE EXPLORER */}
+      {view === 'explore' && (
+        <div className="max-w-[1600px] mx-auto px-6 py-6 grid grid-cols-1 lg:grid-cols-12 gap-5">
+          {/* Sidebar : grille des 11 */}
+          <div className="lg:col-span-4 space-y-4">
+            {/* Filtre mode */}
+            <div className="rounded-xl border border-slate-200 bg-white p-3">
+              <div className="font-jetbrains text-[10px] tracking-wider text-slate-500 mb-2">FILTRER PAR MODE DE TRANSPORT</div>
+              <div className="grid grid-cols-3 gap-1">
+                {[
+                  { id: 'all', label: 'Tous' },
+                  { id: 'multimodal', label: 'Multimodal' },
+                  { id: 'maritime', label: 'Maritime' },
+                ].map(opt => (
+                  <button
+                    key={opt.id}
+                    onClick={() => setModeFilter(opt.id)}
+                    className="px-2 py-1.5 rounded-md font-jetbrains text-[11px] transition-all"
+                    style={modeFilter === opt.id
+                      ? { background: BLUE, color: '#FFFFFF', fontWeight: 600 }
+                      : { background: '#F8FAFC', color: '#475569', border: '1px solid #E2E8F0' }}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Grille incoterms */}
+            <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+              <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+                <div className="font-jetbrains text-xs text-slate-600">LES 11 INCOTERMS 2020</div>
+                <div className="font-jetbrains text-[10px] text-slate-400">{filteredIncoterms.length} affichés</div>
+              </div>
+              <div className="p-3 grid grid-cols-2 gap-2">
+                {filteredIncoterms.map(it => {
+                  const fam = INCOTERM_FAMILIES.find(f => f.id === it.family);
+                  const isActive = it.code === selectedCode;
+                  return (
+                    <button
+                      key={it.code}
+                      onClick={() => setSelectedCode(it.code)}
+                      className="text-left p-3 rounded-lg border transition-all"
+                      style={isActive
+                        ? { borderColor: BLUE, background: BLUE_LIGHT }
+                        : { borderColor: '#E2E8F0', background: '#FFFFFF' }}
+                    >
+                      <div className="flex items-baseline justify-between mb-1">
+                        <span className="font-bricolage font-bold text-base" style={{ color: isActive ? BLUE : '#0F172A' }}>{it.code}</span>
+                        <span className="font-jetbrains text-[9px] tracking-wider" style={{ color: fam.color }}>● {it.family}</span>
+                      </div>
+                      <div className="text-[11px] text-slate-700 leading-tight font-medium">{it.nameFr}</div>
+                      <div className="font-jetbrains text-[9px] mt-1.5 uppercase" style={{ color: it.mode === 'maritime' ? '#0EA5E9' : '#64748B' }}>
+                        {it.mode === 'maritime' ? '⚓ maritime' : '↔ multimodal'}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="px-4 py-2.5 border-t border-slate-200 bg-slate-50">
+                <div className="font-jetbrains text-[9px] text-slate-500 tracking-wider mb-1.5">LÉGENDE DES FAMILLES</div>
+                <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
+                  {INCOTERM_FAMILIES.map(f => (
+                    <div key={f.id} className="flex items-center gap-1.5 text-[10px] text-slate-600">
+                      <span style={{ color: f.color }}>●</span>
+                      <span>{f.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Vue détail */}
+          <div className="lg:col-span-8 space-y-4">
+            {/* En-tête */}
+            <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+              <div className="p-5">
+                <div className="flex items-start justify-between flex-wrap gap-3 mb-3">
+                  <div>
+                    <div className="flex items-baseline gap-3 mb-1">
+                      <span className="font-bricolage font-bold text-4xl tracking-tight" style={{ color: BLUE }}>{selected.code}</span>
+                      <span className="font-bricolage text-xl text-slate-700">{selected.name}</span>
+                    </div>
+                    <div className="font-jetbrains text-xs text-slate-500">
+                      {selected.nameFr} · {selected.familyLabel} · {selected.mode === 'maritime' ? 'Maritime uniquement' : 'Multimodal'}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => { toggleCompare(selected.code); setView('compare'); }}
+                    className="px-3 py-2 rounded-md font-jetbrains text-xs text-white shadow-sm transition-all hover:translate-y-[-1px] flex items-center gap-1.5"
+                    style={{ background: BLUE }}
+                  >
+                    AJOUTER À LA COMPARAISON
+                  </button>
+                </div>
+                <p className="text-sm text-slate-700 leading-relaxed">{selected.summary}</p>
+              </div>
+            </div>
+
+            {/* Timeline transferts */}
+            <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+              <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center gap-2 font-jetbrains text-xs text-slate-600">
+                  <Map size={13} />
+                  TRANSFERTS COÛTS & RISQUES SUR LA CHAÎNE
+                </div>
+                <div className="flex items-center gap-3 font-jetbrains text-[10px] text-slate-500">
+                  <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: BLUE }} />coûts vendeur</span>
+                  <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: ORANGE }} />risques vendeur</span>
+                </div>
+              </div>
+              <div className="p-6" style={{ background: 'repeating-linear-gradient(45deg, #F8FAFC 0, #F8FAFC 14px, #F1F5F9 14px, #F1F5F9 15px)' }}>
+                <IncotermTimeline incoterm={selected} />
+              </div>
+            </div>
+
+            {/* Tableau obligations */}
+            <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+              <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 font-jetbrains text-xs text-slate-600">QUI PAIE QUOI ?</div>
+              <ObligationsTable incoterms={[selected]} />
+            </div>
+
+            {/* Cas d'usage + pièges */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="rounded-xl border border-slate-200 bg-white p-5">
+                <div className="font-jetbrains text-[10px] tracking-wider text-slate-500 mb-3 flex items-center gap-1.5">
+                  <Info size={11} />
+                  CAS D'USAGE TYPIQUES
+                </div>
+                <ul className="space-y-2">
+                  {selected.typical.map((t, i) => (
+                    <li key={i} className="flex items-start gap-2 text-sm text-slate-700">
+                      <span style={{ color: BLUE }} className="font-jetbrains text-xs mt-0.5">→</span>
+                      <span>{t}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div className="rounded-xl border p-5" style={{ borderColor: '#FED7AA', background: ORANGE_LIGHT }}>
+                <div className="font-jetbrains text-[10px] tracking-wider mb-3 flex items-center gap-1.5" style={{ color: ORANGE }}>
+                  <AlertTriangle size={11} />
+                  PIÈGES À ÉVITER
+                </div>
+                <ul className="space-y-2">
+                  {selected.pitfalls.map((p, i) => (
+                    <li key={i} className="flex items-start gap-2 text-sm text-orange-900">
+                      <span style={{ color: ORANGE }} className="font-jetbrains text-xs mt-0.5">⚠</span>
+                      <span className="leading-snug">{p}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODE COMPARER */}
+      {view === 'compare' && (
+        <div className="max-w-[1600px] mx-auto px-6 py-6 space-y-5">
+          {/* Sélecteur */}
+          <div className="rounded-xl border border-slate-200 bg-white p-4">
+            <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+              <div className="font-jetbrains text-xs text-slate-600">SÉLECTIONNEZ 2 À 4 INCOTERMS À COMPARER</div>
+              <div className="font-jetbrains text-[10px] text-slate-400">{compareList.length} / 4 sélectionné{compareList.length > 1 ? 's' : ''}</div>
+            </div>
+            <div className="grid grid-cols-3 md:grid-cols-6 lg:grid-cols-11 gap-2">
+              {INCOTERMS.map(it => {
+                const isSelected = compareList.includes(it.code);
+                const isDisabled = !isSelected && compareList.length >= 4;
+                return (
+                  <button
+                    key={it.code}
+                    onClick={() => toggleCompare(it.code)}
+                    disabled={isDisabled}
+                    className="p-2 rounded-lg border transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                    style={isSelected
+                      ? { borderColor: BLUE, background: BLUE, color: '#FFFFFF' }
+                      : { borderColor: '#E2E8F0', background: '#FFFFFF', color: '#0F172A' }}
+                  >
+                    <div className="font-bricolage font-bold text-sm leading-tight">{it.code}</div>
+                    <div className="font-jetbrains text-[9px] mt-0.5" style={isSelected ? { color: 'rgba(255,255,255,0.7)' } : { color: '#64748B' }}>{it.family}</div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {compareList.length < 2 ? (
+            <div className="rounded-xl border border-dashed border-slate-300 bg-white p-16 text-center">
+              <Map size={28} className="mx-auto mb-4" style={{ color: '#94A3B8' }} strokeWidth={1.5} />
+              <div className="font-bricolage text-lg text-slate-800 mb-1">Sélectionnez au moins 2 incoterms</div>
+              <div className="text-sm text-slate-500">pour démarrer la comparaison côte à côte</div>
+            </div>
+          ) : (
+            <>
+              {/* Timelines empilées */}
+              <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+                <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2 font-jetbrains text-xs text-slate-600">
+                    <Map size={13} />
+                    TIMELINES COMPARÉES
+                  </div>
+                  <div className="flex items-center gap-3 font-jetbrains text-[10px] text-slate-500">
+                    <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: BLUE }} />coûts vendeur</span>
+                    <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: ORANGE }} />risques vendeur</span>
+                  </div>
+                </div>
+                <div className="p-6 space-y-7" style={{ background: 'repeating-linear-gradient(45deg, #F8FAFC 0, #F8FAFC 14px, #F1F5F9 14px, #F1F5F9 15px)' }}>
+                  {compareList.map(code => {
+                    const it = INCOTERMS.find(i => i.code === code);
+                    return <IncotermTimeline key={code} incoterm={it} showLabel />;
+                  })}
+                </div>
+              </div>
+
+              {/* Tableau comparatif obligations */}
+              <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+                <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 font-jetbrains text-xs text-slate-600">TABLEAU COMPARATIF — QUI PAIE QUOI ?</div>
+                <ObligationsTable incoterms={compareList.map(c => INCOTERMS.find(i => i.code === c))} compact />
+              </div>
+
+              {/* Résumés courts */}
+              <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${Math.min(compareList.length, 4)}, minmax(0, 1fr))` }}>
+                {compareList.map(code => {
+                  const it = INCOTERMS.find(i => i.code === code);
+                  const fam = INCOTERM_FAMILIES.find(f => f.id === it.family);
+                  return (
+                    <div key={code} className="rounded-xl border border-slate-200 bg-white p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-bricolage font-bold text-xl" style={{ color: BLUE }}>{it.code}</span>
+                        <span className="font-jetbrains text-[9px] tracking-wider" style={{ color: fam.color }}>● {it.family}</span>
+                      </div>
+                      <div className="text-[11px] text-slate-500 mb-2">{it.nameFr}</div>
+                      <div className="text-[12px] text-slate-700 leading-snug">{it.summary}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Visualisation timeline : 7 étapes + barres coûts/risques
+function IncotermTimeline({ incoterm, showLabel = false }) {
+  const STEP_COUNT = SUPPLY_CHAIN_STEPS.length;
+  const VB_W = 1000;
+  const VB_H = 200;
+  const PADDING_X = 40;
+  const TRACK_Y = 110;
+  const stepX = (i) => PADDING_X + (i * (VB_W - 2 * PADDING_X)) / (STEP_COUNT - 1);
+
+  const costEndX = stepX(incoterm.costTransfer);
+  const riskEndX = stepX(incoterm.riskTransfer);
+
+  // Barres : du début jusqu'au point de transfert
+  return (
+    <div>
+      {showLabel && (
+        <div className="flex items-baseline gap-2 mb-2 px-1">
+          <span className="font-bricolage font-bold text-lg" style={{ color: BLUE }}>{incoterm.code}</span>
+          <span className="font-bricolage text-sm text-slate-700">{incoterm.name}</span>
+          <span className="font-jetbrains text-[10px] text-slate-500 ml-auto">{incoterm.nameFr}</span>
+        </div>
+      )}
+      <svg viewBox={`0 0 ${VB_W} ${VB_H}`} className="w-full" style={{ maxHeight: showLabel ? 180 : 240 }}>
+        <defs>
+          <pattern id={`stripes-${incoterm.code}`} patternUnits="userSpaceOnUse" width="6" height="6" patternTransform="rotate(45)">
+            <line x1="0" y1="0" x2="0" y2="6" stroke="rgba(0,0,0,0.05)" strokeWidth="6" />
+          </pattern>
+        </defs>
+
+        {/* Ligne de fond (chaîne logistique) */}
+        <line x1={stepX(0)} y1={TRACK_Y} x2={stepX(STEP_COUNT - 1)} y2={TRACK_Y} stroke="#CBD5E1" strokeWidth="2" strokeDasharray="4 3" />
+
+        {/* Barre coûts vendeur (bleu) */}
+        {incoterm.costTransfer > 0 && (
+          <rect
+            x={stepX(0)}
+            y={TRACK_Y - 28}
+            width={costEndX - stepX(0)}
+            height={10}
+            fill={BLUE}
+            rx="2"
+          />
+        )}
+
+        {/* Barre risques vendeur (orange) */}
+        {incoterm.riskTransfer > 0 && (
+          <rect
+            x={stepX(0)}
+            y={TRACK_Y + 18}
+            width={riskEndX - stepX(0)}
+            height={10}
+            fill={ORANGE}
+            rx="2"
+          />
+        )}
+
+        {/* Labels barres */}
+        {incoterm.costTransfer > 0 && (
+          <text x={stepX(0) + 6} y={TRACK_Y - 33} fontSize="10" fontFamily="JetBrains Mono, monospace" fill="#FFFFFF" fontWeight="600" style={{ paintOrder: 'stroke', stroke: BLUE, strokeWidth: 3 }}>
+            COÛTS VENDEUR
+          </text>
+        )}
+        {incoterm.riskTransfer > 0 && (
+          <text x={stepX(0) + 6} y={TRACK_Y + 26} fontSize="10" fontFamily="JetBrains Mono, monospace" fill="#FFFFFF" fontWeight="600" style={{ paintOrder: 'stroke', stroke: ORANGE, strokeWidth: 3 }}>
+            RISQUES VENDEUR
+          </text>
+        )}
+
+        {/* Marqueurs de transfert avec flèches */}
+        {incoterm.costTransfer === incoterm.riskTransfer ? (
+          // Même point : un seul marqueur
+          <g>
+            <line x1={costEndX} y1={TRACK_Y - 50} x2={costEndX} y2={TRACK_Y + 50} stroke="#0F172A" strokeWidth="2" strokeDasharray="3 2" />
+            <circle cx={costEndX} cy={TRACK_Y - 50} r="4" fill="#0F172A" />
+            <text x={costEndX} y={TRACK_Y - 58} textAnchor="middle" fontSize="10" fontFamily="JetBrains Mono, monospace" fill="#0F172A" fontWeight="700">TRANSFERT</text>
+          </g>
+        ) : (
+          <>
+            {/* Transfert coûts (au-dessus) */}
+            <g>
+              <line x1={costEndX} y1={TRACK_Y - 50} x2={costEndX} y2={TRACK_Y - 18} stroke={BLUE} strokeWidth="2" strokeDasharray="3 2" />
+              <circle cx={costEndX} cy={TRACK_Y - 50} r="4" fill={BLUE} />
+              <text x={costEndX} y={TRACK_Y - 58} textAnchor="middle" fontSize="9" fontFamily="JetBrains Mono, monospace" fill={BLUE} fontWeight="700">↑ FIN COÛTS</text>
+            </g>
+            {/* Transfert risques (en-dessous) */}
+            <g>
+              <line x1={riskEndX} y1={TRACK_Y + 18} x2={riskEndX} y2={TRACK_Y + 50} stroke={ORANGE} strokeWidth="2" strokeDasharray="3 2" />
+              <circle cx={riskEndX} cy={TRACK_Y + 50} r="4" fill={ORANGE} />
+              <text x={riskEndX} y={TRACK_Y + 63} textAnchor="middle" fontSize="9" fontFamily="JetBrains Mono, monospace" fill={ORANGE} fontWeight="700">↓ FIN RISQUES</text>
+            </g>
+          </>
+        )}
+
+        {/* Étapes (pictos + labels) */}
+        {SUPPLY_CHAIN_STEPS.map((step, i) => {
+          const x = stepX(i);
+          return (
+            <g key={step.id}>
+              <circle cx={x} cy={TRACK_Y} r="6" fill="#FFFFFF" stroke="#475569" strokeWidth="1.5" />
+              <text x={x} y={TRACK_Y + 80} textAnchor="middle" fontSize="9" fontFamily="JetBrains Mono, monospace" fill="#475569" fontWeight="500">
+                {step.short}
+              </text>
+              {i === 0 && (
+                <text x={x} y={TRACK_Y + 92} textAnchor="middle" fontSize="8" fontFamily="JetBrains Mono, monospace" fill="#94A3B8">départ</text>
+              )}
+              {i === STEP_COUNT - 1 && (
+                <text x={x} y={TRACK_Y + 92} textAnchor="middle" fontSize="8" fontFamily="JetBrains Mono, monospace" fill="#94A3B8">arrivée</text>
+              )}
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
+// Tableau "qui paie quoi" avec une colonne par incoterm
+function ObligationsTable({ incoterms, compact = false }) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-xs">
+        <thead>
+          <tr className="border-b border-slate-200 bg-slate-50/50">
+            <th className="px-3 py-2.5 text-left font-jetbrains text-[10px] tracking-wider text-slate-500">OBLIGATION</th>
+            {incoterms.map(it => (
+              <th key={it.code} className="px-3 py-2.5 text-center font-jetbrains text-[10px] tracking-wider" style={{ color: BLUE }}>
+                {it.code}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {OBLIGATIONS.map(ob => (
+            <tr key={ob.key} className="border-b border-slate-100">
+              <td className="px-3 py-2">
+                <div className="font-medium text-slate-800 text-[12px]">{ob.label}</div>
+                {!compact && <div className="font-jetbrains text-[9px] text-slate-400 mt-0.5">{ob.hint}</div>}
+              </td>
+              {incoterms.map(it => {
+                const who = it.obligations[ob.key];
+                const isSeller = who === 'seller';
+                return (
+                  <td key={it.code} className="px-3 py-2 text-center">
+                    <span
+                      className="inline-flex items-center justify-center w-7 h-7 rounded-full font-jetbrains text-[10px] font-bold"
+                      style={isSeller
+                        ? { background: BLUE_LIGHT, color: BLUE, border: `1.5px solid ${BLUE}` }
+                        : { background: ORANGE_LIGHT, color: ORANGE, border: `1.5px solid ${ORANGE}` }}
+                      title={isSeller ? 'Vendeur' : 'Acheteur'}
+                    >
+                      {isSeller ? 'V' : 'A'}
+                    </span>
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div className="px-3 py-2 border-t border-slate-100 bg-slate-50 flex items-center justify-end gap-4 font-jetbrains text-[10px] text-slate-500">
+        <span className="flex items-center gap-1.5">
+          <span className="inline-flex items-center justify-center w-5 h-5 rounded-full text-[9px] font-bold" style={{ background: BLUE_LIGHT, color: BLUE, border: `1.5px solid ${BLUE}` }}>V</span>
+          à charge du vendeur
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="inline-flex items-center justify-center w-5 h-5 rounded-full text-[9px] font-bold" style={{ background: ORANGE_LIGHT, color: ORANGE, border: `1.5px solid ${ORANGE}` }}>A</span>
+          à charge de l'acheteur
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// CMR / eCMR · Générateur de lettres de voiture internationale
+// Convention de Genève 19/05/1956 + Protocole additionnel eCMR
+// ============================================================
+
+const CMR_COUNTRIES = [
+  'FR', 'BE', 'NL', 'DE', 'IT', 'ES', 'PT', 'LU', 'CH', 'AT',
+  'PL', 'CZ', 'SK', 'HU', 'RO', 'BG', 'GR', 'DK', 'SE', 'FI',
+  'NO', 'IE', 'GB', 'TR', 'MA', 'TN', 'DZ', 'RU', 'UA', 'BA',
+  'HR', 'SI', 'RS', 'EE', 'LV', 'LT', 'MD', 'MK', 'AL', 'CY',
+];
+
+const EMPTY_PARTY = () => ({
+  name: '', address: '', postalCode: '', city: '', country: 'FR', contact: '',
+});
+
+const EMPTY_GOODS_ROW = () => ({
+  id: 'g-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+  marks: '', packages: '', packaging: '', nature: '',
+  statisticalNumber: '', grossWeight: '', volume: '',
+});
+
+const generateCmrNumber = () => {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const rand = String(Math.floor(Math.random() * 1000)).padStart(3, '0');
+  return `ATL-CMR-${y}${m}${day}-${rand}`;
+};
+
+const todayIso = () => new Date().toISOString().slice(0, 10);
+
+const ADDRESS_BOOK_KEY = 'atelier-cmr-addressbook-v1';
+
+function loadAddressBook() {
+  try {
+    const raw = localStorage.getItem(ADDRESS_BOOK_KEY);
+    if (!raw) return { senders: [], receivers: [], carriers: [] };
+    const parsed = JSON.parse(raw);
+    return {
+      senders: Array.isArray(parsed.senders) ? parsed.senders : [],
+      receivers: Array.isArray(parsed.receivers) ? parsed.receivers : [],
+      carriers: Array.isArray(parsed.carriers) ? parsed.carriers : [],
+    };
+  } catch {
+    return { senders: [], receivers: [], carriers: [] };
+  }
+}
+
+function saveAddressBook(book) {
+  try { localStorage.setItem(ADDRESS_BOOK_KEY, JSON.stringify(book)); }
+  catch { /* localStorage full or unavailable */ }
+}
+
+function CmrGenerator({ onBack }) {
+  const [mode, setMode] = useState('standard'); // 'standard' | 'electronic'
+
+  // États CMR (24 cases)
+  const [cmrNumber, setCmrNumber] = useState(generateCmrNumber);
+  const [sender, setSender] = useState(EMPTY_PARTY());        // case 1
+  const [receiver, setReceiver] = useState(EMPTY_PARTY());    // case 2
+  const [deliveryPlace, setDeliveryPlace] = useState({ place: '', country: 'FR' }); // case 3
+  const [pickupPlace, setPickupPlace] = useState({ place: '', country: 'FR', date: todayIso() }); // case 4
+  const [attachedDocs, setAttachedDocs] = useState('');       // case 5
+  const [goods, setGoods] = useState([EMPTY_GOODS_ROW()]);    // cases 6-12
+  const [senderInstructions, setSenderInstructions] = useState(''); // case 13
+  const [freightPayment, setFreightPayment] = useState('Franco'); // case 14
+  const [codAmount, setCodAmount] = useState('');             // case 15
+  const [carrier, setCarrier] = useState(EMPTY_PARTY());      // case 16
+  const [successiveCarriers, setSuccessiveCarriers] = useState(''); // case 17
+  const [reservations, setReservations] = useState('');       // case 18
+  const [specialAgreements, setSpecialAgreements] = useState(''); // case 19
+  // case 20 (charges) : tableau payeur / montant
+  const [charges, setCharges] = useState([
+    { id: 'c1', label: 'Prix de transport', sender: '', receiver: '' },
+    { id: 'c2', label: 'Réductions', sender: '', receiver: '' },
+    { id: 'c3', label: 'Suppléments', sender: '', receiver: '' },
+    { id: 'c4', label: 'Frais accessoires', sender: '', receiver: '' },
+  ]);
+  const [currency, setCurrency] = useState('EUR');
+  const [issuedAt, setIssuedAt] = useState('');               // case 21 lieu
+  const [issuedDate, setIssuedDate] = useState(todayIso());   // case 21 date
+
+  // Carnet d'adresses
+  const [addressBook, setAddressBook] = useState(loadAddressBook);
+  const [savedToast, setSavedToast] = useState(null);
+
+  // jsPDF loading
+  const [pdfLibReady, setPdfLibReady] = useState(false);
+  useEffect(() => {
+    if (window.jspdf) { setPdfLibReady(true); return; }
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js';
+    s.onload = () => setPdfLibReady(true);
+    s.onerror = () => setPdfLibReady(false);
+    document.head.appendChild(s);
+  }, []);
+
+  // bwip-js loading for QR code (mode eCMR)
+  const [bwipReady, setBwipReady] = useState(false);
+  useEffect(() => {
+    if (window.bwipjs) { setBwipReady(true); return; }
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/bwip-js@4.5.2/dist/bwip-js-min.js';
+    s.onload = () => setBwipReady(true);
+    s.onerror = () => setBwipReady(false);
+    document.head.appendChild(s);
+  }, []);
+
+  const updateGoodsRow = (id, key, val) => {
+    setGoods(rs => rs.map(r => r.id === id ? { ...r, [key]: val } : r));
+  };
+  const addGoodsRow = () => setGoods(rs => [...rs, EMPTY_GOODS_ROW()]);
+  const removeGoodsRow = (id) => setGoods(rs => rs.length > 1 ? rs.filter(r => r.id !== id) : rs);
+
+  const updateCharge = (id, key, val) => {
+    setCharges(cs => cs.map(c => c.id === id ? { ...c, [key]: val } : c));
+  };
+
+  // Carnet
+  const saveToBook = (type) => {
+    const party = type === 'sender' ? sender : type === 'receiver' ? receiver : carrier;
+    if (!party.name.trim()) {
+      setSavedToast({ type: 'error', text: 'Renseignez au moins le nom avant de sauvegarder' });
+      setTimeout(() => setSavedToast(null), 3000);
+      return;
+    }
+    const key = type === 'sender' ? 'senders' : type === 'receiver' ? 'receivers' : 'carriers';
+    const entry = { ...party, id: 'pb-' + Date.now() };
+    const newBook = { ...addressBook, [key]: [...addressBook[key].filter(e => e.name !== party.name), entry] };
+    setAddressBook(newBook);
+    saveAddressBook(newBook);
+    setSavedToast({ type: 'success', text: `« ${party.name} » ajouté au carnet d'adresses` });
+    setTimeout(() => setSavedToast(null), 3000);
+  };
+
+  const loadFromBook = (type, id) => {
+    const key = type === 'sender' ? 'senders' : type === 'receiver' ? 'receivers' : 'carriers';
+    const entry = addressBook[key].find(e => e.id === id);
+    if (!entry) return;
+    const { id: _, ...rest } = entry;
+    if (type === 'sender') setSender(rest);
+    else if (type === 'receiver') setReceiver(rest);
+    else setCarrier(rest);
+  };
+
+  const deleteFromBook = (type, id) => {
+    const key = type === 'sender' ? 'senders' : type === 'receiver' ? 'receivers' : 'carriers';
+    const newBook = { ...addressBook, [key]: addressBook[key].filter(e => e.id !== id) };
+    setAddressBook(newBook);
+    saveAddressBook(newBook);
+  };
+
+  // Validation light
+  const validation = useMemo(() => {
+    const issues = [];
+    if (!sender.name.trim()) issues.push('Expéditeur sans nom');
+    if (!receiver.name.trim()) issues.push('Destinataire sans nom');
+    if (!carrier.name.trim()) issues.push('Transporteur sans nom');
+    if (!pickupPlace.place.trim()) issues.push('Lieu de prise en charge manquant');
+    if (!deliveryPlace.place.trim()) issues.push('Lieu de livraison manquant');
+    const filled = goods.filter(g => g.nature.trim() || g.packages.trim());
+    if (filled.length === 0) issues.push('Aucune marchandise renseignée');
+    return { issues, ready: issues.length === 0 };
+  }, [sender, receiver, carrier, pickupPlace, deliveryPlace, goods]);
+
+  // ============ Génération PDF ============
+  const generatePdf = async (action = 'download') => {
+    if (!pdfLibReady) return;
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    const W = 297, H = 210;
+    const M = 8; // marge
+    const cw = W - 2 * M; // largeur utile = 281mm
+
+    let y = M;
+
+    // ===== HEADER =====
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text('LETTRE DE VOITURE INTERNATIONALE', W / 2, y + 4, { align: 'center' });
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Convention relative au contrat de transport international de marchandises par route (CMR) — Genève, 19 mai 1956', W / 2, y + 7.5, { align: 'center' });
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.text('CMR', M, y + 6);
+    if (mode === 'electronic') {
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'normal');
+      doc.text('e-CMR · Protocole additionnel 2008', M, y + 9.5);
+    }
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.text(`N° ${cmrNumber}`, W - M, y + 4, { align: 'right' });
+    doc.text(`Date : ${issuedDate}`, W - M, y + 8, { align: 'right' });
+
+    y += 12;
+
+    // ===== ROW : Parties (1, 16, 2) =====
+    const colW = cw / 3;
+    const partyH = 32;
+    drawBox(doc, M, y, colW, partyH, '1', 'Expéditeur (nom, adresse, pays)', formatParty(sender));
+    drawBox(doc, M + colW, y, colW, partyH, '16', 'Transporteur (nom, adresse, pays)', formatParty(carrier));
+    drawBox(doc, M + 2 * colW, y, colW, partyH, '2', 'Destinataire (nom, adresse, pays)', formatParty(receiver));
+    y += partyH;
+
+    // ===== ROW : Lieux (3, 4, 17) =====
+    const placeH = 20;
+    drawBox(doc, M, y, colW, placeH, '3', 'Lieu prévu pour la livraison',
+      `${deliveryPlace.place || ''}${deliveryPlace.country ? '\nPays : ' + deliveryPlace.country : ''}`);
+    drawBox(doc, M + colW, y, colW, placeH, '4', 'Lieu et date de la prise en charge',
+      `${pickupPlace.place || ''}${pickupPlace.country ? '\nPays : ' + pickupPlace.country : ''}${pickupPlace.date ? '\nDate : ' + pickupPlace.date : ''}`);
+    drawBox(doc, M + 2 * colW, y, colW, placeH, '17', 'Transporteurs successifs', successiveCarriers);
+    y += placeH;
+
+    // ===== Case 5 : Documents annexés =====
+    const docsH = 7;
+    drawBox(doc, M, y, cw, docsH, '5', 'Documents annexés', attachedDocs, 7);
+    y += docsH;
+
+    // ===== Tableau marchandises (6 à 12) =====
+    const goodsHeaderH = 8;
+    const goodsRowH = 5;
+    const filledGoods = goods.filter(g => g.nature.trim() || g.packages.trim() || g.marks.trim());
+    const goodsRowsCount = Math.max(filledGoods.length, 3);
+    const goodsTableH = goodsHeaderH + goodsRowsCount * goodsRowH;
+
+    // En-têtes
+    const colWidths = [40, 25, 28, 75, 30, 35, 25, 23];
+    const colNumbers = ['6', '7', '8', '9', '10', '11', '12', ''];
+    const colLabels = ['Marques & N°', 'Nbre colis', 'Mode emballage', 'Nature de la marchandise', 'N° statistique', 'Poids brut (kg)', 'Vol. (m³)', ''];
+    let cx = M;
+    for (let i = 0; i < 7; i++) {
+      const cwd = colWidths[i] * (cw / colWidths.slice(0, 7).reduce((a, b) => a + b, 0));
+      doc.rect(cx, y, cwd, goodsHeaderH);
+      doc.setFontSize(6);
+      doc.setFont('helvetica', 'bold');
+      doc.text(colNumbers[i], cx + 1.5, y + 2.5);
+      doc.setFont('helvetica', 'normal');
+      doc.text(colLabels[i], cx + 4, y + 2.5);
+      cx += cwd;
+    }
+
+    // Lignes marchandises
+    const totalGoodsW = colWidths.slice(0, 7).reduce((a, b) => a + b, 0);
+    for (let r = 0; r < goodsRowsCount; r++) {
+      const row = filledGoods[r] || {};
+      let cx2 = M;
+      const values = [row.marks || '', row.packages || '', row.packaging || '', row.nature || '', row.statisticalNumber || '', row.grossWeight || '', row.volume || ''];
+      for (let i = 0; i < 7; i++) {
+        const cwd = colWidths[i] * (cw / totalGoodsW);
+        doc.rect(cx2, y + goodsHeaderH + r * goodsRowH, cwd, goodsRowH);
+        doc.setFontSize(7);
+        doc.setFont('helvetica', 'normal');
+        const txt = doc.splitTextToSize(String(values[i]), cwd - 2);
+        doc.text(txt[0] || '', cx2 + 1, y + goodsHeaderH + r * goodsRowH + 3.3);
+        cx2 += cwd;
+      }
+    }
+    y += goodsTableH;
+
+    // ===== Cases 13, 14, 15 =====
+    const instrH = 14;
+    const w13 = cw * 0.5, w14 = cw * 0.25, w15 = cw * 0.25;
+    drawBox(doc, M, y, w13, instrH, '13', "Instructions de l'expéditeur (douanes, autres)", senderInstructions, 7);
+    drawBox(doc, M + w13, y, w14, instrH, '14', "Prescriptions d'affranchissement", freightPayment, 7);
+    drawBox(doc, M + w13 + w14, y, w15, instrH, '15', 'Remboursement', codAmount ? `${codAmount} ${currency}` : '', 7);
+    y += instrH;
+
+    // ===== Cases 18, 19 =====
+    const obsH = 12;
+    drawBox(doc, M, y, cw / 2, obsH, '18', 'Réserves et observations du transporteur', reservations, 7);
+    drawBox(doc, M + cw / 2, y, cw / 2, obsH, '19', 'Conventions particulières', specialAgreements, 7);
+    y += obsH;
+
+    // ===== Case 20 : Charges =====
+    const chargesHeaderH = 5;
+    const chargesRowH = 5;
+    const chargesH = chargesHeaderH + charges.length * chargesRowH + chargesRowH; // + ligne total
+    const ccol = [cw * 0.55, cw * 0.2, cw * 0.2, cw * 0.05];
+
+    doc.rect(M, y, cw, chargesHeaderH);
+    doc.setFontSize(6);
+    doc.setFont('helvetica', 'bold');
+    doc.text('20', M + 1.5, y + 2.5);
+    doc.text('À payer par :', M + 4, y + 2.5);
+    let cx3 = M + ccol[0];
+    doc.rect(cx3, y, ccol[1], chargesHeaderH);
+    doc.text('Expéditeur', cx3 + 1, y + 2.5);
+    cx3 += ccol[1];
+    doc.rect(cx3, y, ccol[2], chargesHeaderH);
+    doc.text('Destinataire', cx3 + 1, y + 2.5);
+    cx3 += ccol[2];
+    doc.rect(cx3, y, ccol[3], chargesHeaderH);
+    doc.text(currency, cx3 + 1, y + 2.5);
+
+    // Lignes
+    let sumSender = 0, sumReceiver = 0;
+    charges.forEach((c, i) => {
+      const ry = y + chargesHeaderH + i * chargesRowH;
+      doc.rect(M, ry, ccol[0], chargesRowH);
+      doc.rect(M + ccol[0], ry, ccol[1], chargesRowH);
+      doc.rect(M + ccol[0] + ccol[1], ry, ccol[2], chargesRowH);
+      doc.rect(M + ccol[0] + ccol[1] + ccol[2], ry, ccol[3], chargesRowH);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7);
+      doc.text(c.label, M + 4, ry + 3.3);
+      if (c.sender) { doc.text(String(c.sender), M + ccol[0] + ccol[1] - 1, ry + 3.3, { align: 'right' }); sumSender += parseFloat(c.sender) || 0; }
+      if (c.receiver) { doc.text(String(c.receiver), M + ccol[0] + ccol[1] + ccol[2] - 1, ry + 3.3, { align: 'right' }); sumReceiver += parseFloat(c.receiver) || 0; }
+    });
+    // Total
+    const ty = y + chargesHeaderH + charges.length * chargesRowH;
+    doc.setDrawColor(0); doc.setFillColor(245, 245, 245);
+    doc.rect(M, ty, ccol[0], chargesRowH, 'FD');
+    doc.rect(M + ccol[0], ty, ccol[1], chargesRowH, 'FD');
+    doc.rect(M + ccol[0] + ccol[1], ty, ccol[2], chargesRowH, 'FD');
+    doc.rect(M + ccol[0] + ccol[1] + ccol[2], ty, ccol[3], chargesRowH, 'FD');
+    doc.setFont('helvetica', 'bold');
+    doc.text('Total', M + 4, ty + 3.3);
+    if (sumSender > 0) doc.text(sumSender.toFixed(2), M + ccol[0] + ccol[1] - 1, ty + 3.3, { align: 'right' });
+    if (sumReceiver > 0) doc.text(sumReceiver.toFixed(2), M + ccol[0] + ccol[1] + ccol[2] - 1, ty + 3.3, { align: 'right' });
+    y += chargesH;
+
+    // ===== Case 21 : Établie =====
+    const issuedH = 6;
+    drawBox(doc, M, y, cw, issuedH, '21', `Établie à : ${issuedAt || '____________'}      Le : ${issuedDate || '__________'}`, '', 7);
+    y += issuedH;
+
+    // ===== Signatures (22, 23, 24) + QR =====
+    const sigH = H - M - y - 2;
+    const sigW = mode === 'electronic' ? cw * 0.7 / 3 : cw / 3;
+    drawBox(doc, M, y, sigW, sigH, '22', "Signature et timbre de l'expéditeur", '', 7);
+    drawBox(doc, M + sigW, y, sigW, sigH, '23', 'Signature et timbre du transporteur', '', 7);
+    drawBox(doc, M + 2 * sigW, y, sigW, sigH, '24', 'Signature et timbre du destinataire', '', 7);
+
+    if (mode === 'electronic') {
+      const qrX = M + 3 * sigW;
+      const qrW = cw * 0.3;
+      doc.rect(qrX, y, qrW, sigH);
+      doc.setFontSize(6);
+      doc.setFont('helvetica', 'bold');
+      doc.text('eCMR', qrX + 1.5, y + 2.5);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7);
+      doc.text('Document électronique', qrX + 1.5, y + 6);
+      doc.text(`ID : ${cmrNumber}`, qrX + 1.5, y + 9.5);
+      doc.text(`Émis : ${new Date().toLocaleString('fr-FR')}`, qrX + 1.5, y + 13);
+      doc.setFontSize(6);
+      doc.text('Vérifiable via QR code', qrX + 1.5, y + 16.5);
+
+      // Générer le QR code
+      if (bwipReady && window.bwipjs) {
+        try {
+          const canvas = document.createElement('canvas');
+          window.bwipjs.toCanvas(canvas, {
+            bcid: 'qrcode',
+            text: JSON.stringify({ id: cmrNumber, sender: sender.name, receiver: receiver.name, date: issuedDate }),
+            scale: 4,
+            includetext: false,
+          });
+          const dataUrl = canvas.toDataURL('image/png');
+          const qrSize = Math.min(sigH - 8, qrW - 3);
+          doc.addImage(dataUrl, 'PNG', qrX + qrW - qrSize - 2, y + sigH - qrSize - 2, qrSize, qrSize);
+        } catch (e) { /* QR generation failed silently */ }
+      }
+    }
+
+    // Bottom mentions
+    doc.setFontSize(5.5);
+    doc.setTextColor(120);
+    doc.text(`Document généré par Atelier Logistique — BARKco · ${new Date().toLocaleString('fr-FR')}`, M, H - 2);
+    doc.setTextColor(0);
+
+    if (action === 'print') {
+      doc.autoPrint();
+      const blob = doc.output('blob');
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+    } else if (action === 'open') {
+      const blob = doc.output('blob');
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+    } else {
+      doc.save(`${cmrNumber}.pdf`);
+    }
+  };
+
+  const exportJson = () => {
+    const payload = {
+      mode, cmrNumber, sender, receiver, carrier,
+      pickupPlace, deliveryPlace, attachedDocs, goods,
+      senderInstructions, freightPayment, codAmount, currency,
+      successiveCarriers, reservations, specialAgreements,
+      charges, issuedAt, issuedDate,
+      emittedAt: new Date().toISOString(),
+      protocol: mode === 'electronic' ? 'eCMR Additional Protocol 2008' : 'CMR Geneva 1956',
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `${cmrNumber}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const resetForm = () => {
+    if (!window.confirm('Réinitialiser tous les champs ?')) return;
+    setCmrNumber(generateCmrNumber());
+    setSender(EMPTY_PARTY()); setReceiver(EMPTY_PARTY()); setCarrier(EMPTY_PARTY());
+    setPickupPlace({ place: '', country: 'FR', date: todayIso() });
+    setDeliveryPlace({ place: '', country: 'FR' });
+    setAttachedDocs(''); setGoods([EMPTY_GOODS_ROW()]);
+    setSenderInstructions(''); setFreightPayment('Franco'); setCodAmount('');
+    setSuccessiveCarriers(''); setReservations(''); setSpecialAgreements('');
+    setCharges([
+      { id: 'c1', label: 'Prix de transport', sender: '', receiver: '' },
+      { id: 'c2', label: 'Réductions', sender: '', receiver: '' },
+      { id: 'c3', label: 'Suppléments', sender: '', receiver: '' },
+      { id: 'c4', label: 'Frais accessoires', sender: '', receiver: '' },
+    ]);
+    setIssuedAt(''); setIssuedDate(todayIso());
+  };
+
+  const totalWeight = useMemo(() => {
+    return goods.reduce((sum, g) => sum + (parseFloat(g.grossWeight) || 0), 0);
+  }, [goods]);
+  const totalVolume = useMemo(() => {
+    return goods.reduce((sum, g) => sum + (parseFloat(g.volume) || 0), 0);
+  }, [goods]);
+
+  return (
+    <div className="min-h-screen text-slate-900" style={{ background: '#F8FAFC', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+      <FontsAndStyles />
+
+      <nav className="border-b border-slate-200 bg-white sticky top-0 z-20">
+        <div className="max-w-[1600px] mx-auto px-6 py-4 flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-5">
+            <button onClick={onBack} className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors font-jetbrains text-xs">
+              <ArrowLeft size={14} />
+              RETOUR
+            </button>
+            <div className="w-px h-5 bg-slate-200" />
+            <div className="flex items-center gap-3">
+              <Logo small />
+              <div>
+                <div className="font-bricolage font-semibold text-sm leading-tight text-slate-900">Lettre de voiture CMR / eCMR</div>
+                <div className="font-jetbrains text-[10px] text-slate-500">ATELIER / 06</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-1 p-1 rounded-lg border border-slate-200 bg-slate-50">
+              <button onClick={() => setMode('standard')}
+                className="px-3 py-1.5 rounded-md font-jetbrains text-xs transition-all"
+                style={mode === 'standard'
+                  ? { background: '#FFFFFF', color: BLUE, fontWeight: 600, boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }
+                  : { color: '#64748B' }}>
+                CMR PAPIER
+              </button>
+              <button onClick={() => setMode('electronic')}
+                className="px-3 py-1.5 rounded-md font-jetbrains text-xs transition-all flex items-center gap-1.5"
+                style={mode === 'electronic'
+                  ? { background: '#FFFFFF', color: BLUE, fontWeight: 600, boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }
+                  : { color: '#64748B' }}>
+                eCMR
+                {mode === 'electronic' && <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: BLUE }} />}
+              </button>
+            </div>
+            <button onClick={() => generatePdf('download')} disabled={!pdfLibReady || !validation.ready}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-md font-jetbrains text-xs font-semibold text-white shadow-sm transition-all hover:translate-y-[-1px] disabled:opacity-40 disabled:cursor-not-allowed"
+              style={{ background: BLUE }} title={!validation.ready ? 'Complétez les champs obligatoires' : 'Télécharger PDF'}>
+              <Download size={13} />
+              TÉLÉCHARGER PDF
+            </button>
+          </div>
+        </div>
+      </nav>
+
+      <div className="max-w-[1600px] mx-auto px-6 py-6 grid grid-cols-1 lg:grid-cols-12 gap-5">
+
+        {/* COLONNE GAUCHE : FORMULAIRE */}
+        <div className="lg:col-span-8 space-y-4">
+
+          {/* Numéro + dates */}
+          <div className="rounded-xl border border-slate-200 bg-white p-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div>
+                <label className="font-jetbrains text-[10px] text-slate-500 tracking-wider mb-1.5 block">N° CMR</label>
+                <input value={cmrNumber} onChange={e => setCmrNumber(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-md outline-none font-jetbrains text-sm focus:border-blue-400 transition-colors" />
+              </div>
+              <div>
+                <label className="font-jetbrains text-[10px] text-slate-500 tracking-wider mb-1.5 block">DATE D'ÉMISSION</label>
+                <input type="date" value={issuedDate} onChange={e => setIssuedDate(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-md outline-none font-jetbrains text-sm focus:border-blue-400 transition-colors" />
+              </div>
+              <div>
+                <label className="font-jetbrains text-[10px] text-slate-500 tracking-wider mb-1.5 block">LIEU D'ÉMISSION (case 21)</label>
+                <input value={issuedAt} onChange={e => setIssuedAt(e.target.value)} placeholder="ex : Casablanca"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-md outline-none text-sm focus:border-blue-400 transition-colors" />
+              </div>
+            </div>
+          </div>
+
+          {/* PARTIES */}
+          <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+            <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 font-jetbrains text-xs text-slate-600">PARTIES (cases 1, 2, 16)</div>
+            <div className="p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+              <PartyForm label="1. Expéditeur" tone="sender" party={sender} setParty={setSender}
+                book={addressBook.senders} onLoadBook={(id) => loadFromBook('sender', id)} onSaveBook={() => saveToBook('sender')} onDeleteBook={(id) => deleteFromBook('sender', id)} />
+              <PartyForm label="16. Transporteur" tone="carrier" party={carrier} setParty={setCarrier}
+                book={addressBook.carriers} onLoadBook={(id) => loadFromBook('carrier', id)} onSaveBook={() => saveToBook('carrier')} onDeleteBook={(id) => deleteFromBook('carrier', id)} />
+              <PartyForm label="2. Destinataire" tone="receiver" party={receiver} setParty={setReceiver}
+                book={addressBook.receivers} onLoadBook={(id) => loadFromBook('receiver', id)} onSaveBook={() => saveToBook('receiver')} onDeleteBook={(id) => deleteFromBook('receiver', id)} />
+            </div>
+          </div>
+
+          {/* TRAJET */}
+          <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+            <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 font-jetbrains text-xs text-slate-600">TRAJET (cases 3, 4)</div>
+            <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <div className="font-jetbrains text-[10px] text-slate-500 tracking-wider mb-2">4. PRISE EN CHARGE</div>
+                <div className="space-y-2">
+                  <input value={pickupPlace.place} onChange={e => setPickupPlace(p => ({ ...p, place: e.target.value }))} placeholder="Lieu (ville, adresse)"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-md outline-none text-sm focus:border-blue-400 transition-colors" />
+                  <div className="grid grid-cols-2 gap-2">
+                    <select value={pickupPlace.country} onChange={e => setPickupPlace(p => ({ ...p, country: e.target.value }))}
+                      className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-md outline-none font-jetbrains text-sm">
+                      {CMR_COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                    <input type="date" value={pickupPlace.date} onChange={e => setPickupPlace(p => ({ ...p, date: e.target.value }))}
+                      className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-md outline-none font-jetbrains text-sm" />
+                  </div>
+                </div>
+              </div>
+              <div>
+                <div className="font-jetbrains text-[10px] text-slate-500 tracking-wider mb-2">3. LIVRAISON</div>
+                <div className="space-y-2">
+                  <input value={deliveryPlace.place} onChange={e => setDeliveryPlace(p => ({ ...p, place: e.target.value }))} placeholder="Lieu (ville, adresse)"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-md outline-none text-sm focus:border-blue-400 transition-colors" />
+                  <select value={deliveryPlace.country} onChange={e => setDeliveryPlace(p => ({ ...p, country: e.target.value }))}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-md outline-none font-jetbrains text-sm">
+                    {CMR_COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* MARCHANDISES */}
+          <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+            <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+              <div className="font-jetbrains text-xs text-slate-600">MARCHANDISES (cases 6 à 12)</div>
+              <div className="font-jetbrains text-[10px] text-slate-500">
+                Poids total : <span className="font-semibold text-slate-700">{totalWeight.toLocaleString('fr-FR')} kg</span>
+                <span className="mx-2">·</span>
+                Volume : <span className="font-semibold text-slate-700">{totalVolume.toLocaleString('fr-FR')} m³</span>
+              </div>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50/30">
+                    <Th>6. Marques & n°</Th>
+                    <Th className="text-right">7. Colis</Th>
+                    <Th>8. Emballage</Th>
+                    <Th>9. Nature</Th>
+                    <Th>10. N° statistique</Th>
+                    <Th className="text-right">11. Poids brut (kg)</Th>
+                    <Th className="text-right">12. Vol (m³)</Th>
+                    <Th></Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {goods.map(g => (
+                    <tr key={g.id} className="border-b border-slate-100">
+                      <Td><CellInput value={g.marks} onChange={v => updateGoodsRow(g.id, 'marks', v)} /></Td>
+                      <Td><CellInput value={g.packages} onChange={v => updateGoodsRow(g.id, 'packages', v)} type="number" align="right" mono /></Td>
+                      <Td><CellInput value={g.packaging} onChange={v => updateGoodsRow(g.id, 'packaging', v)} /></Td>
+                      <Td><CellInput value={g.nature} onChange={v => updateGoodsRow(g.id, 'nature', v)} /></Td>
+                      <Td><CellInput value={g.statisticalNumber} onChange={v => updateGoodsRow(g.id, 'statisticalNumber', v)} mono /></Td>
+                      <Td><CellInput value={g.grossWeight} onChange={v => updateGoodsRow(g.id, 'grossWeight', v)} type="number" align="right" mono step="0.1" /></Td>
+                      <Td><CellInput value={g.volume} onChange={v => updateGoodsRow(g.id, 'volume', v)} type="number" align="right" mono step="0.01" /></Td>
+                      <Td>
+                        <button onClick={() => removeGoodsRow(g.id)} className="p-1 text-slate-400 hover:text-red-600 transition-colors" disabled={goods.length === 1} title="Supprimer">×</button>
+                      </Td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="px-4 py-3 border-t border-slate-100 bg-slate-50/30">
+              <button onClick={addGoodsRow} className="font-jetbrains text-xs text-slate-700 hover:text-slate-900 transition-colors">
+                + AJOUTER UNE LIGNE
+              </button>
+            </div>
+          </div>
+
+          {/* DOCS & INSTRUCTIONS */}
+          <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+            <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 font-jetbrains text-xs text-slate-600">DOCUMENTS & INSTRUCTIONS (cases 5, 13, 14, 15)</div>
+            <div className="p-4 space-y-3">
+              <div>
+                <label className="font-jetbrains text-[10px] text-slate-500 tracking-wider mb-1.5 block">5. DOCUMENTS ANNEXÉS</label>
+                <textarea rows="2" value={attachedDocs} onChange={e => setAttachedDocs(e.target.value)} placeholder="ex : facture commerciale n°2026-001, certificat d'origine, packing list"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-md outline-none text-sm focus:border-blue-400 transition-colors resize-none" />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div>
+                  <label className="font-jetbrains text-[10px] text-slate-500 tracking-wider mb-1.5 block">13. INSTRUCTIONS EXPÉDITEUR</label>
+                  <textarea rows="3" value={senderInstructions} onChange={e => setSenderInstructions(e.target.value)} placeholder="Instructions douane, manipulation, etc."
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-md outline-none text-sm focus:border-blue-400 transition-colors resize-none" />
+                </div>
+                <div>
+                  <label className="font-jetbrains text-[10px] text-slate-500 tracking-wider mb-1.5 block">14. AFFRANCHISSEMENT</label>
+                  <select value={freightPayment} onChange={e => setFreightPayment(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-md outline-none text-sm focus:border-blue-400 transition-colors">
+                    <option value="Franco">Franco</option>
+                    <option value="Non franco">Non franco</option>
+                    <option value="Port dû">Port dû</option>
+                    <option value="Port payé">Port payé</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="font-jetbrains text-[10px] text-slate-500 tracking-wider mb-1.5 block">15. REMBOURSEMENT (montant)</label>
+                  <div className="flex gap-2">
+                    <input value={codAmount} onChange={e => setCodAmount(e.target.value)} type="number" step="0.01" placeholder="0.00"
+                      className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-md outline-none font-jetbrains text-sm focus:border-blue-400 transition-colors" />
+                    <select value={currency} onChange={e => setCurrency(e.target.value)}
+                      className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-md outline-none font-jetbrains text-sm">
+                      <option>EUR</option><option>USD</option><option>MAD</option><option>GBP</option><option>CHF</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* SUCCESSEURS & RÉSERVES */}
+          <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+            <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 font-jetbrains text-xs text-slate-600">TRANSPORTEURS & OBSERVATIONS (cases 17, 18, 19)</div>
+            <div className="p-4 grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div>
+                <label className="font-jetbrains text-[10px] text-slate-500 tracking-wider mb-1.5 block">17. TRANSPORTEURS SUCCESSIFS</label>
+                <textarea rows="3" value={successiveCarriers} onChange={e => setSuccessiveCarriers(e.target.value)} placeholder="Si plusieurs transporteurs interviennent"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-md outline-none text-sm focus:border-blue-400 transition-colors resize-none" />
+              </div>
+              <div>
+                <label className="font-jetbrains text-[10px] text-slate-500 tracking-wider mb-1.5 block">18. RÉSERVES DU TRANSPORTEUR</label>
+                <textarea rows="3" value={reservations} onChange={e => setReservations(e.target.value)} placeholder="État apparent, emballage, etc."
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-md outline-none text-sm focus:border-blue-400 transition-colors resize-none" />
+              </div>
+              <div>
+                <label className="font-jetbrains text-[10px] text-slate-500 tracking-wider mb-1.5 block">19. CONVENTIONS PARTICULIÈRES</label>
+                <textarea rows="3" value={specialAgreements} onChange={e => setSpecialAgreements(e.target.value)} placeholder="Accords spécifiques (température, délais, etc.)"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-md outline-none text-sm focus:border-blue-400 transition-colors resize-none" />
+              </div>
+            </div>
+          </div>
+
+          {/* CHARGES */}
+          <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+            <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 font-jetbrains text-xs text-slate-600">À PAYER PAR (case 20) — devise : {currency}</div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50/30">
+                    <Th>Catégorie</Th>
+                    <Th className="text-right">Expéditeur</Th>
+                    <Th className="text-right">Destinataire</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {charges.map(c => (
+                    <tr key={c.id} className="border-b border-slate-100">
+                      <Td className="text-slate-700">{c.label}</Td>
+                      <Td><CellInput value={c.sender} onChange={v => updateCharge(c.id, 'sender', v)} type="number" align="right" mono step="0.01" /></Td>
+                      <Td><CellInput value={c.receiver} onChange={v => updateCharge(c.id, 'receiver', v)} type="number" align="right" mono step="0.01" /></Td>
+                    </tr>
+                  ))}
+                  <tr className="bg-slate-50/50 font-semibold">
+                    <Td className="text-slate-800">Total</Td>
+                    <Td className="text-right font-jetbrains text-slate-800">
+                      {charges.reduce((s, c) => s + (parseFloat(c.sender) || 0), 0).toFixed(2)}
+                    </Td>
+                    <Td className="text-right font-jetbrains text-slate-800">
+                      {charges.reduce((s, c) => s + (parseFloat(c.receiver) || 0), 0).toFixed(2)}
+                    </Td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        {/* COLONNE DROITE : APERÇU + ACTIONS (sticky) */}
+        <div className="lg:col-span-4 space-y-4">
+          <div className="sticky top-[88px] space-y-4">
+
+            {/* Statut */}
+            <div className="rounded-xl border p-4" style={validation.ready
+              ? { borderColor: '#A7F3D0', background: '#ECFDF5' }
+              : { borderColor: '#FCD34D', background: '#FFFBEB' }}>
+              <div className="font-jetbrains text-[10px] tracking-wider font-semibold mb-2"
+                style={{ color: validation.ready ? '#065F46' : '#92400E' }}>
+                {validation.ready ? '✓ CMR PRÊTE' : `⚠ ${validation.issues.length} ÉLÉMENT${validation.issues.length > 1 ? 'S' : ''} MANQUANT${validation.issues.length > 1 ? 'S' : ''}`}
+              </div>
+              {validation.ready ? (
+                <div className="text-xs text-emerald-800">Tous les champs obligatoires sont renseignés. Vous pouvez générer le document.</div>
+              ) : (
+                <ul className="text-xs space-y-0.5 text-amber-800">
+                  {validation.issues.map((iss, i) => <li key={i}>· {iss}</li>)}
+                </ul>
+              )}
+            </div>
+
+            {/* Résumé */}
+            <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-2.5 text-xs">
+              <div className="font-jetbrains text-[10px] text-slate-500 tracking-wider mb-2">RÉSUMÉ</div>
+              <SummaryRow label="N°" value={cmrNumber} mono />
+              <SummaryRow label="Mode" value={mode === 'standard' ? 'CMR papier (4 exemplaires)' : 'eCMR électronique'} />
+              <SummaryRow label="Expéditeur" value={sender.name || '—'} />
+              <SummaryRow label="Destinataire" value={receiver.name || '—'} />
+              <SummaryRow label="Transporteur" value={carrier.name || '—'} />
+              <SummaryRow label="Trajet" value={
+                pickupPlace.place && deliveryPlace.place
+                  ? `${pickupPlace.place} (${pickupPlace.country}) → ${deliveryPlace.place} (${deliveryPlace.country})`
+                  : '—'
+              } />
+              <SummaryRow label="Marchandises" value={`${goods.filter(g => g.nature || g.marks).length} ligne(s) · ${totalWeight} kg`} />
+            </div>
+
+            {/* Actions */}
+            <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-2">
+              <div className="font-jetbrains text-[10px] text-slate-500 tracking-wider mb-2">ACTIONS</div>
+              <button onClick={() => generatePdf('open')} disabled={!pdfLibReady || !validation.ready}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-md font-jetbrains text-xs border border-slate-300 hover:bg-slate-50 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
+                <FileText size={13} />
+                APERÇU PDF (nouvel onglet)
+              </button>
+              <button onClick={() => generatePdf('print')} disabled={!pdfLibReady || !validation.ready}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-md font-jetbrains text-xs border border-slate-300 hover:bg-slate-50 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
+                IMPRIMER
+              </button>
+              <button onClick={exportJson}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-md font-jetbrains text-xs border border-slate-300 hover:bg-slate-50 transition-all">
+                <Download size={13} />
+                EXPORTER JSON (intégration TMS)
+              </button>
+              <button onClick={resetForm}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-md font-jetbrains text-xs text-red-600 border border-red-200 hover:bg-red-50 transition-all">
+                RÉINITIALISER
+              </button>
+              {!pdfLibReady && (
+                <div className="text-[10px] text-slate-500 text-center pt-1">Chargement de la librairie PDF…</div>
+              )}
+            </div>
+
+            {/* Info mode */}
+            <div className="rounded-xl border border-slate-200 p-4 text-xs leading-relaxed text-slate-600" style={{ background: BLUE_LIGHT, borderColor: '#BFDBFE' }}>
+              <div className="font-jetbrains text-[10px] tracking-wider mb-2 font-semibold" style={{ color: BLUE }}>
+                {mode === 'standard' ? 'CMR PAPIER · Convention de Genève 1956' : 'eCMR · Protocole additionnel 2008'}
+              </div>
+              {mode === 'standard' ? (
+                <p>
+                  Document à imprimer en 4 exemplaires (rouge : expéditeur · bleu : destinataire · vert : transporteur · noir : administration). Valeur probante reconnue dans les pays signataires de la Convention CMR.
+                </p>
+              ) : (
+                <p>
+                  Document électronique avec QR code horodaté et identifiant unique. Équivalence légale à la CMR papier dans les pays ayant ratifié le Protocole. Compatible avec le règlement européen <span className="font-semibold">eFTI 2026</span>.
+                </p>
+              )}
+            </div>
+
+            {savedToast && (
+              <div className="rounded-lg p-2.5 font-jetbrains text-xs"
+                style={savedToast.type === 'success'
+                  ? { background: '#ECFDF5', color: '#065F46', border: '1px solid #A7F3D0' }
+                  : { background: '#FEF2F2', color: '#991B1B', border: '1px solid #FECACA' }}>
+                {savedToast.text}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Helpers CMR
+function drawBox(doc, x, y, w, h, num, label, content, fontSize = 8) {
+  doc.setDrawColor(0);
+  doc.rect(x, y, w, h);
+  doc.setFontSize(6);
+  doc.setFont('helvetica', 'bold');
+  doc.text(String(num), x + 1.5, y + 2.5);
+  doc.setFont('helvetica', 'normal');
+  doc.text(label, x + 4, y + 2.5);
+  if (content) {
+    doc.setFontSize(fontSize);
+    doc.setFont('helvetica', 'normal');
+    const lines = doc.splitTextToSize(String(content), w - 3);
+    const maxLines = Math.max(1, Math.floor((h - 5) / (fontSize * 0.4)));
+    doc.text(lines.slice(0, maxLines), x + 1.5, y + 6);
+  }
+}
+
+function formatParty(p) {
+  if (!p.name) return '';
+  const lines = [p.name];
+  if (p.address) lines.push(p.address);
+  if (p.postalCode || p.city) lines.push(`${p.postalCode || ''} ${p.city || ''}`.trim());
+  if (p.country) lines.push('Pays : ' + p.country);
+  if (p.contact) lines.push('Tél/Email : ' + p.contact);
+  return lines.join('\n');
+}
+
+function PartyForm({ label, tone, party, setParty, book, onLoadBook, onSaveBook, onDeleteBook }) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <div className="font-jetbrains text-[10px] tracking-wider" style={{ color: BLUE }}>{label}</div>
+        {book && book.length > 0 && (
+          <select onChange={e => { if (e.target.value) { onLoadBook(e.target.value); e.target.value = ''; } }} defaultValue=""
+            className="font-jetbrains text-[10px] bg-transparent border-0 outline-none cursor-pointer text-slate-500 hover:text-slate-800">
+            <option value="">📇 Carnet ({book.length})</option>
+            {book.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+          </select>
+        )}
+      </div>
+      <input value={party.name} onChange={e => setParty(p => ({ ...p, name: e.target.value }))} placeholder="Nom / raison sociale"
+        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-md outline-none text-sm focus:border-blue-400 transition-colors" />
+      <input value={party.address} onChange={e => setParty(p => ({ ...p, address: e.target.value }))} placeholder="Adresse"
+        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-md outline-none text-sm focus:border-blue-400 transition-colors" />
+      <div className="grid grid-cols-3 gap-2">
+        <input value={party.postalCode} onChange={e => setParty(p => ({ ...p, postalCode: e.target.value }))} placeholder="CP"
+          className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-md outline-none font-jetbrains text-sm focus:border-blue-400 transition-colors" />
+        <input value={party.city} onChange={e => setParty(p => ({ ...p, city: e.target.value }))} placeholder="Ville"
+          className="col-span-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-md outline-none text-sm focus:border-blue-400 transition-colors" />
+      </div>
+      <div className="grid grid-cols-3 gap-2">
+        <select value={party.country} onChange={e => setParty(p => ({ ...p, country: e.target.value }))}
+          className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-md outline-none font-jetbrains text-sm">
+          {CMR_COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
+        </select>
+        <input value={party.contact} onChange={e => setParty(p => ({ ...p, contact: e.target.value }))} placeholder="Tél / email"
+          className="col-span-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-md outline-none text-sm focus:border-blue-400 transition-colors" />
+      </div>
+      <button onClick={onSaveBook} className="w-full px-2 py-1.5 rounded-md font-jetbrains text-[10px] text-slate-600 hover:text-slate-900 hover:bg-slate-50 border border-dashed border-slate-300 transition-all">
+        + AJOUTER AU CARNET D'ADRESSES
+      </button>
+    </div>
+  );
+}
+
+function SummaryRow({ label, value, mono }) {
+  return (
+    <div className="flex justify-between gap-3">
+      <span className="text-slate-500 flex-shrink-0">{label}</span>
+      <span className={`text-right text-slate-800 ${mono ? 'font-jetbrains' : ''}`} style={{ wordBreak: 'break-word' }}>{value}</span>
+    </div>
   );
 }
