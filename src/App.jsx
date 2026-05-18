@@ -21,7 +21,7 @@ const EXAMPLE_ZPL = `^XA
 ^FO40,40^FDATELIER^FS
 ^CF0,28
 ^FO40,125^FDColis n AT-2026-0001^FS
-^FO40,170^FDExpediteur : BARKco^FS
+^FO40,170^FDExpediteur : WALYCONSEIL^FS
 ^FO40,215^FDDestinataire : Client SAS^FS
 ^FO40,270^GB720,2,2^FS
 ^BY3,2,100
@@ -115,7 +115,7 @@ function Landing({ onLaunch }) {
             <Logo />
             <div>
               <div className="font-bricolage font-bold text-lg tracking-tight">ATELIER LOGISTIQUE</div>
-              <div className="font-jetbrains text-[10px] text-slate-500 -mt-1 tracking-wider">SUITE D'OUTILS · v0.2 · BARKco</div>
+              <div className="font-jetbrains text-[10px] text-slate-500 -mt-1 tracking-wider">SUITE D'OUTILS · v0.2 · WALYCONSEIL</div>
             </div>
           </div>
           <div className="hidden md:flex items-center gap-5 font-jetbrains text-xs text-slate-500">
@@ -272,7 +272,7 @@ function Landing({ onLaunch }) {
         <div className="max-w-7xl mx-auto px-6 md:px-10 py-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 font-jetbrains text-xs text-slate-500">
           <div className="flex items-center gap-3">
             <Logo small />
-            <span>ATELIER LOGISTIQUE © 2026 — Outillage par BARKco</span>
+            <span>ATELIER LOGISTIQUE © 2023 — Outillage par WALYCONSEIL</span>
           </div>
           <span>Fait à Casablanca ⵎ</span>
         </div>
@@ -1402,7 +1402,7 @@ const BARCODE_TYPES = [
   {
     id: 'qrcode', label: 'QR Code', bcid: 'qrcode', cat: '2d',
     desc: 'Universel · URLs, vCards, jusqu\'à ~4000 caractères. Lecture smartphone.',
-    example: 'https://atelier.barkco.ma/colis/AT-2026-001',
+    example: 'https://atelier.walyconseil.com/colis/AT-2026-001',
     placeholder: 'URL, texte, ou données structurées',
     validate: (d) => d.length > 0
       ? { ok: true, msg: `OK · ${d.length} caractères` }
@@ -4523,7 +4523,7 @@ function CmrGenerator({ onBack }) {
     // Bottom mentions
     doc.setFontSize(5.5);
     doc.setTextColor(120);
-    doc.text(`Document généré par Atelier Logistique — BARKco · ${new Date().toLocaleString('fr-FR')}`, M, H - 2);
+    doc.text(`Document généré par Atelier Logistique — WALYCONSEIL · ${new Date().toLocaleString('fr-FR')}`, M, H - 2);
     doc.setTextColor(0);
 
     if (action === 'print') {
