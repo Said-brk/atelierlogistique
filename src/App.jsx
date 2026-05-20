@@ -80,7 +80,7 @@ const TOOLS = [
   { id: 'incoterms', cat: 'transport', name: 'Incoterms 2020', icon: Map, desc: 'Comparateur visuel des 11 incoterms, transferts coûts/risques sur la chaîne logistique.', status: 'live' },
   { id: 'cmr', cat: 'transport', name: 'CMR / eCMR', icon: FileText, desc: 'Lettre de voiture internationale aux normes européennes, mode papier ou électronique.', status: 'live' },
   { id: 'sla', cat: 'transport', name: 'OTIF / SLA', icon: Calculator, desc: 'Taux de service logistique.', status: 'soon' },
-  { id: 'units', cat: 'utilitaires', name: 'Convertisseur', icon: Shuffle, desc: 'Unités logistiques, volumes, poids.', status: 'soon' },
+  { id: 'units', cat: 'utilitaires', name: 'Convertisseur logistique', icon: Shuffle, desc: 'Cascade carton → palette → conteneur → camion. Combien d\'unités tiennent dans chaque contenant.', status: 'live' },
 ];
 
 const CATEGORIES = [
@@ -98,6 +98,7 @@ export default function App() {
   if (active === 'safety') return <SafetyStockCalculator onBack={() => setActive(null)} />;
   if (active === 'incoterms') return <IncotermsComparator onBack={() => setActive(null)} />;
   if (active === 'cmr') return <CmrGenerator onBack={() => setActive(null)} />;
+  if (active === 'units') return <LogisticsConverter onBack={() => setActive(null)} />;
   if (active === 'ddmrp') return <DdmrpBuffers onBack={() => setActive(null)} />;
   return <Landing onLaunch={setActive} />;
 }
@@ -165,7 +166,7 @@ function Landing({ onLaunch }) {
               <div className="font-jetbrains text-[10px] text-slate-400 tracking-wider mb-4">ÉTAT DE L'ATELIER</div>
               <div className="space-y-3">
                 {[
-                  { l: 'Outils actifs', v: '7 / 9' },
+                  { l: 'Outils actifs', v: '8 / 9' },
                   { l: 'Mode', v: 'navigateur' },
                   { l: 'Confidentialité', v: '100% local' },
                   { l: 'Version', v: '0.2' },
@@ -6389,6 +6390,439 @@ function DdmrpBuffers({ onBack }) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ============================================================
+// LogisticsConverter · Convertisseur en cascade
+// Carton → Palette → Conteneur → Camion
+// ============================================================
+
+// Référentiels standards (dimensions en cm, poids en kg)
+const PALLET_TYPES = [
+  { id: 'EUR',     label: 'EUR (80×120)',         L: 120, W: 80,  baseH: 14.5, maxH: 200, maxLoad: 1500, tare: 25 },
+  { id: 'EUR2',    label: 'EUR2 / Industrial (100×120)', L: 120, W: 100, baseH: 14.5, maxH: 200, maxLoad: 1500, tare: 30 },
+  { id: 'GMA',     label: 'GMA US (102×122)',     L: 122, W: 102, baseH: 14,   maxH: 200, maxLoad: 1360, tare: 22 },
+  { id: 'ISO',     label: 'ISO Asie (110×110)',   L: 110, W: 110, baseH: 14,   maxH: 200, maxLoad: 1500, tare: 25 },
+  { id: 'EUR6',    label: 'EUR6 demi (80×60)',    L: 80,  W: 60,  baseH: 14.5, maxH: 200, maxLoad: 500,  tare: 9  },
+];
+
+const CONTAINER_TYPES = [
+  // Dimensions intérieures en cm
+  { id: '20DC',    label: "20' DC standard",      L: 590,  W: 235, H: 239, maxLoad: 28000, tare: 2200 },
+  { id: '40DC',    label: "40' DC standard",      L: 1203, W: 235, H: 239, maxLoad: 26500, tare: 3800 },
+  { id: '40HC',    label: "40' HC (High Cube)",   L: 1203, W: 235, H: 269, maxLoad: 26500, tare: 3900 },
+  { id: '45HC',    label: "45' HC",               L: 1356, W: 235, H: 269, maxLoad: 26500, tare: 4800 },
+  { id: '20RF',    label: "20' Reefer (réfrigéré)", L: 545, W: 229, H: 227, maxLoad: 27500, tare: 3050 },
+  { id: '40RF',    label: "40' Reefer",           L: 1156, W: 229, H: 227, maxLoad: 27500, tare: 4400 },
+];
+
+const TRUCK_TYPES = [
+  // Dimensions intérieures utiles en cm
+  { id: 'VAN35',     label: 'Fourgon 3.5t',         L: 420,  W: 200, H: 215, maxLoad: 1200,  desc: '~4 EUR au sol' },
+  { id: 'PORTEUR75', label: 'Porteur 7.5t',         L: 600,  W: 245, H: 240, maxLoad: 3500,  desc: '~10 EUR au sol' },
+  { id: 'PORTEUR19', label: 'Porteur 19t',          L: 740,  W: 245, H: 260, maxLoad: 11000, desc: '~14 EUR au sol' },
+  { id: 'SEMI',      label: 'Semi-remorque 13.6m',  L: 1360, W: 245, H: 270, maxLoad: 25000, desc: '~33 EUR au sol' },
+  { id: 'MEGA',      label: 'Mega trailer',         L: 1360, W: 248, H: 300, maxLoad: 25000, desc: '~33 EUR · volume max' },
+  { id: 'FRIGO',     label: 'Semi frigorifique',    L: 1340, W: 245, H: 260, maxLoad: 22000, desc: 'Température dirigée' },
+];
+
+// Calcul cartons → palette : optimal sur 2 orientations + limite hauteur + limite poids
+function calcCartonsOnPallet(carton, pallet) {
+  const { L: cL, W: cW, H: cH, weight: cWt } = carton;
+  if (cL <= 0 || cW <= 0 || cH <= 0) return null;
+
+  // 2 orientations possibles : carton aligné avec longueur palette, ou pivoté 90°
+  const perLayerA = Math.floor(pallet.L / cL) * Math.floor(pallet.W / cW);
+  const perLayerB = Math.floor(pallet.L / cW) * Math.floor(pallet.W / cL);
+  const perLayer = Math.max(perLayerA, perLayerB);
+  if (perLayer === 0) return { perLayer: 0, layers: 0, total: 0, limiter: 'dimensions', err: 'Carton trop grand pour la palette' };
+
+  const availableHeight = pallet.maxH - pallet.baseH;
+  const layersByHeight = Math.floor(availableHeight / cH);
+  const layersByWeight = cWt > 0 ? Math.floor((pallet.maxLoad - pallet.tare) / (perLayer * cWt)) : Infinity;
+  const layers = Math.max(0, Math.min(layersByHeight, layersByWeight));
+  const total = perLayer * layers;
+  const limiter = layersByWeight < layersByHeight ? 'poids' : 'hauteur';
+
+  const palletTotalH = pallet.baseH + layers * cH;
+  const palletTotalWeight = pallet.tare + total * cWt;
+  return { perLayer, layers, total, limiter, palletTotalH, palletTotalWeight };
+}
+
+// Calcul palettes → conteneur ou camion (au sol uniquement, gerbage géré séparément)
+function calcPalletsInBox(pallet, palletTotalH, palletTotalWeight, box, stackable = false) {
+  // 2 orientations
+  const perRowA = Math.floor(box.L / pallet.L) * Math.floor(box.W / pallet.W);
+  const perRowB = Math.floor(box.L / pallet.W) * Math.floor(box.W / pallet.L);
+  const perFloor = Math.max(perRowA, perRowB);
+  if (perFloor === 0) return { perFloor: 0, layers: 0, total: 0, limiter: 'dimensions', err: 'Palette trop grande' };
+
+  const layersByHeight = stackable && palletTotalH > 0 ? Math.floor(box.H / palletTotalH) : 1;
+  const layersByWeight = palletTotalWeight > 0 ? Math.floor(box.maxLoad / (perFloor * palletTotalWeight)) : Infinity;
+  const layers = Math.max(0, Math.min(layersByHeight, layersByWeight));
+  const total = perFloor * layers;
+  const limiter = layersByWeight < layersByHeight ? 'poids' : (stackable && layersByHeight < 5 ? 'hauteur' : 'plancher');
+  const totalWeight = total * palletTotalWeight;
+  return { perFloor, layers, total, limiter, totalWeight };
+}
+
+function LogisticsConverter({ onBack }) {
+  // Niveau 1 : Carton
+  const [cartonL, setCartonL] = useState(40);
+  const [cartonW, setCartonW] = useState(30);
+  const [cartonH, setCartonH] = useState(25);
+  const [cartonWeight, setCartonWeight] = useState(5);
+  const [unitsPerCarton, setUnitsPerCarton] = useState(12);
+
+  // Niveau 2 : Palette
+  const [palletId, setPalletId] = useState('EUR');
+  const pallet = useMemo(() => PALLET_TYPES.find(p => p.id === palletId) || PALLET_TYPES[0], [palletId]);
+
+  // Niveau 3 : Conteneur
+  const [containerId, setContainerId] = useState('40HC');
+  const [containerStackable, setContainerStackable] = useState(false);
+  const container = useMemo(() => CONTAINER_TYPES.find(c => c.id === containerId) || CONTAINER_TYPES[0], [containerId]);
+
+  // Niveau 4 : Camion
+  const [truckId, setTruckId] = useState('SEMI');
+  const [truckStackable, setTruckStackable] = useState(false);
+  const truck = useMemo(() => TRUCK_TYPES.find(t => t.id === truckId) || TRUCK_TYPES[0], [truckId]);
+
+  // Calculs en cascade
+  const cartonResult = useMemo(() =>
+    calcCartonsOnPallet(
+      { L: cartonL, W: cartonW, H: cartonH, weight: cartonWeight },
+      pallet
+    ),
+    [cartonL, cartonW, cartonH, cartonWeight, pallet]
+  );
+
+  const containerResult = useMemo(() => {
+    if (!cartonResult || cartonResult.total === 0) return null;
+    return calcPalletsInBox(pallet, cartonResult.palletTotalH, cartonResult.palletTotalWeight, container, containerStackable);
+  }, [pallet, cartonResult, container, containerStackable]);
+
+  const truckResult = useMemo(() => {
+    if (!cartonResult || cartonResult.total === 0) return null;
+    return calcPalletsInBox(pallet, cartonResult.palletTotalH, cartonResult.palletTotalWeight, truck, truckStackable);
+  }, [pallet, cartonResult, truck, truckStackable]);
+
+  // Synthèse globale
+  const synth = useMemo(() => {
+    if (!cartonResult) return null;
+    const cartonsPerPallet = cartonResult.total;
+    const unitsPerPallet = cartonsPerPallet * unitsPerCarton;
+    const palletsPerContainer = containerResult?.total || 0;
+    const palletsPerTruck = truckResult?.total || 0;
+    return {
+      unitsPerCarton,
+      cartonsPerPallet,
+      unitsPerPallet,
+      palletsPerContainer,
+      cartonsPerContainer: palletsPerContainer * cartonsPerPallet,
+      unitsPerContainer: palletsPerContainer * unitsPerPallet,
+      palletsPerTruck,
+      cartonsPerTruck: palletsPerTruck * cartonsPerPallet,
+      unitsPerTruck: palletsPerTruck * unitsPerPallet,
+    };
+  }, [cartonResult, containerResult, truckResult, unitsPerCarton]);
+
+  return (
+    <div className="min-h-screen text-slate-900" style={{ background: '#F8FAFC', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+      <FontsAndStyles />
+
+      <nav className="border-b border-slate-200 bg-white sticky top-0 z-20">
+        <div className="max-w-[1600px] mx-auto px-6 py-4 flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-5">
+            <button onClick={onBack} className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors font-jetbrains text-xs">
+              <ArrowLeft size={14} />
+              RETOUR
+            </button>
+            <div className="w-px h-5 bg-slate-200" />
+            <div className="flex items-center gap-3">
+              <Logo small />
+              <div>
+                <div className="font-bricolage font-semibold text-sm leading-tight text-slate-900">Convertisseur logistique</div>
+                <div className="font-jetbrains text-[10px] text-slate-500">ATELIER / 08 · cascade carton → palette → conteneur → camion</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      <div className="max-w-[1600px] mx-auto px-6 py-6 grid grid-cols-1 lg:grid-cols-12 gap-5">
+
+        {/* COLONNE GAUCHE : 4 niveaux de configuration */}
+        <div className="lg:col-span-7 space-y-4">
+
+          {/* NIVEAU 1 : Carton */}
+          <ConverterStep
+            num="1"
+            title="CARTON D'EXPÉDITION"
+            color={BLUE}
+            stat={cartonResult ? `${cartonResult.total} par palette` : null}
+          >
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <NumberField label="Longueur (cm)" value={cartonL} onChange={v => setCartonL(Math.max(0, parseFloat(v) || 0))} step="1" />
+              <NumberField label="Largeur (cm)" value={cartonW} onChange={v => setCartonW(Math.max(0, parseFloat(v) || 0))} step="1" />
+              <NumberField label="Hauteur (cm)" value={cartonH} onChange={v => setCartonH(Math.max(0, parseFloat(v) || 0))} step="1" />
+              <NumberField label="Poids (kg)" value={cartonWeight} onChange={v => setCartonWeight(Math.max(0, parseFloat(v) || 0))} step="0.1" />
+            </div>
+            <div className="mt-3">
+              <NumberField label="Nombre d'unités par carton (UVC)" value={unitsPerCarton} onChange={v => setUnitsPerCarton(Math.max(1, parseInt(v) || 1))} step="1" />
+            </div>
+          </ConverterStep>
+
+          {/* NIVEAU 2 : Palette */}
+          <ConverterStep
+            num="2"
+            title="PALETTE"
+            color={BLUE}
+            stat={cartonResult && containerResult ? `${containerResult.total} par conteneur` : null}
+          >
+            <div className="space-y-3">
+              <div>
+                <label className="font-jetbrains text-[10px] text-slate-500 tracking-wider mb-1.5 block">TYPE DE PALETTE</label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5">
+                  {PALLET_TYPES.map(p => (
+                    <button key={p.id} onClick={() => setPalletId(p.id)}
+                      className="px-3 py-2 rounded-md font-jetbrains text-xs transition-all text-left"
+                      style={palletId === p.id
+                        ? { background: BLUE, color: '#FFFFFF', fontWeight: 600 }
+                        : { background: '#F8FAFC', color: '#475569', border: '1px solid #E2E8F0' }}>
+                      <div>{p.label}</div>
+                      <div className="text-[9px] opacity-75 mt-0.5">{p.maxLoad} kg max · {p.maxH} cm max</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {cartonResult && cartonResult.total > 0 && (
+                <div className="rounded-lg p-3 text-xs space-y-1" style={{ background: BLUE_LIGHT, border: '1px solid #BFDBFE' }}>
+                  <div className="font-jetbrains text-[10px] tracking-wider mb-1.5" style={{ color: BLUE }}>RÉSULTAT</div>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-slate-700">
+                    <div><span className="text-slate-500">Par couche :</span> <span className="font-jetbrains font-semibold">{cartonResult.perLayer}</span></div>
+                    <div><span className="text-slate-500">Couches :</span> <span className="font-jetbrains font-semibold">{cartonResult.layers}</span></div>
+                    <div><span className="text-slate-500">Total cartons :</span> <span className="font-jetbrains font-semibold" style={{ color: BLUE }}>{cartonResult.total}</span></div>
+                    <div><span className="text-slate-500">Limité par :</span> <span className="font-jetbrains font-semibold capitalize">{cartonResult.limiter}</span></div>
+                    <div><span className="text-slate-500">Hauteur totale :</span> <span className="font-jetbrains font-semibold">{cartonResult.palletTotalH?.toFixed(0)} cm</span></div>
+                    <div><span className="text-slate-500">Poids total :</span> <span className="font-jetbrains font-semibold">{cartonResult.palletTotalWeight?.toFixed(0)} kg</span></div>
+                  </div>
+                </div>
+              )}
+              {cartonResult && cartonResult.err && (
+                <div className="rounded-lg p-3 text-xs" style={{ background: '#FEF2F2', color: '#991B1B', border: '1px solid #FECACA' }}>
+                  ⚠ {cartonResult.err}
+                </div>
+              )}
+            </div>
+          </ConverterStep>
+
+          {/* NIVEAU 3 : Conteneur */}
+          <ConverterStep
+            num="3"
+            title="CONTENEUR MARITIME"
+            color={BLUE}
+            stat={containerResult ? `palettes × ${containerResult.total}` : null}
+          >
+            <div className="space-y-3">
+              <div>
+                <label className="font-jetbrains text-[10px] text-slate-500 tracking-wider mb-1.5 block">TYPE DE CONTENEUR</label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5">
+                  {CONTAINER_TYPES.map(c => (
+                    <button key={c.id} onClick={() => setContainerId(c.id)}
+                      className="px-3 py-2 rounded-md font-jetbrains text-xs transition-all text-left"
+                      style={containerId === c.id
+                        ? { background: BLUE, color: '#FFFFFF', fontWeight: 600 }
+                        : { background: '#F8FAFC', color: '#475569', border: '1px solid #E2E8F0' }}>
+                      <div>{c.label}</div>
+                      <div className="text-[9px] opacity-75 mt-0.5">{(c.L/100).toFixed(2)}×{(c.W/100).toFixed(2)}×{(c.H/100).toFixed(2)} m · {(c.maxLoad/1000).toFixed(1)} t</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={containerStackable} onChange={e => setContainerStackable(e.target.checked)} className="rounded" style={{ accentColor: BLUE }} />
+                <span className="text-xs text-slate-700">Palettes gerbables dans le conteneur (double étage)</span>
+              </label>
+              {containerResult && containerResult.total > 0 && (
+                <div className="rounded-lg p-3 text-xs" style={{ background: BLUE_LIGHT, border: '1px solid #BFDBFE' }}>
+                  <div className="font-jetbrains text-[10px] tracking-wider mb-1.5" style={{ color: BLUE }}>RÉSULTAT</div>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-slate-700">
+                    <div><span className="text-slate-500">Au sol :</span> <span className="font-jetbrains font-semibold">{containerResult.perFloor}</span></div>
+                    <div><span className="text-slate-500">Étages :</span> <span className="font-jetbrains font-semibold">{containerResult.layers}</span></div>
+                    <div><span className="text-slate-500">Total palettes :</span> <span className="font-jetbrains font-semibold" style={{ color: BLUE }}>{containerResult.total}</span></div>
+                    <div><span className="text-slate-500">Limité par :</span> <span className="font-jetbrains font-semibold capitalize">{containerResult.limiter}</span></div>
+                    <div className="col-span-2"><span className="text-slate-500">Poids total :</span> <span className="font-jetbrains font-semibold">{(containerResult.totalWeight/1000).toFixed(1)} t</span> / {(container.maxLoad/1000).toFixed(1)} t max</div>
+                  </div>
+                </div>
+              )}
+              {containerResult?.err && (
+                <div className="rounded-lg p-3 text-xs" style={{ background: '#FEF2F2', color: '#991B1B', border: '1px solid #FECACA' }}>
+                  ⚠ {containerResult.err}
+                </div>
+              )}
+            </div>
+          </ConverterStep>
+
+          {/* NIVEAU 4 : Camion */}
+          <ConverterStep
+            num="4"
+            title="CAMION ROUTIER"
+            color={BLUE}
+            stat={truckResult ? `palettes × ${truckResult.total}` : null}
+          >
+            <div className="space-y-3">
+              <div>
+                <label className="font-jetbrains text-[10px] text-slate-500 tracking-wider mb-1.5 block">TYPE DE CAMION</label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5">
+                  {TRUCK_TYPES.map(t => (
+                    <button key={t.id} onClick={() => setTruckId(t.id)}
+                      className="px-3 py-2 rounded-md font-jetbrains text-xs transition-all text-left"
+                      style={truckId === t.id
+                        ? { background: BLUE, color: '#FFFFFF', fontWeight: 600 }
+                        : { background: '#F8FAFC', color: '#475569', border: '1px solid #E2E8F0' }}>
+                      <div>{t.label}</div>
+                      <div className="text-[9px] opacity-75 mt-0.5">{(t.L/100).toFixed(1)}×{(t.W/100).toFixed(2)} m · {(t.maxLoad/1000).toFixed(1)} t · {t.desc}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={truckStackable} onChange={e => setTruckStackable(e.target.checked)} className="rounded" style={{ accentColor: BLUE }} />
+                <span className="text-xs text-slate-700">Palettes gerbables dans le camion</span>
+              </label>
+              {truckResult && truckResult.total > 0 && (
+                <div className="rounded-lg p-3 text-xs" style={{ background: BLUE_LIGHT, border: '1px solid #BFDBFE' }}>
+                  <div className="font-jetbrains text-[10px] tracking-wider mb-1.5" style={{ color: BLUE }}>RÉSULTAT</div>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-slate-700">
+                    <div><span className="text-slate-500">Au sol :</span> <span className="font-jetbrains font-semibold">{truckResult.perFloor}</span></div>
+                    <div><span className="text-slate-500">Étages :</span> <span className="font-jetbrains font-semibold">{truckResult.layers}</span></div>
+                    <div><span className="text-slate-500">Total palettes :</span> <span className="font-jetbrains font-semibold" style={{ color: BLUE }}>{truckResult.total}</span></div>
+                    <div><span className="text-slate-500">Limité par :</span> <span className="font-jetbrains font-semibold capitalize">{truckResult.limiter}</span></div>
+                    <div className="col-span-2"><span className="text-slate-500">Poids total :</span> <span className="font-jetbrains font-semibold">{(truckResult.totalWeight/1000).toFixed(1)} t</span> / {(truck.maxLoad/1000).toFixed(1)} t max</div>
+                  </div>
+                </div>
+              )}
+              {truckResult?.err && (
+                <div className="rounded-lg p-3 text-xs" style={{ background: '#FEF2F2', color: '#991B1B', border: '1px solid #FECACA' }}>
+                  ⚠ {truckResult.err}
+                </div>
+              )}
+            </div>
+          </ConverterStep>
+        </div>
+
+        {/* COLONNE DROITE : SYNTHÈSE (sticky) */}
+        <div className="lg:col-span-5 space-y-4">
+          <div className="sticky top-[88px] space-y-4">
+
+            {/* Synthèse cascade */}
+            <div className="rounded-xl overflow-hidden shadow-sm" style={{ background: 'linear-gradient(135deg, #1E3A8A 0%, #2563EB 100%)' }}>
+              <div className="px-5 py-4 border-b" style={{ borderColor: 'rgba(255,255,255,0.15)' }}>
+                <div className="font-jetbrains text-[10px] text-white tracking-wider opacity-80">SYNTHÈSE DE LA CHAÎNE</div>
+                <div className="font-bricolage font-bold text-xl text-white mt-1">1 chargement complet</div>
+              </div>
+              <div className="p-5 space-y-3">
+                {synth && synth.cartonsPerPallet > 0 ? (
+                  <>
+                    <CascadeRow level="Par carton" value={synth.unitsPerCarton} unit="unités" color="rgba(255,255,255,0.85)" />
+                    <CascadeArrow />
+                    <CascadeRow level="Par palette" value={synth.cartonsPerPallet} unit="cartons" sub={`${synth.unitsPerPallet.toLocaleString('fr-FR')} unités`} color="rgba(255,255,255,0.95)" />
+                    <CascadeArrow />
+                    <CascadeRow level="Par conteneur" value={synth.palletsPerContainer} unit="palettes" sub={`${synth.cartonsPerContainer.toLocaleString('fr-FR')} cartons · ${synth.unitsPerContainer.toLocaleString('fr-FR')} unités`} color="white" big />
+                    <CascadeArrow />
+                    <CascadeRow level="Par camion" value={synth.palletsPerTruck} unit="palettes" sub={`${synth.cartonsPerTruck.toLocaleString('fr-FR')} cartons · ${synth.unitsPerTruck.toLocaleString('fr-FR')} unités`} color="white" big />
+                  </>
+                ) : (
+                  <div className="text-white text-sm opacity-70 text-center py-4">
+                    Renseignez les dimensions du carton pour démarrer le calcul
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Taux de remplissage */}
+            {synth && synth.palletsPerTruck > 0 && (
+              <div className="rounded-xl border border-slate-200 bg-white p-4">
+                <div className="font-jetbrains text-[10px] text-slate-500 tracking-wider mb-3">TAUX DE REMPLISSAGE</div>
+                <FillBar label="Conteneur (poids)" value={containerResult ? Math.min(100, (containerResult.totalWeight / container.maxLoad) * 100) : 0} />
+                <FillBar label="Camion (poids)" value={truckResult ? Math.min(100, (truckResult.totalWeight / truck.maxLoad) * 100) : 0} />
+              </div>
+            )}
+
+            {/* Aide / note */}
+            <div className="rounded-xl border border-blue-200 p-4 text-xs leading-relaxed" style={{ background: BLUE_LIGHT }}>
+              <div className="font-jetbrains text-[10px] tracking-wider mb-2 font-semibold" style={{ color: BLUE }}>
+                MÉTHODE DE CALCUL
+              </div>
+              <div className="text-blue-900">
+                Chaque étape teste les <span className="font-semibold">deux orientations possibles</span> et retient la plus efficace. Le résultat est limité soit par les dimensions (plancher / hauteur), soit par le poids maximum admissible. Les estimations supposent un chargement standard sans débordement ni serrage spécial. Pour les marchandises atypiques (cylindres, longueurs hors-norme), prévoyez 10-15 % de marge.
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Step container avec numéro et stat à droite
+function ConverterStep({ num, title, stat, color, children }) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+      <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-6 h-6 rounded-full flex items-center justify-center font-jetbrains text-xs font-bold text-white" style={{ background: color }}>
+            {num}
+          </div>
+          <div className="font-jetbrains text-xs text-slate-700 font-semibold tracking-wider">{title}</div>
+        </div>
+        {stat && <div className="font-jetbrains text-xs font-semibold" style={{ color }}>{stat}</div>}
+      </div>
+      <div className="p-4">{children}</div>
+    </div>
+  );
+}
+
+function CascadeRow({ level, value, unit, sub, color, big }) {
+  return (
+    <div className="flex items-baseline justify-between gap-3">
+      <div className="flex-1">
+        <div className="font-jetbrains text-[10px] tracking-wider" style={{ color, opacity: 0.7 }}>{level}</div>
+        {sub && <div className="text-[10px] mt-0.5" style={{ color, opacity: 0.65 }}>{sub}</div>}
+      </div>
+      <div className="text-right">
+        <span className={`font-bricolage font-bold ${big ? 'text-2xl' : 'text-lg'}`} style={{ color }}>{value.toLocaleString('fr-FR')}</span>
+        <span className="font-jetbrains text-xs ml-1.5" style={{ color, opacity: 0.75 }}>{unit}</span>
+      </div>
+    </div>
+  );
+}
+
+function CascadeArrow() {
+  return (
+    <div className="flex justify-center">
+      <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 14, lineHeight: 1 }}>↓</div>
+    </div>
+  );
+}
+
+function FillBar({ label, value }) {
+  const isHigh = value > 90;
+  const isMid = value > 70;
+  const color = isHigh ? '#DC2626' : isMid ? '#D97706' : '#059669';
+  return (
+    <div className="mb-3 last:mb-0">
+      <div className="flex justify-between items-baseline mb-1">
+        <span className="text-xs text-slate-600">{label}</span>
+        <span className="font-jetbrains text-xs font-semibold" style={{ color }}>{value.toFixed(0)} %</span>
+      </div>
+      <div className="h-2 rounded-full overflow-hidden bg-slate-100">
+        <div className="h-full transition-all" style={{ width: `${value}%`, background: color }} />
+      </div>
     </div>
   );
 }
