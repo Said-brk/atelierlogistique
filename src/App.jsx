@@ -20,7 +20,7 @@ const EXAMPLE_ZPL = `^XA
 ^CF0,55
 ^FO40,40^FDATELIER^FS
 ^CF0,28
-^FO40,125^FDColis n AT-2026-0001^FS
+^FO40,125^FDColis n AT-2023-0001^FS
 ^FO40,170^FDExpediteur : WALYCONSEIL^FS
 ^FO40,215^FDDestinataire : Client SAS^FS
 ^FO40,270^GB720,2,2^FS
@@ -35,7 +35,7 @@ const EXAMPLE_ZPL_MULTI = `^XA
 ^CF0,55
 ^FO40,40^FDATELIER^FS
 ^CF0,28
-^FO40,125^FDColis 1/3 - AT-2026-001^FS
+^FO40,125^FDColis 1/3 - AT-2023-001^FS
 ^FO40,170^FDDestinataire : Client A^FS
 ^FO40,215^FDAdresse : Casablanca^FS
 ^FO40,270^GB720,2,2^FS
@@ -48,7 +48,7 @@ const EXAMPLE_ZPL_MULTI = `^XA
 ^CF0,55
 ^FO40,40^FDATELIER^FS
 ^CF0,28
-^FO40,125^FDColis 2/3 - AT-2026-002^FS
+^FO40,125^FDColis 2/3 - AT-2023-002^FS
 ^FO40,170^FDDestinataire : Client B^FS
 ^FO40,215^FDAdresse : Rabat^FS
 ^FO40,270^GB720,2,2^FS
@@ -61,7 +61,7 @@ const EXAMPLE_ZPL_MULTI = `^XA
 ^CF0,55
 ^FO40,40^FDATELIER^FS
 ^CF0,28
-^FO40,125^FDColis 3/3 - AT-2026-003^FS
+^FO40,125^FDColis 3/3 - AT-2023-003^FS
 ^FO40,170^FDDestinataire : Client C^FS
 ^FO40,215^FDAdresse : Tanger^FS
 ^FO40,270^GB720,2,2^FS
@@ -76,7 +76,7 @@ const TOOLS = [
   { id: 'barcode', cat: 'etiquettes', name: 'Codes-barres', icon: Barcode, desc: '10 symbologies : EAN, UPC, Code 128, GTIN-14, QR, Data Matrix, PDF417.', status: 'live' },
   { id: 'pallet', cat: 'planification', name: 'Palettisation', icon: Package, desc: 'Calcul du plan optimal · EUR, US, ISO, custom · vue 3D isométrique.', status: 'live' },
   { id: 'safety', cat: 'planification', name: 'Stock de sécurité', icon: TrendingUp, desc: 'Calcul σL, taux de service, ROP · courbe de distribution.', status: 'live' },
-  { id: 'ddmrp', cat: 'planification', name: 'Buffers DDMRP', icon: Box, desc: 'Dimensionnement des buffers stratégiques.', status: 'soon' },
+  { id: 'ddmrp', cat: 'planification', name: 'Buffers DDMRP', icon: Box, desc: 'Dimensionnement des buffers stratégiques (zones rouge/jaune/vert) à partir de l\'ADU, du délai et de la variabilité.', status: 'live' },
   { id: 'incoterms', cat: 'transport', name: 'Incoterms 2020', icon: Map, desc: 'Comparateur visuel des 11 incoterms, transferts coûts/risques sur la chaîne logistique.', status: 'live' },
   { id: 'cmr', cat: 'transport', name: 'CMR / eCMR', icon: FileText, desc: 'Lettre de voiture internationale aux normes européennes, mode papier ou électronique.', status: 'live' },
   { id: 'sla', cat: 'transport', name: 'OTIF / SLA', icon: Calculator, desc: 'Taux de service logistique.', status: 'soon' },
@@ -98,6 +98,7 @@ export default function App() {
   if (active === 'safety') return <SafetyStockCalculator onBack={() => setActive(null)} />;
   if (active === 'incoterms') return <IncotermsComparator onBack={() => setActive(null)} />;
   if (active === 'cmr') return <CmrGenerator onBack={() => setActive(null)} />;
+  if (active === 'ddmrp') return <DdmrpBuffers onBack={() => setActive(null)} />;
   return <Landing onLaunch={setActive} />;
 }
 
@@ -135,7 +136,7 @@ function Landing({ onLaunch }) {
           <div className="lg:col-span-8">
             <div className="font-jetbrains text-xs mb-6 flex items-center gap-2 tracking-wider" style={{ color: BLUE }}>
               <span>●</span>
-              <span>L'OUTILLAGE LOGISTIQUE — ÉDITION 2026</span>
+              <span>L'OUTILLAGE LOGISTIQUE — ÉDITION 2023</span>
             </div>
             <h1 className="font-bricolage font-bold text-5xl md:text-7xl lg:text-[5.5rem] leading-[0.95] mb-8 tracking-tight">
               Des outils <em className="italic font-normal text-slate-400">précis</em>
@@ -164,7 +165,7 @@ function Landing({ onLaunch }) {
               <div className="font-jetbrains text-[10px] text-slate-400 tracking-wider mb-4">ÉTAT DE L'ATELIER</div>
               <div className="space-y-3">
                 {[
-                  { l: 'Outils actifs', v: '6 / 9' },
+                  { l: 'Outils actifs', v: '7 / 9' },
                   { l: 'Mode', v: 'navigateur' },
                   { l: 'Confidentialité', v: '100% local' },
                   { l: 'Version', v: '0.2' },
@@ -274,7 +275,7 @@ function Landing({ onLaunch }) {
             <Logo small />
             <span>ATELIER LOGISTIQUE © 2023 — Outillage par WALYCONSEIL</span>
           </div>
-          <span>Contactez-nous sur contact@walyconseil.com</span>
+          <span>Contactez-nous sur <a href="mailto:contact@walyconseil.com" className="hover:text-slate-800 transition-colors underline-offset-2 hover:underline">contact@walyconseil.com</a></span>
         </div>
       </footer>
     </div>
@@ -334,11 +335,17 @@ function Logo({ small }) {
   const size = small ? 'w-6 h-6' : 'w-9 h-9';
   return (
     <div className={`${size} rounded-md flex items-center justify-center relative overflow-hidden`} style={{ background: BLUE }}>
-      <div
-        className="absolute inset-0"
-        style={{ background: 'repeating-linear-gradient(45deg, transparent, transparent 3px, rgba(255,255,255,0.15) 3px, rgba(255,255,255,0.15) 6px)' }}
-      />
-      <div className="relative w-2 h-2 bg-white rounded-sm" />
+      <svg viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg" className="w-[78%] h-[78%]">
+        {/* plateau haut (2 planches) */}
+        <rect x="5" y="11" width="26" height="2.5" rx="0.5" fill="white" />
+        <rect x="5" y="14.5" width="26" height="2.5" rx="0.5" fill="white" />
+        {/* 3 pieds (blocs) */}
+        <rect x="6" y="17.5" width="4.5" height="5" rx="0.3" fill="white" opacity="0.82" />
+        <rect x="15.75" y="17.5" width="4.5" height="5" rx="0.3" fill="white" opacity="0.82" />
+        <rect x="25.5" y="17.5" width="4.5" height="5" rx="0.3" fill="white" opacity="0.82" />
+        {/* plateau bas */}
+        <rect x="5" y="23" width="26" height="2.5" rx="0.5" fill="white" />
+      </svg>
     </div>
   );
 }
@@ -1318,6 +1325,35 @@ function drawBarcode(ctx, state, bc, data) {
 // ============================================================
 // GÉNÉRATEUR DE CODES-BARRES (Outil 02)
 // ============================================================
+// Helpers GS1 : calcul et vérification des check digits (algorithme mod-10 standard)
+function gs1CheckDigit(digits) {
+  let sum = 0;
+  for (let i = 0; i < digits.length; i++) {
+    const d = parseInt(digits[digits.length - 1 - i], 10);
+    sum += d * (i % 2 === 0 ? 3 : 1);
+  }
+  return (10 - (sum % 10)) % 10;
+}
+
+function gs1CheckDigitValid(fullDigits) {
+  if (!/^\d+$/.test(fullDigits)) return false;
+  const data = fullDigits.slice(0, -1);
+  const expected = parseInt(fullDigits.slice(-1), 10);
+  return gs1CheckDigit(data) === expected;
+}
+
+// Auto-complète les check digits manquants dans un payload GS1 (avant envoi à bwip-js)
+// Ex : '(00)37350000123456789' → '(00)373500001234567895'
+function autoCompleteGs1Payload(payload) {
+  return payload
+    // AI 00 = SSCC (18 chiffres)
+    .replace(/\((00)\)(\d{17})(?!\d)/g, (_, ai, data) => `(${ai})${data}${gs1CheckDigit(data)}`)
+    // AI 01 = GTIN (14 chiffres)
+    .replace(/\((01)\)(\d{13})(?!\d)/g, (_, ai, data) => `(${ai})${data}${gs1CheckDigit(data)}`)
+    // AI 02 = GTIN contenu (14 chiffres)
+    .replace(/\((02)\)(\d{13})(?!\d)/g, (_, ai, data) => `(${ai})${data}${gs1CheckDigit(data)}`);
+}
+
 const BARCODE_TYPES = [
   // 1D · Produits (GS1)
   {
@@ -1360,7 +1396,7 @@ const BARCODE_TYPES = [
   {
     id: 'code128', label: 'Code 128', bcid: 'code128', cat: 'universal',
     desc: 'Alphanumérique · standard universel. Auto-bascule entre sous-types A/B/C.',
-    example: 'ATELIER-2026-001',
+    example: 'ATELIER-2023-001',
     placeholder: 'Caractères ASCII',
     validate: (d) => d.length > 0
       ? { ok: true, msg: `OK · ${d.length} caractères` }
@@ -1392,17 +1428,52 @@ const BARCODE_TYPES = [
   {
     id: 'gs1-128', label: 'GS1-128', bcid: 'gs1-128', cat: 'logistics',
     desc: "Code 128 avec Application Identifiers · SSCC, n° lot, dates. Pour expédition.",
-    example: '(00)373500001234567890',
+    example: '(00)373500001234567895',
     placeholder: '(00)... (01)... (10)... etc.',
-    validate: (d) => d.length > 0
-      ? { ok: true, msg: 'OK · vérifiez la syntaxe des AI (parenthèses)' }
-      : { ok: false, msg: 'Données requises' },
+    validate: (d) => {
+      if (d.length === 0) return { ok: false, msg: 'Données requises' };
+      if (!/\(\d{2,4}\)/.test(d)) return { ok: false, msg: 'Format attendu : (AI)valeur, ex : (00)373500001234567895' };
+
+      // Vérifier AI 00 (SSCC)
+      const sscc = d.match(/\(00\)(\d+?)(?=\(|$)/);
+      if (sscc) {
+        const data = sscc[1];
+        if (data.length === 17) {
+          const cd = gs1CheckDigit(data);
+          return { ok: true, msg: `SSCC à 17 chiffres · check digit ${cd} ajouté automatiquement` };
+        }
+        if (data.length !== 18) return { ok: false, msg: `SSCC doit faire 17 ou 18 chiffres (actuel : ${data.length})` };
+        if (!gs1CheckDigitValid(data)) {
+          const correct = gs1CheckDigit(data.slice(0, -1));
+          return { ok: false, msg: `Check digit SSCC invalide. Attendu : ${correct}, fourni : ${data.slice(-1)}` };
+        }
+      }
+
+      // Vérifier AI 01 / 02 (GTIN-14)
+      for (const ai of ['01', '02']) {
+        const m = d.match(new RegExp(`\\(${ai}\\)(\\d+?)(?=\\(|$)`));
+        if (m) {
+          const data = m[1];
+          if (data.length === 13) {
+            const cd = gs1CheckDigit(data);
+            return { ok: true, msg: `GTIN à 13 chiffres · check digit ${cd} ajouté automatiquement` };
+          }
+          if (data.length !== 14) return { ok: false, msg: `GTIN (AI ${ai}) doit faire 13 ou 14 chiffres (actuel : ${data.length})` };
+          if (!gs1CheckDigitValid(data)) {
+            const correct = gs1CheckDigit(data.slice(0, -1));
+            return { ok: false, msg: `Check digit GTIN invalide. Attendu : ${correct}` };
+          }
+        }
+      }
+
+      return { ok: true, msg: 'OK · syntaxe GS1 valide' };
+    },
   },
   // 2D
   {
     id: 'qrcode', label: 'QR Code', bcid: 'qrcode', cat: '2d',
     desc: 'Universel · URLs, vCards, jusqu\'à ~4000 caractères. Lecture smartphone.',
-    example: 'https://atelier.walyconseil.com/colis/AT-2026-001',
+    example: 'https://atelier.walyconseil.com/colis/AT-2023-001',
     placeholder: 'URL, texte, ou données structurées',
     validate: (d) => d.length > 0
       ? { ok: true, msg: `OK · ${d.length} caractères` }
@@ -1411,7 +1482,7 @@ const BARCODE_TYPES = [
   {
     id: 'datamatrix', label: 'Data Matrix', bcid: 'datamatrix', cat: '2d',
     desc: 'Compact 2D · industrie, pharma (GS1 DataMatrix), pièces marquées laser.',
-    example: 'AT-2026-001-LOT-A',
+    example: 'AT-2023-001-LOT-A',
     placeholder: 'Données alphanumériques',
     validate: (d) => d.length > 0
       ? { ok: true, msg: `OK · ${d.length} caractères` }
@@ -1420,7 +1491,7 @@ const BARCODE_TYPES = [
   {
     id: 'pdf417', label: 'PDF417', bcid: 'pdf417', cat: '2d',
     desc: 'Étiquettes complexes 2D linéaire · expédition (UPS), permis de conduire.',
-    example: 'ATELIER LOGISTIQUE - COLIS AT-2026-001 - CASABLANCA',
+    example: 'ATELIER LOGISTIQUE - COLIS AT-2023-001 - CASABLANCA',
     placeholder: 'Texte long, données structurées',
     validate: (d) => d.length > 0
       ? { ok: true, msg: `OK · ${d.length} caractères` }
@@ -1498,9 +1569,12 @@ function BarcodeGenerator({ onBack }) {
     setLoading(true);
     try {
       const canvas = document.createElement('canvas');
+      // Pour GS1-128, auto-compléter les check digits manquants (SSCC 17ch → 18ch, GTIN 13ch → 14ch)
+      const dataToRender = currentType.bcid === 'gs1-128' ? autoCompleteGs1Payload(data) : data;
+
       const opts = {
         bcid: currentType.bcid,
-        text: data,
+        text: dataToRender,
         scale: scale,
         includetext: includeText,
         textxalign: 'center',
@@ -2480,11 +2554,11 @@ function NormalDistChart({ muL, sigmaL, z, ss, rop, serviceLevel }) {
 const COLUMN_ALIASES = {
   ref:   ['ref', 'reference', 'référence', 'sku', 'code', 'article', 'item'],
   label: ['libelle', 'libellé', 'nom', 'description', 'designation', 'désignation', 'name'],
-  D:     ['d', 'demande', 'demande moyenne', 'demande moy', 'demande/jour', 'demand', 'mean demand'],
-  sD:    ['sd', 'σd', 'sigma d', 'ecart-type demande', 'écart-type demande', 'std demande', 'std', 'sigma demand'],
-  L:     ['l', 'lead time', 'délai', 'delai', 'lt', 'leadtime'],
-  sL:    ['sl', 'σl', 'sigma l', 'ecart-type lt', 'écart-type lt', 'std lt', 'écart-type délai', 'sigma lead time'],
-  sl:    ['taux de service', 'service level', 'service', 'taux de service %', 'taux service', 'sl%'],
+  D:     ['d', 'demande', 'demande moyenne', 'demande moy', 'demande/jour', 'demande / jour', 'demande moyenne / jour', 'demande moyenne jour', 'demande par jour', 'demand', 'mean demand'],
+  sD:    ['sd', 'σd', 'sigma d', 'ecart-type demande', 'écart-type demande', 'std demande', 'std', 'sigma demand', 'variabilité demande', 'variabilite demande', 'variabilité demande (écart-type)'],
+  L:     ['l', 'lead time', 'délai', 'delai', 'lt', 'leadtime', 'délai approvisionnement', 'délai approvisionnement (jours)', 'délai (jours)'],
+  sL:    ['sl', 'σl', 'sigma l', 'ecart-type lt', 'écart-type lt', 'std lt', 'écart-type délai', 'sigma lead time', 'variabilité délai', 'variabilité délai (écart-type)', 'variabilite delai'],
+  sl:    ['taux de service', 'taux de service cible', 'taux de service cible (%)', 'service level', 'service', 'taux de service %', 'taux service', 'sl%', 'taux de service (%)'],
 };
 
 // Aliases pour fichier d'historique de ventes
@@ -2657,9 +2731,9 @@ function aggregateSalesHistory(json, aggregation = 'daily') {
 }
 
 const TEMPLATE_ROWS = [
-  { 'Référence': 'A001', 'Libellé': 'Article exemple 1', 'Demande moyenne': 100, 'Ecart-type demande': 20, 'Lead time': 5, 'Ecart-type LT': 1, 'Taux de service (%)': 95 },
-  { 'Référence': 'A002', 'Libellé': 'Article exemple 2', 'Demande moyenne': 50,  'Ecart-type demande': 10, 'Lead time': 7, 'Ecart-type LT': 2, 'Taux de service (%)': 99 },
-  { 'Référence': 'A003', 'Libellé': 'Article exemple 3', 'Demande moyenne': 200, 'Ecart-type demande': 30, 'Lead time': 3, 'Ecart-type LT': 0.5, 'Taux de service (%)': 90 },
+  { 'Référence': 'A001', 'Libellé': 'Article exemple 1', 'Demande moyenne / jour': 100, 'Variabilité demande (écart-type)': 20, 'Délai approvisionnement (jours)': 5, 'Variabilité délai (écart-type)': 1, 'Taux de service cible (%)': 95 },
+  { 'Référence': 'A002', 'Libellé': 'Article exemple 2', 'Demande moyenne / jour': 50,  'Variabilité demande (écart-type)': 10, 'Délai approvisionnement (jours)': 7, 'Variabilité délai (écart-type)': 2, 'Taux de service cible (%)': 99 },
+  { 'Référence': 'A003', 'Libellé': 'Article exemple 3', 'Demande moyenne / jour': 200, 'Variabilité demande (écart-type)': 30, 'Délai approvisionnement (jours)': 3, 'Variabilité délai (écart-type)': 0.5, 'Taux de service cible (%)': 90 },
 ];
 
 // Génère un template historique de ventes (90 jours, 2 articles × 2 magasins)
@@ -3103,9 +3177,11 @@ function SafetyStockCalculator({ onBack }) {
           {/* Message d'import */}
           {importMsg && (
             <div className="rounded-lg p-3 font-jetbrains text-xs"
-              style={importMsg.type === 'success'
-                ? { background: '#ECFDF5', color: '#065F46', border: '1px solid #A7F3D0' }
-                : { background: '#FEF2F2', color: '#991B1B', border: '1px solid #FECACA' }}>
+              style={
+                importMsg.type === 'success' ? { background: '#ECFDF5', color: '#065F46', border: '1px solid #A7F3D0' }
+                : importMsg.type === 'warning' ? { background: '#FFFBEB', color: '#92400E', border: '1px solid #FCD34D' }
+                : { background: '#FEF2F2', color: '#991B1B', border: '1px solid #FECACA' }
+              }>
               {importMsg.text}
             </div>
           )}
@@ -3355,15 +3431,19 @@ function Td({ children, className = '', style = {} }) {
   return <td className={`px-3 py-1.5 ${className}`} style={style}>{children}</td>;
 }
 
-function CellInput({ value, onChange, type = 'text', align = 'left', mono = false, step }) {
+function CellInput({ value, onChange, type = 'text', align = 'left', mono = false, step, placeholder }) {
+  // En type number : afficher vide si valeur 0 et vide initialement, pour ne pas afficher "0" partout
+  const displayValue = value === undefined || value === null ? '' : value;
   return (
     <input
       type={type}
-      value={value}
+      value={displayValue}
       step={step}
+      placeholder={placeholder || (type === 'number' ? '0' : '')}
       onChange={e => onChange(e.target.value)}
       onClick={e => e.stopPropagation()}
-      className={`w-full bg-transparent outline-none px-1.5 py-1 rounded focus:bg-white focus:ring-1 focus:ring-slate-300 transition-all ${align === 'right' ? 'text-right' : ''} ${mono ? 'font-jetbrains' : ''} text-slate-800`}
+      onFocus={e => e.target.select()}
+      className={`w-full bg-transparent outline-none px-1.5 py-1 rounded focus:bg-white focus:ring-2 focus:ring-blue-300 focus:ring-offset-0 transition-all border border-transparent hover:border-slate-200 hover:bg-slate-50/50 ${align === 'right' ? 'text-right' : ''} ${mono ? 'font-jetbrains' : ''} text-slate-900`}
     />
   );
 }
@@ -4759,7 +4839,7 @@ function CmrGenerator({ onBack }) {
             <div className="p-4 space-y-3">
               <div>
                 <label className="font-jetbrains text-[10px] text-slate-500 tracking-wider mb-1.5 block">5. DOCUMENTS ANNEXÉS</label>
-                <textarea rows="2" value={attachedDocs} onChange={e => setAttachedDocs(e.target.value)} placeholder="ex : facture commerciale n°2026-001, certificat d'origine, packing list"
+                <textarea rows="2" value={attachedDocs} onChange={e => setAttachedDocs(e.target.value)} placeholder="ex : facture commerciale n°2023-001, certificat d'origine, packing list"
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-md outline-none text-sm focus:border-blue-400 transition-colors resize-none" />
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -5015,6 +5095,1300 @@ function SummaryRow({ label, value, mono }) {
     <div className="flex justify-between gap-3">
       <span className="text-slate-500 flex-shrink-0">{label}</span>
       <span className={`text-right text-slate-800 ${mono ? 'font-jetbrains' : ''}`} style={{ wordBreak: 'break-word' }}>{value}</span>
+    </div>
+  );
+}
+
+// ============================================================
+// Term · composant d'aide contextuelle (tooltip flottant)
+// ============================================================
+function Term({ abbr, full, children }) {
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+  const ref = useRef(null);
+
+  const TOOLTIP_WIDTH = 280;
+
+  const updatePos = () => {
+    if (ref.current) {
+      const r = ref.current.getBoundingClientRect();
+      let left = r.left + r.width / 2;
+      const margin = 12;
+      const halfW = TOOLTIP_WIDTH / 2;
+      if (left + halfW > window.innerWidth - margin) left = window.innerWidth - halfW - margin;
+      if (left - halfW < margin) left = halfW + margin;
+      setPos({ top: r.top - 10, left });
+    }
+  };
+
+  const show = () => { updatePos(); setOpen(true); };
+  const hide = () => setOpen(false);
+
+  useEffect(() => {
+    if (!open) return;
+    const onChange = () => updatePos();
+    window.addEventListener('scroll', onChange, true);
+    window.addEventListener('resize', onChange);
+    return () => {
+      window.removeEventListener('scroll', onChange, true);
+      window.removeEventListener('resize', onChange);
+    };
+  }, [open]);
+
+  return (
+    <>
+      <span
+        ref={ref}
+        className="cursor-help font-jetbrains"
+        style={{ borderBottom: '1px dotted currentColor' }}
+        onMouseEnter={show}
+        onMouseLeave={hide}
+        onClick={(e) => { e.stopPropagation(); open ? hide() : show(); }}
+      >
+        {abbr}
+      </span>
+      {open && (
+        <span
+          style={{
+            display: 'block',
+            position: 'fixed',
+            top: pos.top,
+            left: pos.left,
+            transform: 'translate(-50%, -100%)',
+            width: `${TOOLTIP_WIDTH}px`,
+            background: '#0F172A',
+            color: 'white',
+            padding: '12px 14px',
+            borderRadius: '8px',
+            boxShadow: '0 10px 30px rgba(0,0,0,0.25)',
+            zIndex: 9999,
+            pointerEvents: 'none',
+            fontFamily: "'DM Sans', sans-serif",
+            letterSpacing: 'normal',
+            textTransform: 'none',
+            fontWeight: 400,
+            fontSize: '12px',
+            lineHeight: 1.5,
+            textAlign: 'left',
+            whiteSpace: 'normal',
+          }}
+        >
+          <span style={{ display: 'block', fontWeight: 600, color: 'white', marginBottom: 4 }}>{full}</span>
+          <span style={{ display: 'block', color: '#CBD5E1', lineHeight: 1.55 }}>{children}</span>
+          <span
+            style={{
+              display: 'block',
+              position: 'absolute',
+              left: '50%',
+              top: '100%',
+              transform: 'translateX(-50%)',
+              width: 0,
+              height: 0,
+              borderLeft: '6px solid transparent',
+              borderRight: '6px solid transparent',
+              borderTop: '6px solid #0F172A',
+            }}
+          />
+        </span>
+      )}
+    </>
+  );
+}
+
+// Glossaire DDMRP — tous les termes méthodologiques
+const DDMRP_TERMS = {
+  ADU: {
+    full: 'Average Daily Usage — Demande moyenne quotidienne',
+    desc: "Consommation moyenne par jour de l'article, calculée sur les 3 à 6 derniers mois. C'est le moteur de tous les calculs DDMRP."
+  },
+  DLT: {
+    full: 'Decoupled Lead Time — Délai d\'approvisionnement décou­plé',
+    desc: "Durée totale nécessaire pour reconstituer le stock après commande (fournisseur ou production interne), exprimée en jours."
+  },
+  MOQ: {
+    full: 'Minimum Order Quantity — Quantité minimale de commande',
+    desc: "Quantité minimale imposée par le fournisseur ou la production. Force la zone verte du buffer à au moins ce niveau."
+  },
+  VF: {
+    full: 'Variability Factor — Facteur de variabilité',
+    desc: "Coefficient entre 0 et 1 qui calibre la zone rouge de sécurité. Plus la demande est volatile, plus le VF est élevé (0.25 faible, 0.50 moyenne, 0.75 forte)."
+  },
+  LTF: {
+    full: 'Lead Time Factor — Facteur de délai',
+    desc: "Coefficient entre 0 et 1 qui calibre les zones rouge et verte. Plus le délai est long, plus le LTF est bas — car le besoin est étalé dans le temps."
+  },
+  NFP: {
+    full: 'Net Flow Position — Position nette du flux',
+    desc: "Stock disponible + Commandes en cours − Demandes qualifiées. C'est le vrai indicateur de santé du buffer (pas le simple stock physique)."
+  },
+  TOR: {
+    full: 'Top of Red — Plafond de la zone rouge',
+    desc: "Niveau total de la zone rouge (base + sécurité). Si la NFP descend en-dessous, c'est une URGENCE — commander immédiatement."
+  },
+  TOY: {
+    full: 'Top of Yellow — Plafond de la zone jaune',
+    desc: "TOR + Zone jaune. Si la NFP passe sous ce seuil, il faut recommander une commande pour reconstituer le buffer."
+  },
+  TOG: {
+    full: 'Top of Green — Plafond de la zone verte',
+    desc: "TOY + Zone verte = stock cible maximum. La quantité suggérée à commander vise à ramener la NFP à ce niveau."
+  },
+  CV: {
+    full: 'Coefficient of Variation — Coefficient de variation',
+    desc: "Écart-type ÷ moyenne de la demande. Mesure la régularité : < 0.5 demande stable, > 1.0 demande très volatile."
+  },
+};
+
+// Helper compact : <T code="ADU" /> rend un tooltip avec les infos du glossaire
+function T({ code }) {
+  const t = DDMRP_TERMS[code];
+  if (!t) return <span>{code}</span>;
+  return <Term abbr={code} full={t.full}>{t.desc}</Term>;
+}
+
+// ============================================================
+// DDMRP · Buffers stratégiques (Demand Driven MRP)
+// Méthodologie de Carol Ptak & Chad Smith
+// ============================================================
+
+const DDMRP_COLORS = {
+  red:    { fill: '#FEE2E2', solid: '#DC2626', text: '#991B1B', label: 'URGENCE' },
+  yellow: { fill: '#FEF3C7', solid: '#F59E0B', text: '#92400E', label: 'RECOMMANDER' },
+  green:  { fill: '#D1FAE5', solid: '#10B981', text: '#065F46', label: 'OK' },
+  blue:   { fill: '#DBEAFE', solid: '#3B82F6', text: '#1E40AF', label: 'SUR-STOCK' },
+  stockout: { fill: '#F1F5F9', solid: '#1E293B', text: '#1E293B', label: 'RUPTURE' },
+};
+
+// Variability Factor presets (Demand Driven Institute standards)
+const VF_PRESETS = [
+  { value: 0.25, label: 'Faible', desc: 'CV < 0.5', cvMax: 0.5 },
+  { value: 0.50, label: 'Moyenne', desc: 'CV 0.5–1.0', cvMax: 1.0 },
+  { value: 0.75, label: 'Élevée', desc: 'CV > 1.0', cvMax: 999 },
+];
+
+// Lead Time Factor presets
+const LTF_PRESETS = [
+  { value: 0.30, label: 'Long LT', desc: '> 20 jours' },
+  { value: 0.50, label: 'Moyen LT', desc: '5 – 20 jours' },
+  { value: 0.70, label: 'Court LT', desc: '< 5 jours' },
+];
+
+// Suggérer LTF en fonction du DLT
+function suggestLtf(dlt) {
+  if (dlt > 20) return 0.30;
+  if (dlt >= 5) return 0.50;
+  return 0.70;
+}
+
+// Suggérer VF en fonction du coefficient de variation
+function suggestVf(cv) {
+  if (cv < 0.5) return 0.25;
+  if (cv < 1.0) return 0.50;
+  return 0.75;
+}
+
+function computeBuffer({ adu, dlt, moq, orderCycle, vf, ltf, nfp }) {
+  if (adu <= 0 || dlt <= 0) {
+    return { valid: false, reason: 'ADU et DLT doivent être > 0' };
+  }
+  const redBase = adu * dlt * ltf;
+  const redSafety = redBase * vf;
+  const redZone = redBase + redSafety;
+
+  const yellowZone = adu * dlt;
+
+  const greenLtf = adu * dlt * ltf;
+  const greenMoq = moq || 0;
+  const greenCycle = orderCycle > 0 ? adu * orderCycle : 0;
+  const greenZone = Math.max(greenLtf, greenMoq, greenCycle);
+  const greenDriver = greenZone === greenCycle && greenCycle > 0
+    ? 'order_cycle'
+    : greenZone === greenMoq && greenMoq > 0 && greenMoq >= greenLtf
+    ? 'moq'
+    : 'lead_time';
+
+  const tor = redZone;
+  const toy = tor + yellowZone;
+  const tog = toy + greenZone;
+
+  // Statut
+  let status;
+  if (nfp <= 0) status = 'stockout';
+  else if (nfp <= tor) status = 'red';
+  else if (nfp <= toy) status = 'yellow';
+  else if (nfp <= tog) status = 'green';
+  else status = 'blue';
+
+  // Quantité à commander (si NFP ≤ TOY)
+  let orderQty = 0;
+  if (nfp <= toy) {
+    orderQty = Math.max(0, tog - nfp);
+    if (moq > 0 && orderQty > 0) {
+      orderQty = Math.ceil(orderQty / moq) * moq;
+    }
+  }
+
+  // Couverture en jours (NFP / ADU)
+  const coverageDays = adu > 0 ? nfp / adu : 0;
+
+  return {
+    valid: true,
+    redBase, redSafety, redZone, yellowZone, greenZone, greenDriver,
+    tor, toy, tog,
+    status, orderQty, coverageDays,
+  };
+}
+
+// ============================================================
+// BufferChart · visualisation SVG d'un buffer DDMRP
+// ============================================================
+function BufferChart({ result, nfp, compact = false }) {
+  if (!result || !result.valid) {
+    return <div className="font-jetbrains text-xs text-slate-500 p-6 text-center">Saisissez ADU et DLT pour visualiser</div>;
+  }
+
+  const { redZone, yellowZone, greenZone, tor, toy, tog, status } = result;
+
+  // Hauteur totale considérée : on prend 110% du TOG pour donner de l'air en haut
+  // Si NFP > TOG, on étend
+  const maxDisplay = Math.max(tog * 1.15, nfp * 1.1, 10);
+  const H = compact ? 180 : 280;
+  const W = compact ? 280 : 380;
+  const padTop = 8, padBottom = 20, padLeft = 10, padRight = 100;
+  const chartH = H - padTop - padBottom;
+  const chartW = W - padLeft - padRight;
+
+  // Convertir valeurs en y (inversé : 0 en bas, max en haut)
+  const toY = (val) => padTop + chartH - (val / maxDisplay) * chartH;
+
+  const colorRed = DDMRP_COLORS.red.solid;
+  const colorYellow = DDMRP_COLORS.yellow.solid;
+  const colorGreen = DDMRP_COLORS.green.solid;
+  const colorBlue = DDMRP_COLORS.blue.solid;
+
+  // Hauteur des zones
+  const yRedTop = toY(tor);
+  const yYellowTop = toY(toy);
+  const yGreenTop = toY(tog);
+  const yBottom = toY(0);
+  const yNfp = toY(Math.max(0, nfp));
+
+  const nfpInRange = nfp >= 0 && nfp <= maxDisplay;
+
+  // Couleur de la barre NFP selon statut
+  const nfpColor = DDMRP_COLORS[status]?.solid || '#1E293B';
+
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} xmlns="http://www.w3.org/2000/svg" width="100%" style={{ maxHeight: H }}>
+      <defs>
+        <pattern id="diag-red" patternUnits="userSpaceOnUse" width="6" height="6">
+          <rect width="6" height="6" fill={DDMRP_COLORS.red.fill} />
+          <path d="M-1 1 L 7 -7 M-1 7 L 7 -1 M-1 13 L 7 5" stroke={colorRed} strokeWidth="0.6" opacity="0.45" />
+        </pattern>
+      </defs>
+
+      {/* Zone rouge (en bas) */}
+      <rect x={padLeft} y={yRedTop} width={chartW} height={yBottom - yRedTop}
+        fill="url(#diag-red)" stroke={colorRed} strokeWidth="0.8" />
+      <text x={padLeft + 10} y={(yRedTop + yBottom) / 2} fontFamily="'JetBrains Mono', monospace" fontSize="11" fontWeight="600" fill={DDMRP_COLORS.red.text}>
+        ROUGE
+      </text>
+
+      {/* Zone jaune */}
+      <rect x={padLeft} y={yYellowTop} width={chartW} height={yRedTop - yYellowTop}
+        fill={DDMRP_COLORS.yellow.fill} stroke={colorYellow} strokeWidth="0.8" />
+      <text x={padLeft + 10} y={(yYellowTop + yRedTop) / 2} fontFamily="'JetBrains Mono', monospace" fontSize="11" fontWeight="600" fill={DDMRP_COLORS.yellow.text}>
+        JAUNE
+      </text>
+
+      {/* Zone verte */}
+      <rect x={padLeft} y={yGreenTop} width={chartW} height={yYellowTop - yGreenTop}
+        fill={DDMRP_COLORS.green.fill} stroke={colorGreen} strokeWidth="0.8" />
+      <text x={padLeft + 10} y={(yGreenTop + yYellowTop) / 2} fontFamily="'JetBrains Mono', monospace" fontSize="11" fontWeight="600" fill={DDMRP_COLORS.green.text}>
+        VERT
+      </text>
+
+      {/* Zone sur-stock (au-dessus du TOG, si on a affiché plus) */}
+      {maxDisplay > tog && (
+        <rect x={padLeft} y={padTop} width={chartW} height={yGreenTop - padTop}
+          fill="white" stroke={colorBlue} strokeWidth="0.8" strokeDasharray="3,3" opacity="0.6" />
+      )}
+
+      {/* Annotations TOG, TOY, TOR à droite */}
+      <ZoneLabel x={padLeft + chartW + 6} y={yGreenTop} label="TOG" value={Math.round(tog)} color={colorGreen} />
+      <ZoneLabel x={padLeft + chartW + 6} y={yYellowTop} label="TOY" value={Math.round(toy)} color={colorYellow} />
+      <ZoneLabel x={padLeft + chartW + 6} y={yRedTop} label="TOR" value={Math.round(tor)} color={colorRed} />
+      <ZoneLabel x={padLeft + chartW + 6} y={yBottom} label="0" value={0} color="#64748B" />
+
+      {/* Ligne NFP */}
+      {nfpInRange ? (
+        <g>
+          <line x1={padLeft - 6} y1={yNfp} x2={padLeft + chartW + 4} y2={yNfp}
+            stroke={nfpColor} strokeWidth="2.5" strokeLinecap="round" style={{ transition: 'all 0.4s ease' }} />
+          <circle cx={padLeft + chartW + 4} cy={yNfp} r="4" fill={nfpColor} style={{ transition: 'all 0.4s ease' }} />
+          <rect x={padLeft - 4} y={yNfp - 8} width={42} height={16} rx={3} fill={nfpColor} />
+          <text x={padLeft + 17} y={yNfp + 4} fontFamily="'JetBrains Mono', monospace" fontSize="10" fontWeight="700" fill="white" textAnchor="middle">
+            NFP {Math.round(nfp)}
+          </text>
+        </g>
+      ) : nfp > maxDisplay ? (
+        <g>
+          <text x={padLeft + chartW / 2} y={padTop + 4} fontFamily="'JetBrains Mono', monospace" fontSize="10" fontWeight="600" fill={colorBlue} textAnchor="middle">
+            ↑ NFP {Math.round(nfp)}
+          </text>
+        </g>
+      ) : null}
+    </svg>
+  );
+}
+
+function ZoneLabel({ x, y, label, value, color }) {
+  return (
+    <g>
+      <line x1={x - 7} y1={y} x2={x - 2} y2={y} stroke={color} strokeWidth="1" />
+      <text x={x} y={y - 2} fontFamily="'JetBrains Mono', monospace" fontSize="9" fontWeight="700" fill={color}>
+        {label}
+      </text>
+      <text x={x} y={y + 8} fontFamily="'JetBrains Mono', monospace" fontSize="9" fill="#475569">
+        {value.toLocaleString('fr-FR')}
+      </text>
+    </g>
+  );
+}
+
+// Mini-graph horizontal pour les lignes du tableau batch
+function MiniBufferBar({ result, nfp }) {
+  if (!result || !result.valid) return <span className="font-jetbrains text-xs text-slate-400">—</span>;
+  const { tor, toy, tog, status } = result;
+  const maxDisplay = Math.max(tog * 1.1, nfp * 1.05, 10);
+  const W = 80, H = 14;
+  const xRedEnd = (tor / maxDisplay) * W;
+  const xYellowEnd = (toy / maxDisplay) * W;
+  const xGreenEnd = (tog / maxDisplay) * W;
+  const xNfp = (Math.max(0, Math.min(nfp, maxDisplay)) / maxDisplay) * W;
+  const nfpColor = DDMRP_COLORS[status]?.solid || '#1E293B';
+
+  return (
+    <svg viewBox={`0 0 ${W + 2} ${H}`} width={W + 2} height={H} style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+      <rect x="0" y="3" width={xRedEnd} height="8" fill={DDMRP_COLORS.red.fill} stroke={DDMRP_COLORS.red.solid} strokeWidth="0.5" />
+      <rect x={xRedEnd} y="3" width={xYellowEnd - xRedEnd} height="8" fill={DDMRP_COLORS.yellow.fill} stroke={DDMRP_COLORS.yellow.solid} strokeWidth="0.5" />
+      <rect x={xYellowEnd} y="3" width={xGreenEnd - xYellowEnd} height="8" fill={DDMRP_COLORS.green.fill} stroke={DDMRP_COLORS.green.solid} strokeWidth="0.5" />
+      {nfp >= 0 && nfp <= maxDisplay && (
+        <line x1={xNfp} y1="1" x2={xNfp} y2="13" stroke={nfpColor} strokeWidth="2" />
+      )}
+    </svg>
+  );
+}
+
+// Status badge
+function StatusBadge({ status, large = false }) {
+  const c = DDMRP_COLORS[status] || DDMRP_COLORS.green;
+  if (large) {
+    return (
+      <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md font-jetbrains text-sm font-bold tracking-wider"
+        style={{ color: c.text, background: c.fill, border: `1px solid ${c.solid}` }}>
+        <span className="w-2 h-2 rounded-full" style={{ background: c.solid }} />
+        {c.label}
+      </div>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded font-jetbrains text-[10px] font-bold tracking-wider"
+      style={{ color: c.text, background: c.fill }}>
+      ● {c.label}
+    </span>
+  );
+}
+
+// Templates DDMRP
+const DDMRP_TEMPLATE_ROWS = [
+  { 'Référence': 'A001', 'Libellé': 'Article rapide',  'Demande moyenne / jour': 100, 'Délai approvisionnement (jours)': 5,  'Quantité minimum de commande': 50,  'Cycle de commande (jours)': 7,  'Facteur variabilité (0-1)': 0.5,  'Facteur délai (0-1)': 0.7, 'Stock actuel': 800 },
+  { 'Référence': 'A002', 'Libellé': 'Article volatile','Demande moyenne / jour': 50,  'Délai approvisionnement (jours)': 14, 'Quantité minimum de commande': 100, 'Cycle de commande (jours)': 0,  'Facteur variabilité (0-1)': 0.75, 'Facteur délai (0-1)': 0.5, 'Stock actuel': 600 },
+  { 'Référence': 'A003', 'Libellé': 'Article stable',  'Demande moyenne / jour': 200, 'Délai approvisionnement (jours)': 3,  'Quantité minimum de commande': 100, 'Cycle de commande (jours)': 14, 'Facteur variabilité (0-1)': 0.25, 'Facteur délai (0-1)': 0.7, 'Stock actuel': 1200 },
+];
+
+const DDMRP_ALIASES = {
+  ref:   ['ref', 'reference', 'référence', 'sku', 'code', 'article', 'item'],
+  label: ['libelle', 'libellé', 'nom', 'description', 'designation', 'désignation', 'name'],
+  adu:   ['adu', 'demande', 'demande moyenne', 'demande moyenne par jour', 'demande moyenne / jour', 'demande moyenne jour', 'consommation', 'consommation moyenne', 'demande journaliere', 'demande journalière', 'average daily usage', 'demande / jour', 'demande par jour'],
+  dlt:   ['dlt', 'lead time', 'délai', 'delai', 'leadtime', 'lt', 'délai réappro', 'délai approvisionnement', 'délai approvisionnement (jours)', 'délai d approvisionnement', 'delai approvisionnement'],
+  moq:   ['moq', 'quantite mini', 'quantité minimum', 'quantité minimum de commande', 'quantité min de commande', 'minimum order quantity', 'qte mini', 'mini', 'qté min commande', 'quantité minimum commande'],
+  cycle: ['cycle', 'order cycle', 'cycle commande', 'cycle de commande', 'cycle de commande (jours)', 'periodicite', 'périodicité', 'cycle (jours)'],
+  vf:    ['vf', 'variability', 'variability factor', 'facteur variabilite', 'facteur variabilité', 'facteur de variabilité', 'var', 'facteur variabilité (0-1)'],
+  ltf:   ['ltf', 'lead time factor', 'facteur lead time', 'facteur délai', 'facteur de délai', 'facteur délai (0-1)'],
+  nfp:   ['nfp', 'net flow position', 'flux net', 'position', 'stock disponible', 'stock', 'stock actuel', 'position de flux net', 'stock disponible actuel'],
+};
+
+function mapDdmrpRow(raw, idx) {
+  const refRaw = findField(raw, DDMRP_ALIASES.ref);
+  const labelRaw = findField(raw, DDMRP_ALIASES.label);
+  return {
+    id: `ddmrp-${Date.now()}-${idx}`,
+    ref: refRaw != null ? String(refRaw) : `A${String(idx + 1).padStart(3, '0')}`,
+    label: labelRaw != null ? String(labelRaw) : '',
+    adu: parseFloat(findField(raw, DDMRP_ALIASES.adu)) || 0,
+    dlt: parseFloat(findField(raw, DDMRP_ALIASES.dlt)) || 0,
+    moq: parseFloat(findField(raw, DDMRP_ALIASES.moq)) || 0,
+    orderCycle: parseFloat(findField(raw, DDMRP_ALIASES.cycle)) || 0,
+    vf: parseFloat(findField(raw, DDMRP_ALIASES.vf)) || 0.5,
+    ltf: parseFloat(findField(raw, DDMRP_ALIASES.ltf)) || 0.5,
+    nfp: parseFloat(findField(raw, DDMRP_ALIASES.nfp)) || 0,
+  };
+}
+
+// Agrégation historique pour DDMRP : ADU + CV → VF suggéré
+function aggregateDdmrpHistory(json, aggregation = 'daily') {
+  const valid = [];
+  let errorCount = 0;
+  for (const raw of json) {
+    const ref = String(findField(raw, SALES_COLUMN_ALIASES.ref) || '').trim();
+    const label = String(findField(raw, SALES_COLUMN_ALIASES.label) || '').trim();
+    const store = String(findField(raw, SALES_COLUMN_ALIASES.store) || '').trim();
+    const L = parseFloat(findField(raw, SALES_COLUMN_ALIASES.L));
+    const qty = parseFloat(findField(raw, SALES_COLUMN_ALIASES.qty));
+    const date = parseDate(findField(raw, SALES_COLUMN_ALIASES.date));
+    if (!ref || !date || isNaN(qty)) { errorCount++; continue; }
+    valid.push({ ref, label, store: store || '—', L: isNaN(L) ? 0 : L, qty, date });
+  }
+  if (valid.length === 0) {
+    throw new Error('Aucune ligne valide (vérifiez Référence, Date, Quantité)');
+  }
+
+  const groups = {};
+  for (const row of valid) {
+    const key = `${row.ref}|${row.store}`;
+    if (!groups[key]) groups[key] = { ref: row.ref, label: row.label, store: row.store, L: row.L, sales: [] };
+    groups[key].sales.push({ date: row.date, qty: row.qty });
+    if (row.L > 0) groups[key].L = row.L;
+    if (row.label && !groups[key].label) groups[key].label = row.label;
+  }
+
+  const binSize = aggregation === 'weekly' ? 7 * 86400000 : 86400000;
+  const results = [];
+  let idx = 0;
+  for (const key in groups) {
+    const g = groups[key];
+    const times = g.sales.map(s => s.date.getTime());
+    const minT = Math.min(...times);
+    const maxT = Math.max(...times);
+    const minBin = Math.floor(minT / binSize);
+    const maxBin = Math.floor(maxT / binSize);
+    const totalBins = maxBin - minBin + 1;
+    const binnedQty = new Array(totalBins).fill(0);
+    for (const s of g.sales) {
+      const bin = Math.floor(s.date.getTime() / binSize) - minBin;
+      binnedQty[bin] += s.qty;
+    }
+
+    const totalQty = binnedQty.reduce((a, b) => a + b, 0);
+    const activeBinsArr = binnedQty.filter(q => q > 0);
+    const activeBinsCount = activeBinsArr.length;
+
+    // ADU calculé sur l'horizon TOTAL (avec zéros) — c'est la vraie consommation moyenne
+    const aduPerBin = totalBins > 0 ? totalQty / totalBins : 0;
+    const adu = aggregation === 'daily' ? aduPerBin : aduPerBin / 7;
+
+    // CV calculé sur les bins ACTIFS uniquement (plus représentatif de la variabilité réelle
+    // de la demande, sans gonfler artificiellement à cause des zéros)
+    let cv = 0;
+    if (activeBinsCount > 1) {
+      const activeMean = activeBinsArr.reduce((a, b) => a + b, 0) / activeBinsCount;
+      const activeVar = activeBinsArr.reduce((acc, q) => acc + (q - activeMean) ** 2, 0) / (activeBinsCount - 1);
+      const activeStd = Math.sqrt(activeVar);
+      cv = activeMean > 0 ? activeStd / activeMean : 0;
+    }
+
+    // Sporadicité : ratio de bins avec demande (1.0 = continu, 0.3 = sporadique)
+    const sporadicity = totalBins > 0 ? activeBinsCount / totalBins : 0;
+
+    const vf = suggestVf(cv);
+    const ltf = suggestLtf(g.L);
+
+    let reliability = 'low';
+    if (totalBins >= 90) reliability = 'high';
+    else if (totalBins >= 30) reliability = 'medium';
+
+    results.push({
+      id: `ddmrp-sales-${Date.now()}-${idx++}`,
+      ref: g.ref,
+      label: g.label,
+      store: g.store,
+      adu: Number(adu.toFixed(2)),
+      dlt: g.L,
+      moq: 0,
+      orderCycle: 0,
+      vf, ltf,
+      nfp: 0,
+      cv: Number(cv.toFixed(3)),
+      activeBins: activeBinsCount,
+      totalBins,
+      sporadicity: Number((sporadicity * 100).toFixed(0)),
+      reliability,
+    });
+  }
+  results.sort((a, b) => a.ref.localeCompare(b.ref) || (a.store || '').localeCompare(b.store || ''));
+  return { rows: results, errorCount, validLines: valid.length };
+}
+
+// ============================================================
+// DdmrpBuffers · le composant principal
+// ============================================================
+function DdmrpBuffers({ onBack }) {
+  const [mode, setMode] = useState('single');
+
+  // SINGLE MODE
+  const [adu, setAdu] = useState(100);
+  const [dlt, setDlt] = useState(7);
+  const [moq, setMoq] = useState(50);
+  const [orderCycle, setOrderCycle] = useState(0);
+  const [vf, setVf] = useState(0.5);
+  const [ltf, setLtf] = useState(0.5);
+  const [nfp, setNfp] = useState(800);
+
+  const singleResult = useMemo(
+    () => computeBuffer({ adu, dlt, moq, orderCycle, vf, ltf, nfp }),
+    [adu, dlt, moq, orderCycle, vf, ltf, nfp]
+  );
+
+  // BATCH MODE
+  const [rows, setRows] = useState([
+    { id: 'd-init-1', ref: 'A001', label: 'Article rapide',  adu: 100, dlt: 5,  moq: 50,  orderCycle: 7,  vf: 0.5,  ltf: 0.7, nfp: 800 },
+    { id: 'd-init-2', ref: 'A002', label: 'Article volatile', adu: 50, dlt: 14, moq: 100, orderCycle: 0,  vf: 0.75, ltf: 0.5, nfp: 600 },
+    { id: 'd-init-3', ref: 'A003', label: 'Article stable',   adu: 200, dlt: 3,  moq: 100, orderCycle: 14, vf: 0.25, ltf: 0.7, nfp: 1200 },
+  ]);
+  const [selectedRowId, setSelectedRowId] = useState('d-init-1');
+  const [importMsg, setImportMsg] = useState(null);
+  const fileInputRef = useRef(null);
+
+  const [dataSource, setDataSource] = useState('manual');
+  const [rawSalesData, setRawSalesData] = useState(null);
+  const [aggregation, setAggregation] = useState('daily');
+  // Paramètres globaux mode sales
+  const [globalMoq, setGlobalMoq] = useState(0);
+  const [globalOrderCycle, setGlobalOrderCycle] = useState(0);
+  const [globalVf, setGlobalVf] = useState(0.5);
+  const [globalLtf, setGlobalLtf] = useState(0.5);
+  const [forceVfGlobal, setForceVfGlobal] = useState(false);
+  const [forceLtfGlobal, setForceLtfGlobal] = useState(false);
+
+  // Reagrégation si on change l'agrégation
+  useEffect(() => {
+    if (dataSource === 'sales' && rawSalesData) {
+      try {
+        const { rows: aggregated } = aggregateDdmrpHistory(rawSalesData, aggregation);
+        setRows(aggregated);
+        if (aggregated.length > 0 && !aggregated.find(r => r.id === selectedRowId)) {
+          setSelectedRowId(aggregated[0].id);
+        }
+      } catch (e) {}
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aggregation]);
+
+  // En mode sales : application des paramètres globaux
+  // - MOQ et OrderCycle globaux s'appliquent si la ligne a une valeur 0
+  //   (= soit pas encore renseignée, soit volontairement remise à 0 par l'utilisateur)
+  // - VF/LTF globaux s'appliquent uniquement si le mode "Forcé" est activé,
+  //   sinon on garde la suggestion automatique par article (auto-calculée depuis CV/DLT)
+  const effectiveRows = useMemo(() => {
+    if (dataSource === 'sales') {
+      return rows.map(r => ({
+        ...r,
+        moq: (r.moq && r.moq > 0) ? r.moq : globalMoq,
+        orderCycle: (r.orderCycle && r.orderCycle > 0) ? r.orderCycle : globalOrderCycle,
+        vf: forceVfGlobal ? globalVf : r.vf,
+        ltf: forceLtfGlobal ? globalLtf : r.ltf,
+      }));
+    }
+    return rows;
+  }, [rows, dataSource, globalMoq, globalOrderCycle, forceVfGlobal, forceLtfGlobal, globalVf, globalLtf]);
+
+  const computedRows = useMemo(() => effectiveRows.map(r => ({
+    ...r,
+    result: computeBuffer({ adu: r.adu, dlt: r.dlt, moq: r.moq, orderCycle: r.orderCycle, vf: r.vf, ltf: r.ltf, nfp: r.nfp }),
+  })), [effectiveRows]);
+
+  const batchStats = useMemo(() => {
+    const valid = computedRows.filter(r => r.result.valid);
+    const inRed = valid.filter(r => r.result.status === 'red' || r.result.status === 'stockout').length;
+    const inYellow = valid.filter(r => r.result.status === 'yellow').length;
+    const inGreen = valid.filter(r => r.result.status === 'green').length;
+    const overSupply = valid.filter(r => r.result.status === 'blue').length;
+    const totalToOrder = valid.reduce((s, r) => s + r.result.orderQty, 0);
+    return { count: valid.length, inRed, inYellow, inGreen, overSupply, totalToOrder };
+  }, [computedRows]);
+
+  const addRow = () => {
+    const r = {
+      id: 'd-' + Date.now(),
+      ref: '', label: '', adu: 0, dlt: 0, moq: 0, orderCycle: 0, vf: 0.5, ltf: 0.5, nfp: 0
+    };
+    setRows(rs => [...rs, r]);
+    setSelectedRowId(r.id);
+  };
+  const removeRow = (id) => {
+    setRows(rs => rs.filter(r => r.id !== id));
+    if (selectedRowId === id) setSelectedRowId(null);
+  };
+  const updateRow = (id, key, val) => {
+    setRows(rs => rs.map(r => {
+      if (r.id !== id) return r;
+      if (['ref', 'label', 'store'].includes(key)) return { ...r, [key]: val };
+      return { ...r, [key]: Math.max(0, parseFloat(val) || 0) };
+    }));
+  };
+  const clearRows = () => {
+    if (window.confirm('Vider toutes les lignes ?')) {
+      setRows([]);
+      setSelectedRowId(null);
+      setDataSource('manual');
+      setRawSalesData(null);
+    }
+  };
+
+  const handleFileImport = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: 'array', cellDates: true });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const json = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+      if (json.length === 0) throw new Error('Aucune ligne détectée');
+
+      const fileType = detectFileType(json);
+
+      if (fileType === 'sales') {
+        const { rows: aggregated, errorCount, validLines } = aggregateDdmrpHistory(json, aggregation);
+        setRawSalesData(json);
+        setRows(aggregated);
+        setSelectedRowId(aggregated[0]?.id || null);
+        setDataSource('sales');
+        const skipMsg = errorCount > 0 ? ` · ${errorCount} ligne(s) ignorée(s)` : '';
+        setImportMsg({ type: 'success', text: `${aggregated.length} couple(s) Réf×Magasin · ADU et VF calculés depuis ${validLines} ligne(s) de ventes${skipMsg}` });
+      } else {
+        // Mode params : vérifier quelles colonnes ont été matchées
+        const firstRow = json[0];
+        const requiredCols = {
+          'Référence': DDMRP_ALIASES.ref,
+          'Demande moyenne / jour': DDMRP_ALIASES.adu,
+          'Délai (jours)': DDMRP_ALIASES.dlt,
+        };
+        const optionalCols = {
+          'Libellé': DDMRP_ALIASES.label,
+          'Quantité minimum': DDMRP_ALIASES.moq,
+          'Cycle de commande': DDMRP_ALIASES.cycle,
+          'Facteur variabilité': DDMRP_ALIASES.vf,
+          'Facteur délai': DDMRP_ALIASES.ltf,
+          'Stock actuel': DDMRP_ALIASES.nfp,
+        };
+        const missingRequired = Object.entries(requiredCols)
+          .filter(([_, aliases]) => findField(firstRow, aliases) === undefined)
+          .map(([label]) => label);
+        const missingOptional = Object.entries(optionalCols)
+          .filter(([_, aliases]) => findField(firstRow, aliases) === undefined)
+          .map(([label]) => label);
+
+        const mapped = json.map(mapDdmrpRow);
+        setRawSalesData(null);
+        setRows(mapped);
+        setSelectedRowId(mapped[0]?.id || null);
+        setDataSource('manual');
+
+        if (missingRequired.length > 0) {
+          setImportMsg({
+            type: 'error',
+            text: `Colonnes obligatoires manquantes : ${missingRequired.join(', ')}. Téléchargez le template "Paramètres" pour voir les en-têtes attendus.`
+          });
+        } else if (missingOptional.length > 0) {
+          setImportMsg({
+            type: 'warning',
+            text: `${mapped.length} article(s) importé(s). Colonnes non reconnues (valeurs à 0) : ${missingOptional.join(', ')}.`
+          });
+        } else {
+          setImportMsg({ type: 'success', text: `${mapped.length} article(s) importé(s) depuis « ${file.name} »` });
+        }
+      }
+      setTimeout(() => setImportMsg(null), 5500);
+    } catch (err) {
+      setImportMsg({ type: 'error', text: 'Erreur d\'import : ' + err.message });
+      setTimeout(() => setImportMsg(null), 6000);
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const exportXlsx = () => {
+    const data = computedRows.map(r => ({
+      'Référence': r.ref,
+      'Libellé': r.label,
+      ...(r.store ? { 'Magasin': r.store } : {}),
+      'Demande moyenne / jour': r.adu,
+      'Délai approvisionnement (jours)': r.dlt,
+      'Quantité minimum de commande': r.moq,
+      'Cycle de commande (jours)': r.orderCycle,
+      'Facteur variabilité (0-1)': r.vf,
+      'Facteur délai (0-1)': r.ltf,
+      'Stock actuel': r.nfp,
+      ...(r.cv != null ? { 'Coefficient variation': r.cv } : {}),
+      ...(r.sporadicity != null ? { 'Sporadicité %': r.sporadicity } : {}),
+      'Zone Rouge': r.result.valid ? Math.round(r.result.redZone) : '',
+      'Zone Jaune': r.result.valid ? Math.round(r.result.yellowZone) : '',
+      'Zone Verte': r.result.valid ? Math.round(r.result.greenZone) : '',
+      'Plafond Rouge (TOR)': r.result.valid ? Math.round(r.result.tor) : '',
+      'Plafond Jaune (TOY)': r.result.valid ? Math.round(r.result.toy) : '',
+      'Plafond Vert / Stock cible (TOG)': r.result.valid ? Math.round(r.result.tog) : '',
+      'Statut': r.result.valid ? DDMRP_COLORS[r.result.status]?.label : '',
+      'Quantité à commander': r.result.valid ? Math.round(r.result.orderQty) : '',
+      'Couverture (jours)': r.result.valid ? Number(r.result.coverageDays.toFixed(1)) : '',
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Buffers DDMRP');
+
+    // Feuille traçabilité paramètres globaux (en mode sales)
+    if (dataSource === 'sales') {
+      const params = [
+        { 'Paramètre': 'MOQ global', 'Valeur': globalMoq },
+        { 'Paramètre': 'Cycle de commande global', 'Valeur': globalOrderCycle },
+        { 'Paramètre': 'Mode VF', 'Valeur': forceVfGlobal ? `Forcé à ${globalVf}` : 'Auto (par article)' },
+        { 'Paramètre': 'Mode LTF', 'Valeur': forceLtfGlobal ? `Forcé à ${globalLtf}` : 'Auto (par article)' },
+        { 'Paramètre': 'Granularité agrégation', 'Valeur': aggregation === 'daily' ? 'Quotidienne' : 'Hebdomadaire' },
+        { 'Paramètre': 'Date du calcul', 'Valeur': new Date().toLocaleString('fr-FR') },
+      ];
+      const wsParams = XLSX.utils.json_to_sheet(params);
+      XLSX.utils.book_append_sheet(wb, wsParams, 'Paramètres');
+    }
+
+    XLSX.writeFile(wb, `atelier-ddmrp-${Date.now()}.xlsx`);
+  };
+
+  const downloadTemplate = (kind) => {
+    if (kind === 'params') {
+      const ws = XLSX.utils.json_to_sheet(DDMRP_TEMPLATE_ROWS);
+      ws['!cols'] = [{ wch: 12 }, { wch: 22 }, { wch: 8 }, { wch: 8 }, { wch: 8 }, { wch: 8 }, { wch: 8 }, { wch: 8 }, { wch: 10 }];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Template DDMRP');
+      XLSX.writeFile(wb, 'atelier-template-ddmrp.xlsx');
+    } else {
+      const ws = XLSX.utils.json_to_sheet(generateSalesTemplate());
+      ws['!cols'] = [{ wch: 12 }, { wch: 24 }, { wch: 12 }, { wch: 16 }, { wch: 12 }, { wch: 12 }];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Historique de ventes');
+      XLSX.writeFile(wb, 'atelier-template-historique-ventes.xlsx');
+    }
+  };
+
+  const examineRow = (row) => {
+    setAdu(row.adu); setDlt(row.dlt); setMoq(row.moq);
+    setOrderCycle(row.orderCycle); setVf(row.vf); setLtf(row.ltf);
+    setNfp(row.nfp);
+    setMode('single');
+  };
+
+  const selectedRow = computedRows.find(r => r.id === selectedRowId);
+  const isSalesMode = dataSource === 'sales';
+
+  return (
+    <div className="min-h-screen text-slate-900" style={{ background: '#F8FAFC', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+      <FontsAndStyles />
+
+      <nav className="border-b border-slate-200 bg-white sticky top-0 z-20">
+        <div className="max-w-[1600px] mx-auto px-6 py-4 flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-5">
+            <button onClick={onBack} className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors font-jetbrains text-xs">
+              <ArrowLeft size={14} />
+              RETOUR
+            </button>
+            <div className="w-px h-5 bg-slate-200" />
+            <div className="flex items-center gap-3">
+              <Logo small />
+              <div>
+                <div className="font-bricolage font-semibold text-sm leading-tight text-slate-900">Buffers stratégiques DDMRP</div>
+                <div className="font-jetbrains text-[10px] text-slate-500">ATELIER / 07</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1 p-1 rounded-lg border border-slate-200 bg-slate-50">
+            <button onClick={() => setMode('single')}
+              className="px-3 py-1.5 rounded-md font-jetbrains text-xs transition-all"
+              style={mode === 'single'
+                ? { background: '#FFFFFF', color: BLUE, fontWeight: 600, boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }
+                : { color: '#64748B' }}>
+              ARTICLE UNIQUE
+            </button>
+            <button onClick={() => setMode('batch')}
+              className="px-3 py-1.5 rounded-md font-jetbrains text-xs transition-all flex items-center gap-1.5"
+              style={mode === 'batch'
+                ? { background: '#FFFFFF', color: BLUE, fontWeight: 600, boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }
+                : { color: '#64748B' }}>
+              MULTI-ARTICLES
+              {mode !== 'batch' && rows.length > 0 && (
+                <span className="px-1.5 py-0.5 rounded-full text-[9px] font-medium" style={{ background: BLUE_LIGHT, color: BLUE }}>{rows.length}</span>
+              )}
+            </button>
+          </div>
+        </div>
+      </nav>
+
+      {/* ============ MODE SINGLE ============ */}
+      {mode === 'single' && (
+        <div className="max-w-[1600px] mx-auto px-6 py-6 grid grid-cols-1 lg:grid-cols-5 gap-5">
+          <div className="lg:col-span-2 space-y-4">
+
+            <div className="rounded-xl border border-slate-200 overflow-hidden bg-white">
+              <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 font-jetbrains text-xs text-slate-600">DEMANDE & DÉLAI</div>
+              <div className="p-4 grid grid-cols-2 gap-3">
+                <NumberField label={<>Demande / jour (<T code="ADU" />)</>} value={adu} onChange={v => setAdu(Math.max(0, parseFloat(v) || 0))} step="1" />
+                <NumberField label={<>Délai jours (<T code="DLT" />)</>} value={dlt} onChange={v => { const x = Math.max(0, parseFloat(v) || 0); setDlt(x); setLtf(suggestLtf(x)); }} step="0.5" />
+              </div>
+              <div className="px-4 pb-3 text-[10px] text-slate-500 leading-relaxed">
+                Le <T code="LTF" /> est ajusté automatiquement quand vous changez le <T code="DLT" /> (modifiable ci-dessous).
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-slate-200 overflow-hidden bg-white">
+              <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 font-jetbrains text-xs text-slate-600">PARAMÈTRES DE COMMANDE</div>
+              <div className="p-4 grid grid-cols-2 gap-3">
+                <NumberField label={<>Quantité mini (<T code="MOQ" />)</>} value={moq} onChange={v => setMoq(Math.max(0, parseFloat(v) || 0))} step="1" />
+                <NumberField label="Cycle de commande (j)" value={orderCycle} onChange={v => setOrderCycle(Math.max(0, parseFloat(v) || 0))} step="1" />
+              </div>
+              <div className="px-4 pb-3 text-[10px] text-slate-500 leading-relaxed">
+                Le cycle de commande est optionnel — laissez à 0 si vous n'avez pas de périodicité imposée.
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-slate-200 overflow-hidden bg-white">
+              <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+                <div className="font-jetbrains text-xs text-slate-600">FACTEUR DE VARIABILITÉ · <T code="VF" /></div>
+                <div className="font-jetbrains text-xs font-semibold" style={{ color: BLUE }}>{vf.toFixed(2)}</div>
+              </div>
+              <div className="p-4 space-y-2">
+                <div className="grid grid-cols-3 gap-1.5">
+                  {VF_PRESETS.map(p => (
+                    <button key={p.value} onClick={() => setVf(p.value)} className="px-1 py-1.5 rounded-md font-jetbrains transition-all text-xs"
+                      style={Math.abs(vf - p.value) < 0.001 ? { background: BLUE, color: '#FFFFFF', fontWeight: 600 } : { background: '#F8FAFC', color: '#475569', border: '1px solid #E2E8F0' }}>
+                      <div>{p.label}</div>
+                      <div className="text-[9px] opacity-80 mt-0.5">{p.desc}</div>
+                    </button>
+                  ))}
+                </div>
+                <input type="range" min="0.1" max="1.0" step="0.05" value={vf} onChange={e => setVf(parseFloat(e.target.value))} className="w-full" style={{ accentColor: BLUE }} />
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-slate-200 overflow-hidden bg-white">
+              <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+                <div className="font-jetbrains text-xs text-slate-600">FACTEUR DE DÉLAI · <T code="LTF" /></div>
+                <div className="font-jetbrains text-xs font-semibold" style={{ color: BLUE }}>{ltf.toFixed(2)}</div>
+              </div>
+              <div className="p-4 space-y-2">
+                <div className="grid grid-cols-3 gap-1.5">
+                  {LTF_PRESETS.map(p => (
+                    <button key={p.value} onClick={() => setLtf(p.value)} className="px-1 py-1.5 rounded-md font-jetbrains transition-all text-xs"
+                      style={Math.abs(ltf - p.value) < 0.001 ? { background: BLUE, color: '#FFFFFF', fontWeight: 600 } : { background: '#F8FAFC', color: '#475569', border: '1px solid #E2E8F0' }}>
+                      <div>{p.label}</div>
+                      <div className="text-[9px] opacity-80 mt-0.5">{p.desc}</div>
+                    </button>
+                  ))}
+                </div>
+                <input type="range" min="0.1" max="1.0" step="0.05" value={ltf} onChange={e => setLtf(parseFloat(e.target.value))} className="w-full" style={{ accentColor: BLUE }} />
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-slate-200 overflow-hidden bg-white">
+              <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 font-jetbrains text-xs text-slate-600">POSITION DE FLUX NET · <T code="NFP" /></div>
+              <div className="p-4">
+                <NumberField label={<><T code="NFP" /> = Stock + En commande − Demande qualifiée</>} value={nfp} onChange={v => setNfp(parseFloat(v) || 0)} step="1" />
+                <div className="text-[10px] text-slate-500 leading-relaxed mt-2">
+                  Le NFP représente la position de flux disponible. C'est lui qui détermine la couleur d'alerte.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="lg:col-span-3 space-y-4">
+
+            {/* Header status */}
+            {singleResult.valid && (
+              <div className="rounded-xl border-2 p-5 transition-all"
+                style={{
+                  borderColor: DDMRP_COLORS[singleResult.status]?.solid,
+                  background: DDMRP_COLORS[singleResult.status]?.fill,
+                }}>
+                <div className="flex items-start justify-between gap-4 flex-wrap">
+                  <div>
+                    <div className="font-jetbrains text-[10px] tracking-wider mb-1" style={{ color: DDMRP_COLORS[singleResult.status]?.text }}>STATUT ACTUEL</div>
+                    <StatusBadge status={singleResult.status} large />
+                    <div className="mt-3 text-sm" style={{ color: DDMRP_COLORS[singleResult.status]?.text }}>
+                      {singleResult.status === 'red' && 'Stock dans la zone rouge — passage de commande urgent.'}
+                      {singleResult.status === 'yellow' && 'Stock dans la zone jaune — c\'est le bon moment pour recommander.'}
+                      {singleResult.status === 'green' && 'Stock dans la zone verte — aucune action nécessaire.'}
+                      {singleResult.status === 'blue' && 'Sur-stock — vérifier les paramètres ou ralentir les commandes.'}
+                      {singleResult.status === 'stockout' && 'Rupture imminente / déjà en rupture — action immédiate requise.'}
+                    </div>
+                  </div>
+                  {singleResult.orderQty > 0 && (
+                    <div className="text-right">
+                      <div className="font-jetbrains text-[10px] tracking-wider mb-1" style={{ color: DDMRP_COLORS[singleResult.status]?.text }}>À COMMANDER</div>
+                      <div className="font-bricolage text-3xl font-bold" style={{ color: DDMRP_COLORS[singleResult.status]?.solid }}>{Math.round(singleResult.orderQty)}</div>
+                      <div className="font-jetbrains text-[10px]" style={{ color: DDMRP_COLORS[singleResult.status]?.text }}>unités · pour atteindre <T code="TOG" /></div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Buffer chart */}
+            <div className="rounded-xl border border-slate-200 overflow-hidden bg-white">
+              <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between flex-wrap gap-2">
+                <div className="font-jetbrains text-xs text-slate-600">BUFFER STRATÉGIQUE</div>
+                <div className="font-jetbrains text-[10px] text-slate-400">3 zones : rouge (sécurité) · jaune (réappro) · vert (opportunité)</div>
+              </div>
+              <div className="p-6 flex justify-center" style={{ background: 'repeating-linear-gradient(45deg, #F8FAFC 0, #F8FAFC 14px, #F1F5F9 14px, #F1F5F9 15px)' }}>
+                <BufferChart result={singleResult} nfp={nfp} />
+              </div>
+            </div>
+
+            {/* Détail des zones */}
+            {singleResult.valid && (
+              <div className="grid grid-cols-3 gap-3">
+                <StatCard label="Zone Rouge" value={Math.round(singleResult.redZone)} sub={<><T code="ADU" /> × <T code="DLT" /> × <T code="LTF" /> × (1+<T code="VF" />)</>} />
+                <StatCard label="Zone Jaune" value={Math.round(singleResult.yellowZone)} sub={<><T code="ADU" /> × <T code="DLT" /></>} />
+                <StatCard label="Zone Verte" value={Math.round(singleResult.greenZone)} sub={
+                  singleResult.greenDriver === 'moq' ? <>contrainte par <T code="MOQ" /></> :
+                  singleResult.greenDriver === 'order_cycle' ? 'contrainte par Cycle' : 'contrainte par Délai'
+                } />
+              </div>
+            )}
+
+            {singleResult.valid && (
+              <div className="rounded-xl border border-slate-200 p-5 bg-white">
+                <div className="font-jetbrains text-[10px] text-slate-500 tracking-wider mb-3">DÉTAILS DU CALCUL</div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                  <DetailRow label={<>Rouge Base (<T code="ADU" /> × <T code="DLT" /> × <T code="LTF" />)</>} value={Math.round(singleResult.redBase)} />
+                  <DetailRow label={<>Rouge Sécurité (Rouge Base × <T code="VF" />)</>} value={Math.round(singleResult.redSafety)} />
+                  <DetailRow label={<><T code="TOR" /> · plafond zone rouge</>} value={Math.round(singleResult.tor)} />
+                  <DetailRow label={<><T code="TOY" /> · plafond zone jaune</>} value={Math.round(singleResult.toy)} />
+                  <DetailRow label={<><T code="TOG" /> · plafond zone verte (= stock cible max)</>} value={Math.round(singleResult.tog)} />
+                  <DetailRow label="Couverture en jours" value={`${singleResult.coverageDays.toFixed(1)} j`} />
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ============ MODE BATCH ============ */}
+      {mode === 'batch' && (
+        <div className="max-w-[1600px] mx-auto px-6 py-6 space-y-5">
+
+          <div className="rounded-xl border border-slate-200 bg-white p-4 flex items-center justify-between flex-wrap gap-3">
+            <div className="flex items-center gap-2 flex-wrap">
+              <input ref={fileInputRef} type="file" accept=".xlsx,.xls,.csv" onChange={handleFileImport} className="hidden" />
+              <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-1.5 px-3 py-2 rounded-md font-jetbrains text-xs font-semibold text-white shadow-sm transition-all hover:translate-y-[-1px]" style={{ background: BLUE }}>
+                <Upload size={13} />
+                IMPORTER (.xlsx / .csv)
+              </button>
+              <button onClick={() => downloadTemplate('params')} className="flex items-center gap-1.5 px-3 py-2 rounded-md font-jetbrains text-xs text-slate-700 border border-slate-300 hover:bg-slate-50 transition-all">
+                <FileDown size={13} />
+                TEMPLATE PARAM.
+              </button>
+              <button onClick={() => downloadTemplate('sales')} className="flex items-center gap-1.5 px-3 py-2 rounded-md font-jetbrains text-xs text-slate-700 border border-slate-300 hover:bg-slate-50 transition-all">
+                <FileDown size={13} />
+                TEMPLATE HISTO.
+              </button>
+              <button onClick={exportXlsx} disabled={rows.length === 0} className="flex items-center gap-1.5 px-3 py-2 rounded-md font-jetbrains text-xs text-slate-700 border border-slate-300 hover:bg-slate-50 transition-all disabled:opacity-40">
+                <Download size={13} />
+                EXPORTER (.xlsx)
+              </button>
+              <div className="w-px h-5 bg-slate-200 mx-1" />
+              <button onClick={addRow} disabled={isSalesMode} className="flex items-center gap-1.5 px-3 py-2 rounded-md font-jetbrains text-xs text-slate-700 border border-slate-300 hover:bg-slate-50 transition-all disabled:opacity-40">
+                + LIGNE
+              </button>
+              <button onClick={clearRows} disabled={rows.length === 0} className="flex items-center gap-1.5 px-3 py-2 rounded-md font-jetbrains text-xs text-red-600 border border-red-200 hover:bg-red-50 transition-all disabled:opacity-40">
+                VIDER
+              </button>
+            </div>
+            <div className="font-jetbrains text-xs text-slate-500 flex items-center gap-3">
+              {isSalesMode && (
+                <span className="px-2 py-1 rounded-md text-[10px] tracking-wider font-medium" style={{ background: BLUE_LIGHT, color: BLUE }}>
+                  ◆ ADU CALCULÉS AUTOMATIQUEMENT
+                </span>
+              )}
+              <span>{rows.length} ligne{rows.length > 1 ? 's' : ''} · {batchStats.count} buffer{batchStats.count > 1 ? 's' : ''} calculé{batchStats.count > 1 ? 's' : ''}</span>
+            </div>
+          </div>
+
+          {importMsg && (
+            <div className="rounded-lg p-3 font-jetbrains text-xs"
+              style={
+                importMsg.type === 'success' ? { background: '#ECFDF5', color: '#065F46', border: '1px solid #A7F3D0' }
+                : importMsg.type === 'warning' ? { background: '#FFFBEB', color: '#92400E', border: '1px solid #FCD34D' }
+                : { background: '#FEF2F2', color: '#991B1B', border: '1px solid #FECACA' }
+              }>
+              {importMsg.text}
+            </div>
+          )}
+
+          {isSalesMode && (
+            <div className="rounded-xl border p-5" style={{ borderColor: '#BFDBFE', background: BLUE_LIGHT }}>
+              <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+                <div className="font-jetbrains text-xs tracking-wider font-semibold" style={{ color: BLUE }}>PARAMÈTRES GLOBAUX</div>
+                <div className="font-jetbrains text-[10px] text-blue-700">appliqués à toutes les lignes importées</div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* MOQ global */}
+                <div>
+                  <label className="font-jetbrains text-[10px] tracking-wider mb-1.5 block" style={{ color: BLUE }}>
+                    <T code="MOQ" /> PAR DÉFAUT
+                  </label>
+                  <input type="number" min="0" step="1" value={globalMoq}
+                    onChange={e => setGlobalMoq(Math.max(0, parseFloat(e.target.value) || 0))}
+                    className="w-full px-3 py-2 bg-white border border-blue-200 rounded-md outline-none font-jetbrains text-sm focus:border-blue-400 transition-colors" />
+                  <div className="text-[10px] text-blue-700 mt-1">appliqué si la ligne n'a pas de MOQ propre</div>
+                </div>
+
+                {/* Cycle global */}
+                <div>
+                  <label className="font-jetbrains text-[10px] tracking-wider mb-1.5 block" style={{ color: BLUE }}>
+                    CYCLE DE COMMANDE (jours)
+                  </label>
+                  <input type="number" min="0" step="1" value={globalOrderCycle}
+                    onChange={e => setGlobalOrderCycle(Math.max(0, parseFloat(e.target.value) || 0))}
+                    className="w-full px-3 py-2 bg-white border border-blue-200 rounded-md outline-none font-jetbrains text-sm focus:border-blue-400 transition-colors" />
+                  <div className="text-[10px] text-blue-700 mt-1">0 = pas de périodicité</div>
+                </div>
+
+                {/* VF global */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="font-jetbrains text-[10px] tracking-wider" style={{ color: BLUE }}>
+                      <T code="VF" /> {forceVfGlobal ? 'FORCÉ' : 'AUTO'}
+                    </label>
+                    <button onClick={() => setForceVfGlobal(v => !v)}
+                      className="font-jetbrains text-[9px] px-1.5 py-0.5 rounded transition-colors"
+                      style={forceVfGlobal
+                        ? { background: BLUE, color: 'white' }
+                        : { background: 'white', color: BLUE, border: '1px solid #BFDBFE' }}>
+                      {forceVfGlobal ? '◉ FORCÉ' : '○ AUTO'}
+                    </button>
+                  </div>
+                  <input type="range" min="0.1" max="0.95" step="0.05" value={globalVf}
+                    onChange={e => setGlobalVf(parseFloat(e.target.value))}
+                    disabled={!forceVfGlobal}
+                    className="w-full disabled:opacity-40"
+                    style={{ accentColor: BLUE }} />
+                  <div className="flex justify-between font-jetbrains text-[10px] mt-0.5" style={{ color: BLUE }}>
+                    <span>0.1</span>
+                    <span className="font-semibold">{globalVf.toFixed(2)}</span>
+                    <span>0.95</span>
+                  </div>
+                </div>
+
+                {/* LTF global */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="font-jetbrains text-[10px] tracking-wider" style={{ color: BLUE }}>
+                      <T code="LTF" /> {forceLtfGlobal ? 'FORCÉ' : 'AUTO'}
+                    </label>
+                    <button onClick={() => setForceLtfGlobal(v => !v)}
+                      className="font-jetbrains text-[9px] px-1.5 py-0.5 rounded transition-colors"
+                      style={forceLtfGlobal
+                        ? { background: BLUE, color: 'white' }
+                        : { background: 'white', color: BLUE, border: '1px solid #BFDBFE' }}>
+                      {forceLtfGlobal ? '◉ FORCÉ' : '○ AUTO'}
+                    </button>
+                  </div>
+                  <input type="range" min="0.1" max="0.95" step="0.05" value={globalLtf}
+                    onChange={e => setGlobalLtf(parseFloat(e.target.value))}
+                    disabled={!forceLtfGlobal}
+                    className="w-full disabled:opacity-40"
+                    style={{ accentColor: BLUE }} />
+                  <div className="flex justify-between font-jetbrains text-[10px] mt-0.5" style={{ color: BLUE }}>
+                    <span>0.1</span>
+                    <span className="font-semibold">{globalLtf.toFixed(2)}</span>
+                    <span>0.95</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-4 pt-3 border-t border-blue-200 flex items-center justify-between flex-wrap gap-3">
+                <div className="text-[11px] text-blue-900 leading-snug max-w-2xl">
+                  <span className="font-semibold">Mode AUTO</span> : VF et LTF sont calculés par article depuis le <T code="CV" /> de la demande et le <T code="DLT" />.
+                  <span className="font-semibold"> Mode FORCÉ</span> : la valeur globale s'applique à toutes les lignes (utile pour des simulations rapides ou pour appliquer une politique unifiée).
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="font-jetbrains text-[10px] tracking-wider" style={{ color: BLUE }}>GRANULARITÉ</label>
+                  <div className="flex gap-1.5">
+                    <button onClick={() => setAggregation('daily')} className="px-2 py-1 rounded-md font-jetbrains text-[10px] transition-all"
+                      style={aggregation === 'daily' ? { background: BLUE, color: '#FFFFFF', fontWeight: 600 } : { background: 'rgba(255,255,255,0.6)', color: BLUE, border: '1px solid #BFDBFE' }}>
+                      Quotidienne
+                    </button>
+                    <button onClick={() => setAggregation('weekly')} className="px-2 py-1 rounded-md font-jetbrains text-[10px] transition-all"
+                      style={aggregation === 'weekly' ? { background: BLUE, color: '#FFFFFF', fontWeight: 600 } : { background: 'rgba(255,255,255,0.6)', color: BLUE, border: '1px solid #BFDBFE' }}>
+                      Hebdomadaire
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Stats globales avec répartition par zone */}
+          {batchStats.count > 0 && (
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              <div className="rounded-xl border p-4" style={{ borderColor: DDMRP_COLORS.red.solid, background: DDMRP_COLORS.red.fill }}>
+                <div className="font-jetbrains text-[10px] tracking-wider" style={{ color: DDMRP_COLORS.red.text }}>EN ROUGE / RUPTURE</div>
+                <div className="font-bricolage text-2xl font-bold mt-1" style={{ color: DDMRP_COLORS.red.solid }}>{batchStats.inRed}</div>
+              </div>
+              <div className="rounded-xl border p-4" style={{ borderColor: DDMRP_COLORS.yellow.solid, background: DDMRP_COLORS.yellow.fill }}>
+                <div className="font-jetbrains text-[10px] tracking-wider" style={{ color: DDMRP_COLORS.yellow.text }}>EN JAUNE</div>
+                <div className="font-bricolage text-2xl font-bold mt-1" style={{ color: DDMRP_COLORS.yellow.solid }}>{batchStats.inYellow}</div>
+              </div>
+              <div className="rounded-xl border p-4" style={{ borderColor: DDMRP_COLORS.green.solid, background: DDMRP_COLORS.green.fill }}>
+                <div className="font-jetbrains text-[10px] tracking-wider" style={{ color: DDMRP_COLORS.green.text }}>EN VERT</div>
+                <div className="font-bricolage text-2xl font-bold mt-1" style={{ color: DDMRP_COLORS.green.solid }}>{batchStats.inGreen}</div>
+              </div>
+              <div className="rounded-xl border p-4" style={{ borderColor: DDMRP_COLORS.blue.solid, background: DDMRP_COLORS.blue.fill }}>
+                <div className="font-jetbrains text-[10px] tracking-wider" style={{ color: DDMRP_COLORS.blue.text }}>SUR-STOCK</div>
+                <div className="font-bricolage text-2xl font-bold mt-1" style={{ color: DDMRP_COLORS.blue.solid }}>{batchStats.overSupply}</div>
+              </div>
+              <StatCard label="Total à commander" value={Math.round(batchStats.totalToOrder).toLocaleString('fr-FR')} sub="toutes lignes" />
+            </div>
+          )}
+
+          {/* Tableau */}
+          <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+            <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+              <div className="font-jetbrains text-xs text-slate-600">TABLEAU DES BUFFERS</div>
+              <div className="font-jetbrains text-[10px] text-slate-400">cliquez sur une ligne pour la visualiser</div>
+            </div>
+
+            {rows.length === 0 ? (
+              <div className="p-16 text-center">
+                <div className="w-14 h-14 rounded-xl mx-auto mb-5 flex items-center justify-center" style={{ background: BLUE_LIGHT, border: '1px solid #BFDBFE' }}>
+                  <Box size={22} style={{ color: BLUE }} strokeWidth={1.75} />
+                </div>
+                <div className="font-bricolage text-xl mb-2 text-slate-800">Aucun article</div>
+                <div className="text-sm text-slate-500 mb-5 max-w-md mx-auto">Importez un fichier de paramètres ou un historique de ventes (détection auto).</div>
+                <div className="flex justify-center gap-2 flex-wrap">
+                  <button onClick={() => fileInputRef.current?.click()} className="px-4 py-2 rounded-md font-jetbrains text-xs font-semibold text-white" style={{ background: BLUE }}>
+                    IMPORTER UN FICHIER
+                  </button>
+                  <button onClick={() => downloadTemplate('params')} className="px-4 py-2 rounded-md font-jetbrains text-xs text-slate-700 border border-slate-300">
+                    TEMPLATE PARAM.
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-200 bg-slate-50/50">
+                      <Th>Réf.</Th>
+                      <Th>Libellé</Th>
+                      {isSalesMode && <Th>Magasin</Th>}
+                      <Th className="text-right"><T code="ADU" /></Th>
+                      <Th className="text-right"><T code="DLT" /></Th>
+                      <Th className="text-right"><T code="MOQ" /></Th>
+                      <Th className="text-right"><T code="VF" /></Th>
+                      <Th className="text-right"><T code="LTF" /></Th>
+                      <Th className="text-right"><T code="NFP" /></Th>
+                      <Th className="text-right" highlight><T code="TOR" /></Th>
+                      <Th className="text-right" highlight><T code="TOY" /></Th>
+                      <Th className="text-right" highlight><T code="TOG" /></Th>
+                      <Th className="text-center">Buffer</Th>
+                      <Th className="text-center">Statut</Th>
+                      <Th className="text-right">À cmdr</Th>
+                      <Th></Th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {computedRows.map(r => {
+                      const isSelected = r.id === selectedRowId;
+                      const valid = r.result.valid;
+                      return (
+                        <tr key={r.id} onClick={() => setSelectedRowId(r.id)} className="border-b border-slate-100 cursor-pointer transition-colors" style={isSelected ? { background: BLUE_LIGHT } : {}}>
+                          <Td><CellInput value={r.ref} onChange={v => updateRow(r.id, 'ref', v)} mono /></Td>
+                          <Td><CellInput value={r.label} onChange={v => updateRow(r.id, 'label', v)} /></Td>
+                          {isSalesMode && <Td><CellInput value={r.store || ''} onChange={v => updateRow(r.id, 'store', v)} /></Td>}
+                          <Td><CellInput value={r.adu} onChange={v => updateRow(r.id, 'adu', v)} type="number" align="right" mono step="0.1" /></Td>
+                          <Td><CellInput value={r.dlt} onChange={v => updateRow(r.id, 'dlt', v)} type="number" align="right" mono step="0.5" /></Td>
+                          <Td><CellInput value={r.moq} onChange={v => updateRow(r.id, 'moq', v)} type="number" align="right" mono /></Td>
+                          <Td><CellInput value={r.vf} onChange={v => updateRow(r.id, 'vf', v)} type="number" align="right" mono step="0.05" /></Td>
+                          <Td><CellInput value={r.ltf} onChange={v => updateRow(r.id, 'ltf', v)} type="number" align="right" mono step="0.05" /></Td>
+                          <Td><CellInput value={r.nfp} onChange={v => updateRow(r.id, 'nfp', v)} type="number" align="right" mono /></Td>
+                          <Td className="text-right font-jetbrains" style={{ color: DDMRP_COLORS.red.text }}>{valid ? Math.round(r.result.tor) : '—'}</Td>
+                          <Td className="text-right font-jetbrains" style={{ color: DDMRP_COLORS.yellow.text }}>{valid ? Math.round(r.result.toy) : '—'}</Td>
+                          <Td className="text-right font-jetbrains font-semibold" style={{ color: DDMRP_COLORS.green.text }}>{valid ? Math.round(r.result.tog) : '—'}</Td>
+                          <Td className="text-center"><MiniBufferBar result={r.result} nfp={r.nfp} /></Td>
+                          <Td className="text-center">{valid ? <StatusBadge status={r.result.status} /> : <span className="text-slate-400">—</span>}</Td>
+                          <Td className="text-right font-jetbrains font-semibold" style={{ color: valid && r.result.orderQty > 0 ? BLUE : '#94A3B8' }}>
+                            {valid && r.result.orderQty > 0 ? Math.round(r.result.orderQty) : '—'}
+                          </Td>
+                          <Td>
+                            <div className="flex items-center gap-1 justify-end">
+                              <button onClick={(e) => { e.stopPropagation(); examineRow(r); }} className="p-1 text-slate-400 hover:text-blue-600 transition-colors" title="Examiner en détail">
+                                <Zap size={12} />
+                              </button>
+                              <button onClick={(e) => { e.stopPropagation(); removeRow(r.id); }} className="p-1 text-slate-400 hover:text-red-600 transition-colors" title="Supprimer">×</button>
+                            </div>
+                          </Td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Chart de la ligne sélectionnée */}
+          {selectedRow && selectedRow.result.valid && (
+            <div className="rounded-xl border border-slate-200 overflow-hidden bg-white">
+              <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center gap-2 font-jetbrains text-xs text-slate-600 flex-wrap">
+                  BUFFER — <span style={{ color: BLUE }} className="font-medium">{selectedRow.ref || 'sans ref'}</span>
+                  {selectedRow.store && <><span className="text-slate-300">·</span><span className="text-slate-500">{selectedRow.store}</span></>}
+                  {selectedRow.label && <><span className="text-slate-300">·</span><span className="text-slate-500">{selectedRow.label}</span></>}
+                  <span className="text-slate-300">·</span>
+                  <StatusBadge status={selectedRow.result.status} />
+                </div>
+                <button onClick={() => examineRow(selectedRow)} className="flex items-center gap-1.5 px-2.5 py-1 rounded font-jetbrains text-[10px] text-slate-600 border border-slate-300 hover:bg-slate-50 transition-all">
+                  <Zap size={10} />
+                  EXAMINER EN DÉTAIL
+                </button>
+              </div>
+              <div className="p-6 flex justify-center" style={{ background: 'repeating-linear-gradient(45deg, #F8FAFC 0, #F8FAFC 14px, #F1F5F9 14px, #F1F5F9 15px)' }}>
+                <BufferChart result={selectedRow.result} nfp={selectedRow.nfp} />
+              </div>
+            </div>
+          )}
+
+          {/* Doc DDMRP & Glossaire */}
+          <div className="rounded-xl border border-slate-200 p-5 bg-white">
+            <div className="font-jetbrains text-[10px] text-slate-500 tracking-wider mb-3">GLOSSAIRE & RAPPEL DDMRP</div>
+            <div className="text-sm text-slate-600 leading-relaxed mb-4">
+              Le buffer DDMRP positionne le stock dans <span className="font-medium" style={{ color: DDMRP_COLORS.red.text }}>3 zones</span> : la <span className="font-medium" style={{ color: DDMRP_COLORS.red.text }}>rouge</span> protège contre la variabilité, la <span className="font-medium" style={{ color: DDMRP_COLORS.yellow.text }}>jaune</span> couvre le délai de réapprovisionnement, la <span className="font-medium" style={{ color: DDMRP_COLORS.green.text }}>verte</span> dimensionne la quantité de commande. La <span className="font-jetbrains">Net Flow Position</span> (stock disponible + commandes en cours − demandes qualifiées) détermine dans quelle zone on se situe à un instant t. On commande ce qu'il faut pour ramener cette position au sommet du vert.
+            </div>
+            <div className="font-jetbrains text-[10px] text-slate-500 tracking-wider mb-3 pt-3 border-t border-slate-100">TERMES UTILISÉS DANS L'OUTIL</div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-5 gap-y-3">
+              {Object.entries(DDMRP_TERMS).map(([code, t]) => (
+                <div key={code} className="flex flex-col gap-0.5">
+                  <div className="flex items-baseline gap-2 flex-wrap">
+                    <span className="font-jetbrains text-xs font-bold" style={{ color: BLUE }}>{code}</span>
+                    <span className="text-[11px] text-slate-700 font-medium">{t.full.split('—')[1]?.trim() || t.full}</span>
+                  </div>
+                  <div className="text-[11px] text-slate-600 leading-snug">{t.desc}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
