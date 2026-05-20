@@ -79,7 +79,7 @@ const TOOLS = [
   { id: 'ddmrp', cat: 'planification', name: 'Buffers DDMRP', icon: Box, desc: 'Dimensionnement des buffers stratégiques (zones rouge/jaune/vert) à partir de l\'ADU, du délai et de la variabilité.', status: 'live' },
   { id: 'incoterms', cat: 'transport', name: 'Incoterms 2020', icon: Map, desc: 'Comparateur visuel des 11 incoterms, transferts coûts/risques sur la chaîne logistique.', status: 'live' },
   { id: 'cmr', cat: 'transport', name: 'CMR / eCMR', icon: FileText, desc: 'Lettre de voiture internationale aux normes européennes, mode papier ou électronique.', status: 'live' },
-  { id: 'sla', cat: 'transport', name: 'OTIF / SLA', icon: Calculator, desc: 'Taux de service logistique.', status: 'soon' },
+  { id: 'sla', cat: 'transport', name: 'OTIF / SLA', icon: Calculator, desc: 'Taux On-Time In-Full, analyse des écarts au SLA, décomposition par client et article.', status: 'live' },
   { id: 'units', cat: 'utilitaires', name: 'Convertisseur logistique', icon: Shuffle, desc: 'Cascade carton → palette → conteneur → camion. Combien d\'unités tiennent dans chaque contenant.', status: 'live' },
 ];
 
@@ -99,6 +99,7 @@ export default function App() {
   if (active === 'incoterms') return <IncotermsComparator onBack={() => setActive(null)} />;
   if (active === 'cmr') return <CmrGenerator onBack={() => setActive(null)} />;
   if (active === 'units') return <LogisticsConverter onBack={() => setActive(null)} />;
+  if (active === 'sla') return <OtifAnalyzer onBack={() => setActive(null)} />;
   if (active === 'ddmrp') return <DdmrpBuffers onBack={() => setActive(null)} />;
   return <Landing onLaunch={setActive} />;
 }
@@ -166,7 +167,7 @@ function Landing({ onLaunch }) {
               <div className="font-jetbrains text-[10px] text-slate-400 tracking-wider mb-4">ÉTAT DE L'ATELIER</div>
               <div className="space-y-3">
                 {[
-                  { l: 'Outils actifs', v: '8 / 9' },
+                  { l: 'Outils actifs', v: '9 / 9' },
                   { l: 'Mode', v: 'navigateur' },
                   { l: 'Confidentialité', v: '100% local' },
                   { l: 'Version', v: '0.2' },
@@ -186,10 +187,10 @@ function Landing({ onLaunch }) {
 
         <div className="mt-20 grid grid-cols-2 md:grid-cols-4 border-y border-slate-200">
           {[
-            { k: '05', v: 'outils en ligne', d: 'sur 9 prévus' },
-            { k: '04', v: 'familles', d: 'marquage, stocks, transport...' },
-            { k: '100%', v: 'navigateur', d: 'aucune installation' },
-            { k: '∞', v: 'usages', d: 'sans compte, sans envoi' },
+            { k: '09', v: 'outils opérationnels', d: 'toute la chaîne logistique' },
+            { k: '04', v: 'familles métiers', d: 'marquage, stocks, transport...' },
+            { k: '100%', v: 'navigateur', d: 'aucune installation requise' },
+            { k: '∞', v: 'usages', d: 'sans compte, sans envoi cloud' },
           ].map((s, i) => (
             <div key={i} className={`p-6 ${i > 0 ? 'md:border-l border-slate-200' : ''} ${i === 2 || i === 3 ? 'border-t md:border-t-0 border-slate-200' : ''} ${i === 1 ? 'border-l border-slate-200' : ''}`}>
               <div className="font-bricolage text-3xl md:text-4xl font-bold mb-1" style={{ color: BLUE }}>{s.k}</div>
@@ -202,28 +203,119 @@ function Landing({ onLaunch }) {
 
       <section id="how" className="border-t border-slate-200 bg-slate-50">
         <div className="max-w-7xl mx-auto px-6 md:px-10 py-20">
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-10">
-            <div className="md:col-span-4">
-              <div className="font-jetbrains text-xs text-slate-500 mb-3 tracking-wider">02 / PROCESSUS</div>
-              <h2 className="font-bricolage font-semibold text-3xl md:text-4xl tracking-tight mb-4">
-                Trois étapes,<br /><span style={{ color: BLUE }}>zéro friction.</span>
-              </h2>
-              <p className="text-slate-600 leading-relaxed">
-                Chaque outil suit le même principe : entrée claire, traitement immédiat dans votre navigateur, sortie exploitable.
+          <div className="text-center md:text-left max-w-3xl mx-auto md:mx-0 mb-12">
+            <div className="font-jetbrains text-xs text-slate-500 mb-3 tracking-wider">02 / PARCOURS LOGISTIQUE</div>
+            <h2 className="font-bricolage font-semibold text-3xl md:text-4xl tracking-tight mb-4">
+              Toute la chaîne logistique,<br /><span style={{ color: BLUE }}>dans votre navigateur.</span>
+            </h2>
+            <p className="text-slate-600 leading-relaxed">
+              De la conception du conditionnement jusqu'à la mesure de la performance livraison, chaque maillon de votre supply chain dispose de son outil dédié. Sans installation, sans création de compte, sans envoi de données vers un cloud tiers — vos paramètres restent dans votre navigateur.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-3 relative">
+            {[
+              {
+                num: '01', icon: Box,
+                title: 'Conditionner',
+                description: 'Dimensionnez le packaging et l\'optimisation du chargement, du carton au camion.',
+                tools: [
+                  { name: 'Palettisation 3D', id: 'pallet' },
+                  { name: 'Convertisseur cascade', id: 'units' },
+                ],
+              },
+              {
+                num: '02', icon: Tag,
+                title: 'Marquer',
+                description: 'Générez étiquettes Zebra, codes-barres et QR codes aux normes industrielles.',
+                tools: [
+                  { name: 'ZPL Viewer', id: 'zpl' },
+                  { name: 'Codes-barres GS1', id: 'barcode' },
+                ],
+              },
+              {
+                num: '03', icon: Warehouse,
+                title: 'Planifier',
+                description: 'Dimensionnez vos buffers à partir de vos historiques de ventes ERP.',
+                tools: [
+                  { name: 'Stock de sécurité', id: 'safety' },
+                  { name: 'Buffers DDMRP', id: 'ddmrp' },
+                ],
+              },
+              {
+                num: '04', icon: Truck,
+                title: 'Expédier',
+                description: 'Préparez vos documents de transport routier international.',
+                tools: [
+                  { name: 'Incoterms 2020', id: 'incoterms' },
+                  { name: 'CMR / eCMR', id: 'cmr' },
+                ],
+              },
+              {
+                num: '05', icon: Calculator,
+                title: 'Mesurer',
+                description: 'Analysez vos performances de livraison avec les KPIs de référence.',
+                tools: [
+                  { name: 'OTIF / SLA', id: 'sla' },
+                ],
+              },
+            ].map((step, idx, arr) => {
+              const Icon = step.icon;
+              return (
+                <div key={step.num} className="relative">
+                  <article className="bg-white border border-slate-200 rounded-xl p-5 hover:border-blue-400 hover:shadow-lg transition-all group h-full flex flex-col">
+                    <div className="w-10 h-10 rounded-lg mb-4 flex items-center justify-center" style={{ background: BLUE_LIGHT, transition: 'transform 0.2s' }}>
+                      <Icon size={18} style={{ color: BLUE }} strokeWidth={2} />
+                    </div>
+                    <div className="font-jetbrains text-[10px] text-slate-400 mb-2 tracking-wider">{step.num}</div>
+                    <h3 className="font-bricolage font-semibold text-base mb-2 text-slate-900">{step.title}</h3>
+                    <p className="text-xs text-slate-600 leading-relaxed mb-3 flex-1">{step.description}</p>
+                    <ul className="space-y-1 pt-3 border-t border-slate-100">
+                      {step.tools.map(t => (
+                        <li key={t.id}>
+                          <button
+                            onClick={() => onLaunch(t.id)}
+                            className="w-full text-left text-[11px] text-slate-700 hover:text-blue-700 flex items-center gap-1.5 py-0.5 group/tool transition-colors"
+                          >
+                            <span className="font-jetbrains text-[10px]" style={{ color: BLUE }}>›</span>
+                            <span className="group-hover/tool:underline underline-offset-2">{t.name}</span>
+                            <ArrowRight size={10} className="text-slate-300 group-hover/tool:text-blue-500 group-hover/tool:translate-x-0.5 transition-all ml-auto" />
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </article>
+                  {idx < arr.length - 1 && (
+                    <div className="hidden md:flex absolute top-9 -right-2.5 z-10 w-5 h-5 items-center justify-center bg-slate-50 rounded-full pointer-events-none">
+                      <ArrowRight size={12} className="text-slate-300" />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="mt-14 pt-8 border-t border-slate-200 grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div>
+              <div className="font-jetbrains text-[10px] text-slate-500 tracking-wider mb-2.5">CONÇU POUR</div>
+              <h4 className="font-bricolage font-semibold text-base mb-2 text-slate-900">Les professionnels de la supply chain</h4>
+              <p className="text-sm text-slate-600 leading-relaxed">
+                Responsables logistique, planificateurs, consultants ERP, opérationnels d'entrepôt et chargés d'expédition. Pensé pour le travail terrain : ouvert en un clic, résultat en quelques secondes, exportable vers Excel ou PDF.
               </p>
             </div>
-            <div className="md:col-span-8 grid grid-cols-1 md:grid-cols-3 gap-px bg-slate-200 border border-slate-200">
-              {[
-                { n: '01', t: 'Importer ou saisir', d: "Glissez un fichier (Excel, CSV, ZPL), saisissez vos paramètres ou collez du code selon l'outil." },
-                { n: '02', t: 'Paramétrer', d: "Ajustez les options : format d'étiquette, taux de service, type de palette, mode de transport, granularité..." },
-                { n: '03', t: 'Exporter', d: "Récupérez le résultat exploitable : PNG, PDF imprimable, fichier Excel pour vos clients, ZIP." },
-              ].map((s, i) => (
-                <div key={i} className="bg-white p-6">
-                  <div className="font-jetbrains text-xs mb-4" style={{ color: BLUE }}>{s.n}</div>
-                  <div className="font-bricolage font-semibold text-lg mb-2">{s.t}</div>
-                  <div className="text-sm text-slate-600 leading-relaxed">{s.d}</div>
-                </div>
-              ))}
+            <div>
+              <div className="font-jetbrains text-[10px] text-slate-500 tracking-wider mb-2.5">CONFORME AUX STANDARDS</div>
+              <h4 className="font-bricolage font-semibold text-base mb-2 text-slate-900">Normes internationales respectées</h4>
+              <p className="text-sm text-slate-600 leading-relaxed">
+                Codes-barres <strong>GS1</strong> (Code 128, GS1-128, ITF-14, GTIN, QR, DataMatrix), méthodologie <strong>DDMRP</strong> Demand Driven Institute, <strong>Incoterms 2020</strong> ICC, lettre de voiture <strong>CMR Genève 1956</strong> et eCMR (règlement européen <strong>eFTI 2026</strong>), palettes <strong>EUR / GMA / ISO</strong>, conteneurs maritimes 20'/40'/HC.
+              </p>
+            </div>
+            <div>
+              <div className="font-jetbrains text-[10px] text-slate-500 tracking-wider mb-2.5">CONFIDENTIALITÉ</div>
+              <h4 className="font-bricolage font-semibold text-base mb-2 text-slate-900">Données 100 % en local</h4>
+              <p className="text-sm text-slate-600 leading-relaxed">
+                Tous les traitements s'exécutent dans votre navigateur : aucun fichier n'est envoyé sur un serveur, aucune donnée client ne transite via une API tierce. Idéal pour les missions de conseil chez des donneurs d'ordre exigeants en matière de confidentialité.
+              </p>
             </div>
           </div>
         </div>
@@ -6824,5 +6916,546 @@ function FillBar({ label, value }) {
         <div className="h-full transition-all" style={{ width: `${value}%`, background: color }} />
       </div>
     </div>
+  );
+}
+
+// ============================================================
+// OtifAnalyzer · Analyse de performance livraison (OTIF / SLA)
+// OTIF = On Time × In Full
+// ============================================================
+
+const OTIF_COLUMN_ALIASES = {
+  orderId:       ['n° commande', 'numéro commande', 'numero commande', 'commande', 'order', 'po', 'cmd', 'order id', 'order number', 'reference commande'],
+  ref:           ['référence article', 'référence', 'article', 'sku', 'item', 'product', 'code', 'reference'],
+  partner:       ['fournisseur', 'client', 'tiers', 'partenaire', 'supplier', 'customer', 'fournisseur / client', 'partner'],
+  promisedDate:  ['date promise', 'date prévue', 'date prevue', 'date estimée', 'promised date', 'due date', 'date demandée', 'date demandee', 'date confirmée'],
+  deliveredDate: ['date livrée', 'date livree', 'date réelle', 'date reelle', 'actual date', 'delivered date', 'date livraison', 'date effective', 'date reception'],
+  orderedQty:    ['qté commandée', 'quantité commandée', 'quantite commandee', 'qte commandee', 'ordered qty', 'ordered', 'qty ordered', 'quantité demandée'],
+  deliveredQty:  ['qté livrée', 'quantité livrée', 'quantite livree', 'qte livree', 'delivered qty', 'delivered', 'qty delivered', 'quantité reçue'],
+};
+
+// Génère un template OTIF avec cas variés (parfait, retard, manquant, échec total)
+function generateOtifTemplate() {
+  const baseDate = new Date('2026-01-15');
+  const day = (n) => {
+    const d = new Date(baseDate);
+    d.setDate(d.getDate() + n);
+    return d.toISOString().slice(0, 10);
+  };
+  return [
+    { 'N° commande': 'CMD-001', 'Référence article': 'A001', 'Fournisseur': 'ALPHA INDUSTRIES', 'Date promise': day(0), 'Date livrée': day(0), 'Qté commandée': 100, 'Qté livrée': 100 },
+    { 'N° commande': 'CMD-002', 'Référence article': 'A002', 'Fournisseur': 'ALPHA INDUSTRIES', 'Date promise': day(2), 'Date livrée': day(4), 'Qté commandée': 50, 'Qté livrée': 50 },
+    { 'N° commande': 'CMD-003', 'Référence article': 'A001', 'Fournisseur': 'BETA LOGISTICS', 'Date promise': day(5), 'Date livrée': day(5), 'Qté commandée': 200, 'Qté livrée': 180 },
+    { 'N° commande': 'CMD-004', 'Référence article': 'A003', 'Fournisseur': 'BETA LOGISTICS', 'Date promise': day(7), 'Date livrée': day(10), 'Qté commandée': 75, 'Qté livrée': 60 },
+    { 'N° commande': 'CMD-005', 'Référence article': 'A002', 'Fournisseur': 'GAMMA SUPPLY', 'Date promise': day(10), 'Date livrée': day(10), 'Qté commandée': 30, 'Qté livrée': 30 },
+    { 'N° commande': 'CMD-006', 'Référence article': 'A001', 'Fournisseur': 'GAMMA SUPPLY', 'Date promise': day(12), 'Date livrée': day(13), 'Qté commandée': 150, 'Qté livrée': 150 },
+    { 'N° commande': 'CMD-007', 'Référence article': 'A003', 'Fournisseur': 'ALPHA INDUSTRIES', 'Date promise': day(15), 'Date livrée': day(15), 'Qté commandée': 100, 'Qté livrée': 95 },
+    { 'N° commande': 'CMD-008', 'Référence article': 'A002', 'Fournisseur': 'BETA LOGISTICS', 'Date promise': day(18), 'Date livrée': day(22), 'Qté commandée': 80, 'Qté livrée': 80 },
+    { 'N° commande': 'CMD-009', 'Référence article': 'A001', 'Fournisseur': 'GAMMA SUPPLY', 'Date promise': day(20), 'Date livrée': day(20), 'Qté commandée': 120, 'Qté livrée': 120 },
+    { 'N° commande': 'CMD-010', 'Référence article': 'A003', 'Fournisseur': 'ALPHA INDUSTRIES', 'Date promise': day(25), 'Date livrée': day(28), 'Qté commandée': 200, 'Qté livrée': 200 },
+  ];
+}
+
+// Parser OTIF : transforme les lignes brutes en objets de livraison
+function parseOtifDeliveries(json) {
+  const deliveries = [];
+  let errorCount = 0;
+  let idx = 0;
+  for (const raw of json) {
+    const orderId = String(findField(raw, OTIF_COLUMN_ALIASES.orderId) || '').trim();
+    const ref = String(findField(raw, OTIF_COLUMN_ALIASES.ref) || '').trim();
+    const partner = String(findField(raw, OTIF_COLUMN_ALIASES.partner) || '').trim() || 'Non renseigné';
+    const promised = parseDate(findField(raw, OTIF_COLUMN_ALIASES.promisedDate));
+    const delivered = parseDate(findField(raw, OTIF_COLUMN_ALIASES.deliveredDate));
+    const orderedQty = parseFloat(findField(raw, OTIF_COLUMN_ALIASES.orderedQty));
+    const deliveredQty = parseFloat(findField(raw, OTIF_COLUMN_ALIASES.deliveredQty));
+
+    if (!promised || !delivered || isNaN(orderedQty) || isNaN(deliveredQty)) {
+      errorCount++;
+      continue;
+    }
+    deliveries.push({
+      id: `del-${Date.now()}-${idx++}`,
+      orderId: orderId || `CMD-${idx}`,
+      ref: ref || '—',
+      partner,
+      promisedDate: promised,
+      deliveredDate: delivered,
+      orderedQty,
+      deliveredQty,
+    });
+  }
+  return { deliveries, errorCount };
+}
+
+// Calcule pour chaque livraison ses indicateurs OT, IF, OTIF
+function computeOtifMetrics(deliveries, otTolerance, ifTolerance) {
+  return deliveries.map(d => {
+    const delayDays = Math.round((d.deliveredDate - d.promisedDate) / (24 * 3600 * 1000));
+    const fillRate = d.orderedQty > 0 ? d.deliveredQty / d.orderedQty : 0;
+    const isOnTime = delayDays <= otTolerance;
+    const isInFull = fillRate >= (ifTolerance / 100);
+    const isOtif = isOnTime && isInFull;
+    return { ...d, delayDays, fillRate, isOnTime, isInFull, isOtif };
+  });
+}
+
+// Agrège par fournisseur ou par mois
+function aggregateOtif(rows, keyFn) {
+  const groups = {};
+  for (const r of rows) {
+    const key = keyFn(r);
+    if (!groups[key]) groups[key] = { key, total: 0, ot: 0, if_: 0, otif: 0, totalDelay: 0 };
+    const g = groups[key];
+    g.total++;
+    if (r.isOnTime) g.ot++;
+    if (r.isInFull) g.if_++;
+    if (r.isOtif) g.otif++;
+    g.totalDelay += Math.max(0, r.delayDays);
+  }
+  return Object.values(groups).map(g => ({
+    ...g,
+    otRate: g.total > 0 ? (g.ot / g.total) * 100 : 0,
+    ifRate: g.total > 0 ? (g.if_ / g.total) * 100 : 0,
+    otifRate: g.total > 0 ? (g.otif / g.total) * 100 : 0,
+    avgDelay: g.total > 0 ? g.totalDelay / g.total : 0,
+  })).sort((a, b) => a.otifRate - b.otifRate); // Pire en premier
+}
+
+function OtifAnalyzer({ onBack }) {
+  const [deliveries, setDeliveries] = useState([]);
+  const [otTolerance, setOtTolerance] = useState(0); // jours de retard tolérés (0 = livraison à J)
+  const [ifTolerance, setIfTolerance] = useState(100); // % minimum pour considérer "In Full" (100 = strict)
+  const [pivot, setPivot] = useState('partner'); // partner | month | ref
+  const [importMsg, setImportMsg] = useState(null);
+  const fileInputRef = useRef(null);
+
+  // Calculs réactifs
+  const computedRows = useMemo(
+    () => computeOtifMetrics(deliveries, otTolerance, ifTolerance),
+    [deliveries, otTolerance, ifTolerance]
+  );
+
+  const kpis = useMemo(() => {
+    if (computedRows.length === 0) return null;
+    const total = computedRows.length;
+    const otCount = computedRows.filter(r => r.isOnTime).length;
+    const ifCount = computedRows.filter(r => r.isInFull).length;
+    const otifCount = computedRows.filter(r => r.isOtif).length;
+    const delays = computedRows.filter(r => r.delayDays > 0).map(r => r.delayDays);
+    const avgDelay = delays.length > 0 ? delays.reduce((a, b) => a + b, 0) / delays.length : 0;
+    const partials = computedRows.filter(r => !r.isInFull);
+    const avgFillRateOnFailures = partials.length > 0
+      ? partials.reduce((a, b) => a + b.fillRate, 0) / partials.length * 100
+      : 0;
+    return {
+      total,
+      otRate: (otCount / total) * 100,
+      ifRate: (ifCount / total) * 100,
+      otifRate: (otifCount / total) * 100,
+      otCount, ifCount, otifCount,
+      failuresOt: total - otCount,
+      failuresIf: total - ifCount,
+      avgDelay,
+      avgFillRateOnFailures,
+    };
+  }, [computedRows]);
+
+  const aggregated = useMemo(() => {
+    if (computedRows.length === 0) return [];
+    if (pivot === 'partner') return aggregateOtif(computedRows, r => r.partner);
+    if (pivot === 'ref') return aggregateOtif(computedRows, r => r.ref);
+    if (pivot === 'month') return aggregateOtif(computedRows, r => r.promisedDate.toISOString().slice(0, 7));
+    return [];
+  }, [computedRows, pivot]);
+
+  const handleFileImport = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: 'array', cellDates: true });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const json = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+      if (json.length === 0) throw new Error('Aucune ligne détectée');
+
+      // Vérifier colonnes obligatoires
+      const firstRow = json[0];
+      const requiredCols = {
+        'Date promise': OTIF_COLUMN_ALIASES.promisedDate,
+        'Date livrée': OTIF_COLUMN_ALIASES.deliveredDate,
+        'Qté commandée': OTIF_COLUMN_ALIASES.orderedQty,
+        'Qté livrée': OTIF_COLUMN_ALIASES.deliveredQty,
+      };
+      const missing = Object.entries(requiredCols)
+        .filter(([_, aliases]) => findField(firstRow, aliases) === undefined)
+        .map(([label]) => label);
+
+      if (missing.length > 0) {
+        setImportMsg({
+          type: 'error',
+          text: `Colonnes obligatoires manquantes : ${missing.join(', ')}. Téléchargez le template pour voir les en-têtes attendus.`
+        });
+        setTimeout(() => setImportMsg(null), 7000);
+        return;
+      }
+
+      const { deliveries: parsed, errorCount } = parseOtifDeliveries(json);
+      setDeliveries(parsed);
+      const skipMsg = errorCount > 0 ? ` · ${errorCount} ligne(s) ignorée(s) (date ou quantité invalide)` : '';
+      setImportMsg({
+        type: errorCount > 0 ? 'warning' : 'success',
+        text: `${parsed.length} livraison(s) importée(s) depuis « ${file.name} »${skipMsg}`
+      });
+      setTimeout(() => setImportMsg(null), 6000);
+    } catch (err) {
+      setImportMsg({ type: 'error', text: 'Erreur d\'import : ' + err.message });
+      setTimeout(() => setImportMsg(null), 6000);
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const downloadTemplate = () => {
+    const ws = XLSX.utils.json_to_sheet(generateOtifTemplate());
+    ws['!cols'] = [{ wch: 12 }, { wch: 16 }, { wch: 22 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 14 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Livraisons');
+    XLSX.writeFile(wb, 'atelier-otif-template.xlsx');
+  };
+
+  const exportXlsx = () => {
+    if (computedRows.length === 0) return;
+    const rows = computedRows.map(r => ({
+      'N° commande': r.orderId,
+      'Référence article': r.ref,
+      'Fournisseur': r.partner,
+      'Date promise': r.promisedDate.toISOString().slice(0, 10),
+      'Date livrée': r.deliveredDate.toISOString().slice(0, 10),
+      'Qté commandée': r.orderedQty,
+      'Qté livrée': r.deliveredQty,
+      'Écart jours': r.delayDays,
+      'Taux complétude': Math.round(r.fillRate * 1000) / 10 + ' %',
+      'On Time': r.isOnTime ? 'OUI' : 'NON',
+      'In Full': r.isInFull ? 'OUI' : 'NON',
+      'OTIF': r.isOtif ? 'OUI' : 'NON',
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Livraisons OTIF');
+
+    // Feuille KPIs
+    if (kpis) {
+      const kpiRows = [
+        { 'Indicateur': 'Total livraisons analysées', 'Valeur': kpis.total },
+        { 'Indicateur': 'Taux OTIF', 'Valeur': kpis.otifRate.toFixed(2) + ' %' },
+        { 'Indicateur': 'Taux On Time', 'Valeur': kpis.otRate.toFixed(2) + ' %' },
+        { 'Indicateur': 'Taux In Full', 'Valeur': kpis.ifRate.toFixed(2) + ' %' },
+        { 'Indicateur': 'Retard moyen (livraisons en retard)', 'Valeur': kpis.avgDelay.toFixed(1) + ' jours' },
+        { 'Indicateur': 'Taux complétude moyen (livraisons incomplètes)', 'Valeur': kpis.avgFillRateOnFailures.toFixed(1) + ' %' },
+        { 'Indicateur': 'Tolérance OT', 'Valeur': otTolerance + ' jours' },
+        { 'Indicateur': 'Tolérance IF', 'Valeur': ifTolerance + ' %' },
+        { 'Indicateur': 'Date du calcul', 'Valeur': new Date().toLocaleString('fr-FR') },
+      ];
+      const ws2 = XLSX.utils.json_to_sheet(kpiRows);
+      XLSX.utils.book_append_sheet(wb, ws2, 'KPIs');
+    }
+    XLSX.writeFile(wb, `atelier-otif-${Date.now()}.xlsx`);
+  };
+
+  const clearAll = () => {
+    if (deliveries.length === 0) return;
+    if (window.confirm('Vider toutes les livraisons ?')) setDeliveries([]);
+  };
+
+  return (
+    <div className="min-h-screen text-slate-900" style={{ background: '#F8FAFC', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+      <FontsAndStyles />
+
+      <nav className="border-b border-slate-200 bg-white sticky top-0 z-20">
+        <div className="max-w-[1600px] mx-auto px-6 py-4 flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-5">
+            <button onClick={onBack} className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors font-jetbrains text-xs">
+              <ArrowLeft size={14} />
+              RETOUR
+            </button>
+            <div className="w-px h-5 bg-slate-200" />
+            <div className="flex items-center gap-3">
+              <Logo small />
+              <div>
+                <div className="font-bricolage font-semibold text-sm leading-tight text-slate-900">Performance livraison · OTIF</div>
+                <div className="font-jetbrains text-[10px] text-slate-500">ATELIER / 09 · On Time × In Full</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      <div className="max-w-[1600px] mx-auto px-6 py-6 space-y-5">
+
+        {/* Barre d'actions */}
+        <div className="rounded-xl border border-slate-200 bg-white p-4 flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-2 flex-wrap">
+            <input ref={fileInputRef} type="file" accept=".xlsx,.xls,.csv" onChange={handleFileImport} className="hidden" />
+            <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-1.5 px-3 py-2 rounded-md font-jetbrains text-xs font-semibold text-white shadow-sm transition-all hover:translate-y-[-1px]" style={{ background: BLUE }}>
+              <Upload size={13} />
+              IMPORTER LIVRAISONS
+            </button>
+            <button onClick={downloadTemplate} className="flex items-center gap-1.5 px-3 py-2 rounded-md font-jetbrains text-xs text-slate-700 border border-slate-300 hover:bg-slate-50 transition-all">
+              <FileDown size={13} />
+              TEMPLATE
+            </button>
+            <button onClick={exportXlsx} disabled={computedRows.length === 0} className="flex items-center gap-1.5 px-3 py-2 rounded-md font-jetbrains text-xs text-slate-700 border border-slate-300 hover:bg-slate-50 transition-all disabled:opacity-40">
+              <Download size={13} />
+              EXPORTER ANALYSE
+            </button>
+            <div className="w-px h-5 bg-slate-200 mx-1" />
+            <button onClick={clearAll} disabled={deliveries.length === 0} className="flex items-center gap-1.5 px-3 py-2 rounded-md font-jetbrains text-xs text-red-600 border border-red-200 hover:bg-red-50 transition-all disabled:opacity-40">
+              VIDER
+            </button>
+          </div>
+          <div className="font-jetbrains text-xs text-slate-500">
+            {deliveries.length > 0 ? `${deliveries.length} livraison(s) analysée(s)` : 'Aucune livraison'}
+          </div>
+        </div>
+
+        {/* Message d'import */}
+        {importMsg && (
+          <div className="rounded-lg p-3 font-jetbrains text-xs"
+            style={
+              importMsg.type === 'success' ? { background: '#ECFDF5', color: '#065F46', border: '1px solid #A7F3D0' }
+              : importMsg.type === 'warning' ? { background: '#FFFBEB', color: '#92400E', border: '1px solid #FCD34D' }
+              : { background: '#FEF2F2', color: '#991B1B', border: '1px solid #FECACA' }
+            }>
+            {importMsg.text}
+          </div>
+        )}
+
+        {/* Empty state */}
+        {deliveries.length === 0 && (
+          <div className="rounded-xl border border-slate-200 bg-white p-16 text-center">
+            <div className="w-14 h-14 rounded-xl mx-auto mb-5 flex items-center justify-center" style={{ background: BLUE_LIGHT, border: '1px solid #BFDBFE' }}>
+              <Calculator size={22} style={{ color: BLUE }} strokeWidth={1.75} />
+            </div>
+            <div className="font-bricolage text-xl mb-2 text-slate-800">Analysez votre performance livraison</div>
+            <div className="text-sm text-slate-500 mb-5 max-w-xl mx-auto">
+              Importez un extract de votre ERP avec dates promises / dates livrées et quantités commandées / livrées.
+              L'outil calcule OTIF, On Time, In Full avec décomposition par fournisseur et par période.
+            </div>
+            <div className="flex justify-center gap-2 flex-wrap">
+              <button onClick={() => fileInputRef.current?.click()} className="px-4 py-2 rounded-md font-jetbrains text-xs font-semibold text-white" style={{ background: BLUE }}>
+                IMPORTER UN FICHIER
+              </button>
+              <button onClick={downloadTemplate} className="px-4 py-2 rounded-md font-jetbrains text-xs text-slate-700 border border-slate-300">
+                TÉLÉCHARGER LE TEMPLATE
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* KPIs */}
+        {kpis && (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              {/* OTIF — la carte principale */}
+              <div className="rounded-xl p-5 text-white" style={{ background: 'linear-gradient(135deg, #1E3A8A 0%, #2563EB 100%)' }}>
+                <div className="font-jetbrains text-[10px] tracking-wider opacity-80 mb-1">TAUX OTIF GLOBAL</div>
+                <div className="font-bricolage font-bold text-4xl">{kpis.otifRate.toFixed(1)}<span className="text-xl"> %</span></div>
+                <div className="font-jetbrains text-[10px] mt-1 opacity-80">{kpis.otifCount} / {kpis.total} livraisons</div>
+              </div>
+              <KpiCard label="On Time" value={kpis.otRate} total={kpis.otCount} totalAll={kpis.total} sub={`${kpis.failuresOt} retard(s)`} />
+              <KpiCard label="In Full" value={kpis.ifRate} total={kpis.ifCount} totalAll={kpis.total} sub={`${kpis.failuresIf} incomplète(s)`} />
+              <div className="rounded-xl border border-slate-200 p-4 bg-white">
+                <div className="font-jetbrains text-[10px] text-slate-500 tracking-wider mb-2">CARACTÉRISTIQUES DÉFAUTS</div>
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-xs"><span className="text-slate-500">Retard moyen</span><span className="font-jetbrains font-semibold text-slate-800">{kpis.avgDelay.toFixed(1)} j</span></div>
+                  <div className="flex justify-between text-xs"><span className="text-slate-500">Complétude défauts</span><span className="font-jetbrains font-semibold text-slate-800">{kpis.avgFillRateOnFailures.toFixed(0)} %</span></div>
+                </div>
+              </div>
+            </div>
+
+            {/* Paramètres de tolérance */}
+            <div className="rounded-xl border p-4" style={{ borderColor: '#BFDBFE', background: BLUE_LIGHT }}>
+              <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                <div className="font-jetbrains text-xs tracking-wider font-semibold" style={{ color: BLUE }}>SEUILS DE TOLÉRANCE</div>
+                <div className="font-jetbrains text-[10px] text-blue-700">recalcul instantané · ajustez selon votre politique de service</div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <div className="flex justify-between items-baseline mb-1">
+                    <label className="font-jetbrains text-[10px] tracking-wider" style={{ color: BLUE }}>RETARD TOLÉRÉ (On Time)</label>
+                    <span className="font-jetbrains text-sm font-semibold" style={{ color: BLUE }}>{otTolerance >= 0 ? '+' : ''}{otTolerance} j</span>
+                  </div>
+                  <input type="range" min="0" max="7" step="1" value={otTolerance} onChange={e => setOtTolerance(parseInt(e.target.value))} className="w-full" style={{ accentColor: BLUE }} />
+                  <div className="flex justify-between font-jetbrains text-[10px] mt-0.5" style={{ color: BLUE }}>
+                    <span>0 j (strict)</span>
+                    <span>7 j</span>
+                  </div>
+                </div>
+                <div>
+                  <div className="flex justify-between items-baseline mb-1">
+                    <label className="font-jetbrains text-[10px] tracking-wider" style={{ color: BLUE }}>COMPLÉTUDE MINIMUM (In Full)</label>
+                    <span className="font-jetbrains text-sm font-semibold" style={{ color: BLUE }}>≥ {ifTolerance} %</span>
+                  </div>
+                  <input type="range" min="80" max="100" step="1" value={ifTolerance} onChange={e => setIfTolerance(parseInt(e.target.value))} className="w-full" style={{ accentColor: BLUE }} />
+                  <div className="flex justify-between font-jetbrains text-[10px] mt-0.5" style={{ color: BLUE }}>
+                    <span>80 %</span>
+                    <span>100 % (strict)</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Visualisation barres OT / IF / OTIF */}
+            <div className="rounded-xl border border-slate-200 bg-white p-5">
+              <div className="font-jetbrains text-[10px] text-slate-500 tracking-wider mb-4">DÉCOMPOSITION DES PERFORMANCES</div>
+              <div className="space-y-4">
+                <OtifBar label="On Time" success={kpis.otCount} total={kpis.total} color="#3B82F6" />
+                <OtifBar label="In Full" success={kpis.ifCount} total={kpis.total} color="#8B5CF6" />
+                <OtifBar label="OTIF" success={kpis.otifCount} total={kpis.total} color="#059669" emphasis />
+              </div>
+            </div>
+
+            {/* Pivot par dimension */}
+            <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+              <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between flex-wrap gap-2">
+                <div className="font-jetbrains text-xs text-slate-600">DÉCOMPOSITION (pire performance en premier)</div>
+                <div className="flex items-center gap-1 p-0.5 rounded-md border border-slate-200 bg-white">
+                  {[
+                    { id: 'partner', label: 'Par fournisseur' },
+                    { id: 'ref', label: 'Par article' },
+                    { id: 'month', label: 'Par mois' },
+                  ].map(opt => (
+                    <button key={opt.id} onClick={() => setPivot(opt.id)}
+                      className="px-2.5 py-1 rounded font-jetbrains text-[10px] transition-all"
+                      style={pivot === opt.id ? { background: BLUE, color: 'white', fontWeight: 600 } : { color: '#64748B' }}>
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-200 bg-slate-50/30">
+                      <Th>{pivot === 'partner' ? 'Fournisseur' : pivot === 'ref' ? 'Référence' : 'Mois'}</Th>
+                      <Th className="text-right">Livraisons</Th>
+                      <Th className="text-right">OT %</Th>
+                      <Th className="text-right">IF %</Th>
+                      <Th className="text-right" highlight>OTIF %</Th>
+                      <Th className="text-right">Retard moy.</Th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {aggregated.map(g => (
+                      <tr key={g.key} className="border-b border-slate-100">
+                        <Td className="text-slate-800 font-medium">{g.key}</Td>
+                        <Td className="text-right font-jetbrains text-slate-700">{g.total}</Td>
+                        <Td className="text-right font-jetbrains" style={{ color: g.otRate < 80 ? '#DC2626' : g.otRate < 95 ? '#D97706' : '#059669' }}>{g.otRate.toFixed(0)} %</Td>
+                        <Td className="text-right font-jetbrains" style={{ color: g.ifRate < 80 ? '#DC2626' : g.ifRate < 95 ? '#D97706' : '#059669' }}>{g.ifRate.toFixed(0)} %</Td>
+                        <Td className="text-right font-jetbrains font-semibold" style={{ color: g.otifRate < 70 ? '#DC2626' : g.otifRate < 90 ? '#D97706' : '#059669' }}>{g.otifRate.toFixed(0)} %</Td>
+                        <Td className="text-right font-jetbrains text-slate-600">{g.avgDelay.toFixed(1)} j</Td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Détail livraisons */}
+            <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+              <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+                <div className="font-jetbrains text-xs text-slate-600">DÉTAIL LIVRAISONS</div>
+                <div className="font-jetbrains text-[10px] text-slate-400">{computedRows.length} ligne(s)</div>
+              </div>
+              <div className="overflow-x-auto max-h-[500px]">
+                <table className="w-full text-xs">
+                  <thead className="sticky top-0 bg-slate-50 z-10">
+                    <tr className="border-b border-slate-200">
+                      <Th>Commande</Th>
+                      <Th>Article</Th>
+                      <Th>Fournisseur</Th>
+                      <Th>Date promise</Th>
+                      <Th>Date livrée</Th>
+                      <Th className="text-right">Écart (j)</Th>
+                      <Th className="text-right">Cmd / Livré</Th>
+                      <Th className="text-center">OT</Th>
+                      <Th className="text-center">IF</Th>
+                      <Th className="text-center" highlight>OTIF</Th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {computedRows.slice(0, 200).map(r => (
+                      <tr key={r.id} className="border-b border-slate-100">
+                        <Td className="font-jetbrains text-slate-700">{r.orderId}</Td>
+                        <Td className="font-jetbrains text-slate-600">{r.ref}</Td>
+                        <Td className="text-slate-700">{r.partner}</Td>
+                        <Td className="font-jetbrains text-slate-600">{r.promisedDate.toISOString().slice(0, 10)}</Td>
+                        <Td className="font-jetbrains text-slate-600">{r.deliveredDate.toISOString().slice(0, 10)}</Td>
+                        <Td className="text-right font-jetbrains" style={{ color: r.delayDays > 0 ? '#DC2626' : r.delayDays < 0 ? '#059669' : '#64748B' }}>{r.delayDays > 0 ? `+${r.delayDays}` : r.delayDays}</Td>
+                        <Td className="text-right font-jetbrains text-slate-700">{r.orderedQty} / {r.deliveredQty} <span className="text-[10px] text-slate-500">({(r.fillRate * 100).toFixed(0)} %)</span></Td>
+                        <Td className="text-center"><StatusDot ok={r.isOnTime} /></Td>
+                        <Td className="text-center"><StatusDot ok={r.isInFull} /></Td>
+                        <Td className="text-center"><StatusDot ok={r.isOtif} emphasis /></Td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {computedRows.length > 200 && (
+                  <div className="p-2 text-center font-jetbrains text-[10px] text-slate-500 border-t border-slate-100">
+                    Affichage limité aux 200 premières lignes — les KPIs et l'export portent sur la totalité ({computedRows.length})
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Doc / aide */}
+            <div className="rounded-xl border border-slate-200 p-5 bg-white">
+              <div className="font-jetbrains text-[10px] text-slate-500 tracking-wider mb-3">À PROPOS DE L'OTIF</div>
+              <div className="text-sm text-slate-600 leading-relaxed mb-3">
+                <span className="font-semibold">OTIF = On Time × In Full</span> est le KPI roi de la performance livraison. Une livraison est OTIF uniquement si elle est <span className="font-medium">livrée à la date promise</span> ET <span className="font-medium">complète en quantité</span>. La multiplication des deux taux pénalise fortement les défaillances partielles : un fournisseur à 95 % OT et 95 % IF n'est qu'à 90 % OTIF.
+              </div>
+              <div className="text-sm text-slate-600 leading-relaxed">
+                Standards d'évaluation : un OTIF supérieur à <span className="font-medium" style={{ color: '#059669' }}>95 %</span> est excellent (classe mondiale), entre <span className="font-medium" style={{ color: '#D97706' }}>85 et 95 %</span> est correct, en-dessous de <span className="font-medium" style={{ color: '#DC2626' }}>85 %</span> indique des dysfonctionnements à investiguer côté fournisseur, transporteur ou process interne.
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Helpers OTIF
+function KpiCard({ label, value, total, totalAll, sub }) {
+  const color = value >= 95 ? '#059669' : value >= 85 ? '#D97706' : '#DC2626';
+  return (
+    <div className="rounded-xl border border-slate-200 p-4 bg-white">
+      <div className="font-jetbrains text-[10px] text-slate-500 tracking-wider mb-1">{label}</div>
+      <div className="font-bricolage font-bold text-3xl" style={{ color }}>{value.toFixed(1)}<span className="text-base"> %</span></div>
+      <div className="font-jetbrains text-[10px] text-slate-500 mt-1">{total} / {totalAll} · {sub}</div>
+    </div>
+  );
+}
+
+function OtifBar({ label, success, total, color, emphasis }) {
+  const rate = total > 0 ? (success / total) * 100 : 0;
+  return (
+    <div>
+      <div className="flex justify-between items-baseline mb-1.5">
+        <span className={`text-xs ${emphasis ? 'font-semibold text-slate-800' : 'text-slate-600'}`}>{label}</span>
+        <span className="font-jetbrains text-xs font-semibold" style={{ color }}>{success} / {total} · {rate.toFixed(1)} %</span>
+      </div>
+      <div className={`rounded-full overflow-hidden bg-slate-100 ${emphasis ? 'h-4' : 'h-2.5'}`}>
+        <div className="h-full transition-all" style={{ width: `${rate}%`, background: color }} />
+      </div>
+    </div>
+  );
+}
+
+function StatusDot({ ok, emphasis }) {
+  return (
+    <span className={`inline-block rounded-full ${emphasis ? 'w-3 h-3' : 'w-2 h-2'}`}
+          style={{ background: ok ? '#059669' : '#DC2626' }} />
   );
 }
