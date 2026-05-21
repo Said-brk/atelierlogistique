@@ -488,15 +488,45 @@ function splitZPL(zpl) {
   return labels.length > 0 ? labels : [zpl];
 }
 
-// --- Chargement des libs externes (bwip-js pour barcodes, jsPDF pour export PDF) ---
+// --- Chargement des libs externes (bwip-js pour barcodes, jsPDF pour export PDF, JSZip pour ZIP) ---
 const loadScript = (src) => new Promise((resolve, reject) => {
   if (document.querySelector(`script[src="${src}"]`)) { resolve(); return; }
   const script = document.createElement('script');
   script.src = src;
+  script.crossOrigin = 'anonymous';
   script.onload = () => resolve();
   script.onerror = () => reject(new Error(`Échec du chargement : ${src}`));
   document.head.appendChild(script);
 });
+
+// Tente plusieurs CDN à la suite. Renvoie l'URL qui a marché ou rejette si tout échoue.
+async function loadScriptWithFallback(urls, globalCheck) {
+  for (const url of urls) {
+    try {
+      await loadScript(url);
+      // Vérifie que la lib a bien exposé son objet global (sinon URL inutile)
+      if (!globalCheck || globalCheck()) return url;
+    } catch (e) { /* try next */ }
+  }
+  throw new Error('Toutes les sources CDN ont échoué pour : ' + urls[0]);
+}
+
+// CDN multiples pour chaque lib (jsdelivr → unpkg → cdnjs)
+const CDN_BWIP = [
+  'https://cdn.jsdelivr.net/npm/bwip-js@4.5.2/dist/bwip-js-min.js',
+  'https://unpkg.com/bwip-js@4.5.2/dist/bwip-js-min.js',
+  'https://cdn.jsdelivr.net/npm/bwip-js/dist/bwip-js-min.js',
+];
+const CDN_JSPDF = [
+  'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js',
+  'https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
+];
+const CDN_JSZIP = [
+  'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js',
+  'https://unpkg.com/jszip@3.10.1/dist/jszip.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js',
+];
 
 function ZplViewer({ onBack }) {
   const [zpl, setZpl] = useState(EXAMPLE_ZPL);
@@ -524,18 +554,21 @@ function ZplViewer({ onBack }) {
   // Comptage en temps réel pour le statut éditeur
   const labelCountInZpl = Math.max(1, (zpl.match(/\^XA/gi) || []).length);
 
-  // Charger les libs au montage (résilient : si jsPDF échoue, PNG reste dispo)
+  // Charger les libs au montage avec fallback CDN (résilient : si jsPDF échoue, PNG reste dispo)
   useEffect(() => {
     Promise.allSettled([
-      loadScript('https://cdn.jsdelivr.net/npm/bwip-js@4.5.2/dist/bwip-js-min.js'),
-      loadScript('https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js'),
-      loadScript('https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js'),
+      loadScriptWithFallback(CDN_BWIP, () => !!window.bwipjs),
+      loadScriptWithFallback(CDN_JSPDF, () => !!window.jspdf),
+      loadScriptWithFallback(CDN_JSZIP, () => !!window.JSZip),
     ]).then((results) => {
       const bwipOk = results[0].status === 'fulfilled' && window.bwipjs;
       const pdfOk = results[1].status === 'fulfilled' && window.jspdf;
       const zipOk = results[2].status === 'fulfilled' && window.JSZip;
       if (!bwipOk) {
-        setLibsError("Le module de rendu des codes-barres n'a pas pu être chargé. Vérifiez votre connexion.");
+        const reason = results[0].status === 'rejected'
+          ? ' (tous les CDN ont échoué — vérifiez votre connexion ou un éventuel bloqueur de scripts)'
+          : ' (script chargé mais variable globale absente — version incompatible)';
+        setLibsError("Le module de rendu des codes-barres n'a pas pu être chargé." + reason);
         return;
       }
       setLibsReady(true);
@@ -1623,16 +1656,19 @@ function BarcodeGenerator({ onBack }) {
   const currentType = BARCODE_TYPES.find(t => t.id === typeId);
   const validation = currentType.validate(data);
 
-  // Chargement des libs (bwip-js requis, jsPDF optionnel)
+  // Chargement des libs avec fallback CDN (bwip-js requis, jsPDF optionnel)
   useEffect(() => {
     Promise.allSettled([
-      loadScript('https://cdn.jsdelivr.net/npm/bwip-js@4.5.2/dist/bwip-js-min.js'),
-      loadScript('https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js'),
+      loadScriptWithFallback(CDN_BWIP, () => !!window.bwipjs),
+      loadScriptWithFallback(CDN_JSPDF, () => !!window.jspdf),
     ]).then((results) => {
       const bwipOk = results[0].status === 'fulfilled' && window.bwipjs;
       const pdfOk = results[1].status === 'fulfilled' && window.jspdf;
       if (!bwipOk) {
-        setLibsError("Le module de rendu des codes-barres n'a pas pu être chargé.");
+        const reason = results[0].status === 'rejected'
+          ? ' (tous les CDN ont échoué — vérifiez votre connexion ou un éventuel bloqueur)'
+          : ' (script chargé mais variable globale absente)';
+        setLibsError("Le module de rendu des codes-barres n'a pas pu être chargé." + reason);
         return;
       }
       setLibsReady(true);
@@ -4410,26 +4446,22 @@ function CmrGenerator({ onBack }) {
   const [addressBook, setAddressBook] = useState(loadAddressBook);
   const [savedToast, setSavedToast] = useState(null);
 
-  // jsPDF loading
+  // jsPDF loading avec fallback CDN
   const [pdfLibReady, setPdfLibReady] = useState(false);
   useEffect(() => {
     if (window.jspdf) { setPdfLibReady(true); return; }
-    const s = document.createElement('script');
-    s.src = 'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js';
-    s.onload = () => setPdfLibReady(true);
-    s.onerror = () => setPdfLibReady(false);
-    document.head.appendChild(s);
+    loadScriptWithFallback(CDN_JSPDF, () => !!window.jspdf)
+      .then(() => setPdfLibReady(true))
+      .catch(() => setPdfLibReady(false));
   }, []);
 
-  // bwip-js loading for QR code (mode eCMR)
+  // bwip-js loading for QR code (mode eCMR) avec fallback CDN
   const [bwipReady, setBwipReady] = useState(false);
   useEffect(() => {
     if (window.bwipjs) { setBwipReady(true); return; }
-    const s = document.createElement('script');
-    s.src = 'https://cdn.jsdelivr.net/npm/bwip-js@4.5.2/dist/bwip-js-min.js';
-    s.onload = () => setBwipReady(true);
-    s.onerror = () => setBwipReady(false);
-    document.head.appendChild(s);
+    loadScriptWithFallback(CDN_BWIP, () => !!window.bwipjs)
+      .then(() => setBwipReady(true))
+      .catch(() => setBwipReady(false));
   }, []);
 
   const updateGoodsRow = (id, key, val) => {
