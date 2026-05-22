@@ -3018,9 +3018,21 @@ const SALES_COLUMN_ALIASES = {
 const normalizeKey = (k) => String(k || '').toLowerCase().trim().replace(/[^a-z0-9]/g, '');
 
 function findField(row, aliases) {
-  const wanted = new Set(aliases.map(normalizeKey));
+  const normAliases = aliases.map(normalizeKey).filter(Boolean);
+  const wanted = new Set(normAliases);
+  // Phase 1 : match strictement égal (rapide, priorité)
   for (const key of Object.keys(row)) {
     if (wanted.has(normalizeKey(key))) return row[key];
+  }
+  // Phase 2 : match par sous-chaîne sur les alias longs (≥ 4 caractères, évite les faux positifs)
+  // Permet de matcher "Prix Moyen Pondéré (MAD)" avec l'alias "prix moyen pondéré"
+  const longAliases = normAliases.filter(a => a.length >= 4);
+  if (longAliases.length === 0) return undefined;
+  for (const key of Object.keys(row)) {
+    const nk = normalizeKey(key);
+    for (const alias of longAliases) {
+      if (nk.includes(alias)) return row[key];
+    }
   }
   return undefined;
 }
@@ -8268,7 +8280,9 @@ function computeCategoryAnalysis(rows, byRef, stockByRef, supplierPerf, totalCA)
   };
 }
 
-function runAudit(salesRows, stockRows, supplierDeliveriesRows, customerDeliveriesRows, openOrdersRows, referenceRows) {
+function runAudit(salesRows, stockRows, supplierDeliveriesRows, customerDeliveriesRows, openOrdersRows, referenceRows, currency) {
+  const cur = (currency && currency.trim()) || 'MAD';
+  const fm = (n) => formatMoney(n, cur);
   const sales = salesRows.map(r => ({
     ref: String(findField(r, AUDIT_SALES_ALIASES.ref) || '').trim(),
     label: String(findField(r, AUDIT_SALES_ALIASES.label) || '').trim(),
@@ -8510,12 +8524,12 @@ function runAudit(salesRows, stockRows, supplierDeliveriesRows, customerDeliveri
   if (dormantPct > 15) alerts.push({
     level: 'critical',
     title: `${dormantPct.toFixed(0)} % du stock est dormant`,
-    detail: `${dormants.length} articles immobilisent ${formatMoney(dormantValue)} sans rotation depuis ${dormantThresholdMonths} mois ou plus.`,
+    detail: `${dormants.length} articles immobilisent ${fm(dormantValue)} sans rotation depuis ${dormantThresholdMonths} mois ou plus.`,
   });
   else if (dormantPct > 5) alerts.push({
     level: 'warning',
     title: `${dormantPct.toFixed(0)} % du stock est dormant`,
-    detail: `${formatMoney(dormantValue)} immobilisés. Identifier les articles à déstocker ou retirer du référentiel.`,
+    detail: `${fm(dormantValue)} immobilisés. Identifier les articles à déstocker ou retirer du référentiel.`,
   });
   if (understocked.length > 5) alerts.push({
     level: 'warning',
@@ -8527,7 +8541,7 @@ function runAudit(salesRows, stockRows, supplierDeliveriesRows, customerDeliveri
     alerts.push({
       level: 'warning',
       title: `${overstocked.length} articles en surstock`,
-      detail: `${formatMoney(overValue)} immobilisés sur des couvertures supérieures à 6 mois.`,
+      detail: `${fm(overValue)} immobilisés sur des couvertures supérieures à 6 mois.`,
     });
   }
   if (matrix.AZ.count > 0) alerts.push({
@@ -8592,7 +8606,7 @@ function runAudit(salesRows, stockRows, supplierDeliveriesRows, customerDeliveri
       alerts.push({
         level: 'warning',
         title: `${categoryAnalysis.inactiveInStock.length} article(s) "inactifs" présents en stock`,
-        detail: `${formatMoney(inactiveValue)} immobilisés sur des références marquées comme arrêtées dans votre référentiel — candidats à la liquidation.`,
+        detail: `${fm(inactiveValue)} immobilisés sur des références marquées comme arrêtées dans votre référentiel — candidats à la liquidation.`,
       });
     }
     if (categoryAnalysis && categoryAnalysis.refsWithoutCategory > nArticles * 0.2) {
@@ -8656,6 +8670,7 @@ function AuditFlash({ onBack }) {
   const [referenceFileName, setReferenceFileName] = useState(null);
 
   const [companyName, setCompanyName] = useState('');
+  const [currency, setCurrency] = useState('MAD');
   const [importMsg, setImportMsg] = useState(null);
   const [audit, setAudit] = useState(null);
   const [analyzing, setAnalyzing] = useState(false);
@@ -8666,12 +8681,12 @@ function AuditFlash({ onBack }) {
   const openOrdersInputRef = useRef(null);
   const referenceInputRef = useRef(null);
 
-  useEffect(() => {
+  const runAuditNow = () => {
     if (!salesData || !stockData) return;
     setAnalyzing(true);
     setTimeout(() => {
       try {
-        const result = runAudit(salesData, stockData, supplierData, customerData, openOrdersData, referenceData);
+        const result = runAudit(salesData, stockData, supplierData, customerData, openOrdersData, referenceData, currency);
         setAudit(result);
       } catch (e) {
         setImportMsg({ type: 'error', text: "Erreur d'analyse : " + e.message });
@@ -8679,7 +8694,7 @@ function AuditFlash({ onBack }) {
         setAnalyzing(false);
       }
     }, 100);
-  }, [salesData, stockData, supplierData, customerData, openOrdersData, referenceData]);
+  };
 
   const handleImport = async (e, kind) => {
     const file = e.target.files && e.target.files[0];
@@ -8696,8 +8711,29 @@ function AuditFlash({ onBack }) {
       else if (kind === 'customer') { setCustomerData(json); setCustomerFileName(file.name); }
       else if (kind === 'openOrders') { setOpenOrdersData(json); setOpenOrdersFileName(file.name); }
       else if (kind === 'reference') { setReferenceData(json); setReferenceFileName(file.name); }
-      setImportMsg({ type: 'success', text: `${json.length} ligne(s) importée(s) depuis « ${file.name} »` });
-      setTimeout(() => setImportMsg(null), 4000);
+
+      // Feedback enrichi : signaler quelles colonnes ont été reconnues
+      const firstRow = json[0];
+      let aliasMap = null;
+      if (kind === 'sales') aliasMap = { 'Référence': AUDIT_SALES_ALIASES.ref, 'Date': AUDIT_SALES_ALIASES.date, 'Quantité': AUDIT_SALES_ALIASES.qty, 'Prix ou Montant': [...AUDIT_SALES_ALIASES.unitPrice, ...AUDIT_SALES_ALIASES.amount], 'Magasin': AUDIT_SALES_ALIASES.store };
+      else if (kind === 'stock') aliasMap = { 'Référence': AUDIT_STOCK_ALIASES.ref, 'Quantité': AUDIT_STOCK_ALIASES.qty, 'Prix moyen pondéré (PMP)': AUDIT_STOCK_ALIASES.pmp, 'Magasin': AUDIT_STOCK_ALIASES.store };
+
+      if (aliasMap) {
+        const recognized = [];
+        const missing = [];
+        for (const [label, aliases] of Object.entries(aliasMap)) {
+          if (findField(firstRow, aliases) !== undefined) recognized.push(label);
+          else missing.push(label);
+        }
+        const summary = `${json.length} ligne(s) · Colonnes reconnues : ${recognized.join(', ') || 'aucune'}`
+          + (missing.length > 0 ? ` · Non détectées : ${missing.join(', ')}` : '');
+        // Type : warning si une colonne importante manque, success sinon
+        const hasWarning = missing.some(m => m === 'Prix moyen pondéré (PMP)' || m === 'Magasin' || m === 'Prix ou Montant');
+        setImportMsg({ type: hasWarning ? 'warning' : 'success', text: summary });
+      } else {
+        setImportMsg({ type: 'success', text: `${json.length} ligne(s) importée(s) depuis « ${file.name} »` });
+      }
+      setTimeout(() => setImportMsg(null), 10000);
     } catch (err) {
       setImportMsg({ type: 'error', text: "Erreur d'import : " + err.message });
     } finally {
@@ -8786,10 +8822,10 @@ function AuditFlash({ onBack }) {
             </div>
 
             <div className="rounded-xl border border-slate-200 bg-white p-5">
-              <div className="font-jetbrains text-[10px] text-slate-500 tracking-wider mb-3">ÉTAPE 1 · IDENTITÉ (optionnel)</div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="font-jetbrains text-[10px] text-slate-500 tracking-wider mb-3">ÉTAPE 1 · IDENTITÉ</div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs text-slate-600 mb-1.5 block">Nom de votre société</label>
+                  <label className="text-xs text-slate-600 mb-1.5 block">Nom de votre société <span className="text-slate-400">(optionnel)</span></label>
                   <input
                     type="text"
                     value={companyName}
@@ -8798,6 +8834,24 @@ function AuditFlash({ onBack }) {
                     className="w-full px-3 py-2 bg-white border border-slate-200 rounded-md outline-none font-sans text-sm text-slate-800 focus:border-slate-400"
                   />
                   <div className="text-[10px] text-slate-400 mt-1">Apparaîtra sur la couverture du rapport PDF</div>
+                </div>
+                <div>
+                  <label className="text-xs text-slate-600 mb-1.5 block">
+                    Devise <span style={{ color: '#DC2626' }}>*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={currency}
+                    onChange={e => setCurrency(e.target.value.toUpperCase().slice(0, 6))}
+                    placeholder="MAD"
+                    maxLength={6}
+                    className="w-full px-3 py-2 bg-white border rounded-md outline-none font-jetbrains text-sm uppercase tracking-wider focus:border-slate-400"
+                    style={{
+                      borderColor: !currency.trim() ? '#FCA5A5' : '#E2E8F0',
+                      color: '#0F172A',
+                    }}
+                  />
+                  <div className="text-[10px] text-slate-400 mt-1">Saisie libre · ex. MAD, EUR, USD, GBP, XOF, CHF…</div>
                 </div>
               </div>
             </div>
@@ -8897,8 +8951,9 @@ function AuditFlash({ onBack }) {
 
             {importMsg && (
               <div className="rounded-lg p-3 font-jetbrains text-xs"
-                style={importMsg.type === 'success'
-                  ? { background: '#ECFDF5', color: '#065F46', border: '1px solid #A7F3D0' }
+                style={
+                  importMsg.type === 'success' ? { background: '#ECFDF5', color: '#065F46', border: '1px solid #A7F3D0' }
+                  : importMsg.type === 'warning' ? { background: '#FFFBEB', color: '#92400E', border: '1px solid #FCD34D' }
                   : { background: '#FEF2F2', color: '#991B1B', border: '1px solid #FECACA' }
                 }>
                 {importMsg.text}
@@ -8962,18 +9017,68 @@ function AuditFlash({ onBack }) {
               </div>
             </div>
 
-            {analyzing && (
-              <div className="rounded-xl border border-slate-200 bg-white p-8 text-center">
-                <Loader2 size={32} className="animate-spin mx-auto mb-3" style={{ color: AMBER }} />
-                <div className="font-bricolage text-lg text-slate-700">Analyse en cours…</div>
-                <div className="text-sm text-slate-500 mt-1">Calcul ABC × XYZ, détection des dormants, couverture par article</div>
-              </div>
-            )}
+            {/* BOUTON ANALYSER */}
+            {(() => {
+              const optionalCount = [supplierData, customerData, openOrdersData, referenceData].filter(Boolean).length;
+              const totalFiles = (salesData ? 1 : 0) + (stockData ? 1 : 0) + optionalCount;
+              const hasCurrency = currency && currency.trim().length > 0;
+              const ready = salesData && stockData && hasCurrency;
+              const levelLabel =
+                optionalCount >= 4 ? 'AUDIT COMPLET' :
+                optionalCount >= 2 ? 'AUDIT STANDARD' :
+                optionalCount >= 1 ? 'AUDIT EXPRESS+' : 'AUDIT EXPRESS';
+              return (
+                <div className="rounded-xl p-5 text-center" style={{ background: ready ? 'linear-gradient(135deg, #0F172A 0%, #1E293B 70%, ' + AMBER_DARK + ' 100%)' : '#F1F5F9', border: ready ? 'none' : '1px solid #E2E8F0' }}>
+                  {ready ? (
+                    <>
+                      <div className="font-jetbrains text-[10px] tracking-widest mb-2" style={{ color: AMBER }}>{totalFiles} / 6 FICHIERS · NIVEAU {levelLabel}</div>
+                      <div className="font-bricolage text-white text-lg mb-4">
+                        Prêt à analyser{optionalCount > 0 ? ' · ' + optionalCount + ' module(s) complémentaire(s) activé(s)' : ''}
+                      </div>
+                      <button
+                        onClick={runAuditNow}
+                        disabled={analyzing}
+                        className="inline-flex items-center gap-3 px-8 py-4 rounded-lg font-jetbrains text-sm font-bold shadow-xl transition-all hover:translate-y-[-2px] hover:shadow-2xl disabled:opacity-60 disabled:cursor-wait"
+                        style={{ background: AMBER, color: '#0F172A' }}
+                      >
+                        {analyzing ? (
+                          <>
+                            <Loader2 size={16} className="animate-spin" />
+                            ANALYSE EN COURS…
+                          </>
+                        ) : (
+                          <>
+                            LANCER L'ANALYSE
+                            <ArrowRight size={16} />
+                          </>
+                        )}
+                      </button>
+                      {optionalCount < 4 && (
+                        <div className="text-[10px] text-slate-400 mt-3 font-jetbrains">
+                          Astuce : ajoutez des fichiers complémentaires ci-dessus pour enrichir l'analyse avant de lancer
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="text-sm text-slate-500">
+                      <div className="font-jetbrains text-[10px] tracking-widest mb-2" style={{ color: '#94A3B8' }}>EN ATTENTE</div>
+                      <div>
+                        {!hasCurrency && (!salesData || !stockData)
+                          ? 'Renseignez la devise et importez les deux fichiers obligatoires (ventes + stock) pour activer l\'analyse'
+                          : !hasCurrency
+                            ? 'Renseignez la devise pour activer l\'analyse'
+                            : 'Importez les deux fichiers obligatoires (ventes + stock) pour activer l\'analyse'}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </>
         )}
 
         {audit && (
-          <AuditResults audit={audit} companyName={companyName} />
+          <AuditResults audit={audit} companyName={companyName} currency={currency} />
         )}
       </div>
     </div>
@@ -8983,9 +9088,11 @@ function AuditFlash({ onBack }) {
 // ============================================================
 // AuditResults V2 — visualisations SVG natives
 // ============================================================
-function AuditResults({ audit, companyName }) {
+function AuditResults({ audit, companyName, currency }) {
   const AMBER = '#F59E0B';
   const AMBER_DARK = '#B45309';
+  const cur = (currency && currency.trim()) || 'MAD';
+  const fm = (n) => formatMoney(n, cur);
   const profileLabel = {
     distribution: 'Distribution / Négoce',
     industrie: 'Industrie / Manufacturing',
@@ -9059,7 +9166,7 @@ function AuditResults({ audit, companyName }) {
                 <div className="flex items-center gap-2">
                   <span className="text-[10px] text-slate-400 font-jetbrains">VALORISATION VIA PMP</span>
                   <span className="font-jetbrains text-xs font-semibold text-emerald-400">✓ Données financières exploitables</span>
-                  <span className="text-[10px] text-slate-400 font-jetbrains ml-auto">PMP moyen pondéré : <span className="font-semibold text-white">{formatMoney(audit.avgPmp)}</span></span>
+                  <span className="text-[10px] text-slate-400 font-jetbrains ml-auto">PMP moyen pondéré : <span className="font-semibold text-white">{fm(audit.avgPmp)}</span></span>
                 </div>
               </div>
             )}
@@ -9095,9 +9202,9 @@ function AuditResults({ audit, companyName }) {
 
       {/* KPIs GLOBAUX */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <KpiTile label="Chiffre d'affaires" value={audit.hasMonetary ? formatMoney(audit.totalCA) : formatNum(audit.totalQty) + ' u'} sub={'sur ' + Math.round(audit.periodMonths) + ' mois'} accent={AMBER} />
-        <KpiTile label="Stock immobilisé" value={formatMoney(audit.totalStockValue)} sub={formatNum(audit.totalStockQty) + ' unités'} accent={AMBER} />
-        <KpiTile label="Stock dormant" value={formatMoney(audit.dormantValue)} sub={audit.dormantPct.toFixed(0) + ' % du stock · ' + audit.dormants.length + ' articles'} accent={audit.dormantPct > 15 ? '#DC2626' : audit.dormantPct > 5 ? '#D97706' : '#059669'} />
+        <KpiTile label="Chiffre d'affaires" value={audit.hasMonetary ? fm(audit.totalCA) : formatNum(audit.totalQty) + ' u'} sub={'sur ' + Math.round(audit.periodMonths) + ' mois'} accent={AMBER} />
+        <KpiTile label="Stock immobilisé" value={fm(audit.totalStockValue)} sub={formatNum(audit.totalStockQty) + ' unités'} accent={AMBER} />
+        <KpiTile label="Stock dormant" value={fm(audit.dormantValue)} sub={audit.dormantPct.toFixed(0) + ' % du stock · ' + audit.dormants.length + ' articles'} accent={audit.dormantPct > 15 ? '#DC2626' : audit.dormantPct > 5 ? '#D97706' : '#059669'} />
         <KpiTile label="Rotation annuelle" value={audit.avgRotation ? audit.avgRotation.toFixed(1) + ' ×' : '—'} sub={audit.avgCoverage ? 'Couv. moy. ' + Math.round(audit.avgCoverage) + ' j' : ''} accent={AMBER} />
       </div>
 
@@ -9114,7 +9221,7 @@ function AuditResults({ audit, companyName }) {
         <div className="rounded-xl border border-slate-200 bg-white p-5">
           <div className="font-jetbrains text-[10px] text-slate-500 tracking-wider mb-1">RÉPARTITION DU STOCK</div>
           <div className="text-xs text-slate-500 mb-3">{audit.hasPmp ? 'Par valeur immobilisée (basée sur le PMP)' : 'Par quantité (PMP non fourni dans votre fichier)'}</div>
-          <StockBreakdownDonut breakdown={audit.stockBreakdown} />
+          <StockBreakdownDonut breakdown={audit.stockBreakdown} cur={cur} />
         </div>
       </div>
 
@@ -9178,7 +9285,7 @@ function AuditResults({ audit, companyName }) {
       <div className="rounded-xl border border-slate-200 bg-white p-5">
         <div className="font-jetbrains text-[10px] text-slate-500 tracking-wider mb-1">TOP 10 ARTICLES VENDEURS</div>
         <div className="text-xs text-slate-500 mb-3">Concentration du chiffre d'affaires sur les meilleurs articles · à fiabiliser en priorité</div>
-        <TopArticlesBarChart refs={audit.refs.slice(0, 10)} hasMonetary={audit.hasMonetary} totalValue={audit.hasMonetary ? audit.totalCA : audit.totalQty} />
+        <TopArticlesBarChart refs={audit.refs.slice(0, 10)} hasMonetary={audit.hasMonetary} totalValue={audit.hasMonetary ? audit.totalCA : audit.totalQty} cur={cur} />
       </div>
 
       {/* STOCK DORMANT */}
@@ -9188,7 +9295,7 @@ function AuditResults({ audit, companyName }) {
             <div className="font-jetbrains text-xs text-slate-600">TOP 10 ARTICLES DORMANTS · capital immobilisé sans rotation</div>
             <div className="font-jetbrains text-[10px] text-slate-400">
               {audit.dormants.length} articles dormants au total
-              {audit.hasPmp && (<> · <span className="text-red-600 font-semibold">{formatMoney(audit.dormantValue)}</span> immobilisés</>)}
+              {audit.hasPmp && (<> · <span className="text-red-600 font-semibold">{fm(audit.dormantValue)}</span> immobilisés</>)}
             </div>
           </div>
           <div className="overflow-x-auto">
@@ -9209,8 +9316,8 @@ function AuditResults({ audit, companyName }) {
                     <Td className="font-jetbrains text-slate-700">{d.ref}</Td>
                     <Td className="text-slate-700">{d.label || '—'}</Td>
                     <Td className="text-right font-jetbrains text-slate-700">{formatNum(d.qty)}</Td>
-                    {audit.hasPmp && <Td className="text-right font-jetbrains text-slate-600">{d.pmp > 0 ? formatMoney(d.pmp) : '—'}</Td>}
-                    {audit.hasPmp && <Td className="text-right font-jetbrains font-semibold text-red-600">{formatMoney(d.value)}</Td>}
+                    {audit.hasPmp && <Td className="text-right font-jetbrains text-slate-600">{d.pmp > 0 ? fm(d.pmp) : '—'}</Td>}
+                    {audit.hasPmp && <Td className="text-right font-jetbrains font-semibold text-red-600">{fm(d.value)}</Td>}
                     <Td className="text-right font-jetbrains text-slate-500">{d.lastSale ? 'il y a ' + Math.round(d.daysSinceSale / 30) + ' mois' : 'Jamais'}</Td>
                   </tr>
                 ))}
@@ -9226,7 +9333,7 @@ function AuditResults({ audit, companyName }) {
           <div className="rounded-xl border border-slate-200 bg-white p-5">
             <div className="font-jetbrains text-[10px] text-slate-500 tracking-wider mb-1">PERFORMANCE PAR SITE</div>
             <div className="text-xs text-slate-500 mb-3">Comparaison ventes et stock entre vos sites · barres colorées pour lecture rapide</div>
-            <StoresBarChart stores={Object.values(audit.storeStats)} hasMonetary={audit.hasMonetary} hasPmp={audit.hasPmp} />
+            <StoresBarChart stores={Object.values(audit.storeStats)} hasMonetary={audit.hasMonetary} hasPmp={audit.hasPmp} cur={cur} />
           </div>
 
           {audit.imbalances.length > 0 && (
@@ -9315,7 +9422,7 @@ function AuditResults({ audit, companyName }) {
                   {audit.overstocked.slice(0, 15).map((c, i) => (
                     <tr key={i} className="border-b border-slate-100">
                       <Td className="font-jetbrains text-slate-700">{c.ref}</Td>
-                      <Td className="text-right font-jetbrains text-slate-700">{formatMoney(c.stockValue)}</Td>
+                      <Td className="text-right font-jetbrains text-slate-700">{fm(c.stockValue)}</Td>
                       <Td className="text-right font-jetbrains font-semibold text-orange-600">{Math.round(c.coverageDays)} j</Td>
                     </tr>
                   ))}
@@ -9336,8 +9443,8 @@ function AuditResults({ audit, companyName }) {
           </div>
           {audit.supplierPerf && <SupplierPerfSection perf={audit.supplierPerf} />}
           {audit.customerPerf && <CustomerPerfSection perf={audit.customerPerf} />}
-          {audit.futureCoverage && <FutureCoverageSection coverage={audit.futureCoverage} hasPmp={audit.hasPmp} />}
-          {audit.categoryAnalysis && <CategoryAnalysisSection cat={audit.categoryAnalysis} hasMonetary={audit.hasMonetary} />}
+          {audit.futureCoverage && <FutureCoverageSection coverage={audit.futureCoverage} hasPmp={audit.hasPmp} cur={cur} />}
+          {audit.categoryAnalysis && <CategoryAnalysisSection cat={audit.categoryAnalysis} hasMonetary={audit.hasMonetary} cur={cur} />}
         </div>
       )}
 
@@ -9476,7 +9583,7 @@ function LineChartSVG({ data, valueKey, color, hasMonetary }) {
   );
 }
 
-function StockBreakdownDonut({ breakdown }) {
+function StockBreakdownDonut({ breakdown, cur = 'MAD' }) {
   const w = 200, h = 200;
   const cx = w / 2, cy = h / 2;
   const r = 70, rInner = 45;
@@ -9488,8 +9595,8 @@ function StockBreakdownDonut({ breakdown }) {
   const sum = segments.reduce((a, b) => a + b.value, 0);
   if (sum === 0) return <div className="text-xs text-slate-400 text-center py-8">Aucune donnée à répartir</div>;
 
-  const formatVal = (v) => breakdown.unit === 'value' ? formatMoney(v) : formatNum(v) + ' u';
-  const totalLabel = breakdown.unit === 'value' ? formatMoney(breakdown.total) : formatNum(breakdown.total) + ' u';
+  const formatVal = (v) => breakdown.unit === 'value' ? formatMoney(v, cur) : formatNum(v) + ' u';
+  const totalLabel = breakdown.unit === 'value' ? formatMoney(breakdown.total, cur) : formatNum(breakdown.total) + ' u';
   const subLabel = breakdown.unit === 'value' ? 'VALEUR' : 'QUANTITÉ';
 
   let angle = -90;
@@ -9593,7 +9700,7 @@ function ParetoChartSVG({ refs, hasMonetary }) {
   );
 }
 
-function TopArticlesBarChart({ refs, hasMonetary, totalValue }) {
+function TopArticlesBarChart({ refs, hasMonetary, totalValue, cur = 'MAD' }) {
   if (!refs || refs.length === 0) return <div className="text-xs text-slate-400 text-center py-4">Aucune donnée</div>;
   const maxV = Math.max(...refs.map(r => hasMonetary ? r.totalAmount : r.totalQty));
   return (
@@ -9614,7 +9721,7 @@ function TopArticlesBarChart({ refs, hasMonetary, totalValue }) {
                 </div>
                 <div className="flex items-baseline gap-2 flex-shrink-0">
                   <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-jetbrains font-semibold" style={{ background: colorByAbc + '20', color: colorByAbc }}>{r.abc}{r.xyz}</span>
-                  <span className="font-jetbrains text-xs font-semibold text-slate-800">{hasMonetary ? formatMoney(value) : formatNum(value) + ' u'}</span>
+                  <span className="font-jetbrains text-xs font-semibold text-slate-800">{hasMonetary ? formatMoney(value, cur) : formatNum(value) + ' u'}</span>
                   <span className="font-jetbrains text-[10px] text-slate-500 w-10 text-right">{sharePct.toFixed(1)} %</span>
                 </div>
               </div>
@@ -9629,7 +9736,7 @@ function TopArticlesBarChart({ refs, hasMonetary, totalValue }) {
   );
 }
 
-function StoresBarChart({ stores, hasMonetary, hasPmp }) {
+function StoresBarChart({ stores, hasMonetary, hasPmp, cur = 'MAD' }) {
   if (!stores || stores.length === 0) return <div className="text-xs text-slate-400 text-center py-4">Aucune donnée</div>;
   const sorted = [...stores].sort((a, b) => (hasMonetary ? b.totalCA - a.totalCA : b.totalQty - a.totalQty));
   const maxLeft = Math.max(...sorted.map(s => hasMonetary ? s.totalCA : s.totalQty), 1);
@@ -9652,8 +9759,8 @@ function StoresBarChart({ stores, hasMonetary, hasPmp }) {
         {sorted.map(s => {
           const leftVal = hasMonetary ? s.totalCA : s.totalQty;
           const rightVal = hasPmp ? s.stockValue : s.stockQty;
-          const leftLabel = hasMonetary ? formatMoney(s.totalCA) : formatNum(s.totalQty) + ' u';
-          const rightLabel = hasPmp ? formatMoney(s.stockValue) : formatNum(s.stockQty) + ' u';
+          const leftLabel = hasMonetary ? formatMoney(s.totalCA, cur) : formatNum(s.totalQty) + ' u';
+          const rightLabel = hasPmp ? formatMoney(s.stockValue, cur) : formatNum(s.stockQty) + ' u';
           return (
             <div key={s.store} className="rounded-lg p-3" style={{ background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
               <div className="flex items-baseline justify-between mb-2.5">
@@ -9829,12 +9936,12 @@ function CustomerPerfSection({ perf }) {
   );
 }
 
-function FutureCoverageSection({ coverage, hasPmp }) {
+function FutureCoverageSection({ coverage, hasPmp, cur = 'MAD' }) {
   return (
     <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
       <div className="px-5 py-3 border-b border-slate-200 bg-slate-50">
         <div className="font-jetbrains text-[10px] text-slate-500 tracking-wider mb-0.5">COMMANDES OUVERTES · COUVERTURE FUTURE</div>
-        <div className="text-xs text-slate-500">{coverage.nOrders} ligne(s) de commande · {coverage.nRefsOrdered} articles · {hasPmp && coverage.totalOpenValue > 0 ? formatMoney(coverage.totalOpenValue) + ' engagés' : formatNum(coverage.totalOpenQty) + ' unités attendues'}</div>
+        <div className="text-xs text-slate-500">{coverage.nOrders} ligne(s) de commande · {coverage.nRefsOrdered} articles · {hasPmp && coverage.totalOpenValue > 0 ? formatMoney(coverage.totalOpenValue, cur) + ' engagés' : formatNum(coverage.totalOpenQty) + ' unités attendues'}</div>
       </div>
       <div className="p-5 space-y-5">
 
@@ -9927,7 +10034,7 @@ function FutureCoverageSection({ coverage, hasPmp }) {
   );
 }
 
-function CategoryAnalysisSection({ cat, hasMonetary }) {
+function CategoryAnalysisSection({ cat, hasMonetary, cur = 'MAD' }) {
   return (
     <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
       <div className="px-5 py-3 border-b border-slate-200 bg-slate-50">
@@ -9955,9 +10062,9 @@ function CategoryAnalysisSection({ cat, hasMonetary }) {
                     <tr key={i} className="border-b border-slate-100">
                       <Td className="font-semibold text-slate-800">{c.category}</Td>
                       <Td className="text-right font-jetbrains text-slate-700">{c.nArticles}</Td>
-                      <Td className="text-right font-jetbrains text-slate-700">{hasMonetary ? formatMoney(c.totalCA) : formatNum(c.totalCA) + ' u'}</Td>
+                      <Td className="text-right font-jetbrains text-slate-700">{hasMonetary ? formatMoney(c.totalCA, cur) : formatNum(c.totalCA) + ' u'}</Td>
                       <Td className="text-right font-jetbrains font-semibold text-slate-800">{c.caShare.toFixed(0)} %</Td>
-                      <Td className="text-right font-jetbrains text-slate-700">{formatMoney(c.stockValue)}</Td>
+                      <Td className="text-right font-jetbrains text-slate-700">{formatMoney(c.stockValue, cur)}</Td>
                     </tr>
                   ))}
                 </tbody>
@@ -9988,7 +10095,7 @@ function CategoryAnalysisSection({ cat, hasMonetary }) {
                       <Td className="text-slate-700">{r.label || '—'}</Td>
                       <Td className="text-slate-700">{r.category}</Td>
                       <Td className="text-right font-jetbrains text-slate-700">{formatNum(r.stockQty)}</Td>
-                      <Td className="text-right font-jetbrains font-semibold text-red-600">{formatMoney(r.stockValue)}</Td>
+                      <Td className="text-right font-jetbrains font-semibold text-red-600">{formatMoney(r.stockValue, cur)}</Td>
                     </tr>
                   ))}
                 </tbody>
