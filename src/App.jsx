@@ -100,6 +100,7 @@ export default function App() {
   if (active === 'cmr') return <CmrGenerator onBack={() => setActive(null)} />;
   if (active === 'units') return <LogisticsConverter onBack={() => setActive(null)} />;
   if (active === 'sla') return <OtifAnalyzer onBack={() => setActive(null)} />;
+  if (active === 'audit') return <AuditFlash onBack={() => setActive(null)} />;
   if (active === 'ddmrp') return <DdmrpBuffers onBack={() => setActive(null)} />;
   return <Landing onLaunch={setActive} />;
 }
@@ -201,6 +202,75 @@ function Landing({ onLaunch }) {
         </div>
       </section>
 
+      {/* BANNIÈRE LEAD MAGNET — Audit Flash */}
+      <section className="border-t border-slate-200" style={{ background: 'linear-gradient(135deg, #0F172A 0%, #1E293B 60%, #78350F 100%)' }}>
+        <div className="max-w-7xl mx-auto px-6 md:px-10 py-16">
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 items-center">
+            <div className="lg:col-span-3">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-jetbrains tracking-widest mb-5" style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#F59E0B', border: '1px solid rgba(245, 158, 11, 0.3)' }}>
+                ★ NOUVEAU · LEAD MAGNET WALYCONSEIL
+              </div>
+              <h2 className="font-bricolage font-bold text-3xl md:text-4xl lg:text-5xl text-white leading-tight mb-4">
+                Auditez votre supply chain<br />
+                <span style={{ color: '#F59E0B' }}>en 30 secondes.</span>
+              </h2>
+              <p className="text-slate-300 text-base md:text-lg leading-relaxed mb-6 max-w-2xl">
+                Importez votre historique de ventes 12 mois et votre stock actuel.
+                L'outil sort automatiquement votre classification ABC × XYZ, votre stock dormant chiffré en valeur,
+                vos couvertures critiques, et les chantiers prioritaires à traiter par votre approvisionneur.
+              </p>
+              <div className="flex flex-wrap items-center gap-3 mb-7">
+                <button
+                  onClick={() => onLaunch('audit')}
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-lg font-jetbrains text-sm font-semibold shadow-xl transition-all hover:translate-y-[-2px] hover:shadow-2xl"
+                  style={{ background: '#F59E0B', color: '#0F172A' }}
+                >
+                  DÉMARRER MON AUDIT GRATUIT
+                  <ArrowRight size={15} />
+                </button>
+                <div className="text-xs text-slate-400 font-jetbrains">Aucun compte requis · données traitées en local</div>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-6 border-t border-slate-700">
+                {[
+                  { v: 'ABC × XYZ', l: 'classification automatique' },
+                  { v: 'Multi-magasin', l: 'détection déséquilibres' },
+                  { v: 'Dormants €', l: 'chiffré en valeur' },
+                  { v: '8 KPIs', l: 'analysés en 30 sec' },
+                ].map((s, i) => (
+                  <div key={i}>
+                    <div className="font-bricolage font-bold text-base" style={{ color: '#F59E0B' }}>{s.v}</div>
+                    <div className="font-jetbrains text-[10px] text-slate-400 mt-0.5">{s.l}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="lg:col-span-2">
+              <div className="rounded-2xl p-6 backdrop-blur" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(245, 158, 11, 0.2)' }}>
+                <div className="font-jetbrains text-[10px] tracking-widest mb-4" style={{ color: '#F59E0B' }}>EXEMPLE DE DIAGNOSTIC</div>
+                <div className="space-y-3">
+                  {[
+                    { icon: '◉', text: '47 % du stock dormant (1.2 M MAD immobilisés)', color: '#DC2626' },
+                    { icon: '◉', text: '12 articles en risque de rupture sous 14 jours', color: '#D97706' },
+                    { icon: '◉', text: '23 articles déséquilibrés inter-magasins', color: '#D97706' },
+                    { icon: '◉', text: '8 articles "AZ" — stratégie stock à revoir', color: '#2563EB' },
+                    { icon: '✓', text: 'Top 5 chantiers chiffrés prioritaires', color: '#10B981' },
+                  ].map((line, i) => (
+                    <div key={i} className="flex items-start gap-2.5">
+                      <span style={{ color: line.color }} className="text-base leading-none mt-0.5">{line.icon}</span>
+                      <span className="text-sm text-slate-200 leading-relaxed">{line.text}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-5 pt-4 border-t border-slate-700 text-[10px] text-slate-400 font-jetbrains leading-relaxed">
+                  Le diagnostic se base sur 2 fichiers Excel (ventes 12 mois + stock actuel). Templates fournis pour démarrer.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section id="how" className="border-t border-slate-200 bg-slate-50">
         <div className="max-w-7xl mx-auto px-6 md:px-10 py-20">
           <div className="text-center md:text-left max-w-3xl mx-auto md:mx-0 mb-12">
@@ -219,6 +289,7 @@ function Landing({ onLaunch }) {
                 num: '01', icon: Box,
                 title: 'Conditionner',
                 description: 'Dimensionnez le packaging et l\'optimisation du chargement, du carton au camion.',
+                color: '#F59E0B', colorLight: '#FEF3C7', colorBorder: '#FDE68A',
                 tools: [
                   { name: 'Palettisation 3D', id: 'pallet' },
                   { name: 'Convertisseur cascade', id: 'units' },
@@ -228,6 +299,7 @@ function Landing({ onLaunch }) {
                 num: '02', icon: Tag,
                 title: 'Marquer',
                 description: 'Générez étiquettes Zebra, codes-barres et QR codes aux normes industrielles.',
+                color: BLUE, colorLight: BLUE_LIGHT, colorBorder: '#BFDBFE',
                 tools: [
                   { name: 'ZPL Viewer', id: 'zpl' },
                   { name: 'Codes-barres GS1', id: 'barcode' },
@@ -237,6 +309,7 @@ function Landing({ onLaunch }) {
                 num: '03', icon: Warehouse,
                 title: 'Planifier',
                 description: 'Dimensionnez vos buffers à partir de vos historiques de ventes ERP.',
+                color: '#0D9488', colorLight: '#CCFBF1', colorBorder: '#99F6E4',
                 tools: [
                   { name: 'Stock de sécurité', id: 'safety' },
                   { name: 'Buffers DDMRP', id: 'ddmrp' },
@@ -246,6 +319,7 @@ function Landing({ onLaunch }) {
                 num: '04', icon: Truck,
                 title: 'Expédier',
                 description: 'Préparez vos documents de transport routier international.',
+                color: '#7C3AED', colorLight: '#EDE9FE', colorBorder: '#DDD6FE',
                 tools: [
                   { name: 'Incoterms 2020', id: 'incoterms' },
                   { name: 'CMR / eCMR', id: 'cmr' },
@@ -255,6 +329,7 @@ function Landing({ onLaunch }) {
                 num: '05', icon: Calculator,
                 title: 'Mesurer',
                 description: 'Analysez vos performances de livraison avec les KPIs de référence.',
+                color: '#E11D48', colorLight: '#FFE4E6', colorBorder: '#FECDD3',
                 tools: [
                   { name: 'OTIF / SLA', id: 'sla' },
                 ],
@@ -263,11 +338,16 @@ function Landing({ onLaunch }) {
               const Icon = step.icon;
               return (
                 <div key={step.num} className="relative">
-                  <article className="bg-white border border-slate-200 rounded-xl p-5 hover:border-blue-400 hover:shadow-lg transition-all group h-full flex flex-col">
-                    <div className="w-10 h-10 rounded-lg mb-4 flex items-center justify-center" style={{ background: BLUE_LIGHT, transition: 'transform 0.2s' }}>
-                      <Icon size={18} style={{ color: BLUE }} strokeWidth={2} />
+                  <article
+                    className="bg-white border border-slate-200 rounded-xl p-5 hover:shadow-lg transition-all group h-full flex flex-col"
+                    style={{ transition: 'border-color 0.2s, box-shadow 0.2s' }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = step.colorBorder; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = '#E2E8F0'; }}
+                  >
+                    <div className="w-10 h-10 rounded-lg mb-4 flex items-center justify-center" style={{ background: step.colorLight, transition: 'transform 0.2s' }}>
+                      <Icon size={18} style={{ color: step.color }} strokeWidth={2} />
                     </div>
-                    <div className="font-jetbrains text-[10px] text-slate-400 mb-2 tracking-wider">{step.num}</div>
+                    <div className="font-jetbrains text-[10px] mb-2 tracking-wider" style={{ color: step.color, opacity: 0.7 }}>{step.num}</div>
                     <h3 className="font-bricolage font-semibold text-base mb-2 text-slate-900">{step.title}</h3>
                     <p className="text-xs text-slate-600 leading-relaxed mb-3 flex-1">{step.description}</p>
                     <ul className="space-y-1 pt-3 border-t border-slate-100">
@@ -275,11 +355,13 @@ function Landing({ onLaunch }) {
                         <li key={t.id}>
                           <button
                             onClick={() => onLaunch(t.id)}
-                            className="w-full text-left text-[11px] text-slate-700 hover:text-blue-700 flex items-center gap-1.5 py-0.5 group/tool transition-colors"
+                            className="w-full text-left text-[11px] text-slate-700 flex items-center gap-1.5 py-0.5 group/tool transition-colors"
+                            onMouseEnter={e => { e.currentTarget.style.color = step.color; }}
+                            onMouseLeave={e => { e.currentTarget.style.color = '#334155'; }}
                           >
-                            <span className="font-jetbrains text-[10px]" style={{ color: BLUE }}>›</span>
+                            <span className="font-jetbrains text-[10px]" style={{ color: step.color }}>›</span>
                             <span className="group-hover/tool:underline underline-offset-2">{t.name}</span>
-                            <ArrowRight size={10} className="text-slate-300 group-hover/tool:text-blue-500 group-hover/tool:translate-x-0.5 transition-all ml-auto" />
+                            <ArrowRight size={10} className="text-slate-300 group-hover/tool:translate-x-0.5 transition-all ml-auto" style={{ color: step.color, opacity: 0.4 }} />
                           </button>
                         </li>
                       ))}
@@ -378,6 +460,13 @@ function Landing({ onLaunch }) {
 function ToolCard({ tool, onLaunch }) {
   const isLive = tool.status === 'live';
   const Icon = tool.icon;
+  const catColors = {
+    etiquettes:    { color: BLUE,      light: BLUE_LIGHT, border: '#BFDBFE' },
+    planification: { color: '#0D9488', light: '#CCFBF1',  border: '#99F6E4' },
+    transport:     { color: '#7C3AED', light: '#EDE9FE',  border: '#DDD6FE' },
+    utilitaires:   { color: '#F59E0B', light: '#FEF3C7',  border: '#FDE68A' },
+  };
+  const c = catColors[tool.cat] || catColors.etiquettes;
   return (
     <button
       onClick={onLaunch}
@@ -392,14 +481,14 @@ function ToolCard({ tool, onLaunch }) {
         <div
           className="w-10 h-10 rounded-lg flex items-center justify-center transition-all"
           style={{
-            background: isLive ? BLUE_LIGHT : '#F1F5F9',
-            border: `1px solid ${isLive ? '#BFDBFE' : '#E2E8F0'}`,
+            background: isLive ? c.light : '#F1F5F9',
+            border: `1px solid ${isLive ? c.border : '#E2E8F0'}`,
           }}
         >
-          <Icon size={17} style={{ color: isLive ? BLUE : '#94A3B8' }} strokeWidth={1.75} />
+          <Icon size={17} style={{ color: isLive ? c.color : '#94A3B8' }} strokeWidth={1.75} />
         </div>
         {isLive ? (
-          <span className="font-jetbrains text-[10px] tracking-widest px-2 py-1 rounded-md" style={{ background: BLUE_LIGHT, color: BLUE }}>
+          <span className="font-jetbrains text-[10px] tracking-widest px-2 py-1 rounded-md" style={{ background: c.light, color: c.color }}>
             ● LIVE
           </span>
         ) : (
@@ -415,7 +504,7 @@ function ToolCard({ tool, onLaunch }) {
         {tool.desc}
       </div>
       {isLive && (
-        <div className="font-jetbrains text-xs flex items-center gap-1.5 transition-transform group-hover:translate-x-1" style={{ color: BLUE }}>
+        <div className="font-jetbrains text-xs flex items-center gap-1.5 transition-transform group-hover:translate-x-1" style={{ color: c.color }}>
           OUVRIR L'OUTIL
           <ArrowRight size={12} />
         </div>
@@ -1640,6 +1729,9 @@ function BarcodeGenerator({ onBack }) {
   const [includeText, setIncludeText] = useState(true);
   const [rotation, setRotation] = useState(0);
 
+  // Multi-codes : results stocke tous les codes générés, currentIdx pointe sur celui affiché
+  const [results, setResults] = useState([]);
+  const [currentIdx, setCurrentIdx] = useState(0);
   const [preview, setPreview] = useState(null);
   const [pngBlob, setPngBlob] = useState(null);
   const [svgString, setSvgString] = useState(null);
@@ -1651,19 +1743,39 @@ function BarcodeGenerator({ onBack }) {
 
   const [libsReady, setLibsReady] = useState(false);
   const [pdfAvailable, setPdfAvailable] = useState(false);
+  const [zipAvailable, setZipAvailable] = useState(false);
+  const [zipMenuOpen, setZipMenuOpen] = useState(false);
   const [libsError, setLibsError] = useState(null);
 
   const currentType = BARCODE_TYPES.find(t => t.id === typeId);
-  const validation = currentType.validate(data);
 
-  // Chargement des libs avec fallback CDN (bwip-js requis, jsPDF optionnel)
+  // Détection multi-codes : split sur sauts de ligne, ignore lignes vides
+  const codes = useMemo(() =>
+    data.split('\n').map(s => s.trim()).filter(Boolean),
+    [data]
+  );
+  const isMulti = codes.length > 1;
+
+  // Validation : mono = sur la ligne unique, multi = synthèse des validations individuelles
+  const validation = useMemo(() => {
+    if (codes.length === 0) return { ok: false, msg: 'Saisissez au moins un code' };
+    if (codes.length === 1) return currentType.validate(codes[0]);
+    const perCode = codes.map(c => currentType.validate(c));
+    const invalid = perCode.filter(v => !v.ok).length;
+    if (invalid === 0) return { ok: true, msg: `${codes.length} codes détectés, tous valides — prêts à générer` };
+    return { ok: false, msg: `${invalid} code(s) invalide(s) sur ${codes.length} — corrigez ou les codes invalides seront ignorés` };
+  }, [codes, currentType]);
+
+  // Chargement des libs avec fallback CDN (bwip-js requis, jsPDF et JSZip optionnels)
   useEffect(() => {
     Promise.allSettled([
       loadScriptWithFallback(CDN_BWIP, () => !!window.bwipjs),
       loadScriptWithFallback(CDN_JSPDF, () => !!window.jspdf),
+      loadScriptWithFallback(CDN_JSZIP, () => !!window.JSZip),
     ]).then((results) => {
       const bwipOk = results[0].status === 'fulfilled' && window.bwipjs;
       const pdfOk = results[1].status === 'fulfilled' && window.jspdf;
+      const zipOk = results[2].status === 'fulfilled' && window.JSZip;
       if (!bwipOk) {
         const reason = results[0].status === 'rejected'
           ? ' (tous les CDN ont échoué — vérifiez votre connexion ou un éventuel bloqueur)'
@@ -1673,8 +1785,32 @@ function BarcodeGenerator({ onBack }) {
       }
       setLibsReady(true);
       setPdfAvailable(pdfOk);
+      setZipAvailable(zipOk);
     });
   }, []);
+
+  // Sync les états d'affichage avec le code courant dans results
+  useEffect(() => {
+    const cur = results[currentIdx];
+    if (cur && cur.dataUrl) {
+      setPreview(cur.dataUrl);
+      setPngBlob(cur.blob);
+      setSvgString(cur.svg);
+      setPreviewDims(cur.dims);
+      setError(null);
+    } else if (cur && cur.error) {
+      setPreview(null);
+      setPngBlob(null);
+      setSvgString(null);
+      setPreviewDims(null);
+      setError(cur.error);
+    } else {
+      setPreview(null);
+      setPngBlob(null);
+      setSvgString(null);
+      setPreviewDims(null);
+    }
+  }, [results, currentIdx]);
 
   // Quand on change de type, pré-remplir l'exemple
   useEffect(() => {
@@ -1686,52 +1822,52 @@ function BarcodeGenerator({ onBack }) {
   // Auto-rendu avec debounce 250ms
   useEffect(() => {
     if (!libsReady) return;
-    if (!validation.ok) { setError(null); return; }
-    setError(null);
     const t = setTimeout(() => { render(); }, 250);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [libsReady, typeId, data, scale, heightMM, includeText, rotation]);
 
   const render = async () => {
-    if (!libsReady || !validation.ok) return;
+    if (!libsReady) return;
+    if (codes.length === 0) { setResults([]); return; }
     setLoading(true);
     try {
-      const canvas = document.createElement('canvas');
-      // Pour GS1-128, auto-compléter les check digits manquants (SSCC 17ch → 18ch, GTIN 13ch → 14ch)
-      const dataToRender = currentType.bcid === 'gs1-128' ? autoCompleteGs1Payload(data) : data;
+      const newResults = [];
+      for (const code of codes) {
+        const valid = currentType.validate(code);
+        if (!valid.ok) {
+          newResults.push({ code, error: valid.msg, dataUrl: null, blob: null, svg: null, dims: null });
+          continue;
+        }
+        try {
+          const canvas = document.createElement('canvas');
+          // Pour GS1-128, auto-compléter les check digits manquants
+          const codeToRender = currentType.bcid === 'gs1-128' ? autoCompleteGs1Payload(code) : code;
+          const opts = {
+            bcid: currentType.bcid,
+            text: codeToRender,
+            scale: scale,
+            includetext: includeText,
+            textxalign: 'center',
+            backgroundcolor: 'FFFFFF',
+          };
+          if (!['qrcode', 'datamatrix'].includes(currentType.bcid)) opts.height = heightMM;
+          if (rotation === 90) opts.rotate = 'R';
+          else if (rotation === 180) opts.rotate = 'I';
+          else if (rotation === 270) opts.rotate = 'L';
 
-      const opts = {
-        bcid: currentType.bcid,
-        text: dataToRender,
-        scale: scale,
-        includetext: includeText,
-        textxalign: 'center',
-        backgroundcolor: 'FFFFFF',
-      };
-      // Hauteur des barres uniquement pour les 1D
-      if (!['qrcode', 'datamatrix'].includes(currentType.bcid)) {
-        opts.height = heightMM;
+          window.bwipjs.toCanvas(canvas, opts);
+          const dataUrl = canvas.toDataURL('image/png');
+          const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
+          const svg = window.bwipjs.toSVG ? window.bwipjs.toSVG(opts) : null;
+          newResults.push({ code, dataUrl, blob, svg, dims: { w: canvas.width, h: canvas.height } });
+        } catch (e) {
+          newResults.push({ code, error: 'Erreur de génération : ' + (e.message || 'données invalides'), dataUrl: null, blob: null, svg: null, dims: null });
+        }
       }
-      // Rotation
-      if (rotation === 90) opts.rotate = 'R';
-      else if (rotation === 180) opts.rotate = 'I';
-      else if (rotation === 270) opts.rotate = 'L';
-
-      window.bwipjs.toCanvas(canvas, opts);
-
-      const dataUrl = canvas.toDataURL('image/png');
-      const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
-      const svg = window.bwipjs.toSVG ? window.bwipjs.toSVG(opts) : null;
-
-      if (preview) URL.revokeObjectURL(preview);
-      setPreview(dataUrl);
-      setPngBlob(blob);
-      setSvgString(svg);
-      setPreviewDims({ w: canvas.width, h: canvas.height });
-    } catch (e) {
-      setError('Erreur de génération : ' + (e.message || 'données invalides pour ce type'));
-      setPreview(null);
+      setResults(newResults);
+      // Garder l'index courant si valide, sinon revenir à 0
+      setCurrentIdx(idx => Math.min(idx, Math.max(0, newResults.length - 1)));
     } finally {
       setLoading(false);
     }
@@ -1777,6 +1913,102 @@ function BarcodeGenerator({ onBack }) {
       pdf.save(`atelier-${currentType.id}-${Date.now()}.pdf`);
     } catch (e) {
       setError('Erreur PDF : ' + e.message);
+    } finally {
+      setTimeout(() => setDownloading(null), 300);
+    }
+  };
+
+  // Helper : nom de fichier sain pour ZIP
+  const safeFilename = (code, idx) => {
+    const sanitized = (code || '').replace(/[^\w-]/g, '_').slice(0, 40);
+    return `${String(idx + 1).padStart(3, '0')}_${sanitized || 'code'}`;
+  };
+
+  const downloadZipPng = async () => {
+    if (!window.JSZip) return;
+    const valid = results.filter(r => r.blob);
+    if (valid.length === 0) return;
+    setDownloading('zip-png');
+    setZipMenuOpen(false);
+    try {
+      const zip = new window.JSZip();
+      valid.forEach((r, i) => zip.file(`${safeFilename(r.code, i)}.png`, r.blob));
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(zipBlob);
+      link.download = `atelier-${currentType.id}-${valid.length}codes-${Date.now()}.zip`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(link.href), 500);
+    } catch (e) {
+      setError('Erreur ZIP : ' + e.message);
+    } finally {
+      setTimeout(() => setDownloading(null), 300);
+    }
+  };
+
+  const downloadZipSvg = async () => {
+    if (!window.JSZip) return;
+    const valid = results.filter(r => r.svg);
+    if (valid.length === 0) return;
+    setDownloading('zip-svg');
+    setZipMenuOpen(false);
+    try {
+      const zip = new window.JSZip();
+      valid.forEach((r, i) => zip.file(`${safeFilename(r.code, i)}.svg`, r.svg));
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(zipBlob);
+      link.download = `atelier-${currentType.id}-${valid.length}codes-svg-${Date.now()}.zip`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(link.href), 500);
+    } catch (e) {
+      setError('Erreur ZIP SVG : ' + e.message);
+    } finally {
+      setTimeout(() => setDownloading(null), 300);
+    }
+  };
+
+  const downloadPdfMulti = () => {
+    if (!window.jspdf) return;
+    const valid = results.filter(r => r.dataUrl && r.dims);
+    if (valid.length === 0) return;
+    setDownloading('pdf-multi');
+    setZipMenuOpen(false);
+    try {
+      const { jsPDF } = window.jspdf;
+      // A4 portrait, 1 code par page, code centré, label en dessous
+      const pageW = 8.27, pageH = 11.69;
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'in', format: 'a4' });
+      valid.forEach((r, idx) => {
+        if (idx > 0) pdf.addPage();
+        const margin = 1;
+        const maxW = pageW - margin * 2;
+        const maxH = pageH - margin * 3;
+        const wIn = r.dims.w / 96;
+        const hIn = r.dims.h / 96;
+        const fit = Math.min(maxW / wIn, maxH / hIn, 1);
+        const finalW = wIn * fit;
+        const finalH = hIn * fit;
+        const x = (pageW - finalW) / 2;
+        const y = margin + 0.5;
+        pdf.addImage(r.dataUrl, 'PNG', x, y, finalW, finalH, undefined, 'FAST');
+        // Label code
+        pdf.setFontSize(10);
+        pdf.setFont('helvetica', 'normal');
+        pdf.text(String(r.code).slice(0, 100), pageW / 2, y + finalH + 0.4, { align: 'center' });
+        // Pied de page : type et numéro
+        pdf.setFontSize(8);
+        pdf.setTextColor(140);
+        pdf.text(`${currentType.label}  ·  ${idx + 1} / ${valid.length}`, pageW / 2, pageH - 0.4, { align: 'center' });
+        pdf.setTextColor(0);
+      });
+      pdf.save(`atelier-${currentType.id}-${valid.length}codes-${Date.now()}.pdf`);
+    } catch (e) {
+      setError('Erreur PDF multi : ' + e.message);
     } finally {
       setTimeout(() => setDownloading(null), 300);
     }
@@ -1867,9 +2099,9 @@ function BarcodeGenerator({ onBack }) {
                 <textarea
                   value={data}
                   onChange={(e) => setData(e.target.value)}
-                  rows={3}
+                  rows={isMulti ? 6 : 3}
                   className="w-full px-3 py-2 bg-white border border-slate-200 rounded-md outline-none resize-none font-jetbrains text-sm text-slate-800 focus:border-slate-400 transition-colors"
-                  placeholder={currentType.placeholder}
+                  placeholder={`${currentType.placeholder}\n\nAstuce : un code par ligne pour générer plusieurs codes-barres d'un coup`}
                   spellCheck={false}
                 />
                 <div
@@ -1878,6 +2110,12 @@ function BarcodeGenerator({ onBack }) {
                   {validation.ok ? <Check size={12} className="mt-0.5 flex-shrink-0" /> : <AlertCircle size={12} className="mt-0.5 flex-shrink-0" />}
                   <span>{validation.msg}</span>
                 </div>
+                {isMulti && (
+                  <div className="mt-2 px-2.5 py-1.5 rounded-md font-jetbrains text-[10px] flex items-center justify-between" style={{ background: BLUE_LIGHT, color: BLUE }}>
+                    <span className="tracking-wider">MODE MULTI-CODES</span>
+                    <span className="font-semibold">{codes.length} codes</span>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1964,7 +2202,33 @@ function BarcodeGenerator({ onBack }) {
                   APERÇU
                   <span className="text-slate-300">·</span>
                   <span style={{ color: BLUE }} className="font-medium">{currentType.label}</span>
-                  {previewDims && (
+                  {isMulti && results.length > 0 && (
+                    <>
+                      <span className="text-slate-300">·</span>
+                      <div className="flex items-center gap-1.5 bg-white rounded-md border border-slate-200 px-1 py-0.5">
+                        <button
+                          onClick={() => setCurrentIdx(i => Math.max(0, i - 1))}
+                          disabled={currentIdx === 0}
+                          className="p-0.5 rounded hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+                          title="Code précédent"
+                        >
+                          <ChevronLeft size={12} className="text-slate-600" />
+                        </button>
+                        <span className="font-jetbrains text-[10px] text-slate-700 px-1 min-w-[60px] text-center">
+                          {currentIdx + 1} / {results.length}
+                        </span>
+                        <button
+                          onClick={() => setCurrentIdx(i => Math.min(results.length - 1, i + 1))}
+                          disabled={currentIdx >= results.length - 1}
+                          className="p-0.5 rounded hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+                          title="Code suivant"
+                        >
+                          <ChevronRight size={12} className="text-slate-600" />
+                        </button>
+                      </div>
+                    </>
+                  )}
+                  {!isMulti && previewDims && (
                     <>
                       <span className="text-slate-300">·</span>
                       <span className="text-slate-500">{previewDims.w} × {previewDims.h} px</span>
@@ -2003,6 +2267,57 @@ function BarcodeGenerator({ onBack }) {
                       {downloading === 'pdf' ? <Loader2 size={11} className="animate-spin" /> : <FileDown size={11} />}
                       PDF
                     </button>
+                    {isMulti && results.filter(r => r.dataUrl).length > 1 && (
+                      <div className="relative">
+                        <button
+                          onClick={() => setZipMenuOpen(o => !o)}
+                          disabled={downloading !== null}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md font-jetbrains text-xs font-semibold transition-all hover:translate-y-[-1px] disabled:opacity-40 text-white shadow-sm"
+                          style={{ background: '#0F172A' }}
+                          title={`Exporter les ${results.filter(r => r.dataUrl).length} codes générés`}
+                        >
+                          {downloading?.startsWith('zip') || downloading === 'pdf-multi'
+                            ? <Loader2 size={11} className="animate-spin" />
+                            : <FileArchive size={11} />}
+                          TOUS ({results.filter(r => r.dataUrl).length})
+                          <ChevronDown size={10} />
+                        </button>
+                        {zipMenuOpen && (
+                          <>
+                            <div className="fixed inset-0 z-30" onClick={() => setZipMenuOpen(false)} />
+                            <div className="absolute right-0 top-full mt-1 z-40 bg-white border border-slate-200 rounded-md shadow-lg overflow-hidden min-w-[220px]">
+                              <button
+                                onClick={downloadZipPng}
+                                disabled={!zipAvailable}
+                                className="w-full text-left px-3 py-2 hover:bg-slate-50 transition-colors font-jetbrains text-xs text-slate-700 disabled:opacity-40 disabled:hover:bg-transparent"
+                                title={!zipAvailable ? 'Module ZIP non chargé' : ''}
+                              >
+                                <div className="font-semibold">ZIP · PNG</div>
+                                <div className="text-[10px] text-slate-500 mt-0.5">Un fichier .png par code</div>
+                              </button>
+                              <button
+                                onClick={downloadZipSvg}
+                                disabled={!zipAvailable || !results.some(r => r.svg)}
+                                className="w-full text-left px-3 py-2 border-t border-slate-100 hover:bg-slate-50 transition-colors font-jetbrains text-xs text-slate-700 disabled:opacity-40 disabled:hover:bg-transparent"
+                                title={!zipAvailable ? 'Module ZIP non chargé' : ''}
+                              >
+                                <div className="font-semibold">ZIP · SVG</div>
+                                <div className="text-[10px] text-slate-500 mt-0.5">Vectoriel · qualité illimitée</div>
+                              </button>
+                              <button
+                                onClick={downloadPdfMulti}
+                                disabled={!pdfAvailable}
+                                className="w-full text-left px-3 py-2 border-t border-slate-100 hover:bg-slate-50 transition-colors font-jetbrains text-xs text-slate-700 disabled:opacity-40 disabled:hover:bg-transparent"
+                                title={!pdfAvailable ? 'Module PDF non chargé' : ''}
+                              >
+                                <div className="font-semibold">PDF · multi-pages</div>
+                                <div className="text-[10px] text-slate-500 mt-0.5">1 code par page A4, labellisé</div>
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -7489,5 +7804,2238 @@ function StatusDot({ ok, emphasis }) {
   return (
     <span className={`inline-block rounded-full ${emphasis ? 'w-3 h-3' : 'w-2 h-2'}`}
           style={{ background: ok ? '#059669' : '#DC2626' }} />
+  );
+}
+
+// ============================================================
+// AuditFlash · Audit Supply Chain Express
+// Lead magnet WALYCONSEIL — analyse rapide à partir de 2 fichiers
+// ============================================================
+
+const AUDIT_SALES_ALIASES = {
+  ref:        ['ref', 'reference', 'référence', 'sku', 'code', 'article', 'item', 'code article'],
+  label:      ['libelle', 'libellé', 'nom', 'description', 'designation', 'désignation', 'name'],
+  date:       ['date', 'date vente', 'date de vente', 'jour', 'sale date', 'date commande', 'date facture'],
+  qty:        ['qté', 'qte', 'quantité', 'quantite', 'qty', 'quantity', 'volume', 'qté vendue', 'quantité vendue', 'qte vendue'],
+  amount:     ['ca', 'montant', 'montant ht', 'ca ht', 'amount', 'revenue', 'total', 'valeur', 'chiffre affaires', "chiffre d'affaires"],
+  unitPrice:  ['prix', 'prix unitaire', 'pu', 'unit price', 'price', 'prix de vente'],
+  store:      ['magasin', 'depot', 'dépôt', 'entrepot', 'entrepôt', 'site', 'boutique', 'store', 'warehouse', 'location', 'agence', 'point de vente'],
+};
+
+const AUDIT_STOCK_ALIASES = {
+  ref:        ['ref', 'reference', 'référence', 'sku', 'code', 'article', 'item', 'code article'],
+  label:      ['libelle', 'libellé', 'nom', 'description', 'designation', 'name'],
+  qty:        ['stock', 'quantité stock', 'quantite stock', 'qty', 'quantity', 'qté', 'qte', 'stock disponible', 'disponible'],
+  pmp:        ['pmp', 'prix moyen pondéré', 'prix moyen pondere', 'cump', 'cmp', 'cmup', 'cost', 'cout unitaire', 'coût unitaire', 'prix achat', 'prix d\'achat', 'prix unitaire', 'pu', 'pu ht', 'valeur unitaire', 'val unitaire', 'puhp', 'prix moyen', 'prix de revient', 'cost price', 'unit cost', 'pmp ht', 'cump ht'],
+  value:      ['valeur stock', 'valeur', 'stock value', 'montant stock', 'valeur immobilisée'],
+  store:      ['magasin', 'depot', 'dépôt', 'entrepot', 'entrepôt', 'site', 'boutique', 'store', 'warehouse', 'location', 'agence', 'point de vente'],
+  category:   ['categorie', 'catégorie', 'famille', 'groupe', 'category', 'family', 'classe'],
+};
+
+// Audit complet — fichiers complémentaires
+const AUDIT_SUPPLIER_DELIVERY_ALIASES = {
+  ref:           ['ref', 'reference', 'référence', 'sku', 'code', 'article', 'item'],
+  supplier:      ['fournisseur', 'supplier', 'vendor', 'tiers', 'partenaire'],
+  promisedDate:  ['date promise', 'date prévue', 'date prevue', 'date attendue', 'promised date', 'due date', 'date demandée', 'date confirmée'],
+  deliveredDate: ['date livrée', 'date livree', 'date réelle', 'date reelle', 'actual date', 'delivered date', 'date livraison', 'date reception', 'date de réception'],
+  orderedQty:    ['qté commandée', 'quantité commandée', 'quantite commandee', 'qte commandee', 'ordered qty', 'ordered', 'qty ordered'],
+  deliveredQty:  ['qté livrée', 'quantité livrée', 'quantite livree', 'qte livree', 'delivered qty', 'delivered', 'qty delivered', 'qté reçue', 'quantité reçue'],
+};
+
+const AUDIT_CUSTOMER_DELIVERY_ALIASES = {
+  ref:           ['ref', 'reference', 'référence', 'sku', 'code', 'article', 'item'],
+  customer:      ['client', 'customer', 'destinataire', 'tiers'],
+  promisedDate:  ['date promise', 'date prévue', 'date prevue', 'date attendue', 'date demandée', 'date confirmée', 'promised date', 'due date'],
+  deliveredDate: ['date livrée', 'date livree', 'date réelle', 'date reelle', 'actual date', 'delivered date', 'date livraison'],
+  orderedQty:    ['qté commandée', 'quantité commandée', 'qte commandee', 'ordered qty', 'ordered'],
+  deliveredQty:  ['qté livrée', 'quantité livrée', 'qte livree', 'delivered qty', 'delivered'],
+};
+
+const AUDIT_OPEN_ORDERS_ALIASES = {
+  ref:           ['ref', 'reference', 'référence', 'sku', 'code', 'article', 'item'],
+  supplier:      ['fournisseur', 'supplier', 'vendor', 'tiers'],
+  qty:           ['qté commandée', 'quantité commandée', 'quantite', 'qty', 'quantity', 'qté', 'qte', 'open qty'],
+  expectedDate:  ['date prévue', 'date attendue', 'date expedition', 'date livraison prévue', 'expected date', 'eta', 'date arrivée'],
+  unitPrice:     ['prix', 'prix unitaire', 'pu', 'unit price', 'price'],
+};
+
+const AUDIT_REFERENCE_ALIASES = {
+  ref:           ['ref', 'reference', 'référence', 'sku', 'code', 'article', 'item', 'code article'],
+  label:         ['libelle', 'libellé', 'nom', 'description', 'designation', 'name'],
+  category:      ['categorie', 'catégorie', 'famille', 'groupe', 'category', 'family', 'classe', 'segment'],
+  subCategory:   ['sous-categorie', 'sous-catégorie', 'sous-famille', 'subcategory', 'sub-family'],
+  supplier:      ['fournisseur', 'fournisseur principal', 'supplier', 'main supplier', 'vendor'],
+  leadTime:      ['lead time', 'délai', 'delai', 'lt théorique', 'lt theorique', 'délai théorique', 'delai theorique', 'lt'],
+  moq:           ['moq', 'quantité minimum', 'quantite minimum', 'mini', 'qte mini'],
+  purchasePrice: ['prix achat', 'prix d\'achat', 'cout achat', 'coût achat', 'purchase price'],
+  status:        ['statut', 'status', 'actif', 'état', 'state'],
+};
+
+
+function generateAuditSalesTemplate() {
+  const today = new Date();
+  const rows = [];
+  const articles = [
+    { ref: 'A001', label: 'Yaourt nature 125g', basePrice: 0.85, baseVol: 800 },
+    { ref: 'A002', label: 'Yaourt fruits 125g', basePrice: 0.95, baseVol: 600 },
+    { ref: 'A003', label: 'Lait UHT demi-écrémé 1L', basePrice: 0.78, baseVol: 1200 },
+    { ref: 'B001', label: 'Eau minérale 1.5L', basePrice: 0.42, baseVol: 2000 },
+    { ref: 'B002', label: 'Soda cola 33cl', basePrice: 0.85, baseVol: 500 },
+    { ref: 'C001', label: 'Pâtes spaghetti 500g', basePrice: 1.20, baseVol: 300 },
+    { ref: 'C002', label: 'Riz long grain 1kg', basePrice: 1.85, baseVol: 250 },
+    { ref: 'D001', label: 'Huile olive vierge 75cl', basePrice: 8.50, baseVol: 80 },
+  ];
+  const stores = ['Casa Centre', 'Rabat Agdal', 'Marrakech Gueliz'];
+  for (let m = 11; m >= 0; m--) {
+    const d = new Date(today.getFullYear(), today.getMonth() - m, 15);
+    const dateStr = d.toISOString().slice(0, 10);
+    for (const art of articles) {
+      for (const store of stores) {
+        const seasonal = 1 + 0.3 * Math.sin((m / 12) * Math.PI * 2);
+        const qty = Math.max(0, Math.round(art.baseVol * seasonal * (0.85 + Math.random() * 0.3) / 12));
+        if (qty === 0) continue;
+        rows.push({
+          'Référence': art.ref,
+          'Libellé': art.label,
+          'Date': dateStr,
+          'Quantité vendue': qty,
+          'Prix unitaire HT': art.basePrice,
+          'Magasin': store,
+        });
+      }
+    }
+  }
+  return rows;
+}
+
+function generateAuditStockTemplate() {
+  const articles = [
+    { ref: 'A001', label: 'Yaourt nature 125g', pmp: 0.55, qty: 1200 },
+    { ref: 'A002', label: 'Yaourt fruits 125g', pmp: 0.62, qty: 800 },
+    { ref: 'A003', label: 'Lait UHT demi-écrémé 1L', pmp: 0.50, qty: 1800 },
+    { ref: 'B001', label: 'Eau minérale 1.5L', pmp: 0.25, qty: 3500 },
+    { ref: 'B002', label: 'Soda cola 33cl', pmp: 0.52, qty: 600 },
+    { ref: 'C001', label: 'Pâtes spaghetti 500g', pmp: 0.78, qty: 250 },
+    { ref: 'C002', label: 'Riz long grain 1kg', pmp: 1.20, qty: 180 },
+    { ref: 'D001', label: 'Huile olive vierge 75cl', pmp: 5.80, qty: 120 },
+    { ref: 'X001', label: 'Article ancien obsolète', pmp: 12.40, qty: 350 },
+    { ref: 'X002', label: 'Article saisonnier dormant', pmp: 8.90, qty: 180 },
+  ];
+  const stores = ['Casa Centre', 'Rabat Agdal', 'Marrakech Gueliz'];
+  const rows = [];
+  for (const art of articles) {
+    for (const store of stores) {
+      const variation = 0.7 + Math.random() * 0.6;
+      rows.push({
+        'Référence': art.ref,
+        'Libellé': art.label,
+        'Quantité en stock': Math.round(art.qty * variation / 3),
+        'Prix moyen pondéré': art.pmp,
+        'Magasin': store,
+      });
+    }
+  }
+  return rows;
+}
+
+
+// ============================================================
+// Templates audit COMPLET (4 fichiers complémentaires)
+// ============================================================
+
+function generateSupplierDeliveryTemplate() {
+  const baseDate = new Date();
+  baseDate.setMonth(baseDate.getMonth() - 3);
+  const day = (n) => {
+    const d = new Date(baseDate);
+    d.setDate(d.getDate() + n);
+    return d.toISOString().slice(0, 10);
+  };
+  return [
+    { 'Référence': 'A001', 'Fournisseur': 'ALPHA INDUSTRIES', 'Date promise': day(0), 'Date livrée': day(0), 'Qté commandée': 1000, 'Qté livrée': 1000 },
+    { 'Référence': 'A002', 'Fournisseur': 'ALPHA INDUSTRIES', 'Date promise': day(2), 'Date livrée': day(5), 'Qté commandée': 500, 'Qté livrée': 500 },
+    { 'Référence': 'B001', 'Fournisseur': 'BETA LOGISTICS', 'Date promise': day(5), 'Date livrée': day(5), 'Qté commandée': 2000, 'Qté livrée': 1800 },
+    { 'Référence': 'C001', 'Fournisseur': 'BETA LOGISTICS', 'Date promise': day(7), 'Date livrée': day(12), 'Qté commandée': 300, 'Qté livrée': 250 },
+    { 'Référence': 'B002', 'Fournisseur': 'GAMMA SUPPLY', 'Date promise': day(10), 'Date livrée': day(10), 'Qté commandée': 500, 'Qté livrée': 500 },
+    { 'Référence': 'A001', 'Fournisseur': 'GAMMA SUPPLY', 'Date promise': day(12), 'Date livrée': day(13), 'Qté commandée': 800, 'Qté livrée': 800 },
+    { 'Référence': 'C002', 'Fournisseur': 'ALPHA INDUSTRIES', 'Date promise': day(15), 'Date livrée': day(15), 'Qté commandée': 200, 'Qté livrée': 195 },
+    { 'Référence': 'D001', 'Fournisseur': 'BETA LOGISTICS', 'Date promise': day(18), 'Date livrée': day(25), 'Qté commandée': 100, 'Qté livrée': 80 },
+    { 'Référence': 'A003', 'Fournisseur': 'GAMMA SUPPLY', 'Date promise': day(20), 'Date livrée': day(20), 'Qté commandée': 1500, 'Qté livrée': 1500 },
+    { 'Référence': 'B001', 'Fournisseur': 'ALPHA INDUSTRIES', 'Date promise': day(25), 'Date livrée': day(28), 'Qté commandée': 2000, 'Qté livrée': 2000 },
+  ];
+}
+
+function generateCustomerDeliveryTemplate() {
+  const baseDate = new Date();
+  baseDate.setMonth(baseDate.getMonth() - 3);
+  const day = (n) => {
+    const d = new Date(baseDate);
+    d.setDate(d.getDate() + n);
+    return d.toISOString().slice(0, 10);
+  };
+  return [
+    { 'Référence': 'A001', 'Client': 'CLIENT NORD SARL', 'Date promise': day(0), 'Date livrée': day(0), 'Qté commandée': 100, 'Qté livrée': 100 },
+    { 'Référence': 'A002', 'Client': 'CLIENT NORD SARL', 'Date promise': day(2), 'Date livrée': day(2), 'Qté commandée': 50, 'Qté livrée': 50 },
+    { 'Référence': 'B001', 'Client': 'HYPER CASA', 'Date promise': day(5), 'Date livrée': day(7), 'Qté commandée': 200, 'Qté livrée': 200 },
+    { 'Référence': 'A001', 'Client': 'HYPER CASA', 'Date promise': day(8), 'Date livrée': day(8), 'Qté commandée': 300, 'Qté livrée': 280 },
+    { 'Référence': 'C001', 'Client': 'EPICERIE RABAT', 'Date promise': day(10), 'Date livrée': day(13), 'Qté commandée': 30, 'Qté livrée': 30 },
+    { 'Référence': 'D001', 'Client': 'HYPER CASA', 'Date promise': day(15), 'Date livrée': day(15), 'Qté commandée': 20, 'Qté livrée': 20 },
+    { 'Référence': 'B002', 'Client': 'CLIENT NORD SARL', 'Date promise': day(18), 'Date livrée': day(22), 'Qté commandée': 80, 'Qté livrée': 75 },
+    { 'Référence': 'A003', 'Client': 'EPICERIE RABAT', 'Date promise': day(20), 'Date livrée': day(20), 'Qté commandée': 60, 'Qté livrée': 60 },
+  ];
+}
+
+function generateOpenOrdersTemplate() {
+  const futureDate = new Date();
+  const day = (n) => {
+    const d = new Date(futureDate);
+    d.setDate(d.getDate() + n);
+    return d.toISOString().slice(0, 10);
+  };
+  return [
+    { 'Référence': 'A001', 'Fournisseur': 'ALPHA INDUSTRIES', 'Qté commandée': 1500, 'Date prévue': day(7), 'Prix unitaire': 0.55 },
+    { 'Référence': 'A002', 'Fournisseur': 'ALPHA INDUSTRIES', 'Qté commandée': 800, 'Date prévue': day(10), 'Prix unitaire': 0.62 },
+    { 'Référence': 'B001', 'Fournisseur': 'BETA LOGISTICS', 'Qté commandée': 3000, 'Date prévue': day(15), 'Prix unitaire': 0.25 },
+    { 'Référence': 'C001', 'Fournisseur': 'BETA LOGISTICS', 'Qté commandée': 500, 'Date prévue': day(21), 'Prix unitaire': 0.78 },
+    { 'Référence': 'D001', 'Fournisseur': 'GAMMA SUPPLY', 'Qté commandée': 200, 'Date prévue': day(30), 'Prix unitaire': 5.80 },
+  ];
+}
+
+function generateReferenceTemplate() {
+  return [
+    { 'Référence': 'A001', 'Libellé': 'Yaourt nature 125g', 'Catégorie': 'Frais', 'Sous-catégorie': 'Yaourts', 'Fournisseur principal': 'ALPHA INDUSTRIES', 'Lead time théorique': 5, 'MOQ': 500, 'Prix achat': 0.55, 'Statut': 'Actif' },
+    { 'Référence': 'A002', 'Libellé': 'Yaourt fruits 125g', 'Catégorie': 'Frais', 'Sous-catégorie': 'Yaourts', 'Fournisseur principal': 'ALPHA INDUSTRIES', 'Lead time théorique': 5, 'MOQ': 500, 'Prix achat': 0.62, 'Statut': 'Actif' },
+    { 'Référence': 'A003', 'Libellé': 'Lait UHT demi-écrémé 1L', 'Catégorie': 'Frais', 'Sous-catégorie': 'Laits', 'Fournisseur principal': 'GAMMA SUPPLY', 'Lead time théorique': 7, 'MOQ': 1000, 'Prix achat': 0.50, 'Statut': 'Actif' },
+    { 'Référence': 'B001', 'Libellé': 'Eau minérale 1.5L', 'Catégorie': 'Boissons', 'Sous-catégorie': 'Eaux', 'Fournisseur principal': 'BETA LOGISTICS', 'Lead time théorique': 10, 'MOQ': 2000, 'Prix achat': 0.25, 'Statut': 'Actif' },
+    { 'Référence': 'B002', 'Libellé': 'Soda cola 33cl', 'Catégorie': 'Boissons', 'Sous-catégorie': 'Sodas', 'Fournisseur principal': 'GAMMA SUPPLY', 'Lead time théorique': 14, 'MOQ': 500, 'Prix achat': 0.52, 'Statut': 'Actif' },
+    { 'Référence': 'C001', 'Libellé': 'Pâtes spaghetti 500g', 'Catégorie': 'Épicerie', 'Sous-catégorie': 'Pâtes', 'Fournisseur principal': 'BETA LOGISTICS', 'Lead time théorique': 21, 'MOQ': 200, 'Prix achat': 0.78, 'Statut': 'Actif' },
+    { 'Référence': 'C002', 'Libellé': 'Riz long grain 1kg', 'Catégorie': 'Épicerie', 'Sous-catégorie': 'Riz', 'Fournisseur principal': 'ALPHA INDUSTRIES', 'Lead time théorique': 28, 'MOQ': 100, 'Prix achat': 1.20, 'Statut': 'Actif' },
+    { 'Référence': 'D001', 'Libellé': 'Huile olive vierge 75cl', 'Catégorie': 'Épicerie', 'Sous-catégorie': 'Huiles', 'Fournisseur principal': 'GAMMA SUPPLY', 'Lead time théorique': 15, 'MOQ': 50, 'Prix achat': 5.80, 'Statut': 'Actif' },
+    { 'Référence': 'X001', 'Libellé': 'Article ancien obsolète', 'Catégorie': 'Épicerie', 'Sous-catégorie': 'Divers', 'Fournisseur principal': 'BETA LOGISTICS', 'Lead time théorique': 30, 'MOQ': 100, 'Prix achat': 12.40, 'Statut': 'Inactif' },
+    { 'Référence': 'X002', 'Libellé': 'Article saisonnier dormant', 'Catégorie': 'Saisonnier', 'Sous-catégorie': 'Hiver', 'Fournisseur principal': 'ALPHA INDUSTRIES', 'Lead time théorique': 21, 'MOQ': 50, 'Prix achat': 8.90, 'Statut': 'Actif' },
+  ];
+}
+
+// ============================================================
+// Calculs des modules complets
+// ============================================================
+
+function computeSupplierPerf(rows, periodDays) {
+  const deliveries = rows.map(r => {
+    const promised = parseDate(findField(r, AUDIT_SUPPLIER_DELIVERY_ALIASES.promisedDate));
+    const delivered = parseDate(findField(r, AUDIT_SUPPLIER_DELIVERY_ALIASES.deliveredDate));
+    const orderedQty = parseFloat(findField(r, AUDIT_SUPPLIER_DELIVERY_ALIASES.orderedQty)) || 0;
+    const deliveredQty = parseFloat(findField(r, AUDIT_SUPPLIER_DELIVERY_ALIASES.deliveredQty)) || 0;
+    const ref = String(findField(r, AUDIT_SUPPLIER_DELIVERY_ALIASES.ref) || '').trim();
+    const supplier = String(findField(r, AUDIT_SUPPLIER_DELIVERY_ALIASES.supplier) || 'Non renseigné').trim();
+    if (!promised || !delivered || orderedQty <= 0) return null;
+    const delayDays = Math.round((delivered - promised) / (1000 * 60 * 60 * 24));
+    const fillRate = deliveredQty / orderedQty;
+    const isOnTime = delayDays <= 0;
+    const isInFull = fillRate >= 1.0;
+    const isOtif = isOnTime && isInFull;
+    return { ref, supplier, promised, delivered, orderedQty, deliveredQty, delayDays, fillRate, isOnTime, isInFull, isOtif };
+  }).filter(Boolean);
+
+  if (deliveries.length === 0) return null;
+  const total = deliveries.length;
+  const ot = deliveries.filter(d => d.isOnTime).length;
+  const inFull = deliveries.filter(d => d.isInFull).length;
+  const otif = deliveries.filter(d => d.isOtif).length;
+  const delays = deliveries.filter(d => d.delayDays > 0).map(d => d.delayDays);
+  const avgDelay = delays.length > 0 ? delays.reduce((a, b) => a + b, 0) / delays.length : 0;
+
+  // Par fournisseur
+  const bySupplier = {};
+  for (const d of deliveries) {
+    if (!bySupplier[d.supplier]) bySupplier[d.supplier] = { supplier: d.supplier, total: 0, ot: 0, inFull: 0, otif: 0, totalDelay: 0 };
+    const g = bySupplier[d.supplier];
+    g.total++;
+    if (d.isOnTime) g.ot++;
+    if (d.isInFull) g.inFull++;
+    if (d.isOtif) g.otif++;
+    g.totalDelay += Math.max(0, d.delayDays);
+  }
+  const suppliers = Object.values(bySupplier).map(g => ({
+    ...g,
+    otRate: (g.ot / g.total) * 100,
+    inFullRate: (g.inFull / g.total) * 100,
+    otifRate: (g.otif / g.total) * 100,
+    avgDelay: g.total > 0 ? g.totalDelay / g.total : 0,
+  })).sort((a, b) => a.otifRate - b.otifRate);
+
+  return {
+    total, otRate: (ot / total) * 100, inFullRate: (inFull / total) * 100, otifRate: (otif / total) * 100,
+    avgDelay, suppliers, deliveries,
+  };
+}
+
+function computeCustomerPerf(rows) {
+  const deliveries = rows.map(r => {
+    const promised = parseDate(findField(r, AUDIT_CUSTOMER_DELIVERY_ALIASES.promisedDate));
+    const delivered = parseDate(findField(r, AUDIT_CUSTOMER_DELIVERY_ALIASES.deliveredDate));
+    const orderedQty = parseFloat(findField(r, AUDIT_CUSTOMER_DELIVERY_ALIASES.orderedQty)) || 0;
+    const deliveredQty = parseFloat(findField(r, AUDIT_CUSTOMER_DELIVERY_ALIASES.deliveredQty)) || 0;
+    const ref = String(findField(r, AUDIT_CUSTOMER_DELIVERY_ALIASES.ref) || '').trim();
+    const customer = String(findField(r, AUDIT_CUSTOMER_DELIVERY_ALIASES.customer) || 'Non renseigné').trim();
+    if (!promised || !delivered || orderedQty <= 0) return null;
+    const delayDays = Math.round((delivered - promised) / (1000 * 60 * 60 * 24));
+    const fillRate = deliveredQty / orderedQty;
+    return {
+      ref, customer, promised, delivered, orderedQty, deliveredQty, delayDays, fillRate,
+      isOnTime: delayDays <= 0, isInFull: fillRate >= 1.0,
+      isOtif: delayDays <= 0 && fillRate >= 1.0,
+    };
+  }).filter(Boolean);
+
+  if (deliveries.length === 0) return null;
+  const total = deliveries.length;
+  const ot = deliveries.filter(d => d.isOnTime).length;
+  const inFull = deliveries.filter(d => d.isInFull).length;
+  const otif = deliveries.filter(d => d.isOtif).length;
+
+  // Par client
+  const byCustomer = {};
+  for (const d of deliveries) {
+    if (!byCustomer[d.customer]) byCustomer[d.customer] = { customer: d.customer, total: 0, otif: 0, ot: 0, inFull: 0 };
+    const g = byCustomer[d.customer];
+    g.total++;
+    if (d.isOtif) g.otif++;
+    if (d.isOnTime) g.ot++;
+    if (d.isInFull) g.inFull++;
+  }
+  const customers = Object.values(byCustomer).map(g => ({
+    ...g,
+    otifRate: (g.otif / g.total) * 100,
+    otRate: (g.ot / g.total) * 100,
+    inFullRate: (g.inFull / g.total) * 100,
+  })).sort((a, b) => a.otifRate - b.otifRate);
+
+  return { total, otRate: (ot / total) * 100, inFullRate: (inFull / total) * 100, otifRate: (otif / total) * 100, customers };
+}
+
+function computeFutureCoverage(rows, stockByRef, byRef, periodDays) {
+  const orders = rows.map(r => {
+    const ref = String(findField(r, AUDIT_OPEN_ORDERS_ALIASES.ref) || '').trim();
+    const supplier = String(findField(r, AUDIT_OPEN_ORDERS_ALIASES.supplier) || '').trim();
+    const qty = parseFloat(findField(r, AUDIT_OPEN_ORDERS_ALIASES.qty)) || 0;
+    const expectedDate = parseDate(findField(r, AUDIT_OPEN_ORDERS_ALIASES.expectedDate));
+    const unitPrice = parseFloat(findField(r, AUDIT_OPEN_ORDERS_ALIASES.unitPrice)) || 0;
+    if (!ref || qty <= 0) return null;
+    return { ref, supplier, qty, expectedDate, unitPrice };
+  }).filter(Boolean);
+
+  if (orders.length === 0) return null;
+
+  // Agréger par ref
+  const ordersByRef = {};
+  for (const o of orders) {
+    if (!ordersByRef[o.ref]) ordersByRef[o.ref] = { ref: o.ref, qty: 0, value: 0, nextDate: null };
+    ordersByRef[o.ref].qty += o.qty;
+    ordersByRef[o.ref].value += o.qty * o.unitPrice;
+    if (o.expectedDate && (!ordersByRef[o.ref].nextDate || o.expectedDate < ordersByRef[o.ref].nextDate)) {
+      ordersByRef[o.ref].nextDate = o.expectedDate;
+    }
+  }
+
+  // Calcul couverture future + risques
+  const today = new Date();
+  const futureAnalysis = Object.values(stockByRef).map(s => {
+    const sales = byRef[s.ref];
+    const adu = sales ? sales.totalQty / periodDays : 0;
+    const openQty = ordersByRef[s.ref] ? ordersByRef[s.ref].qty : 0;
+    const totalAvailable = s.qty + openQty;
+    const coverageDays = adu > 0 ? totalAvailable / adu : Infinity;
+    const currentCoverage = adu > 0 ? s.qty / adu : Infinity;
+    const nextArrival = ordersByRef[s.ref] ? ordersByRef[s.ref].nextDate : null;
+    const daysUntilArrival = nextArrival ? Math.round((nextArrival - today) / (1000 * 60 * 60 * 24)) : null;
+    return { ref: s.ref, label: s.label, stockQty: s.qty, openQty, totalAvailable, adu, currentCoverage, coverageDays, nextArrival, daysUntilArrival };
+  });
+
+  // Risques imminents : couverture actuelle < délai d'arrivée
+  const riskRuptures = futureAnalysis
+    .filter(a => a.adu > 0 && a.openQty > 0 && a.daysUntilArrival !== null && a.currentCoverage < a.daysUntilArrival)
+    .sort((a, b) => (b.daysUntilArrival - b.currentCoverage) - (a.daysUntilArrival - a.currentCoverage));
+
+  // Sur-commandes potentielles : couverture totale > 12 mois
+  const overOrdering = futureAnalysis
+    .filter(a => a.adu > 0 && a.coverageDays > 365)
+    .sort((a, b) => b.coverageDays - a.coverageDays);
+
+  // Articles SANS commande mais stock faible
+  const understockedNoOrder = futureAnalysis
+    .filter(a => a.adu > 0 && a.openQty === 0 && a.currentCoverage < 30)
+    .sort((a, b) => a.currentCoverage - b.currentCoverage);
+
+  // Concentration achats
+  const totalOpenValue = orders.reduce((s, o) => s + o.qty * o.unitPrice, 0);
+  const totalOpenQty = orders.reduce((s, o) => s + o.qty, 0);
+
+  return {
+    nOrders: orders.length,
+    nRefsOrdered: Object.keys(ordersByRef).length,
+    totalOpenValue, totalOpenQty,
+    riskRuptures, overOrdering, understockedNoOrder, ordersByRef,
+  };
+}
+
+function computeCategoryAnalysis(rows, byRef, stockByRef, supplierPerf, totalCA) {
+  const refData = {};
+  for (const r of rows) {
+    const ref = String(findField(r, AUDIT_REFERENCE_ALIASES.ref) || '').trim();
+    if (!ref) continue;
+    refData[ref] = {
+      ref,
+      label: String(findField(r, AUDIT_REFERENCE_ALIASES.label) || '').trim(),
+      category: String(findField(r, AUDIT_REFERENCE_ALIASES.category) || 'Non classé').trim(),
+      subCategory: String(findField(r, AUDIT_REFERENCE_ALIASES.subCategory) || '').trim(),
+      supplier: String(findField(r, AUDIT_REFERENCE_ALIASES.supplier) || '').trim(),
+      leadTime: parseFloat(findField(r, AUDIT_REFERENCE_ALIASES.leadTime)) || null,
+      moq: parseFloat(findField(r, AUDIT_REFERENCE_ALIASES.moq)) || null,
+      purchasePrice: parseFloat(findField(r, AUDIT_REFERENCE_ALIASES.purchasePrice)) || null,
+      status: String(findField(r, AUDIT_REFERENCE_ALIASES.status) || 'Actif').trim().toLowerCase(),
+    };
+  }
+
+  // Analyse par catégorie
+  const byCategory = {};
+  for (const ref of Object.keys(refData)) {
+    const cat = refData[ref].category;
+    if (!byCategory[cat]) byCategory[cat] = { category: cat, nArticles: 0, totalCA: 0, stockValue: 0, dormantValue: 0 };
+    const g = byCategory[cat];
+    g.nArticles++;
+    if (byRef[ref]) g.totalCA += byRef[ref].totalAmount;
+    if (stockByRef[ref]) g.stockValue += stockByRef[ref].value;
+  }
+  const categories = Object.values(byCategory).map(g => ({
+    ...g,
+    caShare: totalCA > 0 ? (g.totalCA / totalCA) * 100 : 0,
+  })).sort((a, b) => b.totalCA - a.totalCA);
+
+  // Monosourçage
+  const supplierCounts = {};
+  for (const ref of Object.keys(refData)) {
+    const sup = refData[ref].supplier;
+    if (!sup) continue;
+    supplierCounts[sup] = (supplierCounts[sup] || 0) + 1;
+  }
+  const totalRefs = Object.keys(refData).length;
+  const refsWithSupplier = Object.keys(refData).filter(r => refData[r].supplier).length;
+  const refsWithoutCategory = Object.keys(refData).filter(r => refData[r].category === 'Non classé').length;
+
+  // Articles inactifs en stock
+  const inactiveInStock = Object.keys(refData)
+    .filter(r => (refData[r].status === 'inactif' || refData[r].status === 'arrêté' || refData[r].status === 'obsolete') && stockByRef[r] && stockByRef[r].qty > 0)
+    .map(r => ({ ...refData[r], stockQty: stockByRef[r].qty, stockValue: stockByRef[r].value }))
+    .sort((a, b) => b.stockValue - a.stockValue);
+
+  // Comparaison lead time théorique vs réel (si supplierPerf dispo)
+  let ltComparison = null;
+  if (supplierPerf && supplierPerf.deliveries) {
+    const ltByRef = {};
+    for (const d of supplierPerf.deliveries) {
+      // Pour comparer, il faudrait l'écart entre commande et livraison; ici on utilise le retard
+      // En pratique : si on a la promise date et la delivered date, et la promise = order + LT théorique,
+      // alors retard = LT réel - LT théorique
+      if (!ltByRef[d.ref]) ltByRef[d.ref] = { ref: d.ref, totalDelay: 0, count: 0 };
+      ltByRef[d.ref].totalDelay += d.delayDays;
+      ltByRef[d.ref].count++;
+    }
+    ltComparison = Object.values(ltByRef).map(r => {
+      const avgRealDelay = r.totalDelay / r.count;
+      const theoretical = refData[r.ref] ? refData[r.ref].leadTime : null;
+      return {
+        ref: r.ref,
+        label: refData[r.ref] ? refData[r.ref].label : '',
+        theoretical,
+        avgRealDelay,
+        diff: avgRealDelay, // positif = retard
+      };
+    }).filter(r => r.theoretical !== null && Math.abs(r.avgRealDelay) > 1)
+      .sort((a, b) => b.diff - a.diff)
+      .slice(0, 10);
+  }
+
+  return {
+    nRefs: totalRefs,
+    refData,
+    categories,
+    refsWithSupplier,
+    refsWithoutCategory,
+    monoSourceRefs: refsWithSupplier, // tous les refs avec 1 seul fournisseur principal
+    inactiveInStock,
+    ltComparison,
+  };
+}
+
+function runAudit(salesRows, stockRows, supplierDeliveriesRows, customerDeliveriesRows, openOrdersRows, referenceRows) {
+  const sales = salesRows.map(r => ({
+    ref: String(findField(r, AUDIT_SALES_ALIASES.ref) || '').trim(),
+    label: String(findField(r, AUDIT_SALES_ALIASES.label) || '').trim(),
+    date: parseDate(findField(r, AUDIT_SALES_ALIASES.date)),
+    qty: parseFloat(findField(r, AUDIT_SALES_ALIASES.qty)) || 0,
+    amount: parseFloat(findField(r, AUDIT_SALES_ALIASES.amount)) || 0,
+    unitPrice: parseFloat(findField(r, AUDIT_SALES_ALIASES.unitPrice)) || 0,
+    store: String(findField(r, AUDIT_SALES_ALIASES.store) || '').trim(),
+  })).filter(s => s.ref && s.date && s.qty > 0);
+
+  sales.forEach(s => {
+    if (s.amount === 0 && s.unitPrice > 0) s.amount = s.unitPrice * s.qty;
+  });
+
+  const stock = stockRows.map(r => {
+    const pmp = parseFloat(findField(r, AUDIT_STOCK_ALIASES.pmp)) || 0;
+    const qty = parseFloat(findField(r, AUDIT_STOCK_ALIASES.qty)) || 0;
+    const value = parseFloat(findField(r, AUDIT_STOCK_ALIASES.value)) || (pmp * qty);
+    return {
+      ref: String(findField(r, AUDIT_STOCK_ALIASES.ref) || '').trim(),
+      label: String(findField(r, AUDIT_STOCK_ALIASES.label) || '').trim(),
+      qty, pmp, value,
+      store: String(findField(r, AUDIT_STOCK_ALIASES.store) || '').trim(),
+      category: String(findField(r, AUDIT_STOCK_ALIASES.category) || '').trim(),
+    };
+  }).filter(s => s.ref);
+
+  const salesStores = [...new Set(sales.map(s => s.store).filter(Boolean))];
+  const stockStores = [...new Set(stock.map(s => s.store).filter(Boolean))];
+  const allStores = [...new Set([...salesStores, ...stockStores])];
+  const isMultiStore = allStores.length > 1;
+
+  const uniqueRefs = new Set([...sales.map(s => s.ref), ...stock.map(s => s.ref)]);
+  const nArticles = uniqueRefs.size;
+  let profile;
+  if (isMultiStore || nArticles > 50) profile = 'distribution';
+  else if (nArticles < 30) profile = 'industrie';
+  else profile = 'mixte';
+
+  const dates = sales.map(s => s.date).sort((a, b) => a - b);
+  const periodStart = dates[0];
+  const periodEnd = dates[dates.length - 1];
+  const periodDays = Math.max(1, Math.round((periodEnd - periodStart) / (1000 * 60 * 60 * 24)));
+  const periodMonths = Math.max(1, periodDays / 30);
+
+  const byRef = {};
+  for (const s of sales) {
+    if (!byRef[s.ref]) byRef[s.ref] = {
+      ref: s.ref, label: s.label,
+      totalQty: 0, totalAmount: 0,
+      monthlyQty: {}, lastDate: null,
+      byStore: {},
+    };
+    const a = byRef[s.ref];
+    a.totalQty += s.qty;
+    a.totalAmount += s.amount;
+    a.label = a.label || s.label;
+    if (!a.lastDate || s.date > a.lastDate) a.lastDate = s.date;
+    const ym = s.date.toISOString().slice(0, 7);
+    a.monthlyQty[ym] = (a.monthlyQty[ym] || 0) + s.qty;
+    if (s.store) {
+      if (!a.byStore[s.store]) a.byStore[s.store] = { qty: 0, amount: 0 };
+      a.byStore[s.store].qty += s.qty;
+      a.byStore[s.store].amount += s.amount;
+    }
+  }
+
+  const stockByRef = {};
+  for (const s of stock) {
+    if (!stockByRef[s.ref]) stockByRef[s.ref] = {
+      ref: s.ref, label: s.label,
+      qty: 0, value: 0, pmp: s.pmp,
+    };
+    stockByRef[s.ref].qty += s.qty;
+    stockByRef[s.ref].value += s.value;
+    stockByRef[s.ref].label = stockByRef[s.ref].label || s.label;
+  }
+
+  const refs = Object.values(byRef);
+  const totalCA = refs.reduce((sum, r) => sum + r.totalAmount, 0);
+  const totalQty = refs.reduce((sum, r) => sum + r.totalQty, 0);
+  const hasMonetary = totalCA > 0;
+  const sortedByValue = [...refs].sort((a, b) => (hasMonetary ? b.totalAmount - a.totalAmount : b.totalQty - a.totalQty));
+  let cumul = 0;
+  const totalForAbc = hasMonetary ? totalCA : totalQty;
+  sortedByValue.forEach(r => {
+    cumul += hasMonetary ? r.totalAmount : r.totalQty;
+    const pct = totalForAbc > 0 ? cumul / totalForAbc : 0;
+    r.cumulPct = pct;
+    r.abc = pct <= 0.80 ? 'A' : pct <= 0.95 ? 'B' : 'C';
+  });
+
+  for (const r of sortedByValue) {
+    const monthlyValues = Object.values(r.monthlyQty);
+    if (monthlyValues.length < 2) { r.xyz = 'Z'; r.cv = null; continue; }
+    const mean = monthlyValues.reduce((a, b) => a + b, 0) / monthlyValues.length;
+    if (mean === 0) { r.xyz = 'Z'; r.cv = null; continue; }
+    const variance = monthlyValues.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / monthlyValues.length;
+    const cv = Math.sqrt(variance) / mean;
+    r.cv = cv;
+    r.xyz = cv < 0.5 ? 'X' : cv < 1.0 ? 'Y' : 'Z';
+  }
+
+  const matrix = {};
+  for (const a of ['A', 'B', 'C']) {
+    for (const x of ['X', 'Y', 'Z']) {
+      matrix[a + x] = { count: 0, valueShare: 0, refs: [] };
+    }
+  }
+  for (const r of sortedByValue) {
+    const key = r.abc + r.xyz;
+    matrix[key].count++;
+    matrix[key].valueShare += hasMonetary ? r.totalAmount : r.totalQty;
+    matrix[key].refs.push(r.ref);
+  }
+  for (const key in matrix) {
+    matrix[key].valueSharePct = totalForAbc > 0 ? (matrix[key].valueShare / totalForAbc) * 100 : 0;
+  }
+
+  const dormantThresholdMonths = 6;
+  const cutoffDate = new Date(periodEnd);
+  cutoffDate.setMonth(cutoffDate.getMonth() - dormantThresholdMonths);
+  const dormants = Object.values(stockByRef)
+    .map(s => {
+      const salesData = byRef[s.ref];
+      const lastSale = salesData ? salesData.lastDate : null;
+      const isDormant = !lastSale || lastSale < cutoffDate;
+      const daysSinceSale = lastSale ? Math.round((periodEnd - lastSale) / (1000 * 60 * 60 * 24)) : null;
+      return { ...s, lastSale, isDormant, daysSinceSale };
+    })
+    .filter(s => s.isDormant && s.qty > 0)
+    .sort((a, b) => b.value - a.value);
+
+  const coverages = Object.values(stockByRef).map(s => {
+    const salesData = byRef[s.ref];
+    const adu = salesData ? salesData.totalQty / periodDays : 0;
+    const coverageDays = adu > 0 ? s.qty / adu : Infinity;
+    return { ref: s.ref, label: s.label, stockQty: s.qty, stockValue: s.value, adu, coverageDays };
+  });
+  const overstocked = coverages.filter(c => c.coverageDays !== Infinity && c.coverageDays > 180).sort((a, b) => b.stockValue - a.stockValue);
+  const understocked = coverages.filter(c => c.coverageDays < 14 && c.adu > 0).sort((a, b) => a.coverageDays - b.coverageDays);
+
+  const storeStats = {};
+  if (isMultiStore) {
+    for (const store of allStores) {
+      const storeSales = sales.filter(s => s.store === store);
+      const storeStock = stock.filter(s => s.store === store);
+      storeStats[store] = {
+        store,
+        totalCA: storeSales.reduce((sum, s) => sum + s.amount, 0),
+        totalQty: storeSales.reduce((sum, s) => sum + s.qty, 0),
+        stockValue: storeStock.reduce((sum, s) => sum + s.value, 0),
+        stockQty: storeStock.reduce((sum, s) => sum + s.qty, 0),
+        nArticles: new Set(storeStock.map(s => s.ref)).size,
+      };
+    }
+  }
+
+  let imbalances = [];
+  if (isMultiStore) {
+    const refsAcrossStores = {};
+    for (const s of stock) {
+      if (!s.store) continue;
+      if (!refsAcrossStores[s.ref]) refsAcrossStores[s.ref] = [];
+      refsAcrossStores[s.ref].push(s);
+    }
+    for (const ref in refsAcrossStores) {
+      const stores = refsAcrossStores[ref];
+      if (stores.length < 2) continue;
+      const sorted = [...stores].sort((a, b) => b.qty - a.qty);
+      const maxStore = sorted[0];
+      const minStore = sorted[sorted.length - 1];
+      const ratio = minStore.qty > 0 ? maxStore.qty / minStore.qty : Infinity;
+      if (ratio > 5 && maxStore.qty > 50) {
+        imbalances.push({
+          ref,
+          label: stockByRef[ref] ? stockByRef[ref].label : '',
+          maxStore: maxStore.store, maxQty: maxStore.qty, maxValue: maxStore.value,
+          minStore: minStore.store, minQty: minStore.qty,
+          ratio,
+        });
+      }
+    }
+    imbalances.sort((a, b) => b.maxValue - a.maxValue);
+  }
+
+  const totalStockValue = stock.reduce((sum, s) => sum + s.value, 0);
+  const totalStockQty = stock.reduce((sum, s) => sum + s.qty, 0);
+  const dormantValue = dormants.reduce((sum, d) => sum + d.value, 0);
+  const dormantPct = totalStockValue > 0 ? (dormantValue / totalStockValue) * 100 : 0;
+  const avgRotation = totalStockValue > 0 && totalCA > 0 ? (totalCA / periodMonths * 12) / totalStockValue : null;
+  const avgCoverage = totalQty > 0 ? totalStockQty / (totalQty / periodDays) : null;
+
+  // Saisonnalité 12 mois
+  const monthlyMap = {};
+  for (const s of sales) {
+    const ym = s.date.toISOString().slice(0, 7);
+    if (!monthlyMap[ym]) monthlyMap[ym] = { ym, qty: 0, amount: 0 };
+    monthlyMap[ym].qty += s.qty;
+    monthlyMap[ym].amount += s.amount;
+  }
+  const monthlyTrend = Object.values(monthlyMap).sort((a, b) => a.ym.localeCompare(b.ym));
+
+  // Détection PMP : on a-t-il une vraie valorisation du stock ?
+  const hasPmp = totalStockValue > 0;
+  const avgPmp = hasPmp && totalStockQty > 0 ? totalStockValue / totalStockQty : null;
+
+  // Répartition du stock : par valeur si PMP, sinon par quantité
+  const overstockedValue = overstocked.reduce((sum, c) => sum + c.stockValue, 0);
+  const overstockedQty = overstocked.reduce((sum, c) => sum + c.stockQty, 0);
+  const dormantQty = dormants.reduce((sum, d) => sum + d.qty, 0);
+
+  const stockBreakdown = hasPmp ? {
+    dormant: dormantValue,
+    overstocked: overstockedValue,
+    healthy: Math.max(0, totalStockValue - dormantValue - overstockedValue),
+    unit: 'value',
+    total: totalStockValue,
+  } : {
+    dormant: dormantQty,
+    overstocked: overstockedQty,
+    healthy: Math.max(0, totalStockQty - dormantQty - overstockedQty),
+    unit: 'qty',
+    total: totalStockQty,
+  };
+
+  // Health Score 0-100 (synthèse de tous les signaux)
+  let score = 100;
+  if (dormantPct > 5) score -= Math.min(30, dormantPct);
+  if (understocked.length > 0) score -= Math.min(15, understocked.length * 2);
+  if (overstocked.length > 0) score -= Math.min(15, overstocked.length * 0.5);
+  if (imbalances.length > 3) score -= Math.min(10, imbalances.length * 0.5);
+  if (matrix.AZ.count > 2) score -= 5;
+  if (avgRotation !== null && avgRotation < 2) score -= 10;
+  if (matrix.CZ.count > nArticles * 0.3) score -= 5;
+  const healthScore = Math.max(0, Math.min(100, Math.round(score)));
+
+  const alerts = [];
+  if (dormantPct > 15) alerts.push({
+    level: 'critical',
+    title: `${dormantPct.toFixed(0)} % du stock est dormant`,
+    detail: `${dormants.length} articles immobilisent ${formatMoney(dormantValue)} sans rotation depuis ${dormantThresholdMonths} mois ou plus.`,
+  });
+  else if (dormantPct > 5) alerts.push({
+    level: 'warning',
+    title: `${dormantPct.toFixed(0)} % du stock est dormant`,
+    detail: `${formatMoney(dormantValue)} immobilisés. Identifier les articles à déstocker ou retirer du référentiel.`,
+  });
+  if (understocked.length > 5) alerts.push({
+    level: 'warning',
+    title: `${understocked.length} articles en risque de rupture`,
+    detail: 'Couverture inférieure à 14 jours sur des articles actifs — risque imminent sur la disponibilité.',
+  });
+  if (overstocked.length > 0) {
+    const overValue = overstocked.reduce((s, c) => s + c.stockValue, 0);
+    alerts.push({
+      level: 'warning',
+      title: `${overstocked.length} articles en surstock`,
+      detail: `${formatMoney(overValue)} immobilisés sur des couvertures supérieures à 6 mois.`,
+    });
+  }
+  if (matrix.AZ.count > 0) alerts.push({
+    level: 'info',
+    title: `${matrix.AZ.count} article(s) classés "AZ" — fort enjeu de CA mais ventes erratiques`,
+    detail: 'Articles à fort CA mais demande irrégulière. Stratégie de stock à adapter (sécurité élevée ou make-to-order).',
+  });
+  if (imbalances.length > 3) alerts.push({
+    level: 'warning',
+    title: `${imbalances.length} déséquilibres inter-magasins détectés`,
+    detail: 'Articles très sur-stockés dans un magasin et faibles ailleurs — opportunités de transferts internes.',
+  });
+  if (!hasPmp && stock.length > 0) alerts.push({
+    level: 'info',
+    title: 'Prix moyen pondéré (PMP) non détecté dans votre fichier stock',
+    detail: 'Les valorisations financières sont indisponibles. Ajoutez une colonne "Prix moyen pondéré" ou "Coût unitaire" pour chiffrer en euros le stock dormant, immobilisé et la rotation. L\'analyse reste valide en quantités.',
+  });
+
+  // ============================================================
+  // MODULES AUDIT COMPLET (si fichiers complémentaires fournis)
+  // ============================================================
+  let supplierPerf = null;
+  if (supplierDeliveriesRows && supplierDeliveriesRows.length > 0) {
+    supplierPerf = computeSupplierPerf(supplierDeliveriesRows, periodDays);
+    if (supplierPerf && supplierPerf.otifRate < 80) alerts.push({
+      level: supplierPerf.otifRate < 60 ? 'critical' : 'warning',
+      title: `OTIF achat à ${supplierPerf.otifRate.toFixed(0)} % seulement`,
+      detail: `Vos fournisseurs livrent à temps et complet dans ${supplierPerf.otifRate.toFixed(0)} % des cas. Retard moyen quand en retard : ${supplierPerf.avgDelay.toFixed(1)} jours. À traiter par fournisseur.`,
+    });
+  }
+
+  let customerPerf = null;
+  if (customerDeliveriesRows && customerDeliveriesRows.length > 0) {
+    customerPerf = computeCustomerPerf(customerDeliveriesRows);
+    if (customerPerf && customerPerf.otifRate < 90) alerts.push({
+      level: customerPerf.otifRate < 80 ? 'critical' : 'warning',
+      title: `OTIF service client à ${customerPerf.otifRate.toFixed(0)} %`,
+      detail: `${(100 - customerPerf.otifRate).toFixed(0)} % de vos livraisons clients ont un défaut (retard, manquant ou les deux). Impact direct sur la satisfaction.`,
+    });
+  }
+
+  let futureCoverage = null;
+  if (openOrdersRows && openOrdersRows.length > 0) {
+    futureCoverage = computeFutureCoverage(openOrdersRows, stockByRef, byRef, periodDays);
+    if (futureCoverage && futureCoverage.riskRuptures.length > 0) alerts.push({
+      level: 'critical',
+      title: `${futureCoverage.riskRuptures.length} risque(s) de rupture imminente malgré commandes en cours`,
+      detail: 'Vos commandes ouvertes arriveront APRÈS que votre stock actuel soit épuisé. Accélérer les livraisons concernées.',
+    });
+    if (futureCoverage && futureCoverage.understockedNoOrder.length > 5) alerts.push({
+      level: 'warning',
+      title: `${futureCoverage.understockedNoOrder.length} article(s) en couverture courte SANS commande en cours`,
+      detail: 'Ces articles ont moins de 30 jours de stock et aucune commande fournisseur n\'est en cours. À approvisionner d\'urgence.',
+    });
+  }
+
+  let categoryAnalysis = null;
+  if (referenceRows && referenceRows.length > 0) {
+    categoryAnalysis = computeCategoryAnalysis(referenceRows, byRef, stockByRef, supplierPerf, totalCA);
+    if (categoryAnalysis && categoryAnalysis.inactiveInStock.length > 0) {
+      const inactiveValue = categoryAnalysis.inactiveInStock.reduce((s, a) => s + a.stockValue, 0);
+      alerts.push({
+        level: 'warning',
+        title: `${categoryAnalysis.inactiveInStock.length} article(s) "inactifs" présents en stock`,
+        detail: `${formatMoney(inactiveValue)} immobilisés sur des références marquées comme arrêtées dans votre référentiel — candidats à la liquidation.`,
+      });
+    }
+    if (categoryAnalysis && categoryAnalysis.refsWithoutCategory > nArticles * 0.2) {
+      alerts.push({
+        level: 'info',
+        title: `${categoryAnalysis.refsWithoutCategory} article(s) sans catégorie — référentiel à nettoyer`,
+        detail: 'Plus de 20 % de vos références ne sont pas catégorisées, ce qui dégrade les analyses par famille.',
+      });
+    }
+  }
+
+  // Niveau d'audit selon ce qui a été fourni
+  const filesProvided = [supplierDeliveriesRows, customerDeliveriesRows, openOrdersRows, referenceRows].filter(x => x && x.length > 0).length;
+  let level;
+  if (filesProvided >= 4) level = 'complet';
+  else if (filesProvided >= 2) level = 'standard';
+  else if (filesProvided >= 1) level = 'express+';
+  else level = 'express';
+
+  return {
+    profile, isMultiStore, allStores,
+    nArticles, periodStart, periodEnd, periodDays, periodMonths,
+    hasMonetary, hasPmp, avgPmp,
+    totalCA, totalQty, totalStockValue, totalStockQty,
+    dormantValue, dormantPct, avgRotation, avgCoverage,
+    healthScore, stockBreakdown, monthlyTrend,
+    refs: sortedByValue,
+    matrix, dormants, overstocked, understocked,
+    storeStats, imbalances, alerts,
+    supplierPerf, customerPerf, futureCoverage, categoryAnalysis,
+    level, filesProvided,
+  };
+}
+
+function formatMoney(n, currency) {
+  const cur = currency || 'MAD';
+  if (!isFinite(n) || n === 0) return '—';
+  if (Math.abs(n) >= 1000000) return (n / 1000000).toFixed(2) + ' M ' + cur;
+  if (Math.abs(n) >= 1000) return (n / 1000).toFixed(1) + ' k ' + cur;
+  return Math.round(n).toLocaleString('fr-FR') + ' ' + cur;
+}
+function formatNum(n) {
+  if (!isFinite(n)) return '—';
+  return Math.round(n).toLocaleString('fr-FR');
+}
+
+function AuditFlash({ onBack }) {
+  const [salesData, setSalesData] = useState(null);
+  const [stockData, setStockData] = useState(null);
+  const [salesFileName, setSalesFileName] = useState(null);
+  const [stockFileName, setStockFileName] = useState(null);
+
+  // Fichiers complémentaires (audit Complet)
+  const [supplierData, setSupplierData] = useState(null);
+  const [supplierFileName, setSupplierFileName] = useState(null);
+  const [customerData, setCustomerData] = useState(null);
+  const [customerFileName, setCustomerFileName] = useState(null);
+  const [openOrdersData, setOpenOrdersData] = useState(null);
+  const [openOrdersFileName, setOpenOrdersFileName] = useState(null);
+  const [referenceData, setReferenceData] = useState(null);
+  const [referenceFileName, setReferenceFileName] = useState(null);
+
+  const [companyName, setCompanyName] = useState('');
+  const [importMsg, setImportMsg] = useState(null);
+  const [audit, setAudit] = useState(null);
+  const [analyzing, setAnalyzing] = useState(false);
+  const salesInputRef = useRef(null);
+  const stockInputRef = useRef(null);
+  const supplierInputRef = useRef(null);
+  const customerInputRef = useRef(null);
+  const openOrdersInputRef = useRef(null);
+  const referenceInputRef = useRef(null);
+
+  useEffect(() => {
+    if (!salesData || !stockData) return;
+    setAnalyzing(true);
+    setTimeout(() => {
+      try {
+        const result = runAudit(salesData, stockData, supplierData, customerData, openOrdersData, referenceData);
+        setAudit(result);
+      } catch (e) {
+        setImportMsg({ type: 'error', text: "Erreur d'analyse : " + e.message });
+      } finally {
+        setAnalyzing(false);
+      }
+    }, 100);
+  }, [salesData, stockData, supplierData, customerData, openOrdersData, referenceData]);
+
+  const handleImport = async (e, kind) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    try {
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: 'array', cellDates: true });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const json = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+      if (json.length === 0) throw new Error('Fichier vide');
+      if (kind === 'sales') { setSalesData(json); setSalesFileName(file.name); }
+      else if (kind === 'stock') { setStockData(json); setStockFileName(file.name); }
+      else if (kind === 'supplier') { setSupplierData(json); setSupplierFileName(file.name); }
+      else if (kind === 'customer') { setCustomerData(json); setCustomerFileName(file.name); }
+      else if (kind === 'openOrders') { setOpenOrdersData(json); setOpenOrdersFileName(file.name); }
+      else if (kind === 'reference') { setReferenceData(json); setReferenceFileName(file.name); }
+      setImportMsg({ type: 'success', text: `${json.length} ligne(s) importée(s) depuis « ${file.name} »` });
+      setTimeout(() => setImportMsg(null), 4000);
+    } catch (err) {
+      setImportMsg({ type: 'error', text: "Erreur d'import : " + err.message });
+    } finally {
+      if (e.target) e.target.value = '';
+    }
+  };
+
+  const downloadTemplate = (kind) => {
+    let data, sheetName, fileName;
+    if (kind === 'sales') { data = generateAuditSalesTemplate(); sheetName = 'Ventes'; fileName = 'audit-template-ventes.xlsx'; }
+    else if (kind === 'stock') { data = generateAuditStockTemplate(); sheetName = 'Stock'; fileName = 'audit-template-stock.xlsx'; }
+    else if (kind === 'supplier') { data = generateSupplierDeliveryTemplate(); sheetName = 'Livraisons fournisseurs'; fileName = 'audit-template-livraisons-fournisseurs.xlsx'; }
+    else if (kind === 'customer') { data = generateCustomerDeliveryTemplate(); sheetName = 'Livraisons clients'; fileName = 'audit-template-livraisons-clients.xlsx'; }
+    else if (kind === 'openOrders') { data = generateOpenOrdersTemplate(); sheetName = 'Commandes ouvertes'; fileName = 'audit-template-commandes-ouvertes.xlsx'; }
+    else if (kind === 'reference') { data = generateReferenceTemplate(); sheetName = 'Référentiel'; fileName = 'audit-template-referentiel.xlsx'; }
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+    XLSX.writeFile(wb, fileName);
+  };
+
+  const resetAudit = () => {
+    setSalesData(null); setStockData(null);
+    setSalesFileName(null); setStockFileName(null);
+    setSupplierData(null); setSupplierFileName(null);
+    setCustomerData(null); setCustomerFileName(null);
+    setOpenOrdersData(null); setOpenOrdersFileName(null);
+    setReferenceData(null); setReferenceFileName(null);
+    setAudit(null); setImportMsg(null);
+  };
+
+  const AMBER = '#F59E0B';
+  const AMBER_DARK = '#B45309';
+
+  return (
+    <div className="min-h-screen text-slate-900" style={{ background: '#F8FAFC', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+      <FontsAndStyles />
+
+      <nav className="border-b border-slate-200 bg-white sticky top-0 z-20">
+        <div className="max-w-[1600px] mx-auto px-6 py-4 flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-5">
+            <button onClick={onBack} className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors font-jetbrains text-xs">
+              <ArrowLeft size={14} />
+              RETOUR
+            </button>
+            <div className="w-px h-5 bg-slate-200" />
+            <div className="flex items-center gap-3">
+              <Logo small />
+              <div>
+                <div className="font-bricolage font-semibold text-sm leading-tight text-slate-900">Audit Flash Supply Chain</div>
+                <div className="font-jetbrains text-[10px] text-slate-500">DIAGNOSTIC EXPRESS · 2 fichiers · 30 secondes</div>
+              </div>
+            </div>
+          </div>
+          {audit && (
+            <button onClick={resetAudit} className="font-jetbrains text-xs text-slate-500 hover:text-slate-900 transition-colors">
+              ← Nouvel audit
+            </button>
+          )}
+        </div>
+      </nav>
+
+      <div className="max-w-[1600px] mx-auto px-6 py-6 space-y-5">
+        {!audit && (
+          <>
+            <div className="rounded-2xl p-8 md:p-10 text-white" style={{ background: 'linear-gradient(135deg, #0F172A 0%, #1E293B 60%, #B45309 100%)' }}>
+              <div className="max-w-3xl">
+                <div className="font-jetbrains text-[10px] tracking-wider mb-3" style={{ color: AMBER }}>
+                  DIAGNOSTIC EXPRESS · GRATUIT · 100 % CONFIDENTIEL
+                </div>
+                <h1 className="font-bricolage font-bold text-3xl md:text-4xl mb-3 leading-tight">
+                  Votre supply chain analysée en 30 secondes
+                </h1>
+                <p className="text-slate-300 leading-relaxed mb-5">
+                  Importez votre historique de ventes 12 mois et l'état actuel de votre stock.
+                  L'outil calcule automatiquement vos classifications ABC × XYZ, votre stock dormant chiffré en valeur,
+                  vos couvertures critiques, et identifie les chantiers prioritaires pour votre fonction approvisionnement.
+                </p>
+                <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-slate-400 font-jetbrains">
+                  <div>✓ Aucune installation</div>
+                  <div>✓ Aucun compte requis</div>
+                  <div>✓ Données traitées en local</div>
+                  <div>✓ Rapport PDF (à venir)</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-slate-200 bg-white p-5">
+              <div className="font-jetbrains text-[10px] text-slate-500 tracking-wider mb-3">ÉTAPE 1 · IDENTITÉ (optionnel)</div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-slate-600 mb-1.5 block">Nom de votre société</label>
+                  <input
+                    type="text"
+                    value={companyName}
+                    onChange={e => setCompanyName(e.target.value)}
+                    placeholder="ex. ACME Distribution Maroc"
+                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-md outline-none font-sans text-sm text-slate-800 focus:border-slate-400"
+                  />
+                  <div className="text-[10px] text-slate-400 mt-1">Apparaîtra sur la couverture du rapport PDF</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="rounded-xl border-2 bg-white p-5" style={{ borderColor: salesData ? '#86EFAC' : '#E2E8F0', background: salesData ? '#F0FDF4' : 'white' }}>
+                <div className="flex items-start justify-between mb-3">
+                  <div>
+                    <div className="font-jetbrains text-[10px] tracking-wider mb-1" style={{ color: AMBER_DARK }}>ÉTAPE 2A</div>
+                    <div className="font-bricolage font-semibold text-base text-slate-900">Historique des ventes</div>
+                    <div className="text-xs text-slate-500 mt-1">12 derniers mois · une ligne par vente</div>
+                  </div>
+                  {salesData && (
+                    <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: '#22C55E' }}>
+                      <Check size={14} className="text-white" />
+                    </div>
+                  )}
+                </div>
+                {!salesData ? (
+                  <>
+                    <div className="text-xs text-slate-600 mb-3 leading-relaxed">
+                      Colonnes attendues : <span className="font-jetbrains text-slate-800">Référence</span>,{' '}
+                      <span className="font-jetbrains text-slate-800">Date</span>,{' '}
+                      <span className="font-jetbrains text-slate-800">Quantité vendue</span>.
+                      Optionnel : <span className="font-jetbrains text-slate-800">Prix HT</span> ou{' '}
+                      <span className="font-jetbrains text-slate-800">Montant HT</span>,{' '}
+                      <span className="font-jetbrains text-slate-800">Magasin</span>.
+                    </div>
+                    <div className="flex gap-2">
+                      <input ref={salesInputRef} type="file" accept=".xlsx,.xls,.csv" onChange={e => handleImport(e, 'sales')} className="hidden" />
+                      <button onClick={() => salesInputRef.current && salesInputRef.current.click()} className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-md font-jetbrains text-xs font-semibold text-white shadow-sm" style={{ background: AMBER }}>
+                        <Upload size={13} />
+                        IMPORTER
+                      </button>
+                      <button onClick={() => downloadTemplate('sales')} className="flex items-center gap-1.5 px-3 py-2.5 rounded-md font-jetbrains text-xs text-slate-700 border border-slate-300 hover:bg-slate-50">
+                        <FileDown size={13} />
+                        TEMPLATE
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="font-jetbrains text-xs text-slate-700">{salesFileName}</div>
+                    <div className="font-jetbrains text-[10px] text-emerald-700">{salesData.length} ligne(s) chargée(s)</div>
+                    <button onClick={() => { setSalesData(null); setSalesFileName(null); }} className="font-jetbrains text-[10px] text-red-600 hover:underline">
+                      Remplacer le fichier
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-xl border-2 bg-white p-5" style={{ borderColor: stockData ? '#86EFAC' : '#E2E8F0', background: stockData ? '#F0FDF4' : 'white' }}>
+                <div className="flex items-start justify-between mb-3">
+                  <div>
+                    <div className="font-jetbrains text-[10px] tracking-wider mb-1" style={{ color: AMBER_DARK }}>ÉTAPE 2B</div>
+                    <div className="font-bricolage font-semibold text-base text-slate-900">État du stock actuel</div>
+                    <div className="text-xs text-slate-500 mt-1">Photo à date d'aujourd'hui · une ligne par article × magasin</div>
+                  </div>
+                  {stockData && (
+                    <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: '#22C55E' }}>
+                      <Check size={14} className="text-white" />
+                    </div>
+                  )}
+                </div>
+                {!stockData ? (
+                  <>
+                    <div className="text-xs text-slate-600 mb-3 leading-relaxed">
+                      Colonnes attendues : <span className="font-jetbrains text-slate-800">Référence</span>,{' '}
+                      <span className="font-jetbrains text-slate-800">Quantité stock</span>.
+                      Optionnel : <span className="font-jetbrains text-slate-800">Prix moyen pondéré</span>,{' '}
+                      <span className="font-jetbrains text-slate-800">Magasin</span>,{' '}
+                      <span className="font-jetbrains text-slate-800">Catégorie</span>.
+                    </div>
+                    <div className="flex gap-2">
+                      <input ref={stockInputRef} type="file" accept=".xlsx,.xls,.csv" onChange={e => handleImport(e, 'stock')} className="hidden" />
+                      <button onClick={() => stockInputRef.current && stockInputRef.current.click()} className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-md font-jetbrains text-xs font-semibold text-white shadow-sm" style={{ background: AMBER }}>
+                        <Upload size={13} />
+                        IMPORTER
+                      </button>
+                      <button onClick={() => downloadTemplate('stock')} className="flex items-center gap-1.5 px-3 py-2.5 rounded-md font-jetbrains text-xs text-slate-700 border border-slate-300 hover:bg-slate-50">
+                        <FileDown size={13} />
+                        TEMPLATE
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="font-jetbrains text-xs text-slate-700">{stockFileName}</div>
+                    <div className="font-jetbrains text-[10px] text-emerald-700">{stockData.length} ligne(s) chargée(s)</div>
+                    <button onClick={() => { setStockData(null); setStockFileName(null); }} className="font-jetbrains text-[10px] text-red-600 hover:underline">
+                      Remplacer le fichier
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {importMsg && (
+              <div className="rounded-lg p-3 font-jetbrains text-xs"
+                style={importMsg.type === 'success'
+                  ? { background: '#ECFDF5', color: '#065F46', border: '1px solid #A7F3D0' }
+                  : { background: '#FEF2F2', color: '#991B1B', border: '1px solid #FECACA' }
+                }>
+                {importMsg.text}
+              </div>
+            )}
+
+            {/* SECTION AUDIT COMPLET - fichiers complémentaires optionnels */}
+            <div className="rounded-xl p-5" style={{ background: 'linear-gradient(to right, #FAFAFA, white)', border: '1px solid #E2E8F0' }}>
+              <div className="flex items-baseline justify-between mb-1 flex-wrap gap-2">
+                <div>
+                  <div className="font-jetbrains text-[10px] tracking-wider mb-1" style={{ color: AMBER_DARK }}>ÉTAPE 3 · AUDIT APPROFONDI (OPTIONNEL)</div>
+                  <div className="font-bricolage font-semibold text-base text-slate-900">Étoffez votre diagnostic avec ces fichiers complémentaires</div>
+                </div>
+                <div className="font-jetbrains text-[10px] text-slate-500">
+                  {[supplierData, customerData, openOrdersData, referenceData].filter(Boolean).length} / 4 fournis
+                </div>
+              </div>
+              <div className="text-xs text-slate-500 mb-4">Chaque fichier déverrouille un module d'analyse supplémentaire. L'audit reste valide même sans ces données.</div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                <OptionalFileCard
+                  label="Livraisons fournisseurs"
+                  description="OTIF achat · retards · top fournisseurs à risque"
+                  data={supplierData}
+                  fileName={supplierFileName}
+                  inputRef={supplierInputRef}
+                  onImport={e => handleImport(e, 'supplier')}
+                  onTemplate={() => downloadTemplate('supplier')}
+                  onClear={() => { setSupplierData(null); setSupplierFileName(null); }}
+                />
+                <OptionalFileCard
+                  label="Livraisons clients"
+                  description="OTIF service · taux de service par client"
+                  data={customerData}
+                  fileName={customerFileName}
+                  inputRef={customerInputRef}
+                  onImport={e => handleImport(e, 'customer')}
+                  onTemplate={() => downloadTemplate('customer')}
+                  onClear={() => { setCustomerData(null); setCustomerFileName(null); }}
+                />
+                <OptionalFileCard
+                  label="Commandes ouvertes"
+                  description="Couverture future · ruptures imminentes · sur-commandes"
+                  data={openOrdersData}
+                  fileName={openOrdersFileName}
+                  inputRef={openOrdersInputRef}
+                  onImport={e => handleImport(e, 'openOrders')}
+                  onTemplate={() => downloadTemplate('openOrders')}
+                  onClear={() => { setOpenOrdersData(null); setOpenOrdersFileName(null); }}
+                />
+                <OptionalFileCard
+                  label="Référentiel articles"
+                  description="Catégories · monosourçage · lead times théoriques"
+                  data={referenceData}
+                  fileName={referenceFileName}
+                  inputRef={referenceInputRef}
+                  onImport={e => handleImport(e, 'reference')}
+                  onTemplate={() => downloadTemplate('reference')}
+                  onClear={() => { setReferenceData(null); setReferenceFileName(null); }}
+                />
+              </div>
+            </div>
+
+            {analyzing && (
+              <div className="rounded-xl border border-slate-200 bg-white p-8 text-center">
+                <Loader2 size={32} className="animate-spin mx-auto mb-3" style={{ color: AMBER }} />
+                <div className="font-bricolage text-lg text-slate-700">Analyse en cours…</div>
+                <div className="text-sm text-slate-500 mt-1">Calcul ABC × XYZ, détection des dormants, couverture par article</div>
+              </div>
+            )}
+          </>
+        )}
+
+        {audit && (
+          <AuditResults audit={audit} companyName={companyName} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// AuditResults V2 — visualisations SVG natives
+// ============================================================
+function AuditResults({ audit, companyName }) {
+  const AMBER = '#F59E0B';
+  const AMBER_DARK = '#B45309';
+  const profileLabel = {
+    distribution: 'Distribution / Négoce',
+    industrie: 'Industrie / Manufacturing',
+    mixte: 'Profil mixte',
+  };
+
+  // Couleur du health score
+  const scoreColor =
+    audit.healthScore >= 80 ? '#059669' :
+    audit.healthScore >= 60 ? '#D97706' :
+    audit.healthScore >= 40 ? '#EA580C' : '#DC2626';
+  const scoreLabel =
+    audit.healthScore >= 80 ? 'Excellent' :
+    audit.healthScore >= 60 ? 'Correct' :
+    audit.healthScore >= 40 ? 'À optimiser' : 'Critique';
+  const scoreMsg =
+    audit.healthScore >= 80 ? 'Votre supply chain présente peu de signaux d\'alerte. Quelques optimisations fines possibles.' :
+    audit.healthScore >= 60 ? 'Plusieurs leviers d\'amélioration ciblés peuvent être activés rapidement.' :
+    audit.healthScore >= 40 ? 'Plusieurs chantiers structurants sont à mener pour fiabiliser la chaîne logistique.' :
+    'Signaux critiques détectés — une intervention rapide est recommandée sur plusieurs dimensions.';
+
+  return (
+    <div className="space-y-5">
+
+      {/* HERO IDENTITÉ + HEALTH SCORE */}
+      <div className="rounded-xl overflow-hidden text-white" style={{ background: 'linear-gradient(135deg, #0F172A 0%, #1E293B 70%, ' + AMBER_DARK + ' 100%)' }}>
+        <div className="px-5 pt-4 flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-3">
+            <div className="font-jetbrains text-[10px] tracking-wider opacity-70">NIVEAU D'AUDIT</div>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md font-jetbrains text-[10px] font-bold tracking-widest"
+              style={{
+                background: audit.level === 'complet' ? AMBER : audit.level === 'standard' ? 'rgba(245, 158, 11, 0.3)' : 'rgba(255,255,255,0.1)',
+                color: audit.level === 'complet' ? '#0F172A' : '#F59E0B',
+                border: audit.level === 'complet' ? 'none' : '1px solid rgba(245, 158, 11, 0.3)',
+              }}>
+              {audit.level === 'complet' ? '★ AUDIT COMPLET' : audit.level === 'standard' ? '★★ AUDIT STANDARD' : audit.level === 'express+' ? '★ EXPRESS+' : 'EXPRESS'}
+            </span>
+            <div className="font-jetbrains text-[10px] opacity-60">{2 + audit.filesProvided} / 6 fichiers fournis</div>
+          </div>
+        </div>
+        <div className="p-5 grid grid-cols-1 lg:grid-cols-5 gap-5">
+          {/* Health Score gauge */}
+          <div className="lg:col-span-2 flex items-center gap-4">
+            <HealthGauge score={audit.healthScore} color={scoreColor} />
+            <div>
+              <div className="font-jetbrains text-[10px] tracking-wider opacity-70 mb-1">SUPPLY CHAIN HEALTH</div>
+              <div className="font-bricolage font-bold text-2xl" style={{ color: scoreColor }}>{scoreLabel}</div>
+              <div className="text-xs text-slate-300 leading-snug mt-1.5 max-w-xs">{scoreMsg}</div>
+            </div>
+          </div>
+          {/* Identité */}
+          <div className="lg:col-span-3 grid grid-cols-2 md:grid-cols-4 gap-4 border-l-0 lg:border-l border-slate-700 lg:pl-5">
+            <div>
+              <div className="text-[10px] text-slate-400 font-jetbrains mb-0.5">Société</div>
+              <div className="font-bricolage font-semibold text-sm">{companyName || '—'}</div>
+            </div>
+            <div>
+              <div className="text-[10px] text-slate-400 font-jetbrains mb-0.5">Profil</div>
+              <div className="font-bricolage font-semibold text-sm">{profileLabel[audit.profile] || audit.profile}</div>
+            </div>
+            <div>
+              <div className="text-[10px] text-slate-400 font-jetbrains mb-0.5">Période</div>
+              <div className="font-bricolage font-semibold text-sm">{Math.round(audit.periodMonths)} mois</div>
+            </div>
+            <div>
+              <div className="text-[10px] text-slate-400 font-jetbrains mb-0.5">Périmètre</div>
+              <div className="font-bricolage font-semibold text-sm">{audit.nArticles} articles · {audit.isMultiStore ? audit.allStores.length + ' sites' : '1 site'}</div>
+            </div>
+            {audit.hasPmp && (
+              <div className="md:col-span-4 pt-3 mt-1 border-t border-slate-700/50">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-slate-400 font-jetbrains">VALORISATION VIA PMP</span>
+                  <span className="font-jetbrains text-xs font-semibold text-emerald-400">✓ Données financières exploitables</span>
+                  <span className="text-[10px] text-slate-400 font-jetbrains ml-auto">PMP moyen pondéré : <span className="font-semibold text-white">{formatMoney(audit.avgPmp)}</span></span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ALERTES PRIORITAIRES */}
+      {audit.alerts.length > 0 && (
+        <div className="rounded-xl border border-slate-200 bg-white p-5">
+          <div className="font-jetbrains text-[10px] text-slate-500 tracking-wider mb-3">SIGNAUX PRIORITAIRES DÉTECTÉS</div>
+          <div className="space-y-2.5">
+            {audit.alerts.slice(0, 5).map((a, i) => {
+              const colorMap = {
+                critical: { bg: '#FEF2F2', border: '#FECACA', text: '#991B1B', dot: '#DC2626' },
+                warning:  { bg: '#FFFBEB', border: '#FCD34D', text: '#92400E', dot: '#D97706' },
+                info:     { bg: '#EFF6FF', border: '#BFDBFE', text: '#1E40AF', dot: '#2563EB' },
+              };
+              const c = colorMap[a.level];
+              return (
+                <div key={i} className="flex items-start gap-3 p-3 rounded-lg" style={{ background: c.bg, border: '1px solid ' + c.border }}>
+                  <div className="w-2 h-2 rounded-full mt-1.5 flex-shrink-0" style={{ background: c.dot }} />
+                  <div className="flex-1">
+                    <div className="font-semibold text-sm" style={{ color: c.text }}>{a.title}</div>
+                    <div className="text-xs mt-0.5" style={{ color: c.text, opacity: 0.85 }}>{a.detail}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* KPIs GLOBAUX */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <KpiTile label="Chiffre d'affaires" value={audit.hasMonetary ? formatMoney(audit.totalCA) : formatNum(audit.totalQty) + ' u'} sub={'sur ' + Math.round(audit.periodMonths) + ' mois'} accent={AMBER} />
+        <KpiTile label="Stock immobilisé" value={formatMoney(audit.totalStockValue)} sub={formatNum(audit.totalStockQty) + ' unités'} accent={AMBER} />
+        <KpiTile label="Stock dormant" value={formatMoney(audit.dormantValue)} sub={audit.dormantPct.toFixed(0) + ' % du stock · ' + audit.dormants.length + ' articles'} accent={audit.dormantPct > 15 ? '#DC2626' : audit.dormantPct > 5 ? '#D97706' : '#059669'} />
+        <KpiTile label="Rotation annuelle" value={audit.avgRotation ? audit.avgRotation.toFixed(1) + ' ×' : '—'} sub={audit.avgCoverage ? 'Couv. moy. ' + Math.round(audit.avgCoverage) + ' j' : ''} accent={AMBER} />
+      </div>
+
+      {/* SAISONNALITÉ + RÉPARTITION STOCK (côte à côte) */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-2 rounded-xl border border-slate-200 bg-white p-5">
+          <div className="flex items-center justify-between mb-1">
+            <div className="font-jetbrains text-[10px] text-slate-500 tracking-wider">SAISONNALITÉ {audit.hasMonetary ? '(CA)' : '(VOLUME)'}</div>
+            <div className="font-jetbrains text-[10px] text-slate-400">{audit.monthlyTrend.length} mois analysés</div>
+          </div>
+          <div className="text-xs text-slate-500 mb-3">Tendance mensuelle sur la période · identifiez les pics et creux d'activité</div>
+          <LineChartSVG data={audit.monthlyTrend} valueKey={audit.hasMonetary ? 'amount' : 'qty'} color={AMBER} hasMonetary={audit.hasMonetary} />
+        </div>
+        <div className="rounded-xl border border-slate-200 bg-white p-5">
+          <div className="font-jetbrains text-[10px] text-slate-500 tracking-wider mb-1">RÉPARTITION DU STOCK</div>
+          <div className="text-xs text-slate-500 mb-3">{audit.hasPmp ? 'Par valeur immobilisée (basée sur le PMP)' : 'Par quantité (PMP non fourni dans votre fichier)'}</div>
+          <StockBreakdownDonut breakdown={audit.stockBreakdown} />
+        </div>
+      </div>
+
+      {/* PARETO ABC */}
+      <div className="rounded-xl border border-slate-200 bg-white p-5">
+        <div className="font-jetbrains text-[10px] text-slate-500 tracking-wider mb-1">COURBE DE PARETO ABC</div>
+        <div className="text-xs text-slate-500 mb-3">Concentration du chiffre d'affaires sur le portefeuille articles · les zones colorées matérialisent les classes A (top 80 %), B (80-95 %), C (95-100 %)</div>
+        <ParetoChartSVG refs={audit.refs} hasMonetary={audit.hasMonetary} />
+      </div>
+
+      {/* MATRICE ABC × XYZ */}
+      <div className="rounded-xl border border-slate-200 bg-white p-5">
+        <div className="font-jetbrains text-[10px] text-slate-500 tracking-wider mb-1">CLASSIFICATION ABC × XYZ</div>
+        <div className="text-xs text-slate-500 mb-4">ABC = poids dans le CA · XYZ = régularité de la demande · 9 cases pour 9 stratégies d'approvisionnement</div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead>
+              <tr>
+                <th className="p-2 text-left font-jetbrains text-[10px] text-slate-500">VALEUR \ RÉGULARITÉ</th>
+                <th className="p-2 text-center font-jetbrains text-[10px] text-slate-500">X (régulier)</th>
+                <th className="p-2 text-center font-jetbrains text-[10px] text-slate-500">Y (variable)</th>
+                <th className="p-2 text-center font-jetbrains text-[10px] text-slate-500">Z (sporadique)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {['A', 'B', 'C'].map(a => (
+                <tr key={a}>
+                  <td className="p-2 font-jetbrains text-[10px] text-slate-500 font-semibold">
+                    {a === 'A' ? 'A (top 80 % CA)' : a === 'B' ? 'B (80-95 %)' : 'C (95-100 %)'}
+                  </td>
+                  {['X', 'Y', 'Z'].map(x => {
+                    const cell = audit.matrix[a + x];
+                    const colorMap = {
+                      AX: '#059669', AY: '#10B981', AZ: '#F59E0B',
+                      BX: '#34D399', BY: '#FCD34D', BZ: '#F97316',
+                      CX: '#A7F3D0', CY: '#FDE68A', CZ: '#FCA5A5',
+                    };
+                    const col = colorMap[a + x];
+                    return (
+                      <td key={x} className="p-1.5">
+                        <div className="rounded-lg p-3 text-center" style={{ background: col + '20', border: '1px solid ' + col }}>
+                          <div className="font-bricolage font-bold text-xl" style={{ color: col }}>{cell.count}</div>
+                          <div className="text-[10px] text-slate-600 mt-0.5">articles</div>
+                          <div className="text-[10px] text-slate-500 mt-1">{cell.valueSharePct.toFixed(0)} % du CA</div>
+                        </div>
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="mt-4 p-3 rounded-lg text-xs leading-relaxed" style={{ background: '#F8FAFC' }}>
+          <span className="font-semibold text-slate-700">Lecture : </span>
+          <span className="text-slate-600">les <strong>AX</strong> sont les bestsellers stables (prévision facile), les <strong>AZ</strong> font du CA mais sont erratiques (stock de sécurité élevé requis), les <strong>CZ</strong> sont candidats à la rationalisation du référentiel.</span>
+        </div>
+      </div>
+
+      {/* TOP 10 ARTICLES VENDEURS - bar chart horizontal */}
+      <div className="rounded-xl border border-slate-200 bg-white p-5">
+        <div className="font-jetbrains text-[10px] text-slate-500 tracking-wider mb-1">TOP 10 ARTICLES VENDEURS</div>
+        <div className="text-xs text-slate-500 mb-3">Concentration du chiffre d'affaires sur les meilleurs articles · à fiabiliser en priorité</div>
+        <TopArticlesBarChart refs={audit.refs.slice(0, 10)} hasMonetary={audit.hasMonetary} totalValue={audit.hasMonetary ? audit.totalCA : audit.totalQty} />
+      </div>
+
+      {/* STOCK DORMANT */}
+      {audit.dormants.length > 0 && (
+        <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+          <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between flex-wrap gap-2">
+            <div className="font-jetbrains text-xs text-slate-600">TOP 10 ARTICLES DORMANTS · capital immobilisé sans rotation</div>
+            <div className="font-jetbrains text-[10px] text-slate-400">
+              {audit.dormants.length} articles dormants au total
+              {audit.hasPmp && (<> · <span className="text-red-600 font-semibold">{formatMoney(audit.dormantValue)}</span> immobilisés</>)}
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-slate-200 bg-slate-50/30">
+                  <Th>Référence</Th>
+                  <Th>Libellé</Th>
+                  <Th className="text-right">Qté</Th>
+                  {audit.hasPmp && <Th className="text-right">PMP</Th>}
+                  {audit.hasPmp && <Th className="text-right">Valeur immobilisée</Th>}
+                  <Th className="text-right">Dernière vente</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {audit.dormants.slice(0, 10).map((d, i) => (
+                  <tr key={i} className="border-b border-slate-100">
+                    <Td className="font-jetbrains text-slate-700">{d.ref}</Td>
+                    <Td className="text-slate-700">{d.label || '—'}</Td>
+                    <Td className="text-right font-jetbrains text-slate-700">{formatNum(d.qty)}</Td>
+                    {audit.hasPmp && <Td className="text-right font-jetbrains text-slate-600">{d.pmp > 0 ? formatMoney(d.pmp) : '—'}</Td>}
+                    {audit.hasPmp && <Td className="text-right font-jetbrains font-semibold text-red-600">{formatMoney(d.value)}</Td>}
+                    <Td className="text-right font-jetbrains text-slate-500">{d.lastSale ? 'il y a ' + Math.round(d.daysSinceSale / 30) + ' mois' : 'Jamais'}</Td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* MULTI-MAGASIN */}
+      {audit.isMultiStore && (
+        <>
+          <div className="rounded-xl border border-slate-200 bg-white p-5">
+            <div className="font-jetbrains text-[10px] text-slate-500 tracking-wider mb-1">PERFORMANCE PAR SITE</div>
+            <div className="text-xs text-slate-500 mb-3">Comparaison ventes et stock entre vos sites · barres colorées pour lecture rapide</div>
+            <StoresBarChart stores={Object.values(audit.storeStats)} hasMonetary={audit.hasMonetary} hasPmp={audit.hasPmp} />
+          </div>
+
+          {audit.imbalances.length > 0 && (
+            <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+              <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+                <div className="font-jetbrains text-xs text-slate-600">DÉSÉQUILIBRES INTER-MAGASINS · candidats au transfert</div>
+                <div className="font-jetbrains text-[10px] text-slate-400">{audit.imbalances.length} articles concernés</div>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-200 bg-slate-50/30">
+                      <Th>Référence</Th>
+                      <Th>Libellé</Th>
+                      <Th>Site sur-stocké</Th>
+                      <Th className="text-right">Qté</Th>
+                      <Th>Site sous-stocké</Th>
+                      <Th className="text-right">Qté</Th>
+                      <Th className="text-right">Ratio</Th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {audit.imbalances.slice(0, 10).map((im, i) => (
+                      <tr key={i} className="border-b border-slate-100">
+                        <Td className="font-jetbrains text-slate-700">{im.ref}</Td>
+                        <Td className="text-slate-700">{im.label || '—'}</Td>
+                        <Td className="text-slate-700">{im.maxStore}</Td>
+                        <Td className="text-right font-jetbrains text-red-600 font-semibold">{formatNum(im.maxQty)}</Td>
+                        <Td className="text-slate-700">{im.minStore}</Td>
+                        <Td className="text-right font-jetbrains text-amber-600">{formatNum(im.minQty)}</Td>
+                        <Td className="text-right font-jetbrains text-slate-800">×{im.ratio.toFixed(1)}</Td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* SOUS-STOCK / SURSTOCK */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {audit.understocked.length > 0 && (
+          <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+            <div className="px-4 py-3 border-b border-slate-200 bg-slate-50">
+              <div className="font-jetbrains text-xs text-slate-600">ARTICLES EN SOUS-STOCK · risque de rupture</div>
+            </div>
+            <div className="overflow-x-auto max-h-80 overflow-y-auto">
+              <table className="w-full text-xs">
+                <thead className="sticky top-0 bg-slate-50">
+                  <tr className="border-b border-slate-200">
+                    <Th>Référence</Th>
+                    <Th className="text-right">Stock</Th>
+                    <Th className="text-right">Couverture</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {audit.understocked.slice(0, 15).map((c, i) => (
+                    <tr key={i} className="border-b border-slate-100">
+                      <Td className="font-jetbrains text-slate-700">{c.ref}</Td>
+                      <Td className="text-right font-jetbrains text-slate-700">{formatNum(c.stockQty)}</Td>
+                      <Td className="text-right font-jetbrains font-semibold text-red-600">{Math.round(c.coverageDays)} j</Td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+        {audit.overstocked.length > 0 && (
+          <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+            <div className="px-4 py-3 border-b border-slate-200 bg-slate-50">
+              <div className="font-jetbrains text-xs text-slate-600">ARTICLES EN SURSTOCK · plus de 6 mois de couverture</div>
+            </div>
+            <div className="overflow-x-auto max-h-80 overflow-y-auto">
+              <table className="w-full text-xs">
+                <thead className="sticky top-0 bg-slate-50">
+                  <tr className="border-b border-slate-200">
+                    <Th>Référence</Th>
+                    <Th className="text-right">Valeur stock</Th>
+                    <Th className="text-right">Couverture</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {audit.overstocked.slice(0, 15).map((c, i) => (
+                    <tr key={i} className="border-b border-slate-100">
+                      <Td className="font-jetbrains text-slate-700">{c.ref}</Td>
+                      <Td className="text-right font-jetbrains text-slate-700">{formatMoney(c.stockValue)}</Td>
+                      <Td className="text-right font-jetbrains font-semibold text-orange-600">{Math.round(c.coverageDays)} j</Td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* SECTIONS AUDIT COMPLET (si données fournies) */}
+      {(audit.supplierPerf || audit.customerPerf || audit.futureCoverage || audit.categoryAnalysis) && (
+        <div className="space-y-4">
+          <div className="pt-3 border-t border-slate-200">
+            <div className="font-jetbrains text-[10px] tracking-wider mb-1" style={{ color: AMBER_DARK }}>AUDIT APPROFONDI</div>
+            <div className="font-bricolage font-bold text-xl text-slate-900">Analyses complémentaires</div>
+            <div className="text-xs text-slate-500 mt-1">Modules débloqués par les fichiers complémentaires fournis</div>
+          </div>
+          {audit.supplierPerf && <SupplierPerfSection perf={audit.supplierPerf} />}
+          {audit.customerPerf && <CustomerPerfSection perf={audit.customerPerf} />}
+          {audit.futureCoverage && <FutureCoverageSection coverage={audit.futureCoverage} hasPmp={audit.hasPmp} />}
+          {audit.categoryAnalysis && <CategoryAnalysisSection cat={audit.categoryAnalysis} hasMonetary={audit.hasMonetary} />}
+        </div>
+      )}
+
+      {/* CTA WALYCONSEIL */}
+      <div className="rounded-xl p-6 md:p-8 text-white" style={{ background: 'linear-gradient(135deg, #0F172A 0%, #1E3A8A 70%, ' + AMBER_DARK + ' 100%)' }}>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
+          <div className="md:col-span-2">
+            <div className="font-jetbrains text-[10px] tracking-wider mb-2" style={{ color: AMBER }}>PROCHAINE ÉTAPE</div>
+            <div className="font-bricolage font-bold text-2xl mb-2 leading-tight">
+              Discutons des chantiers prioritaires identifiés
+            </div>
+            <div className="text-slate-300 text-sm leading-relaxed">
+              Ce diagnostic est généré automatiquement. Pour aller plus loin sur les recommandations chiffrées, un plan d'action concret par chantier et une feuille de route alignée avec votre ERP, échangeons 30 minutes en visio.
+            </div>
+          </div>
+          <div className="flex flex-col gap-2">
+            <a href={'mailto:contact@walyconseil.com?subject=Suivi%20audit%20supply%20chain%20' + encodeURIComponent(companyName || '')}
+              className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg font-jetbrains text-xs font-semibold shadow-lg transition-all hover:translate-y-[-2px]"
+              style={{ background: AMBER, color: '#0F172A' }}>
+              CONTACTER WALYCONSEIL
+              <ArrowRight size={13} />
+            </a>
+            <div className="text-[10px] text-slate-400 text-center font-jetbrains">contact@walyconseil.com</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-slate-200 p-4 text-xs text-slate-500 leading-relaxed">
+        <span className="font-semibold text-slate-700">À noter : </span>
+        cet audit est un diagnostic Express basé sur 2 dimensions (ventes + stock). Pour un audit complet incluant performance fournisseurs (OTIF, retards), analyse marge et BFR détaillé, le niveau Standard ou Complet requiert des données complémentaires. L'export PDF arrive dans la prochaine version.
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// Composants SVG : Health Gauge, Line, Donut, Pareto, Bars
+// ============================================================
+
+function HealthGauge({ score, color }) {
+  // Demi-cercle 0-100
+  const size = 110;
+  const cx = size / 2;
+  const cy = size * 0.75;
+  const radius = 45;
+  const angleFromScore = (score / 100) * 180; // 0° à 180° pour 0-100
+  const startAngle = 180;
+  const endAngle = startAngle + angleFromScore;
+  const polarToCartesian = (a) => {
+    const r = (a * Math.PI) / 180;
+    return { x: cx + radius * Math.cos(r), y: cy + radius * Math.sin(r) };
+  };
+  const start = polarToCartesian(startAngle);
+  const end = polarToCartesian(endAngle);
+  const largeArc = angleFromScore > 180 ? 1 : 0;
+  const arcPath = `M ${start.x} ${start.y} A ${radius} ${radius} 0 ${largeArc} 1 ${end.x} ${end.y}`;
+  const bgStart = polarToCartesian(180);
+  const bgEnd = polarToCartesian(360);
+  const bgPath = `M ${bgStart.x} ${bgStart.y} A ${radius} ${radius} 0 0 1 ${bgEnd.x} ${bgEnd.y}`;
+  return (
+    <svg width={size} height={size * 0.85} viewBox={`0 0 ${size} ${size * 0.85}`}>
+      <path d={bgPath} stroke="rgba(255,255,255,0.1)" strokeWidth="10" fill="none" strokeLinecap="round" />
+      <path d={arcPath} stroke={color} strokeWidth="10" fill="none" strokeLinecap="round" />
+      <text x={cx} y={cy + 5} textAnchor="middle" fill="white" fontSize="26" fontWeight="700" fontFamily="'Bricolage Grotesque', sans-serif">{score}</text>
+      <text x={cx} y={cy + 22} textAnchor="middle" fill="rgba(255,255,255,0.5)" fontSize="9" fontFamily="'JetBrains Mono', monospace">/ 100</text>
+    </svg>
+  );
+}
+
+function LineChartSVG({ data, valueKey, color, hasMonetary }) {
+  const w = 600, h = 200, pad = { t: 20, r: 20, b: 32, l: 50 };
+  const innerW = w - pad.l - pad.r;
+  const innerH = h - pad.t - pad.b;
+  if (!data || data.length < 2) return <div className="text-xs text-slate-400 py-8 text-center">Données insuffisantes</div>;
+  const values = data.map(d => d[valueKey]);
+  const maxV = Math.max(...values);
+  const minV = 0;
+  const range = Math.max(1, maxV - minV);
+  const points = data.map((d, i) => ({
+    x: pad.l + (i / Math.max(1, data.length - 1)) * innerW,
+    y: pad.t + (1 - (d[valueKey] - minV) / range) * innerH,
+    raw: d,
+  }));
+  // Path lignes
+  const path = points.map((p, i) => (i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`)).join(' ');
+  // Area fill
+  const areaPath = path + ` L ${points[points.length - 1].x} ${pad.t + innerH} L ${points[0].x} ${pad.t + innerH} Z`;
+  // Ticks Y (4 niveaux)
+  const yTicks = [0, 0.25, 0.5, 0.75, 1].map(t => ({
+    y: pad.t + (1 - t) * innerH,
+    val: minV + t * range,
+  }));
+  const formatTick = (v) => {
+    if (hasMonetary) {
+      if (v >= 1000000) return (v / 1000000).toFixed(1) + 'M';
+      if (v >= 1000) return Math.round(v / 1000) + 'k';
+      return Math.round(v);
+    }
+    if (v >= 1000) return Math.round(v / 1000) + 'k';
+    return Math.round(v);
+  };
+  const formatMonth = (ym) => {
+    const [y, m] = ym.split('-');
+    const months = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
+    return months[parseInt(m, 10) - 1] + ' ' + y.slice(2);
+  };
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} className="w-full" preserveAspectRatio="xMidYMid meet">
+      {/* Grid lines */}
+      {yTicks.map((t, i) => (
+        <line key={i} x1={pad.l} y1={t.y} x2={w - pad.r} y2={t.y} stroke="#F1F5F9" strokeWidth="1" />
+      ))}
+      {/* Y labels */}
+      {yTicks.map((t, i) => (
+        <text key={'l' + i} x={pad.l - 6} y={t.y + 3} textAnchor="end" fontSize="9" fill="#94A3B8" fontFamily="'JetBrains Mono', monospace">{formatTick(t.val)}</text>
+      ))}
+      {/* Area */}
+      <path d={areaPath} fill={color} opacity="0.12" />
+      {/* Line */}
+      <path d={path} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" />
+      {/* Points */}
+      {points.map((p, i) => (
+        <g key={i}>
+          <circle cx={p.x} cy={p.y} r="3" fill={color} stroke="white" strokeWidth="1.5" />
+        </g>
+      ))}
+      {/* X labels (un sur deux si plus de 8 mois) */}
+      {points.map((p, i) => {
+        const showLabel = data.length <= 8 || i % 2 === 0 || i === points.length - 1;
+        if (!showLabel) return null;
+        return (
+          <text key={'x' + i} x={p.x} y={h - pad.b + 14} textAnchor="middle" fontSize="9" fill="#64748B" fontFamily="'JetBrains Mono', monospace">{formatMonth(p.raw.ym)}</text>
+        );
+      })}
+    </svg>
+  );
+}
+
+function StockBreakdownDonut({ breakdown }) {
+  const w = 200, h = 200;
+  const cx = w / 2, cy = h / 2;
+  const r = 70, rInner = 45;
+  const segments = [
+    { label: 'Actif', value: breakdown.healthy, color: '#059669' },
+    { label: 'Surstock', value: breakdown.overstocked, color: '#F97316' },
+    { label: 'Dormant', value: breakdown.dormant, color: '#DC2626' },
+  ].filter(s => s.value > 0);
+  const sum = segments.reduce((a, b) => a + b.value, 0);
+  if (sum === 0) return <div className="text-xs text-slate-400 text-center py-8">Aucune donnée à répartir</div>;
+
+  const formatVal = (v) => breakdown.unit === 'value' ? formatMoney(v) : formatNum(v) + ' u';
+  const totalLabel = breakdown.unit === 'value' ? formatMoney(breakdown.total) : formatNum(breakdown.total) + ' u';
+  const subLabel = breakdown.unit === 'value' ? 'VALEUR' : 'QUANTITÉ';
+
+  let angle = -90;
+  const paths = segments.map((s) => {
+    const seg = (s.value / sum) * 360;
+    const startA = (angle * Math.PI) / 180;
+    const endA = ((angle + seg) * Math.PI) / 180;
+    const x1 = cx + r * Math.cos(startA), y1 = cy + r * Math.sin(startA);
+    const x2 = cx + r * Math.cos(endA), y2 = cy + r * Math.sin(endA);
+    const xi1 = cx + rInner * Math.cos(endA), yi1 = cy + rInner * Math.sin(endA);
+    const xi2 = cx + rInner * Math.cos(startA), yi2 = cy + rInner * Math.sin(startA);
+    const largeArc = seg > 180 ? 1 : 0;
+    const d = `M ${x1} ${y1} A ${r} ${r} 0 ${largeArc} 1 ${x2} ${y2} L ${xi1} ${yi1} A ${rInner} ${rInner} 0 ${largeArc} 0 ${xi2} ${yi2} Z`;
+    angle += seg;
+    return { d, color: s.color, label: s.label, value: s.value, pct: (s.value / sum) * 100 };
+  });
+  return (
+    <div>
+      <svg viewBox={`0 0 ${w} ${h}`} className="w-full max-w-[200px] mx-auto block">
+        {paths.map((p, i) => (
+          <path key={i} d={p.d} fill={p.color} />
+        ))}
+        <text x={cx} y={cy - 4} textAnchor="middle" fontSize="10" fill="#64748B" fontFamily="'JetBrains Mono', monospace">{subLabel}</text>
+        <text x={cx} y={cy + 12} textAnchor="middle" fontSize="13" fill="#0F172A" fontWeight="700" fontFamily="'Bricolage Grotesque', sans-serif">{totalLabel}</text>
+      </svg>
+      <div className="space-y-1.5 mt-3">
+        {paths.map((p, i) => (
+          <div key={i} className="flex items-center justify-between text-xs">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-sm" style={{ background: p.color }} />
+              <span className="text-slate-700">{p.label}</span>
+            </div>
+            <div className="font-jetbrains text-[11px] text-slate-600">{p.pct.toFixed(0)} % · {formatVal(p.value)}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ParetoChartSVG({ refs, hasMonetary }) {
+  const w = 800, h = 240, pad = { t: 15, r: 50, b: 30, l: 50 };
+  const innerW = w - pad.l - pad.r;
+  const innerH = h - pad.t - pad.b;
+  if (!refs || refs.length === 0) return <div className="text-xs text-slate-400 text-center py-8">Aucune donnée</div>;
+  const total = refs.reduce((s, r) => s + (hasMonetary ? r.totalAmount : r.totalQty), 0);
+  // Construire série cumulative
+  let cumul = 0;
+  const points = refs.map((r, i) => {
+    cumul += hasMonetary ? r.totalAmount : r.totalQty;
+    return {
+      x: pad.l + ((i + 1) / refs.length) * innerW,
+      y: pad.t + (1 - cumul / total) * innerH,
+      cumulPct: (cumul / total) * 100,
+      barH: ((hasMonetary ? r.totalAmount : r.totalQty) / refs[0][hasMonetary ? 'totalAmount' : 'totalQty']) * innerH,
+      barX: pad.l + (i / refs.length) * innerW,
+      barW: innerW / refs.length,
+      abc: r.abc,
+    };
+  });
+  // Repérer les seuils 80% et 95%
+  const idxA = points.findIndex(p => p.cumulPct >= 80);
+  const idxB = points.findIndex(p => p.cumulPct >= 95);
+  const xA = idxA >= 0 ? points[idxA].x : pad.l + innerW;
+  const xB = idxB >= 0 ? points[idxB].x : pad.l + innerW;
+  // Path courbe cumul
+  const linePath = [`M ${pad.l} ${pad.t + innerH}`, ...points.map(p => `L ${p.x} ${p.y}`)].join(' ');
+  const colorMap = { A: '#059669', B: '#F59E0B', C: '#EF4444' };
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} className="w-full" preserveAspectRatio="xMidYMid meet">
+      {/* Zones A/B/C */}
+      <rect x={pad.l} y={pad.t} width={xA - pad.l} height={innerH} fill="#10B981" opacity="0.05" />
+      <rect x={xA} y={pad.t} width={xB - xA} height={innerH} fill="#F59E0B" opacity="0.05" />
+      <rect x={xB} y={pad.t} width={pad.l + innerW - xB} height={innerH} fill="#EF4444" opacity="0.05" />
+      {/* Barres par article */}
+      {points.map((p, i) => (
+        <rect key={i} x={p.barX + 1} y={pad.t + innerH - p.barH} width={Math.max(1, p.barW - 2)} height={p.barH} fill={colorMap[p.abc]} opacity="0.7" />
+      ))}
+      {/* Courbe cumul */}
+      <path d={linePath} fill="none" stroke="#0F172A" strokeWidth="2" strokeLinejoin="round" />
+      {/* Lignes seuils 80/95 */}
+      <line x1={pad.l} y1={pad.t + innerH * 0.2} x2={w - pad.r} y2={pad.t + innerH * 0.2} stroke="#94A3B8" strokeDasharray="3 3" strokeWidth="1" />
+      <line x1={pad.l} y1={pad.t + innerH * 0.05} x2={w - pad.r} y2={pad.t + innerH * 0.05} stroke="#94A3B8" strokeDasharray="3 3" strokeWidth="1" />
+      {/* Labels Y droite (cumul %) */}
+      <text x={w - pad.r + 4} y={pad.t + innerH * 0.2 + 3} fontSize="9" fill="#94A3B8" fontFamily="'JetBrains Mono', monospace">80 %</text>
+      <text x={w - pad.r + 4} y={pad.t + innerH * 0.05 + 3} fontSize="9" fill="#94A3B8" fontFamily="'JetBrains Mono', monospace">95 %</text>
+      {/* Légende abc */}
+      <g transform={`translate(${pad.l}, ${h - 10})`}>
+        <rect x="0" y="-9" width="8" height="8" fill="#059669" opacity="0.7" />
+        <text x="12" y="-2" fontSize="9" fill="#64748B" fontFamily="'JetBrains Mono', monospace">Classe A</text>
+        <rect x="80" y="-9" width="8" height="8" fill="#F59E0B" opacity="0.7" />
+        <text x="92" y="-2" fontSize="9" fill="#64748B" fontFamily="'JetBrains Mono', monospace">Classe B</text>
+        <rect x="160" y="-9" width="8" height="8" fill="#EF4444" opacity="0.7" />
+        <text x="172" y="-2" fontSize="9" fill="#64748B" fontFamily="'JetBrains Mono', monospace">Classe C</text>
+        <line x1="245" y1="-5" x2="265" y2="-5" stroke="#0F172A" strokeWidth="2" />
+        <text x="270" y="-2" fontSize="9" fill="#64748B" fontFamily="'JetBrains Mono', monospace">Cumul %</text>
+      </g>
+      {/* Label X */}
+      <text x={pad.l + innerW / 2} y={h - 25} textAnchor="middle" fontSize="9" fill="#94A3B8" fontFamily="'JetBrains Mono', monospace">{refs.length} articles (du plus vendu au moins vendu)</text>
+    </svg>
+  );
+}
+
+function TopArticlesBarChart({ refs, hasMonetary, totalValue }) {
+  if (!refs || refs.length === 0) return <div className="text-xs text-slate-400 text-center py-4">Aucune donnée</div>;
+  const maxV = Math.max(...refs.map(r => hasMonetary ? r.totalAmount : r.totalQty));
+  return (
+    <div className="space-y-2">
+      {refs.map((r, i) => {
+        const value = hasMonetary ? r.totalAmount : r.totalQty;
+        const pct = (value / maxV) * 100;
+        const sharePct = (value / totalValue) * 100;
+        const colorByAbc = { A: '#059669', B: '#F59E0B', C: '#EF4444' }[r.abc] || '#64748B';
+        return (
+          <div key={r.ref} className="flex items-center gap-3">
+            <div className="w-6 font-jetbrains text-[10px] text-slate-400 text-right">#{i + 1}</div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-baseline justify-between mb-1 gap-2">
+                <div className="flex items-baseline gap-1.5 min-w-0">
+                  <span className="font-jetbrains text-xs text-slate-700 truncate">{r.ref}</span>
+                  {r.label && <span className="text-[10px] text-slate-500 truncate">{r.label}</span>}
+                </div>
+                <div className="flex items-baseline gap-2 flex-shrink-0">
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-jetbrains font-semibold" style={{ background: colorByAbc + '20', color: colorByAbc }}>{r.abc}{r.xyz}</span>
+                  <span className="font-jetbrains text-xs font-semibold text-slate-800">{hasMonetary ? formatMoney(value) : formatNum(value) + ' u'}</span>
+                  <span className="font-jetbrains text-[10px] text-slate-500 w-10 text-right">{sharePct.toFixed(1)} %</span>
+                </div>
+              </div>
+              <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+                <div className="h-full transition-all" style={{ width: pct + '%', background: colorByAbc, opacity: 0.85 }} />
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function StoresBarChart({ stores, hasMonetary, hasPmp }) {
+  if (!stores || stores.length === 0) return <div className="text-xs text-slate-400 text-center py-4">Aucune donnée</div>;
+  const sorted = [...stores].sort((a, b) => (hasMonetary ? b.totalCA - a.totalCA : b.totalQty - a.totalQty));
+  const maxLeft = Math.max(...sorted.map(s => hasMonetary ? s.totalCA : s.totalQty), 1);
+  const maxRight = Math.max(...sorted.map(s => hasPmp ? s.stockValue : s.stockQty), 1);
+  return (
+    <div>
+      {/* Légende */}
+      <div className="flex items-center gap-4 mb-4 text-xs">
+        <div className="flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded" style={{ background: '#10B981' }} />
+          <span className="text-slate-600">{hasMonetary ? "Chiffre d'affaires" : 'Volume vendu'}</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded" style={{ background: '#F59E0B' }} />
+          <span className="text-slate-600">{hasPmp ? 'Stock valorisé' : 'Stock en quantité'}</span>
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        {sorted.map(s => {
+          const leftVal = hasMonetary ? s.totalCA : s.totalQty;
+          const rightVal = hasPmp ? s.stockValue : s.stockQty;
+          const leftLabel = hasMonetary ? formatMoney(s.totalCA) : formatNum(s.totalQty) + ' u';
+          const rightLabel = hasPmp ? formatMoney(s.stockValue) : formatNum(s.stockQty) + ' u';
+          return (
+            <div key={s.store} className="rounded-lg p-3" style={{ background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+              <div className="flex items-baseline justify-between mb-2.5">
+                <span className="font-bricolage font-semibold text-sm text-slate-900">{s.store}</span>
+                <span className="font-jetbrains text-[10px] text-slate-500">{s.nArticles} articles stockés</span>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <div className="flex justify-between mb-1">
+                    <span className="font-jetbrains text-[10px] font-semibold" style={{ color: '#059669' }}>{hasMonetary ? 'CA' : 'VENTES'}</span>
+                    <span className="font-jetbrains text-xs font-semibold text-slate-800">{leftLabel}</span>
+                  </div>
+                  <div className="h-4 rounded-md overflow-hidden" style={{ background: '#D1FAE5' }}>
+                    <div className="h-full rounded-md transition-all" style={{ width: ((leftVal / maxLeft) * 100) + '%', background: '#10B981' }} />
+                  </div>
+                </div>
+                <div>
+                  <div className="flex justify-between mb-1">
+                    <span className="font-jetbrains text-[10px] font-semibold" style={{ color: '#B45309' }}>STOCK</span>
+                    <span className="font-jetbrains text-xs font-semibold text-slate-800">{rightLabel}</span>
+                  </div>
+                  <div className="h-4 rounded-md overflow-hidden" style={{ background: '#FEF3C7' }}>
+                    <div className="h-full rounded-md transition-all" style={{ width: ((rightVal / maxRight) * 100) + '%', background: '#F59E0B' }} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function KpiTile({ label, value, sub, accent }) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-4">
+      <div className="font-jetbrains text-[10px] text-slate-500 tracking-wider mb-1">{label}</div>
+      <div className="font-bricolage font-bold text-2xl" style={{ color: accent || '#0F172A' }}>{value}</div>
+      {sub && <div className="font-jetbrains text-[10px] text-slate-500 mt-1">{sub}</div>}
+    </div>
+  );
+}
+
+function OptionalFileCard({ label, description, data, fileName, inputRef, onImport, onTemplate, onClear }) {
+  const loaded = !!data;
+  return (
+    <div className="rounded-lg border-2 bg-white p-3 transition-all" style={{ borderColor: loaded ? '#86EFAC' : '#E2E8F0', background: loaded ? '#F0FDF4' : 'white' }}>
+      <div className="flex items-start justify-between mb-2 gap-2">
+        <div className="min-w-0">
+          <div className="font-bricolage font-semibold text-xs text-slate-900 truncate">{label}</div>
+          <div className="text-[10px] text-slate-500 mt-0.5 leading-snug">{description}</div>
+        </div>
+        {loaded && (
+          <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: '#22C55E' }}>
+            <Check size={11} className="text-white" />
+          </div>
+        )}
+      </div>
+      {!loaded ? (
+        <>
+          <input ref={inputRef} type="file" accept=".xlsx,.xls,.csv" onChange={onImport} className="hidden" />
+          <div className="grid grid-cols-2 gap-1.5">
+            <button onClick={() => inputRef.current && inputRef.current.click()} className="flex items-center justify-center gap-1 px-2 py-1.5 rounded font-jetbrains text-[10px] font-semibold text-white" style={{ background: '#F59E0B' }}>
+              <Upload size={10} />
+              IMPORTER
+            </button>
+            <button onClick={onTemplate} className="flex items-center justify-center gap-1 px-2 py-1.5 rounded font-jetbrains text-[10px] text-slate-700 border border-slate-300 hover:bg-slate-50">
+              <FileDown size={10} />
+              TEMPLATE
+            </button>
+          </div>
+        </>
+      ) : (
+        <div className="space-y-1">
+          <div className="font-jetbrains text-[10px] text-slate-700 truncate">{fileName}</div>
+          <div className="font-jetbrains text-[10px] text-emerald-700">{data.length} ligne(s)</div>
+          <button onClick={onClear} className="font-jetbrains text-[10px] text-red-600 hover:underline">Remplacer</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// Sections d'analyse pour l'audit Complet
+// ============================================================
+
+function SupplierPerfSection({ perf }) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+      <div className="px-5 py-3 border-b border-slate-200 bg-slate-50">
+        <div className="font-jetbrains text-[10px] text-slate-500 tracking-wider mb-0.5">PERFORMANCE FOURNISSEURS · OTIF ACHAT</div>
+        <div className="text-xs text-slate-500">Analyse des livraisons reçues : à temps + complet</div>
+      </div>
+      <div className="p-5">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+          <PerfTile label="OTIF achat global" value={perf.otifRate.toFixed(0) + ' %'} accent={perf.otifRate >= 90 ? '#059669' : perf.otifRate >= 75 ? '#D97706' : '#DC2626'} />
+          <PerfTile label="On Time" value={perf.otRate.toFixed(0) + ' %'} accent="#0F172A" />
+          <PerfTile label="In Full" value={perf.inFullRate.toFixed(0) + ' %'} accent="#0F172A" />
+          <PerfTile label="Retard moyen" value={perf.avgDelay.toFixed(1) + ' j'} accent={perf.avgDelay > 5 ? '#DC2626' : '#0F172A'} sub="quand en retard" />
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="border-b border-slate-200 bg-slate-50/30">
+                <Th>Fournisseur</Th>
+                <Th className="text-right">Livraisons</Th>
+                <Th className="text-right">OT %</Th>
+                <Th className="text-right">IF %</Th>
+                <Th className="text-right">OTIF %</Th>
+                <Th className="text-right">Retard moyen</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {perf.suppliers.slice(0, 10).map((s, i) => (
+                <tr key={i} className="border-b border-slate-100">
+                  <Td className="font-semibold text-slate-800">{s.supplier}</Td>
+                  <Td className="text-right font-jetbrains text-slate-700">{s.total}</Td>
+                  <Td className="text-right font-jetbrains" style={{ color: s.otRate < 80 ? '#DC2626' : s.otRate < 95 ? '#D97706' : '#059669' }}>{s.otRate.toFixed(0)} %</Td>
+                  <Td className="text-right font-jetbrains" style={{ color: s.inFullRate < 80 ? '#DC2626' : s.inFullRate < 95 ? '#D97706' : '#059669' }}>{s.inFullRate.toFixed(0)} %</Td>
+                  <Td className="text-right font-jetbrains font-semibold" style={{ color: s.otifRate < 70 ? '#DC2626' : s.otifRate < 90 ? '#D97706' : '#059669' }}>{s.otifRate.toFixed(0)} %</Td>
+                  <Td className="text-right font-jetbrains text-slate-600">{s.avgDelay.toFixed(1)} j</Td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CustomerPerfSection({ perf }) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+      <div className="px-5 py-3 border-b border-slate-200 bg-slate-50">
+        <div className="font-jetbrains text-[10px] text-slate-500 tracking-wider mb-0.5">PERFORMANCE SERVICE CLIENT · OTIF VENTE</div>
+        <div className="text-xs text-slate-500">Vos engagements de livraison vis-à-vis de vos clients</div>
+      </div>
+      <div className="p-5">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-5">
+          <PerfTile label="OTIF client" value={perf.otifRate.toFixed(0) + ' %'} accent={perf.otifRate >= 95 ? '#059669' : perf.otifRate >= 85 ? '#D97706' : '#DC2626'} />
+          <PerfTile label="On Time" value={perf.otRate.toFixed(0) + ' %'} accent="#0F172A" />
+          <PerfTile label="In Full" value={perf.inFullRate.toFixed(0) + ' %'} accent="#0F172A" />
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="border-b border-slate-200 bg-slate-50/30">
+                <Th>Client</Th>
+                <Th className="text-right">Livraisons</Th>
+                <Th className="text-right">OT %</Th>
+                <Th className="text-right">IF %</Th>
+                <Th className="text-right">OTIF %</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {perf.customers.slice(0, 10).map((c, i) => (
+                <tr key={i} className="border-b border-slate-100">
+                  <Td className="font-semibold text-slate-800">{c.customer}</Td>
+                  <Td className="text-right font-jetbrains text-slate-700">{c.total}</Td>
+                  <Td className="text-right font-jetbrains" style={{ color: c.otRate < 90 ? '#DC2626' : c.otRate < 95 ? '#D97706' : '#059669' }}>{c.otRate.toFixed(0)} %</Td>
+                  <Td className="text-right font-jetbrains" style={{ color: c.inFullRate < 90 ? '#DC2626' : c.inFullRate < 95 ? '#D97706' : '#059669' }}>{c.inFullRate.toFixed(0)} %</Td>
+                  <Td className="text-right font-jetbrains font-semibold" style={{ color: c.otifRate < 80 ? '#DC2626' : c.otifRate < 95 ? '#D97706' : '#059669' }}>{c.otifRate.toFixed(0)} %</Td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FutureCoverageSection({ coverage, hasPmp }) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+      <div className="px-5 py-3 border-b border-slate-200 bg-slate-50">
+        <div className="font-jetbrains text-[10px] text-slate-500 tracking-wider mb-0.5">COMMANDES OUVERTES · COUVERTURE FUTURE</div>
+        <div className="text-xs text-slate-500">{coverage.nOrders} ligne(s) de commande · {coverage.nRefsOrdered} articles · {hasPmp && coverage.totalOpenValue > 0 ? formatMoney(coverage.totalOpenValue) + ' engagés' : formatNum(coverage.totalOpenQty) + ' unités attendues'}</div>
+      </div>
+      <div className="p-5 space-y-5">
+
+        {coverage.riskRuptures.length > 0 && (
+          <div>
+            <div className="font-jetbrains text-xs text-red-700 font-semibold mb-2">⚠ RUPTURES IMMINENTES MALGRÉ COMMANDES EN COURS</div>
+            <div className="text-xs text-slate-500 mb-2">Le stock actuel sera épuisé AVANT l'arrivée de la prochaine commande. Accélérer les livraisons.</div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50/30">
+                    <Th>Référence</Th>
+                    <Th>Libellé</Th>
+                    <Th className="text-right">Couverture actuelle</Th>
+                    <Th className="text-right">Arrivée prévue</Th>
+                    <Th className="text-right">Qté en cours</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {coverage.riskRuptures.slice(0, 10).map((r, i) => (
+                    <tr key={i} className="border-b border-slate-100">
+                      <Td className="font-jetbrains text-slate-700">{r.ref}</Td>
+                      <Td className="text-slate-700">{r.label || '—'}</Td>
+                      <Td className="text-right font-jetbrains font-semibold text-red-600">{Math.round(r.currentCoverage)} j</Td>
+                      <Td className="text-right font-jetbrains text-orange-600">dans {r.daysUntilArrival} j</Td>
+                      <Td className="text-right font-jetbrains text-slate-700">{formatNum(r.openQty)}</Td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {coverage.understockedNoOrder.length > 0 && (
+          <div>
+            <div className="font-jetbrains text-xs text-orange-700 font-semibold mb-2">⚠ ARTICLES À APPROVISIONNER D'URGENCE (PAS DE COMMANDE EN COURS)</div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50/30">
+                    <Th>Référence</Th>
+                    <Th>Libellé</Th>
+                    <Th className="text-right">Stock actuel</Th>
+                    <Th className="text-right">Couverture</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {coverage.understockedNoOrder.slice(0, 10).map((r, i) => (
+                    <tr key={i} className="border-b border-slate-100">
+                      <Td className="font-jetbrains text-slate-700">{r.ref}</Td>
+                      <Td className="text-slate-700">{r.label || '—'}</Td>
+                      <Td className="text-right font-jetbrains text-slate-700">{formatNum(r.stockQty)}</Td>
+                      <Td className="text-right font-jetbrains font-semibold text-orange-600">{Math.round(r.currentCoverage)} j</Td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {coverage.overOrdering.length > 0 && (
+          <div>
+            <div className="font-jetbrains text-xs text-amber-700 font-semibold mb-2">⚠ SUR-COMMANDES POTENTIELLES (couverture totale &gt; 12 mois)</div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50/30">
+                    <Th>Référence</Th>
+                    <Th className="text-right">Stock + commandes</Th>
+                    <Th className="text-right">Couverture totale</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {coverage.overOrdering.slice(0, 10).map((r, i) => (
+                    <tr key={i} className="border-b border-slate-100">
+                      <Td className="font-jetbrains text-slate-700">{r.ref}</Td>
+                      <Td className="text-right font-jetbrains text-slate-700">{formatNum(r.totalAvailable)}</Td>
+                      <Td className="text-right font-jetbrains font-semibold text-amber-600">{Math.round(r.coverageDays)} j</Td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function CategoryAnalysisSection({ cat, hasMonetary }) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+      <div className="px-5 py-3 border-b border-slate-200 bg-slate-50">
+        <div className="font-jetbrains text-[10px] text-slate-500 tracking-wider mb-0.5">RÉFÉRENTIEL ARTICLES · ANALYSE PAR CATÉGORIE</div>
+        <div className="text-xs text-slate-500">{cat.nRefs} références analysées · {cat.refsWithoutCategory} sans catégorie · {cat.inactiveInStock.length} inactives en stock</div>
+      </div>
+      <div className="p-5 space-y-5">
+
+        {cat.categories.length > 0 && (
+          <div>
+            <div className="font-jetbrains text-xs text-slate-700 font-semibold mb-3">PERFORMANCE PAR FAMILLE</div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50/30">
+                    <Th>Catégorie</Th>
+                    <Th className="text-right">Nb articles</Th>
+                    <Th className="text-right">{hasMonetary ? 'CA' : 'Volume'}</Th>
+                    <Th className="text-right">Part CA</Th>
+                    <Th className="text-right">Stock immobilisé</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {cat.categories.map((c, i) => (
+                    <tr key={i} className="border-b border-slate-100">
+                      <Td className="font-semibold text-slate-800">{c.category}</Td>
+                      <Td className="text-right font-jetbrains text-slate-700">{c.nArticles}</Td>
+                      <Td className="text-right font-jetbrains text-slate-700">{hasMonetary ? formatMoney(c.totalCA) : formatNum(c.totalCA) + ' u'}</Td>
+                      <Td className="text-right font-jetbrains font-semibold text-slate-800">{c.caShare.toFixed(0)} %</Td>
+                      <Td className="text-right font-jetbrains text-slate-700">{formatMoney(c.stockValue)}</Td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {cat.inactiveInStock.length > 0 && (
+          <div>
+            <div className="font-jetbrains text-xs text-red-700 font-semibold mb-2">⚠ ARTICLES "INACTIFS" PRÉSENTS EN STOCK</div>
+            <div className="text-xs text-slate-500 mb-2">Références marquées comme arrêtées dans votre référentiel mais encore en stock physique. Candidates à la liquidation.</div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50/30">
+                    <Th>Référence</Th>
+                    <Th>Libellé</Th>
+                    <Th>Catégorie</Th>
+                    <Th className="text-right">Qté en stock</Th>
+                    <Th className="text-right">Valeur immobilisée</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {cat.inactiveInStock.slice(0, 10).map((r, i) => (
+                    <tr key={i} className="border-b border-slate-100">
+                      <Td className="font-jetbrains text-slate-700">{r.ref}</Td>
+                      <Td className="text-slate-700">{r.label || '—'}</Td>
+                      <Td className="text-slate-700">{r.category}</Td>
+                      <Td className="text-right font-jetbrains text-slate-700">{formatNum(r.stockQty)}</Td>
+                      <Td className="text-right font-jetbrains font-semibold text-red-600">{formatMoney(r.stockValue)}</Td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {cat.ltComparison && cat.ltComparison.length > 0 && (
+          <div>
+            <div className="font-jetbrains text-xs text-slate-700 font-semibold mb-2">⚠ ÉCARTS LEAD TIME THÉORIQUE vs RÉEL</div>
+            <div className="text-xs text-slate-500 mb-2">Le délai promis dans votre référentiel n'est pas tenu sur ces articles. À recalibrer ou à signaler aux fournisseurs.</div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50/30">
+                    <Th>Référence</Th>
+                    <Th>Libellé</Th>
+                    <Th className="text-right">LT théorique</Th>
+                    <Th className="text-right">Écart moyen</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {cat.ltComparison.map((r, i) => (
+                    <tr key={i} className="border-b border-slate-100">
+                      <Td className="font-jetbrains text-slate-700">{r.ref}</Td>
+                      <Td className="text-slate-700">{r.label || '—'}</Td>
+                      <Td className="text-right font-jetbrains text-slate-700">{r.theoretical} j</Td>
+                      <Td className="text-right font-jetbrains font-semibold" style={{ color: r.diff > 0 ? '#DC2626' : '#059669' }}>{r.diff > 0 ? '+' : ''}{r.diff.toFixed(1)} j</Td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PerfTile({ label, value, sub, accent }) {
+  return (
+    <div className="rounded-lg p-3" style={{ background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+      <div className="font-jetbrains text-[9px] text-slate-500 tracking-wider mb-1">{label}</div>
+      <div className="font-bricolage font-bold text-xl" style={{ color: accent || '#0F172A' }}>{value}</div>
+      {sub && <div className="font-jetbrains text-[9px] text-slate-500 mt-0.5">{sub}</div>}
+    </div>
   );
 }
