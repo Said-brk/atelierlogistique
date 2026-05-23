@@ -8288,6 +8288,1528 @@ function computeCategoryAnalysis(rows, byRef, stockByRef, supplierPerf, totalCA)
   };
 }
 
+
+// ============================================================
+// PDF GENERATION — Audit Supply Chain
+// jsPDF natif, vectoriel, 100% qualité editorial
+// ============================================================
+
+function generateAuditPdf(audit, companyName, currency) {
+  if (!window.jspdf) {
+    alert('Le module PDF n\'est pas chargé. Rechargez la page et réessayez.');
+    return;
+  }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ format: 'a4', unit: 'mm', orientation: 'portrait' });
+
+  // ========== Constantes ==========
+  const PW = 210, PH = 297;
+  const M = { l: 18, r: 18, t: 22, b: 22 };
+  const innerW = PW - M.l - M.r;
+  const cur = (currency && currency.trim()) || 'MAD';
+
+  // Palette
+  const C = {
+    ink:      [15, 23, 42],
+    inkSoft:  [51, 65, 85],
+    inkDim:   [100, 116, 139],
+    inkMute:  [148, 163, 184],
+    line:     [226, 232, 240],
+    bgSoft:   [248, 250, 252],
+    bgWarn:   [254, 251, 235],
+    bgCrit:   [254, 242, 242],
+    bgInfo:   [239, 246, 255],
+    amber:    [245, 158, 11],
+    amberDk:  [180, 83, 9],
+    green:    [5, 150, 105],
+    greenLt:  [16, 185, 129],
+    red:      [220, 38, 38],
+    redDk:    [127, 29, 29],
+    orange:   [249, 115, 22],
+    blue:     [37, 99, 235],
+    white:    [255, 255, 255],
+  };
+
+  // Helpers chromatiques
+  const setFill = (rgb) => doc.setFillColor(rgb[0], rgb[1], rgb[2]);
+  const setText = (rgb) => doc.setTextColor(rgb[0], rgb[1], rgb[2]);
+  const setDraw = (rgb) => doc.setDrawColor(rgb[0], rgb[1], rgb[2]);
+  const fm = (n) => formatMoney(n, cur);
+
+  // ========== Utilitaires de mise en page ==========
+
+  function addHeader(title, subtitle) {
+    // Liseré ambre en haut
+    setFill(C.amber);
+    doc.rect(0, 0, PW, 4, 'F');
+    // Titre WALYCONSEIL en haut à gauche
+    setText(C.inkDim);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7);
+    doc.text('ATELIER LOGISTIQUE', M.l, 11);
+    setText(C.amberDk);
+    doc.text('· AUDIT SUPPLY CHAIN', M.l + 35, 11);
+    // Société à droite
+    setText(C.inkDim);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    if (companyName) {
+      doc.text(companyName, PW - M.r, 11, { align: 'right' });
+    } else {
+      doc.text('Diagnostic supply chain', PW - M.r, 11, { align: 'right' });
+    }
+    // Trait
+    setDraw(C.line);
+    doc.setLineWidth(0.2);
+    doc.line(M.l, 14, PW - M.r, 14);
+    // Titre de section
+    if (title) {
+      setText(C.ink);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(18);
+      doc.text(title, M.l, 24);
+      if (subtitle) {
+        setText(C.inkDim);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9);
+        doc.text(subtitle, M.l, 30);
+      }
+    }
+  }
+
+  function addFooter(pageNum, totalPages) {
+    setDraw(C.line);
+    doc.setLineWidth(0.2);
+    doc.line(M.l, PH - 14, PW - M.r, PH - 14);
+    setText(C.inkDim);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.text('© WALYCONSEIL · contact@walyconseil.com', M.l, PH - 9);
+    const now = new Date();
+    const dateStr = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
+    doc.text(`Généré le ${dateStr}`, PW / 2, PH - 9, { align: 'center' });
+    doc.text(`Page ${pageNum} / ${totalPages}`, PW - M.r, PH - 9, { align: 'right' });
+  }
+
+  function newPage(title, subtitle) {
+    doc.addPage();
+    addHeader(title, subtitle);
+    return title || subtitle ? 36 : 22; // Y de départ pour le contenu
+  }
+
+  // Vérifie si y a assez de place, sinon nouvelle page
+  function ensureSpace(currentY, needed, title, subtitle) {
+    if (currentY + needed > PH - M.b - 6) {
+      return newPage(title, subtitle);
+    }
+    return currentY;
+  }
+
+  // Texte avec retour à la ligne automatique
+  function textWrap(txt, x, y, maxW, lineHeight) {
+    const lines = doc.splitTextToSize(txt, maxW);
+    doc.text(lines, x, y);
+    return y + lines.length * lineHeight;
+  }
+
+  // ========== PAGE 1 — COUVERTURE ==========
+
+  function drawCover() {
+    // Fond dégradé (simulation par bandes)
+    setFill(C.ink);
+    doc.rect(0, 0, PW, PH, 'F');
+    // Bande ambre verticale à droite
+    setFill(C.amber);
+    doc.rect(PW - 12, 0, 12, PH, 'F');
+    // Bande or en bas
+    setFill(C.amberDk);
+    doc.rect(0, PH - 8, PW, 8, 'F');
+
+    // Logo WALYCONSEIL (simulé : carré ambre + texte)
+    setFill(C.amber);
+    doc.roundedRect(M.l, M.t, 12, 12, 2, 2, 'F');
+    setText(C.ink);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text('W', M.l + 6, M.t + 8.5, { align: 'center' });
+
+    setText(C.white);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.text('WALYCONSEIL', M.l + 17, M.t + 6);
+    setText(C.inkMute);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.text('ATELIER LOGISTIQUE', M.l + 17, M.t + 11);
+
+    // Étiquette niveau d'audit
+    const levelLabel =
+      audit.level === 'complet' ? 'AUDIT COMPLET' :
+      audit.level === 'standard' ? 'AUDIT STANDARD' :
+      audit.level === 'express+' ? 'AUDIT EXPRESS+' : 'AUDIT EXPRESS';
+    setFill(C.amber);
+    doc.roundedRect(M.l, PH / 2 - 38, 50, 7, 1, 1, 'F');
+    setText(C.ink);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.text(levelLabel, M.l + 25, PH / 2 - 33.5, { align: 'center' });
+
+    // Grand titre
+    setText(C.white);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(36);
+    doc.text('Diagnostic', M.l, PH / 2 - 18);
+    doc.text('supply chain', M.l, PH / 2 - 6);
+
+    // Société auditée
+    if (companyName) {
+      setText(C.amber);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(20);
+      doc.text(companyName, M.l, PH / 2 + 10);
+    }
+
+    // Période + nombre d'articles
+    setText(C.inkMute);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    const dateRange = `${audit.periodStart.toLocaleDateString('fr-FR')} → ${audit.periodEnd.toLocaleDateString('fr-FR')}`;
+    doc.text(`Période analysée : ${dateRange}`, M.l, PH / 2 + 22);
+    doc.text(`${audit.nArticles} articles · ${audit.allStores.length || 1} site(s) · Devise : ${cur}`, M.l, PH / 2 + 28);
+
+    // Health score grand en bas
+    const profileLabel = {
+      distribution: 'Distribution / Négoce',
+      industrie: 'Industrie / Manufacturing',
+      mixte: 'Profil mixte',
+    }[audit.profile] || audit.profile;
+
+    setText(C.inkMute);
+    doc.setFontSize(8);
+    doc.text(`Profil détecté : ${profileLabel}`, M.l, PH / 2 + 34);
+
+    // Score en bas à droite
+    const scoreColor =
+      audit.healthScore >= 80 ? C.green :
+      audit.healthScore >= 60 ? C.amber :
+      audit.healthScore >= 40 ? C.orange : C.red;
+    setText(C.inkMute);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.text('SUPPLY CHAIN HEALTH', M.l, PH - 50);
+    setText(scoreColor);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(64);
+    doc.text(String(audit.healthScore), M.l, PH - 22);
+    setText(C.inkMute);
+    doc.setFontSize(12);
+    doc.text('/ 100', M.l + (audit.healthScore >= 100 ? 50 : audit.healthScore >= 10 ? 35 : 20), PH - 22);
+
+    // Mention "généré le"
+    setText(C.inkMute);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    const now = new Date();
+    const dateStr = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
+    doc.text(`Rapport généré le ${dateStr}`, PW - M.r, PH - 22, { align: 'right' });
+
+    // Pied page couverture
+    setText(C.amber);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7);
+    doc.text('WALYCONSEIL · contact@walyconseil.com', PW / 2, PH - 3, { align: 'center' });
+  }
+
+  // ========== PAGE 2 — SYNTHÈSE EXÉCUTIVE ==========
+
+  function drawSynthesis() {
+    addHeader('Synthèse exécutive', 'Vue d\'ensemble en 30 secondes — score, KPIs majeurs, verdict');
+    let y = 40;
+
+    // Bandeau Health Score avec gauge
+    setFill(C.ink);
+    doc.roundedRect(M.l, y, innerW, 36, 2, 2, 'F');
+    // Gauge demi-cercle simulée
+    const gx = M.l + 18, gy = y + 28;
+    drawHealthGaugePdf(gx, gy, audit.healthScore);
+    // Texte à côté
+    const scoreLabel =
+      audit.healthScore >= 80 ? 'EXCELLENT' :
+      audit.healthScore >= 60 ? 'CORRECT' :
+      audit.healthScore >= 40 ? 'À OPTIMISER' : 'CRITIQUE';
+    const scoreColor =
+      audit.healthScore >= 80 ? C.green :
+      audit.healthScore >= 60 ? C.amber :
+      audit.healthScore >= 40 ? C.orange : C.red;
+    setText(C.inkMute);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.text('VERDICT GLOBAL', M.l + 40, y + 12);
+    setText(scoreColor);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(16);
+    doc.text(scoreLabel, M.l + 40, y + 20);
+    setText(C.inkMute);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    const verdict =
+      audit.healthScore >= 80 ? "Votre supply chain présente peu de signaux d'alerte. Quelques optimisations fines possibles." :
+      audit.healthScore >= 60 ? "Plusieurs leviers d'amélioration ciblés peuvent être activés rapidement." :
+      audit.healthScore >= 40 ? "Plusieurs chantiers structurants sont à mener pour fiabiliser la chaîne logistique." :
+      "Signaux critiques détectés — une intervention rapide est recommandée sur plusieurs dimensions.";
+    textWrap(verdict, M.l + 40, y + 27, innerW - 45, 3.5);
+    y += 42;
+
+    // 4 KPIs cards
+    const cardW = (innerW - 9) / 4;
+    const kpis = [
+      { label: "Chiffre d'affaires", value: audit.hasMonetary ? fm(audit.totalCA) : formatNum(audit.totalQty) + ' u', sub: `sur ${Math.round(audit.periodMonths)} mois`, color: C.amber },
+      { label: "Stock immobilisé", value: fm(audit.totalStockValue), sub: `${formatNum(audit.totalStockQty)} unités`, color: C.amber },
+      { label: "Stock dormant", value: fm(audit.dormantValue), sub: `${audit.dormantPct.toFixed(0)} % · ${audit.dormants.length} articles`, color: audit.dormantPct > 15 ? C.red : audit.dormantPct > 5 ? C.amber : C.green },
+      { label: "Rotation annuelle", value: audit.avgRotation ? audit.avgRotation.toFixed(1) + ' ×' : '—', sub: audit.avgCoverage ? `Couv. médiane ${Math.round(audit.avgCoverage)} j` : 'COGS approximé', color: C.amber },
+    ];
+    kpis.forEach((k, i) => {
+      const x = M.l + i * (cardW + 3);
+      setFill(C.bgSoft);
+      doc.roundedRect(x, y, cardW, 24, 1.5, 1.5, 'F');
+      setText(C.inkDim);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(6.5);
+      doc.text(k.label.toUpperCase(), x + 3, y + 5);
+      setText(k.color);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(13);
+      doc.text(String(k.value), x + 3, y + 13);
+      setText(C.inkDim);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(6.5);
+      doc.text(k.sub, x + 3, y + 20);
+    });
+    y += 30;
+
+    // Top 5 chantiers prioritaires
+    setText(C.ink);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text('Top chantiers prioritaires', M.l, y);
+    setText(C.amber);
+    doc.setLineWidth(0.4);
+    doc.line(M.l, y + 1, M.l + 50, y + 1);
+    y += 8;
+
+    const topAlerts = audit.alerts.slice(0, 5);
+    if (topAlerts.length === 0) {
+      setText(C.inkDim);
+      doc.setFont('helvetica', 'italic');
+      doc.setFontSize(9);
+      doc.text('Aucune alerte prioritaire détectée.', M.l, y);
+    } else {
+      topAlerts.forEach((a, i) => {
+        const bgC = a.level === 'critical' ? C.bgCrit : a.level === 'warning' ? C.bgWarn : C.bgInfo;
+        const dotC = a.level === 'critical' ? C.red : a.level === 'warning' ? C.amberDk : C.blue;
+        // Pastille
+        setFill(bgC);
+        doc.roundedRect(M.l, y, innerW, 14, 1, 1, 'F');
+        setFill(dotC);
+        doc.circle(M.l + 3.5, y + 5, 1.2, 'F');
+        // Texte
+        setText(C.ink);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(9);
+        doc.text(a.title, M.l + 7, y + 5.5);
+        setText(C.inkSoft);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7.5);
+        textWrap(a.detail, M.l + 7, y + 10, innerW - 10, 3);
+        y += 16;
+      });
+    }
+  }
+
+  // Health Gauge demi-cercle pour PDF
+  function drawHealthGaugePdf(cx, cy, score) {
+    const radius = 11;
+    const color =
+      score >= 80 ? C.green :
+      score >= 60 ? C.amber :
+      score >= 40 ? C.orange : C.red;
+    // Fond du demi-cercle
+    setDraw(C.inkDim);
+    doc.setLineWidth(2);
+    drawArc(cx, cy, radius, 180, 360);
+    // Arc du score
+    setDraw(color);
+    doc.setLineWidth(2);
+    drawArc(cx, cy, radius, 180, 180 + (score / 100) * 180);
+    // Chiffre central
+    setText(C.white);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(13);
+    doc.text(String(score), cx, cy - 1, { align: 'center' });
+    setText(C.inkMute);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(5);
+    doc.text('/ 100', cx, cy + 3, { align: 'center' });
+  }
+
+  // Trace un arc de cercle par lignes courtes (jsPDF n'a pas d'API arc directe)
+  function drawArc(cx, cy, r, startAngleDeg, endAngleDeg) {
+    const steps = Math.max(20, Math.abs(endAngleDeg - startAngleDeg));
+    const startRad = startAngleDeg * Math.PI / 180;
+    const endRad = endAngleDeg * Math.PI / 180;
+    const points = [];
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const a = startRad + t * (endRad - startRad);
+      points.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]);
+    }
+    for (let i = 0; i < points.length - 1; i++) {
+      doc.line(points[i][0], points[i][1], points[i + 1][0], points[i + 1][1]);
+    }
+  }
+
+  // ========== PAGE 3 — ALERTES PRIORITAIRES ==========
+
+  function drawAlerts() {
+    if (audit.alerts.length <= 5) return; // déjà traité dans synthèse si moins de 6
+    addHeader('Signaux & alertes', `${audit.alerts.length} signaux détectés sur votre supply chain`);
+    let y = 40;
+
+    audit.alerts.forEach((a) => {
+      const bgC = a.level === 'critical' ? C.bgCrit : a.level === 'warning' ? C.bgWarn : C.bgInfo;
+      const dotC = a.level === 'critical' ? C.red : a.level === 'warning' ? C.amberDk : C.blue;
+      const labelC = a.level === 'critical' ? 'CRITIQUE' : a.level === 'warning' ? 'ATTENTION' : 'INFO';
+
+      // Estimation hauteur nécessaire
+      const detailLines = doc.splitTextToSize(a.detail, innerW - 12).length;
+      const blockH = 10 + detailLines * 3.5;
+      y = ensureSpace(y, blockH + 3, 'Signaux & alertes', `${audit.alerts.length} signaux détectés`);
+
+      setFill(bgC);
+      doc.roundedRect(M.l, y, innerW, blockH, 1.5, 1.5, 'F');
+      setFill(dotC);
+      doc.circle(M.l + 4, y + 5.5, 1.3, 'F');
+      // Étiquette niveau
+      setText(dotC);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(6);
+      doc.text(labelC, M.l + 8, y + 5);
+      setText(C.ink);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.text(a.title, M.l + 8, y + 9);
+      setText(C.inkSoft);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7.5);
+      textWrap(a.detail, M.l + 8, y + 13.5, innerW - 12, 3.5);
+
+      y += blockH + 3;
+    });
+  }
+
+  // ========== PAGE — SAISONNALITÉ + DONUT RÉPARTITION ==========
+
+  function drawSeasonalityAndBreakdown() {
+    addHeader('Saisonnalité & répartition du stock', `Mois actifs : ${audit.monthlyTrend.length} · Stock total : ${fm(audit.totalStockValue)}`);
+    let y = 40;
+
+    // Courbe de saisonnalité
+    setText(C.ink);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text(`Saisonnalité (${audit.hasMonetary ? 'CA' : 'volume'})`, M.l, y);
+    setDraw(C.amber);
+    doc.setLineWidth(0.4);
+    doc.line(M.l, y + 1, M.l + 35, y + 1);
+    setText(C.inkDim);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.text("Tendance mensuelle sur la période — pics et creux d'activité", M.l, y + 6);
+    y += 11;
+
+    drawLineChartPdf(M.l, y, innerW, 60, audit.monthlyTrend, audit.hasMonetary ? 'amount' : 'qty', audit.hasMonetary);
+    y += 65;
+
+    // Donut répartition + légende côte à côte
+    y = ensureSpace(y, 70, 'Saisonnalité & répartition du stock');
+    setText(C.ink);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text('Répartition du stock par état', M.l, y);
+    setDraw(C.amber);
+    doc.setLineWidth(0.4);
+    doc.line(M.l, y + 1, M.l + 35, y + 1);
+    setText(C.inkDim);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.text(audit.hasPmp ? 'Par valeur immobilisée (PMP)' : 'Par quantité (PMP non fourni)', M.l, y + 6);
+    y += 10;
+
+    drawDonutPdf(M.l + 30, y + 25, audit.stockBreakdown);
+    drawBreakdownLegend(M.l + 75, y + 5, audit.stockBreakdown);
+  }
+
+  // Tracé d'un line chart en PDF
+  function drawLineChartPdf(x, y, w, h, data, valueKey, isMoney) {
+    if (!data || data.length < 2) {
+      setText(C.inkDim);
+      doc.setFontSize(9);
+      doc.text('Données insuffisantes', x + w / 2, y + h / 2, { align: 'center' });
+      return;
+    }
+    const pad = { t: 6, r: 8, b: 12, l: 18 };
+    const innerW = w - pad.l - pad.r;
+    const innerH = h - pad.t - pad.b;
+    const ox = x + pad.l, oy = y + pad.t;
+
+    const values = data.map(d => d[valueKey]);
+    const maxV = Math.max(...values, 1);
+    const range = maxV;
+
+    // Grille horizontale (4 lignes)
+    setDraw(C.line);
+    doc.setLineWidth(0.15);
+    for (let i = 0; i <= 4; i++) {
+      const ly = oy + (innerH * i / 4);
+      doc.line(ox, ly, ox + innerW, ly);
+      // Y label
+      const v = range * (1 - i / 4);
+      setText(C.inkMute);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(6);
+      const lbl = isMoney
+        ? (v >= 1000000 ? (v / 1000000).toFixed(1) + 'M' : v >= 1000 ? Math.round(v / 1000) + 'k' : Math.round(v).toString())
+        : (v >= 1000 ? Math.round(v / 1000) + 'k' : Math.round(v).toString());
+      doc.text(lbl, ox - 2, ly + 1, { align: 'right' });
+    }
+
+    // Points + courbe + zone
+    const points = data.map((d, i) => ({
+      x: ox + (i / Math.max(1, data.length - 1)) * innerW,
+      y: oy + (1 - d[valueKey] / range) * innerH,
+      raw: d,
+    }));
+
+    // Area fill (clair)
+    setFill(C.amber);
+    const areaPath = [];
+    areaPath.push([points[0].x, oy + innerH]);
+    points.forEach(p => areaPath.push([p.x, p.y]));
+    areaPath.push([points[points.length - 1].x, oy + innerH]);
+    // Simulation simple : on dessine plusieurs trapèzes
+    for (let i = 0; i < points.length - 1; i++) {
+      const p1 = points[i], p2 = points[i + 1];
+      const trap = [
+        [p1.x, p1.y],
+        [p2.x, p2.y],
+        [p2.x, oy + innerH],
+        [p1.x, oy + innerH],
+      ];
+      doc.setGState(new doc.GState({ opacity: 0.15 }));
+      setFill(C.amber);
+      doc.lines([
+        [trap[1][0] - trap[0][0], trap[1][1] - trap[0][1]],
+        [trap[2][0] - trap[1][0], trap[2][1] - trap[1][1]],
+        [trap[3][0] - trap[2][0], trap[3][1] - trap[2][1]],
+      ], trap[0][0], trap[0][1], [1, 1], 'F', true);
+      doc.setGState(new doc.GState({ opacity: 1 }));
+    }
+
+    // Ligne
+    setDraw(C.amber);
+    doc.setLineWidth(0.7);
+    for (let i = 0; i < points.length - 1; i++) {
+      doc.line(points[i].x, points[i].y, points[i + 1].x, points[i + 1].y);
+    }
+    // Points
+    for (const p of points) {
+      setFill(C.amber);
+      doc.circle(p.x, p.y, 0.8, 'F');
+    }
+
+    // Labels X (un sur deux si > 8 mois)
+    const months = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
+    setText(C.inkDim);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(6);
+    points.forEach((p, i) => {
+      const showLabel = data.length <= 8 || i % 2 === 0 || i === points.length - 1;
+      if (!showLabel) return;
+      const [yPart, mPart] = p.raw.ym.split('-');
+      const lbl = months[parseInt(mPart, 10) - 1] + ' ' + yPart.slice(2);
+      doc.text(lbl, p.x, oy + innerH + 4, { align: 'center' });
+    });
+  }
+
+  // Tracé d'un donut en PDF (par triangulation)
+  function drawDonutPdf(cx, cy, breakdown) {
+    const r = 22, rIn = 14;
+    const segments = [
+      { label: 'Actif sain', value: breakdown.healthy, color: C.green },
+      { label: 'Sous-stock', value: breakdown.understocked || 0, color: C.red },
+      { label: 'Surstock', value: breakdown.overstocked, color: C.orange },
+      { label: 'Dormant', value: breakdown.dormant, color: C.redDk },
+    ].filter(s => s.value > 0);
+    const sum = segments.reduce((a, b) => a + b.value, 0);
+    if (sum === 0) {
+      setText(C.inkDim);
+      doc.setFontSize(8);
+      doc.text('Aucune donnée', cx, cy, { align: 'center' });
+      return;
+    }
+    let angle = -90;
+    segments.forEach(s => {
+      const seg = (s.value / sum) * 360;
+      drawDonutSegment(cx, cy, r, rIn, angle, angle + seg, s.color);
+      angle += seg;
+    });
+    // Centre
+    setText(C.ink);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    const totalLabel = breakdown.unit === 'value' ? fm(breakdown.total) : formatNum(breakdown.total) + ' u';
+    doc.text(totalLabel, cx, cy + 1, { align: 'center' });
+    setText(C.inkMute);
+    doc.setFontSize(5);
+    doc.text(breakdown.unit === 'value' ? 'TOTAL' : 'TOTAL', cx, cy + 5, { align: 'center' });
+  }
+
+  // Trace un segment de donut (polygone)
+  function drawDonutSegment(cx, cy, r, rIn, startDeg, endDeg, color) {
+    const steps = Math.max(8, Math.ceil((endDeg - startDeg) / 4));
+    const points = [];
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const angle = (startDeg + t * (endDeg - startDeg)) * Math.PI / 180;
+      points.push([cx + r * Math.cos(angle), cy + r * Math.sin(angle)]);
+    }
+    for (let i = steps; i >= 0; i--) {
+      const t = i / steps;
+      const angle = (startDeg + t * (endDeg - startDeg)) * Math.PI / 180;
+      points.push([cx + rIn * Math.cos(angle), cy + rIn * Math.sin(angle)]);
+    }
+    setFill(color);
+    // Convertir en lines() relatives
+    const start = points[0];
+    const deltas = points.slice(1).map((p, i) => [p[0] - points[i][0], p[1] - points[i][1]]);
+    doc.lines(deltas, start[0], start[1], [1, 1], 'F', true);
+  }
+
+  // Légende du donut
+  function drawBreakdownLegend(x, y, breakdown) {
+    const segments = [
+      { label: 'Actif sain', value: breakdown.healthy, color: C.green },
+      { label: 'Sous-stock', value: breakdown.understocked || 0, color: C.red },
+      { label: 'Surstock', value: breakdown.overstocked, color: C.orange },
+      { label: 'Dormant', value: breakdown.dormant, color: C.redDk },
+    ].filter(s => s.value > 0);
+    const sum = segments.reduce((a, b) => a + b.value, 0);
+    if (sum === 0) return;
+    segments.forEach((s, i) => {
+      const ly = y + i * 10;
+      setFill(s.color);
+      doc.roundedRect(x, ly, 3, 3, 0.3, 0.3, 'F');
+      setText(C.ink);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.text(s.label, x + 5, ly + 2.5);
+      setText(C.inkDim);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7);
+      const pct = (s.value / sum) * 100;
+      const valLabel = breakdown.unit === 'value' ? fm(s.value) : formatNum(s.value) + ' u';
+      doc.text(`${pct.toFixed(0)} % · ${valLabel}`, x + 5, ly + 6);
+    });
+  }
+
+  // ========== PAGE — PARETO + MATRICE ABC × XYZ ==========
+
+  function drawClassification() {
+    addHeader('Classification ABC × XYZ', `Concentration du CA et régularité de la demande — ${audit.nArticles} articles classés`);
+    let y = 40;
+
+    // Pareto
+    setText(C.ink);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text('Courbe de Pareto ABC', M.l, y);
+    setDraw(C.amber);
+    doc.setLineWidth(0.4);
+    doc.line(M.l, y + 1, M.l + 35, y + 1);
+    setText(C.inkDim);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.text("Concentration du chiffre d'affaires sur le portefeuille", M.l, y + 6);
+    y += 11;
+
+    drawParetoPdf(M.l, y, innerW, 65, audit.refs, audit.hasMonetary);
+    y += 70;
+
+    // Matrice ABC × XYZ
+    y = ensureSpace(y, 70, 'Classification ABC × XYZ');
+    setText(C.ink);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text('Matrice 9 cases', M.l, y);
+    setDraw(C.amber);
+    doc.setLineWidth(0.4);
+    doc.line(M.l, y + 1, M.l + 35, y + 1);
+    setText(C.inkDim);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.text('ABC = poids dans le CA · XYZ = régularité de la demande', M.l, y + 6);
+    y += 11;
+
+    drawAbcMatrix(M.l, y, innerW, audit.matrix);
+  }
+
+  // Pareto chart en PDF
+  function drawParetoPdf(x, y, w, h, refs, hasMonetary) {
+    if (!refs || refs.length === 0) return;
+    const pad = { t: 5, r: 12, b: 18, l: 16 };
+    const innerW = w - pad.l - pad.r;
+    const innerH = h - pad.t - pad.b;
+    const ox = x + pad.l, oy = y + pad.t;
+
+    const total = refs.reduce((s, r) => s + (hasMonetary ? r.totalAmount : r.totalQty), 0);
+    let cumul = 0;
+    const points = refs.map((r, i) => {
+      cumul += hasMonetary ? r.totalAmount : r.totalQty;
+      const val = hasMonetary ? r.totalAmount : r.totalQty;
+      const maxFirst = hasMonetary ? refs[0].totalAmount : refs[0].totalQty;
+      return {
+        x: ox + ((i + 1) / refs.length) * innerW,
+        y: oy + (1 - cumul / total) * innerH,
+        cumulPct: (cumul / total) * 100,
+        barH: (val / maxFirst) * innerH,
+        barX: ox + (i / refs.length) * innerW,
+        barW: innerW / refs.length,
+        abc: r.abc,
+      };
+    });
+
+    // Zones colorées A/B/C
+    const idxA = points.findIndex(p => p.cumulPct >= 80);
+    const idxB = points.findIndex(p => p.cumulPct >= 95);
+    const xA = idxA >= 0 ? points[idxA].x : ox + innerW;
+    const xB = idxB >= 0 ? points[idxB].x : ox + innerW;
+
+    doc.setGState(new doc.GState({ opacity: 0.06 }));
+    setFill(C.greenLt);
+    doc.rect(ox, oy, xA - ox, innerH, 'F');
+    setFill(C.amber);
+    doc.rect(xA, oy, xB - xA, innerH, 'F');
+    setFill(C.red);
+    doc.rect(xB, oy, ox + innerW - xB, innerH, 'F');
+    doc.setGState(new doc.GState({ opacity: 1 }));
+
+    // Barres
+    const colorByAbc = { A: C.green, B: C.amber, C: C.red };
+    doc.setGState(new doc.GState({ opacity: 0.7 }));
+    points.forEach(p => {
+      setFill(colorByAbc[p.abc]);
+      doc.rect(p.barX, oy + innerH - p.barH, Math.max(0.3, p.barW - 0.2), p.barH, 'F');
+    });
+    doc.setGState(new doc.GState({ opacity: 1 }));
+
+    // Courbe cumul
+    setDraw(C.ink);
+    doc.setLineWidth(0.5);
+    for (let i = 0; i < points.length - 1; i++) {
+      doc.line(points[i].x, points[i].y, points[i + 1].x, points[i + 1].y);
+    }
+
+    // Lignes seuils 80 / 95
+    setDraw(C.inkMute);
+    doc.setLineDashPattern([0.6, 0.6], 0);
+    doc.setLineWidth(0.2);
+    doc.line(ox, oy + innerH * 0.2, ox + innerW, oy + innerH * 0.2);
+    doc.line(ox, oy + innerH * 0.05, ox + innerW, oy + innerH * 0.05);
+    doc.setLineDashPattern([], 0);
+
+    setText(C.inkDim);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(6);
+    doc.text('80 %', ox + innerW + 1, oy + innerH * 0.2 + 1);
+    doc.text('95 %', ox + innerW + 1, oy + innerH * 0.05 + 1);
+
+    // Légende bas
+    setText(C.inkDim);
+    doc.setFontSize(7);
+    let lx = ox;
+    [['A', C.green], ['B', C.amber], ['C', C.red]].forEach(([letter, col]) => {
+      setFill(col);
+      doc.setGState(new doc.GState({ opacity: 0.7 }));
+      doc.rect(lx, oy + innerH + 6, 3, 3, 'F');
+      doc.setGState(new doc.GState({ opacity: 1 }));
+      setText(C.inkSoft);
+      doc.text(`Classe ${letter}`, lx + 4, oy + innerH + 8.5);
+      lx += 22;
+    });
+    setDraw(C.ink);
+    doc.setLineWidth(0.5);
+    doc.line(lx, oy + innerH + 7.5, lx + 8, oy + innerH + 7.5);
+    doc.text('Cumul %', lx + 10, oy + innerH + 8.5);
+
+    setText(C.inkMute);
+    doc.setFontSize(6);
+    doc.text(`${refs.length} articles (du plus vendu au moins vendu)`, x + w / 2, oy + innerH + 14, { align: 'center' });
+  }
+
+  // Matrice ABC × XYZ en PDF
+  function drawAbcMatrix(x, y, w, matrix) {
+    const cellW = (w - 30) / 3;
+    const cellH = 18;
+    const colors = {
+      AX: C.green, AY: C.greenLt, AZ: C.amber,
+      BX: C.greenLt, BY: C.amber, BZ: C.orange,
+      CX: C.greenLt, CY: C.amber, CZ: C.red,
+    };
+
+    // En-têtes colonnes
+    setText(C.inkDim);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7);
+    ['X (régulier)', 'Y (variable)', 'Z (sporadique)'].forEach((h, i) => {
+      doc.text(h, x + 30 + cellW / 2 + i * cellW, y + 3, { align: 'center' });
+    });
+
+    ['A', 'B', 'C'].forEach((rowA, ri) => {
+      const ry = y + 7 + ri * (cellH + 2);
+      // Label rangée
+      setText(C.inkDim);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(7);
+      const rowLabel = rowA === 'A' ? 'A (top 80 % CA)' : rowA === 'B' ? 'B (80-95 %)' : 'C (95-100 %)';
+      doc.text(rowLabel, x + 28, ry + cellH / 2, { align: 'right' });
+
+      ['X', 'Y', 'Z'].forEach((colX, ci) => {
+        const cx = x + 30 + ci * cellW;
+        const key = rowA + colX;
+        const cell = matrix[key];
+        const col = colors[key];
+
+        // Cellule colorée avec opacité
+        doc.setGState(new doc.GState({ opacity: 0.18 }));
+        setFill(col);
+        doc.roundedRect(cx + 1, ry, cellW - 2, cellH, 1, 1, 'F');
+        doc.setGState(new doc.GState({ opacity: 1 }));
+        // Bordure
+        setDraw(col);
+        doc.setLineWidth(0.3);
+        doc.roundedRect(cx + 1, ry, cellW - 2, cellH, 1, 1, 'S');
+
+        // Nb articles
+        setText(col);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(14);
+        doc.text(String(cell.count), cx + cellW / 2, ry + 8.5, { align: 'center' });
+        // Sous-libellé
+        setText(C.inkDim);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(6);
+        doc.text('articles', cx + cellW / 2, ry + 12, { align: 'center' });
+        doc.text(`${cell.valueSharePct.toFixed(0)} % du CA`, cx + cellW / 2, ry + 15.5, { align: 'center' });
+      });
+    });
+
+    // Légende interprétation
+    setFill(C.bgSoft);
+    doc.roundedRect(x, y + 70, w, 14, 1, 1, 'F');
+    setText(C.inkSoft);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    const interpretation = 'Lecture : les AX sont les bestsellers stables (prévision facile), les AZ font du CA mais sont erratiques (stock de sécurité élevé requis), les CZ sont candidats à la rationalisation du référentiel.';
+    textWrap(interpretation, x + 3, y + 74, w - 6, 3);
+  }
+
+  // ========== PAGE — TOP 10 ARTICLES ==========
+
+  function drawTopArticles() {
+    addHeader('Top 10 articles vendeurs', 'Concentration du CA sur le portefeuille — articles à fiabiliser en priorité');
+    let y = 40;
+
+    const refs = audit.refs.slice(0, 10);
+    const total = audit.hasMonetary ? audit.totalCA : audit.totalQty;
+    const maxV = Math.max(...refs.map(r => audit.hasMonetary ? r.totalAmount : r.totalQty));
+
+    refs.forEach((r, i) => {
+      const value = audit.hasMonetary ? r.totalAmount : r.totalQty;
+      const pct = (value / maxV) * 100;
+      const sharePct = (value / total) * 100;
+      const colorByAbc = { A: C.green, B: C.amber, C: C.red }[r.abc] || C.inkDim;
+
+      // Rang
+      setText(C.inkDim);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.text(`#${i + 1}`, M.l, y + 3);
+
+      // Référence + libellé
+      setText(C.inkSoft);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.text(r.ref, M.l + 9, y + 3);
+      setText(C.inkDim);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7);
+      if (r.label) {
+        doc.text(r.label.slice(0, 50), M.l + 30, y + 3);
+      }
+
+      // Badge ABC/XYZ
+      const badge = r.abc + r.xyz;
+      setFill(colorByAbc);
+      doc.setGState(new doc.GState({ opacity: 0.2 }));
+      doc.roundedRect(M.l + innerW - 38, y, 8, 4, 0.5, 0.5, 'F');
+      doc.setGState(new doc.GState({ opacity: 1 }));
+      setText(colorByAbc);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(6);
+      doc.text(badge, M.l + innerW - 34, y + 3, { align: 'center' });
+
+      // Valeur
+      setText(C.ink);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.text(audit.hasMonetary ? fm(value) : formatNum(value) + ' u', M.l + innerW - 22, y + 3, { align: 'right' });
+      // %
+      setText(C.inkDim);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7);
+      doc.text(`${sharePct.toFixed(1)} %`, M.l + innerW, y + 3, { align: 'right' });
+
+      // Barre de progression
+      setFill(C.line);
+      doc.roundedRect(M.l + 9, y + 5, innerW - 9, 1.5, 0.3, 0.3, 'F');
+      setFill(colorByAbc);
+      doc.setGState(new doc.GState({ opacity: 0.85 }));
+      doc.roundedRect(M.l + 9, y + 5, (innerW - 9) * pct / 100, 1.5, 0.3, 0.3, 'F');
+      doc.setGState(new doc.GState({ opacity: 1 }));
+
+      y += 11;
+    });
+  }
+
+  // ========== PAGE — DORMANTS ==========
+
+  function drawDormants() {
+    if (!audit.dormants || audit.dormants.length === 0) return;
+    addHeader('Articles dormants', `${audit.dormants.length} articles immobilisent ${fm(audit.dormantValue)} sans rotation depuis 6+ mois`);
+    let y = 40;
+
+    drawTable(y, [
+      { label: 'Référence', w: 25, align: 'left' },
+      { label: 'Libellé', w: 55, align: 'left' },
+      { label: 'Qté', w: 18, align: 'right' },
+      audit.hasPmp ? { label: 'PMP', w: 22, align: 'right' } : null,
+      audit.hasPmp ? { label: 'Valeur immo.', w: 30, align: 'right' } : null,
+      { label: 'Dernière vente', w: audit.hasPmp ? 24 : 76, align: 'right' },
+    ].filter(Boolean), audit.dormants.slice(0, 15).map(d => [
+      d.ref,
+      (d.label || '—').slice(0, 35),
+      formatNum(d.qty),
+      audit.hasPmp ? (d.pmp > 0 ? fm(d.pmp) : '—') : null,
+      audit.hasPmp ? fm(d.value) : null,
+      d.lastSale ? 'il y a ' + Math.round(d.daysSinceSale / 30) + ' mois' : 'Jamais',
+    ].filter(x => x !== null)));
+  }
+
+  // ========== Table générique ==========
+
+  function drawTable(startY, columns, rows) {
+    let y = startY;
+    const rowH = 6;
+    const headerH = 7;
+
+    // En-tête
+    setFill(C.bgSoft);
+    doc.rect(M.l, y, innerW, headerH, 'F');
+    setText(C.inkDim);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(6.5);
+    let cx = M.l;
+    columns.forEach(col => {
+      const tx = col.align === 'right' ? cx + col.w - 2 : cx + 2;
+      doc.text(col.label.toUpperCase(), tx, y + 4.5, { align: col.align === 'right' ? 'right' : 'left' });
+      cx += col.w;
+    });
+    y += headerH;
+
+    // Lignes
+    setText(C.inkSoft);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+    rows.forEach((row, i) => {
+      // Pagination si on dépasse
+      if (y + rowH > PH - M.b - 6) {
+        doc.addPage();
+        addHeader('Articles dormants (suite)');
+        y = 40;
+      }
+      // Ligne alternée
+      if (i % 2 === 0) {
+        setFill([252, 252, 253]);
+        doc.rect(M.l, y, innerW, rowH, 'F');
+      }
+      cx = M.l;
+      row.forEach((val, ci) => {
+        const col = columns[ci];
+        if (!col) return;
+        const tx = col.align === 'right' ? cx + col.w - 2 : cx + 2;
+        setText(C.inkSoft);
+        doc.text(String(val), tx, y + 4, { align: col.align === 'right' ? 'right' : 'left' });
+        cx += col.w;
+      });
+      // Trait fin
+      setDraw(C.line);
+      doc.setLineWidth(0.1);
+      doc.line(M.l, y + rowH, M.l + innerW, y + rowH);
+      y += rowH;
+    });
+    return y;
+  }
+
+  // ========== PAGES MULTI-MAGASIN ==========
+
+  function drawMultiStore() {
+    if (!audit.isMultiStore) return;
+    addHeader('Multi-magasin', `Comparaison entre vos ${audit.allStores.length} sites`);
+    let y = 40;
+
+    // Bar chart par magasin
+    setText(C.ink);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text('Performance par site', M.l, y);
+    setDraw(C.amber);
+    doc.setLineWidth(0.4);
+    doc.line(M.l, y + 1, M.l + 35, y + 1);
+    y += 8;
+
+    const stores = Object.values(audit.storeStats).sort((a, b) => b.totalCA - a.totalCA);
+    const maxCA = Math.max(...stores.map(s => audit.hasMonetary ? s.totalCA : s.totalQty), 1);
+    const maxStk = Math.max(...stores.map(s => audit.hasPmp ? s.stockValue : s.stockQty), 1);
+
+    stores.forEach(s => {
+      y = ensureSpace(y, 16, 'Multi-magasin');
+      setText(C.ink);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.text(s.store, M.l, y + 3);
+      setText(C.inkDim);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7);
+      doc.text(`${s.nArticles} articles stockés`, M.l + innerW, y + 3, { align: 'right' });
+      y += 5;
+
+      // Barre CA
+      const leftVal = audit.hasMonetary ? s.totalCA : s.totalQty;
+      const rightVal = audit.hasPmp ? s.stockValue : s.stockQty;
+      const leftLabel = audit.hasMonetary ? fm(s.totalCA) : formatNum(s.totalQty);
+      const rightLabel = audit.hasPmp ? fm(s.stockValue) : formatNum(s.stockQty);
+
+      setText(C.green);
+      doc.setFontSize(6);
+      doc.text(audit.hasMonetary ? 'CA' : 'VENTES', M.l, y + 3);
+      setText(C.ink);
+      doc.setFont('helvetica', 'bold');
+      doc.text(leftLabel, M.l + innerW / 2 - 4, y + 3, { align: 'right' });
+      setFill([209, 250, 229]);
+      doc.roundedRect(M.l, y + 4, innerW / 2 - 6, 2.5, 0.5, 0.5, 'F');
+      setFill(C.greenLt);
+      doc.roundedRect(M.l, y + 4, (innerW / 2 - 6) * leftVal / maxCA, 2.5, 0.5, 0.5, 'F');
+
+      setText(C.amberDk);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(6);
+      doc.text('STOCK', M.l + innerW / 2 + 2, y + 3);
+      setText(C.ink);
+      doc.setFont('helvetica', 'bold');
+      doc.text(rightLabel, M.l + innerW, y + 3, { align: 'right' });
+      setFill([254, 243, 199]);
+      doc.roundedRect(M.l + innerW / 2 + 2, y + 4, innerW / 2 - 2, 2.5, 0.5, 0.5, 'F');
+      setFill(C.amber);
+      doc.roundedRect(M.l + innerW / 2 + 2, y + 4, (innerW / 2 - 2) * rightVal / maxStk, 2.5, 0.5, 0.5, 'F');
+
+      y += 11;
+    });
+
+    // Déséquilibres
+    if (audit.imbalances.length > 0) {
+      y = ensureSpace(y + 4, 60, 'Multi-magasin');
+      setText(C.ink);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.text('Déséquilibres inter-magasins', M.l, y);
+      setDraw(C.amber);
+      doc.setLineWidth(0.4);
+      doc.line(M.l, y + 1, M.l + 35, y + 1);
+      setText(C.inkDim);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.text('Candidats au transfert inter-sites', M.l, y + 6);
+      y += 10;
+
+      drawTable(y, [
+        { label: 'Référence', w: 22, align: 'left' },
+        { label: 'Libellé', w: 45, align: 'left' },
+        { label: 'Site +', w: 25, align: 'left' },
+        { label: 'Qté', w: 14, align: 'right' },
+        { label: 'Site −', w: 25, align: 'left' },
+        { label: 'Qté', w: 14, align: 'right' },
+        { label: 'Ratio', w: 19, align: 'right' },
+      ], audit.imbalances.slice(0, 10).map(im => [
+        im.ref,
+        (im.label || '—').slice(0, 28),
+        im.maxStore,
+        formatNum(im.maxQty),
+        im.minStore,
+        formatNum(im.minQty),
+        '×' + im.ratio.toFixed(1),
+      ]));
+    }
+  }
+
+  // ========== PAGE — SOUS-STOCK / SURSTOCK ==========
+
+  function drawStockRisks() {
+    if (audit.understocked.length === 0 && audit.overstocked.length === 0) return;
+    addHeader('Risques stock', 'Articles en sous-couverture (rupture imminente) ou en surcouverture (capital immobilisé)');
+    let y = 40;
+
+    if (audit.understocked.length > 0) {
+      setText(C.red);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.text(`⚠ Sous-stock — ${audit.understocked.length} article(s) à risque de rupture`, M.l, y);
+      y += 4;
+      setText(C.inkDim);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.text('Couverture inférieure à 14 jours sur articles actifs', M.l, y + 3);
+      y += 9;
+
+      y = drawTable(y, [
+        { label: 'Référence', w: 30, align: 'left' },
+        { label: 'Stock', w: 30, align: 'right' },
+        { label: 'Couverture (j)', w: 35, align: 'right' },
+        { label: 'ADU', w: 30, align: 'right' },
+        { label: 'Statut', w: 49, align: 'left' },
+      ], audit.understocked.slice(0, 12).map(u => [
+        u.ref,
+        formatNum(u.stockQty),
+        Math.round(u.coverageDays),
+        u.adu.toFixed(2),
+        u.coverageDays < 7 ? 'CRITIQUE' : 'VIGILANCE',
+      ]));
+      y += 6;
+    }
+
+    if (audit.overstocked.length > 0) {
+      y = ensureSpace(y, 40, 'Risques stock');
+      setText(C.orange);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.text(`⚠ Surstock — ${audit.overstocked.length} article(s) à plus de 6 mois de couverture`, M.l, y);
+      y += 4;
+      setText(C.inkDim);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.text('Capital immobilisé sur des articles à rotation lente', M.l, y + 3);
+      y += 9;
+
+      drawTable(y, [
+        { label: 'Référence', w: 30, align: 'left' },
+        { label: 'Valeur stock', w: 35, align: 'right' },
+        { label: 'Couverture (j)', w: 35, align: 'right' },
+        { label: 'ADU', w: 30, align: 'right' },
+        { label: 'Couv. en mois', w: 44, align: 'right' },
+      ], audit.overstocked.slice(0, 12).map(o => [
+        o.ref,
+        fm(o.stockValue),
+        Math.round(o.coverageDays),
+        o.adu.toFixed(2),
+        Math.round(o.coverageDays / 30) + ' mois',
+      ]));
+    }
+  }
+
+  // ========== PAGES MODULES AUDIT COMPLET ==========
+
+  function drawSupplierPerf() {
+    if (!audit.supplierPerf) return;
+    const p = audit.supplierPerf;
+    addHeader('OTIF achat', `Performance fournisseurs · ${p.total} livraisons analysées`);
+    let y = 40;
+
+    const tiles = [
+      { label: 'OTIF ACHAT', value: p.otifRate.toFixed(0) + ' %', color: p.otifRate >= 90 ? C.green : p.otifRate >= 75 ? C.amber : C.red },
+      { label: 'ON TIME', value: p.otRate.toFixed(0) + ' %', color: C.ink },
+      { label: 'IN FULL', value: p.inFullRate.toFixed(0) + ' %', color: C.ink },
+      { label: 'RETARD SI RETARD', value: p.avgDelayWhenLate.toFixed(1) + ' j', color: p.avgDelayWhenLate > 5 ? C.red : C.ink },
+      { label: 'RETARD MOYEN', value: p.avgDelayAll.toFixed(1) + ' j', color: p.avgDelayAll > 2 ? C.amber : C.ink },
+    ];
+    const tW = (innerW - 12) / 5;
+    tiles.forEach((t, i) => {
+      const x = M.l + i * (tW + 3);
+      setFill(C.bgSoft);
+      doc.roundedRect(x, y, tW, 20, 1, 1, 'F');
+      setText(C.inkDim);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(5.5);
+      doc.text(t.label, x + 2, y + 4);
+      setText(t.color);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(13);
+      doc.text(t.value, x + 2, y + 13);
+    });
+    y += 26;
+
+    setText(C.ink);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.text('Performance par fournisseur', M.l, y);
+    y += 5;
+
+    drawTable(y, [
+      { label: 'Fournisseur', w: 50, align: 'left' },
+      { label: 'Liv.', w: 14, align: 'right' },
+      { label: 'OT %', w: 18, align: 'right' },
+      { label: 'IF %', w: 18, align: 'right' },
+      { label: 'OTIF %', w: 22, align: 'right' },
+      { label: 'Retard si', w: 22, align: 'right' },
+      { label: 'Retard moy.', w: 30, align: 'right' },
+    ], p.suppliers.slice(0, 12).map(s => [
+      s.supplier.slice(0, 28),
+      s.total,
+      s.otRate.toFixed(0) + ' %',
+      s.inFullRate.toFixed(0) + ' %',
+      s.otifRate.toFixed(0) + ' %',
+      s.avgDelayWhenLate.toFixed(1) + ' j',
+      s.avgDelayAll.toFixed(1) + ' j',
+    ]));
+  }
+
+  function drawCustomerPerf() {
+    if (!audit.customerPerf) return;
+    const p = audit.customerPerf;
+    addHeader('OTIF service client', `${p.total} livraisons analysées vers vos clients`);
+    let y = 40;
+
+    const tiles = [
+      { label: 'OTIF CLIENT', value: p.otifRate.toFixed(0) + ' %', color: p.otifRate >= 95 ? C.green : p.otifRate >= 85 ? C.amber : C.red },
+      { label: 'ON TIME', value: p.otRate.toFixed(0) + ' %', color: C.ink },
+      { label: 'IN FULL', value: p.inFullRate.toFixed(0) + ' %', color: C.ink },
+    ];
+    const tW = (innerW - 6) / 3;
+    tiles.forEach((t, i) => {
+      const x = M.l + i * (tW + 3);
+      setFill(C.bgSoft);
+      doc.roundedRect(x, y, tW, 20, 1, 1, 'F');
+      setText(C.inkDim);
+      doc.setFontSize(6);
+      doc.text(t.label, x + 2, y + 4);
+      setText(t.color);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(14);
+      doc.text(t.value, x + 2, y + 14);
+    });
+    y += 26;
+
+    setText(C.ink);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.text('Performance par client', M.l, y);
+    y += 5;
+
+    drawTable(y, [
+      { label: 'Client', w: 70, align: 'left' },
+      { label: 'Livraisons', w: 25, align: 'right' },
+      { label: 'OT %', w: 22, align: 'right' },
+      { label: 'IF %', w: 22, align: 'right' },
+      { label: 'OTIF %', w: 35, align: 'right' },
+    ], p.customers.slice(0, 12).map(c => [
+      c.customer.slice(0, 40),
+      c.total,
+      c.otRate.toFixed(0) + ' %',
+      c.inFullRate.toFixed(0) + ' %',
+      c.otifRate.toFixed(0) + ' %',
+    ]));
+  }
+
+  function drawFutureCoverage() {
+    if (!audit.futureCoverage) return;
+    const fc = audit.futureCoverage;
+    addHeader('Couverture future', `${fc.nOrders} commandes ouvertes · ${fc.nRefsOrdered} articles`);
+    let y = 40;
+
+    if (fc.riskRuptures.length > 0) {
+      setText(C.red);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10);
+      doc.text(`⚠ Ruptures imminentes malgré commandes en cours (${fc.riskRuptures.length})`, M.l, y);
+      y += 5;
+      y = drawTable(y, [
+        { label: 'Référence', w: 24, align: 'left' },
+        { label: 'Libellé', w: 44, align: 'left' },
+        { label: 'Couv. actuelle', w: 28, align: 'right' },
+        { label: 'Arrivée', w: 28, align: 'right' },
+        { label: 'Qté commandée', w: 50, align: 'right' },
+      ], fc.riskRuptures.slice(0, 8).map(r => [
+        r.ref,
+        (r.label || '—').slice(0, 28),
+        Math.round(r.currentCoverage) + ' j',
+        'dans ' + r.daysUntilArrival + ' j',
+        formatNum(r.openQty),
+      ]));
+      y += 4;
+    }
+
+    if (fc.understockedNoOrder.length > 0) {
+      y = ensureSpace(y, 40, 'Couverture future');
+      setText(C.orange);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10);
+      doc.text(`⚠ Articles à approvisionner d'urgence — sans commande en cours (${fc.understockedNoOrder.length})`, M.l, y);
+      y += 5;
+      y = drawTable(y, [
+        { label: 'Référence', w: 30, align: 'left' },
+        { label: 'Libellé', w: 60, align: 'left' },
+        { label: 'Stock actuel', w: 30, align: 'right' },
+        { label: 'Couverture (j)', w: 54, align: 'right' },
+      ], fc.understockedNoOrder.slice(0, 8).map(r => [
+        r.ref,
+        (r.label || '—').slice(0, 35),
+        formatNum(r.stockQty),
+        Math.round(r.currentCoverage),
+      ]));
+      y += 4;
+    }
+
+    if (fc.overOrdering.length > 0) {
+      y = ensureSpace(y, 40, 'Couverture future');
+      setText(C.amberDk);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10);
+      doc.text(`⚠ Sur-commandes potentielles — couverture totale > 12 mois (${fc.overOrdering.length})`, M.l, y);
+      y += 5;
+      drawTable(y, [
+        { label: 'Référence', w: 30, align: 'left' },
+        { label: 'Stock + commandes', w: 60, align: 'right' },
+        { label: 'Couverture totale', w: 84, align: 'right' },
+      ], fc.overOrdering.slice(0, 8).map(r => [
+        r.ref,
+        formatNum(r.totalAvailable),
+        Math.round(r.coverageDays / 30) + ' mois (' + Math.round(r.coverageDays) + ' j)',
+      ]));
+    }
+  }
+
+  function drawCategoryAnalysis() {
+    if (!audit.categoryAnalysis) return;
+    const cat = audit.categoryAnalysis;
+    addHeader('Référentiel articles', `${cat.nRefs} références analysées · ${cat.refsWithoutCategory} sans catégorie · ${cat.inactiveInStock.length} inactifs en stock`);
+    let y = 40;
+
+    if (cat.categories.length > 0) {
+      setText(C.ink);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10);
+      doc.text('Performance par famille', M.l, y);
+      y += 5;
+      y = drawTable(y, [
+        { label: 'Catégorie', w: 50, align: 'left' },
+        { label: 'Articles', w: 22, align: 'right' },
+        { label: audit.hasMonetary ? 'CA' : 'Volume', w: 36, align: 'right' },
+        { label: 'Part CA', w: 22, align: 'right' },
+        { label: 'Stock immo.', w: 44, align: 'right' },
+      ], cat.categories.map(c => [
+        c.category.slice(0, 28),
+        c.nArticles,
+        audit.hasMonetary ? fm(c.totalCA) : formatNum(c.totalCA),
+        c.caShare.toFixed(0) + ' %',
+        fm(c.stockValue),
+      ]));
+      y += 4;
+    }
+
+    if (cat.inactiveInStock.length > 0) {
+      y = ensureSpace(y, 40, 'Référentiel articles');
+      setText(C.red);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10);
+      doc.text(`⚠ Articles "inactifs" présents en stock (${cat.inactiveInStock.length})`, M.l, y);
+      y += 4;
+      setText(C.inkDim);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.text('Candidats à la liquidation', M.l, y + 3);
+      y += 7;
+      drawTable(y, [
+        { label: 'Référence', w: 24, align: 'left' },
+        { label: 'Libellé', w: 46, align: 'left' },
+        { label: 'Catégorie', w: 28, align: 'left' },
+        { label: 'Qté', w: 22, align: 'right' },
+        { label: 'Valeur immo.', w: 54, align: 'right' },
+      ], cat.inactiveInStock.slice(0, 10).map(r => [
+        r.ref,
+        (r.label || '—').slice(0, 28),
+        r.category.slice(0, 16),
+        formatNum(r.stockQty),
+        fm(r.stockValue),
+      ]));
+    }
+  }
+
+  // ========== PAGE — MÉTHODOLOGIE & GLOSSAIRE ==========
+
+  function drawMethodology() {
+    addHeader('Méthodologie & glossaire', 'Comprendre les indicateurs de cet audit');
+    let y = 40;
+
+    const items = [
+      ['Classification ABC', 'Pareto sur le chiffre d\'affaires. Classe A : top 80 % du CA. Classe B : 80-95 %. Classe C : 95-100 %.'],
+      ['Classification XYZ', 'Régularité de la demande mesurée par le coefficient de variation (CV) sur tous les mois de la période, zéros inclus. X : CV < 0.5 (régulier). Y : 0.5-1.0 (variable). Z : > 1.0 (sporadique).'],
+      ['Stock dormant', 'Article présent en stock physique sans aucune vente sur les 6 derniers mois.'],
+      ['Sous-stock', 'Couverture (stock / ADU) inférieure à 14 jours sur un article actif. Risque de rupture imminent.'],
+      ['Surstock', 'Couverture supérieure à 180 jours (6 mois). Capital immobilisé sur rotation lente.'],
+      ['ADU (Average Daily Usage)', 'Demande moyenne quotidienne calculée sur la période d\'analyse complète.'],
+      ['Rotation annuelle', 'COGS annualisé (qté vendue × PMP) divisé par la valeur de stock. Plus précis que CA / stock car neutralise la marge.'],
+      ['OTIF achat / client', 'On Time + In Full. Pourcentage de livraisons à temps ET complètes. Standard de pilotage supply chain.'],
+      ['Health Score', 'Note synthétique 0-100 combinant 7 dimensions : dormants, sous-stock, surstock, déséquilibres, articles AZ, rotation, articles CZ.'],
+      ['Couverture future', 'Calcul prospectif intégrant les commandes ouvertes pour détecter ruptures imminentes et sur-commandes.'],
+    ];
+
+    items.forEach(([term, def]) => {
+      y = ensureSpace(y, 14, 'Méthodologie & glossaire');
+      setText(C.amberDk);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.text(term, M.l, y);
+      setText(C.inkSoft);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      y = textWrap(def, M.l, y + 4.5, innerW, 3.5);
+      y += 3;
+    });
+  }
+
+  // ========== PAGE FINALE — CTA WALYCONSEIL ==========
+
+  function drawContact() {
+    doc.addPage();
+    setFill(C.ink);
+    doc.rect(0, 0, PW, PH, 'F');
+    setFill(C.amber);
+    doc.rect(0, 0, 8, PH, 'F');
+
+    setText(C.amber);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.text('PROCHAINE ÉTAPE', M.l + 5, 40);
+
+    setText(C.white);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(28);
+    doc.text('Discutons des chantiers', M.l + 5, 60);
+    doc.text('prioritaires identifiés', M.l + 5, 72);
+
+    setText(C.inkMute);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(11);
+    const txt = "Ce diagnostic a été généré automatiquement à partir de vos données. Pour aller plus loin sur les recommandations chiffrées, un plan d'action concret par chantier et une feuille de route alignée avec votre ERP, échangeons 30 minutes en visio.";
+    textWrap(txt, M.l + 5, 88, innerW - 10, 5);
+
+    // Carte contact
+    setFill([30, 41, 59]);
+    doc.roundedRect(M.l + 5, 130, innerW - 10, 50, 3, 3, 'F');
+    setText(C.amber);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7);
+    doc.text('CONTACTEZ-NOUS', M.l + 12, 142);
+    setText(C.white);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(20);
+    doc.text('WALYCONSEIL', M.l + 12, 157);
+    setText(C.amber);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(13);
+    doc.text('contact@walyconseil.com', M.l + 12, 167);
+    setText(C.inkMute);
+    doc.setFontSize(9);
+    doc.text('Conseil supply chain · ERP · WMS · TMS · Digitalisation logistique', M.l + 12, 175);
+
+    // Services
+    setText(C.white);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.text('Nos expertises', M.l + 5, 198);
+    setDraw(C.amber);
+    doc.setLineWidth(0.5);
+    doc.line(M.l + 5, 200, M.l + 40, 200);
+
+    const services = [
+      ['Diagnostic supply chain', 'Audit approfondi, recommandations chiffrées, plan d\'action'],
+      ['Implémentation ERP / WMS / TMS', 'Cadrage, paramétrage, conduite du changement'],
+      ['Modèles de prévision & DDMRP', 'Mise en place de modèles statistiques et DDMRP'],
+      ['Pilotage S&OP', 'Définition des rituels, KPIs, automatisation des reportings'],
+    ];
+    let sy = 208;
+    services.forEach(([t, d]) => {
+      setText(C.amber);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.text('▸ ' + t, M.l + 5, sy);
+      setText(C.inkMute);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.text(d, M.l + 10, sy + 4);
+      sy += 11;
+    });
+
+    // Footer
+    setFill(C.amber);
+    doc.rect(0, PH - 6, PW, 6, 'F');
+    setText(C.ink);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7);
+    doc.text('ATELIER LOGISTIQUE · ce diagnostic est offert · merci de votre confiance', PW / 2, PH - 2, { align: 'center' });
+  }
+
+  // ============================================================
+  // ORCHESTRATION
+  // ============================================================
+  drawCover();
+  doc.addPage(); drawSynthesis();
+  if (audit.alerts.length > 5) { doc.addPage(); drawAlerts(); }
+  doc.addPage(); drawSeasonalityAndBreakdown();
+  doc.addPage(); drawClassification();
+  doc.addPage(); drawTopArticles();
+  if (audit.dormants.length > 0) { doc.addPage(); drawDormants(); }
+  if (audit.isMultiStore) { doc.addPage(); drawMultiStore(); }
+  if (audit.understocked.length > 0 || audit.overstocked.length > 0) { doc.addPage(); drawStockRisks(); }
+  if (audit.supplierPerf) { doc.addPage(); drawSupplierPerf(); }
+  if (audit.customerPerf) { doc.addPage(); drawCustomerPerf(); }
+  if (audit.futureCoverage) { doc.addPage(); drawFutureCoverage(); }
+  if (audit.categoryAnalysis) { doc.addPage(); drawCategoryAnalysis(); }
+  doc.addPage(); drawMethodology();
+  drawContact();
+
+  // Footer paginé sur toutes les pages (sauf couverture et contact)
+  const total = doc.internal.getNumberOfPages();
+  for (let i = 2; i < total; i++) {
+    doc.setPage(i);
+    addFooter(i, total);
+  }
+
+  // Téléchargement
+  const safeName = (companyName || 'walyconseil').replace(/[^a-zA-Z0-9-_]/g, '-').toLowerCase();
+  const now = new Date();
+  const dateTag = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+  doc.save(`audit-supply-chain-${safeName}-${dateTag}.pdf`);
+}
+
 function runAudit(salesRows, stockRows, supplierDeliveriesRows, customerDeliveriesRows, openOrdersRows, referenceRows, currency) {
   const cur = (currency && currency.trim()) || 'MAD';
   const fm = (n) => formatMoney(n, cur);
@@ -9227,6 +10749,14 @@ function AuditResults({ audit, companyName, currency }) {
             </span>
             <div className="font-jetbrains text-[10px] opacity-60">{2 + audit.filesProvided} / 6 fichiers fournis</div>
           </div>
+          <button
+            onClick={() => generateAuditPdf(audit, companyName, cur)}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-jetbrains text-[11px] font-bold shadow-lg transition-all hover:translate-y-[-1px]"
+            style={{ background: AMBER, color: '#0F172A' }}
+          >
+            <FileDown size={13} />
+            TÉLÉCHARGER LE PDF
+          </button>
         </div>
         <div className="p-5 grid grid-cols-1 lg:grid-cols-5 gap-5">
           {/* Health Score gauge */}
@@ -9556,9 +11086,16 @@ function AuditResults({ audit, companyName, currency }) {
             </div>
           </div>
           <div className="flex flex-col gap-2">
+            <button
+              onClick={() => generateAuditPdf(audit, companyName, cur)}
+              className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg font-jetbrains text-xs font-bold shadow-lg transition-all hover:translate-y-[-2px]"
+              style={{ background: AMBER, color: '#0F172A' }}>
+              <FileDown size={13} />
+              TÉLÉCHARGER LE PDF
+            </button>
             <a href={'mailto:contact@walyconseil.com?subject=Suivi%20audit%20supply%20chain%20' + encodeURIComponent(companyName || '')}
               className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg font-jetbrains text-xs font-semibold shadow-lg transition-all hover:translate-y-[-2px]"
-              style={{ background: AMBER, color: '#0F172A' }}>
+              style={{ background: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.2)' }}>
               CONTACTER WALYCONSEIL
               <ArrowRight size={13} />
             </a>
