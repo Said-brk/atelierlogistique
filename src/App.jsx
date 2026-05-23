@@ -8054,31 +8054,39 @@ function computeSupplierPerf(rows, periodDays) {
   const ot = deliveries.filter(d => d.isOnTime).length;
   const inFull = deliveries.filter(d => d.isInFull).length;
   const otif = deliveries.filter(d => d.isOtif).length;
-  const delays = deliveries.filter(d => d.delayDays > 0).map(d => d.delayDays);
-  const avgDelay = delays.length > 0 ? delays.reduce((a, b) => a + b, 0) / delays.length : 0;
+  // Deux métriques de retard, calculées sur la même base :
+  // - whenLate : moyenne des retards quand en retard uniquement
+  // - allDeliveries : moyenne sur toutes les livraisons (à temps comptés comme 0)
+  const lateDelays = deliveries.filter(d => d.delayDays > 0).map(d => d.delayDays);
+  const avgDelayWhenLate = lateDelays.length > 0 ? lateDelays.reduce((a, b) => a + b, 0) / lateDelays.length : 0;
+  const avgDelayAll = deliveries.reduce((a, d) => a + Math.max(0, d.delayDays), 0) / total;
 
-  // Par fournisseur
+  // Par fournisseur — mêmes deux métriques pour comparabilité
   const bySupplier = {};
   for (const d of deliveries) {
-    if (!bySupplier[d.supplier]) bySupplier[d.supplier] = { supplier: d.supplier, total: 0, ot: 0, inFull: 0, otif: 0, totalDelay: 0 };
+    if (!bySupplier[d.supplier]) bySupplier[d.supplier] = { supplier: d.supplier, total: 0, ot: 0, inFull: 0, otif: 0, lateCount: 0, lateSum: 0, allSum: 0 };
     const g = bySupplier[d.supplier];
     g.total++;
     if (d.isOnTime) g.ot++;
     if (d.isInFull) g.inFull++;
     if (d.isOtif) g.otif++;
-    g.totalDelay += Math.max(0, d.delayDays);
+    if (d.delayDays > 0) { g.lateCount++; g.lateSum += d.delayDays; }
+    g.allSum += Math.max(0, d.delayDays);
   }
   const suppliers = Object.values(bySupplier).map(g => ({
-    ...g,
+    supplier: g.supplier, total: g.total, ot: g.ot, inFull: g.inFull, otif: g.otif,
     otRate: (g.ot / g.total) * 100,
     inFullRate: (g.inFull / g.total) * 100,
     otifRate: (g.otif / g.total) * 100,
-    avgDelay: g.total > 0 ? g.totalDelay / g.total : 0,
+    avgDelayWhenLate: g.lateCount > 0 ? g.lateSum / g.lateCount : 0,
+    avgDelayAll: g.allSum / g.total,
   })).sort((a, b) => a.otifRate - b.otifRate);
 
   return {
     total, otRate: (ot / total) * 100, inFullRate: (inFull / total) * 100, otifRate: (otif / total) * 100,
-    avgDelay, suppliers, deliveries,
+    avgDelayWhenLate, avgDelayAll,
+    avgDelay: avgDelayWhenLate, // alias rétrocompat pour les anciennes alertes
+    suppliers, deliveries,
   };
 }
 
@@ -8354,11 +8362,16 @@ function runAudit(salesRows, stockRows, supplierDeliveriesRows, customerDeliveri
   for (const s of stock) {
     if (!stockByRef[s.ref]) stockByRef[s.ref] = {
       ref: s.ref, label: s.label,
-      qty: 0, value: 0, pmp: s.pmp,
+      qty: 0, value: 0, pmp: 0,
     };
     stockByRef[s.ref].qty += s.qty;
     stockByRef[s.ref].value += s.value;
     stockByRef[s.ref].label = stockByRef[s.ref].label || s.label;
+  }
+  // PMP global agrégé : valeur totale / quantité totale (cohérent multi-magasins)
+  for (const ref in stockByRef) {
+    const s = stockByRef[ref];
+    s.pmp = s.qty > 0 ? s.value / s.qty : 0;
   }
 
   const refs = Object.values(byRef);
@@ -8375,9 +8388,26 @@ function runAudit(salesRows, stockRows, supplierDeliveriesRows, customerDeliveri
     r.abc = pct <= 0.80 ? 'A' : pct <= 0.95 ? 'B' : 'C';
   });
 
+  // Génère tous les mois YYYY-MM entre periodStart et periodEnd
+  const allMonths = [];
+  {
+    const cursor = new Date(periodStart.getFullYear(), periodStart.getMonth(), 1);
+    const lastM = new Date(periodEnd.getFullYear(), periodEnd.getMonth(), 1);
+    while (cursor <= lastM) {
+      allMonths.push(cursor.toISOString().slice(0, 7));
+      cursor.setMonth(cursor.getMonth() + 1);
+    }
+  }
+
   for (const r of sortedByValue) {
-    const monthlyValues = Object.values(r.monthlyQty);
-    if (monthlyValues.length < 2) { r.xyz = 'Z'; r.cv = null; continue; }
+    // Reconstruction sur TOUS les mois de la période (les mois sans vente = 0)
+    // Permet de détecter saisonnalité / intermittence, alors qu'un CV sur bins actifs
+    // classerait à tort en X un article vendu 3 mois sur 12 régulièrement
+    const monthlyValues = allMonths.map(m => r.monthlyQty[m] || 0);
+    const activeMonths = monthlyValues.filter(v => v > 0).length;
+    r.activeMonths = activeMonths;
+    r.totalMonths = allMonths.length;
+    if (activeMonths < 2) { r.xyz = 'Z'; r.cv = null; continue; }
     const mean = monthlyValues.reduce((a, b) => a + b, 0) / monthlyValues.length;
     if (mean === 0) { r.xyz = 'Z'; r.cv = null; continue; }
     const variance = monthlyValues.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / monthlyValues.length;
@@ -8456,25 +8486,67 @@ function runAudit(salesRows, stockRows, supplierDeliveriesRows, customerDeliveri
       const maxStore = sorted[0];
       const minStore = sorted[sorted.length - 1];
       const ratio = minStore.qty > 0 ? maxStore.qty / minStore.qty : Infinity;
-      if (ratio > 5 && maxStore.qty > 50) {
+      // Seuil intelligent : déséquilibre détecté si ratio fort ET impact significatif
+      // (en quantité OU en valeur — un déséquilibre de 40 vs 2 sur un article à 500€ pièce compte)
+      const pmpEst = stockByRef[ref] && stockByRef[ref].pmp > 0 ? stockByRef[ref].pmp : (maxStore.value / Math.max(1, maxStore.qty));
+      const valueImbalance = (maxStore.qty - minStore.qty) * pmpEst;
+      const qtyMatters = maxStore.qty > 50;
+      const valueMatters = valueImbalance > 1000;
+      if (ratio > 5 && (qtyMatters || valueMatters)) {
         imbalances.push({
           ref,
           label: stockByRef[ref] ? stockByRef[ref].label : '',
           maxStore: maxStore.store, maxQty: maxStore.qty, maxValue: maxStore.value,
           minStore: minStore.store, minQty: minStore.qty,
-          ratio,
+          ratio, valueImbalance,
         });
       }
     }
-    imbalances.sort((a, b) => b.maxValue - a.maxValue);
+    imbalances.sort((a, b) => b.valueImbalance - a.valueImbalance);
   }
 
   const totalStockValue = stock.reduce((sum, s) => sum + s.value, 0);
   const totalStockQty = stock.reduce((sum, s) => sum + s.qty, 0);
   const dormantValue = dormants.reduce((sum, d) => sum + d.value, 0);
   const dormantPct = totalStockValue > 0 ? (dormantValue / totalStockValue) * 100 : 0;
-  const avgRotation = totalStockValue > 0 && totalCA > 0 ? (totalCA / periodMonths * 12) / totalStockValue : null;
-  const avgCoverage = totalQty > 0 ? totalStockQty / (totalQty / periodDays) : null;
+
+  // Rotation de stock : COGS approximé par (qté vendue × PMP de l'article)
+  // Plus juste que CA / stock (qui inclut la marge et gonfle artificiellement le ratio)
+  let cogsApprox = 0;
+  for (const r of refs) {
+    const stk = stockByRef[r.ref];
+    if (stk && stk.pmp > 0) cogsApprox += r.totalQty * stk.pmp;
+  }
+  const cogsAnnualized = cogsApprox * (12 / periodMonths);
+  const avgRotation = totalStockValue > 0 && cogsApprox > 0
+    ? cogsAnnualized / totalStockValue
+    : null;
+  const rotationMethod = cogsApprox > 0 ? 'cogs' : 'unavailable';
+  // Couverture : 3 vues complémentaires, plus pertinentes qu'un simple total/total
+  const articleCoverages = coverages.filter(c => c.coverageDays !== Infinity && c.adu > 0);
+  let coverageMedian = null, coverageWeightedByStock = null, coverageWeightedBySales = null;
+  if (articleCoverages.length > 0) {
+    const sortedCov = [...articleCoverages].map(c => c.coverageDays).sort((a, b) => a - b);
+    const mid = Math.floor(sortedCov.length / 2);
+    coverageMedian = sortedCov.length % 2 === 0 ? (sortedCov[mid - 1] + sortedCov[mid]) / 2 : sortedCov[mid];
+
+    const sumValue = articleCoverages.reduce((s, c) => s + c.stockValue, 0);
+    if (sumValue > 0) {
+      coverageWeightedByStock = articleCoverages.reduce((s, c) => s + c.coverageDays * c.stockValue, 0) / sumValue;
+    }
+    const refsBySales = byRef;
+    let sumSales = 0, weightedSumSales = 0;
+    for (const c of articleCoverages) {
+      const sales = refsBySales[c.ref];
+      if (sales) {
+        sumSales += sales.totalAmount;
+        weightedSumSales += c.coverageDays * sales.totalAmount;
+      }
+    }
+    if (sumSales > 0) coverageWeightedBySales = weightedSumSales / sumSales;
+  }
+  // Compatibilité : avgCoverage exposé = la médiane (plus robuste qu'une moyenne biaisée)
+  const avgCoverage = coverageMedian;
 
   // Saisonnalité 12 mois
   const monthlyMap = {};
@@ -8490,21 +8562,42 @@ function runAudit(salesRows, stockRows, supplierDeliveriesRows, customerDeliveri
   const hasPmp = totalStockValue > 0;
   const avgPmp = hasPmp && totalStockQty > 0 ? totalStockValue / totalStockQty : null;
 
-  // Répartition du stock : par valeur si PMP, sinon par quantité
-  const overstockedValue = overstocked.reduce((sum, c) => sum + c.stockValue, 0);
-  const overstockedQty = overstocked.reduce((sum, c) => sum + c.stockQty, 0);
-  const dormantQty = dormants.reduce((sum, d) => sum + d.qty, 0);
+  // Répartition du stock par règle de PRIORITÉ EXCLUSIVE (pas de double-comptage)
+  // Ordre : dormant > sous-stock > surstock > actif sain
+  const dormantRefSet = new Set(dormants.map(d => d.ref));
+  const understockedRefSet = new Set(understocked.map(u => u.ref));
+  const overstockedRefSet = new Set(overstocked.map(o => o.ref));
+
+  let breakdownDormantV = 0, breakdownDormantQ = 0;
+  let breakdownUnderV = 0, breakdownUnderQ = 0;
+  let breakdownOverV = 0, breakdownOverQ = 0;
+  let breakdownHealthyV = 0, breakdownHealthyQ = 0;
+
+  for (const s of Object.values(stockByRef)) {
+    let category;
+    if (dormantRefSet.has(s.ref)) category = 'dormant';
+    else if (understockedRefSet.has(s.ref)) category = 'understocked';
+    else if (overstockedRefSet.has(s.ref)) category = 'overstocked';
+    else category = 'healthy';
+
+    if (category === 'dormant')      { breakdownDormantV += s.value; breakdownDormantQ += s.qty; }
+    else if (category === 'understocked') { breakdownUnderV += s.value; breakdownUnderQ += s.qty; }
+    else if (category === 'overstocked')  { breakdownOverV += s.value; breakdownOverQ += s.qty; }
+    else                             { breakdownHealthyV += s.value; breakdownHealthyQ += s.qty; }
+  }
 
   const stockBreakdown = hasPmp ? {
-    dormant: dormantValue,
-    overstocked: overstockedValue,
-    healthy: Math.max(0, totalStockValue - dormantValue - overstockedValue),
+    dormant: breakdownDormantV,
+    understocked: breakdownUnderV,
+    overstocked: breakdownOverV,
+    healthy: breakdownHealthyV,
     unit: 'value',
     total: totalStockValue,
   } : {
-    dormant: dormantQty,
-    overstocked: overstockedQty,
-    healthy: Math.max(0, totalStockQty - dormantQty - overstockedQty),
+    dormant: breakdownDormantQ,
+    understocked: breakdownUnderQ,
+    overstocked: breakdownOverQ,
+    healthy: breakdownHealthyQ,
     unit: 'qty',
     total: totalStockQty,
   };
@@ -8569,7 +8662,7 @@ function runAudit(salesRows, stockRows, supplierDeliveriesRows, customerDeliveri
     if (supplierPerf && supplierPerf.otifRate < 80) alerts.push({
       level: supplierPerf.otifRate < 60 ? 'critical' : 'warning',
       title: `OTIF achat à ${supplierPerf.otifRate.toFixed(0)} % seulement`,
-      detail: `Vos fournisseurs livrent à temps et complet dans ${supplierPerf.otifRate.toFixed(0)} % des cas. Retard moyen quand en retard : ${supplierPerf.avgDelay.toFixed(1)} jours. À traiter par fournisseur.`,
+      detail: `Vos fournisseurs livrent à temps et complet dans ${supplierPerf.otifRate.toFixed(0)} % des cas. Retard moyen quand en retard : ${supplierPerf.avgDelayWhenLate.toFixed(1)} jours. À traiter par fournisseur.`,
     });
   }
 
@@ -8632,6 +8725,8 @@ function runAudit(salesRows, stockRows, supplierDeliveriesRows, customerDeliveri
     hasMonetary, hasPmp, avgPmp,
     totalCA, totalQty, totalStockValue, totalStockQty,
     dormantValue, dormantPct, avgRotation, avgCoverage,
+    coverageMedian, coverageWeightedByStock, coverageWeightedBySales,
+    rotationMethod, cogsApprox,
     healthScore, stockBreakdown, monthlyTrend,
     refs: sortedByValue,
     matrix, dormants, overstocked, understocked,
@@ -9205,7 +9300,7 @@ function AuditResults({ audit, companyName, currency }) {
         <KpiTile label="Chiffre d'affaires" value={audit.hasMonetary ? fm(audit.totalCA) : formatNum(audit.totalQty) + ' u'} sub={'sur ' + Math.round(audit.periodMonths) + ' mois'} accent={AMBER} />
         <KpiTile label="Stock immobilisé" value={fm(audit.totalStockValue)} sub={formatNum(audit.totalStockQty) + ' unités'} accent={AMBER} />
         <KpiTile label="Stock dormant" value={fm(audit.dormantValue)} sub={audit.dormantPct.toFixed(0) + ' % du stock · ' + audit.dormants.length + ' articles'} accent={audit.dormantPct > 15 ? '#DC2626' : audit.dormantPct > 5 ? '#D97706' : '#059669'} />
-        <KpiTile label="Rotation annuelle" value={audit.avgRotation ? audit.avgRotation.toFixed(1) + ' ×' : '—'} sub={audit.avgCoverage ? 'Couv. moy. ' + Math.round(audit.avgCoverage) + ' j' : ''} accent={AMBER} />
+        <KpiTile label="Rotation annuelle" value={audit.avgRotation ? audit.avgRotation.toFixed(1) + ' ×' : '—'} sub={audit.avgCoverage !== null ? 'Couv. médiane ' + Math.round(audit.avgCoverage) + ' j' : 'Stock vs ventes (COGS approximé via PMP)'} accent={AMBER} />
       </div>
 
       {/* SAISONNALITÉ + RÉPARTITION STOCK (côte à côte) */}
@@ -9588,9 +9683,10 @@ function StockBreakdownDonut({ breakdown, cur = 'MAD' }) {
   const cx = w / 2, cy = h / 2;
   const r = 70, rInner = 45;
   const segments = [
-    { label: 'Actif', value: breakdown.healthy, color: '#059669' },
+    { label: 'Actif sain', value: breakdown.healthy, color: '#059669' },
+    { label: 'Sous-stock', value: breakdown.understocked || 0, color: '#DC2626' },
     { label: 'Surstock', value: breakdown.overstocked, color: '#F97316' },
-    { label: 'Dormant', value: breakdown.dormant, color: '#DC2626' },
+    { label: 'Dormant', value: breakdown.dormant, color: '#7C2D12' },
   ].filter(s => s.value > 0);
   const sum = segments.reduce((a, b) => a + b.value, 0);
   if (sum === 0) return <div className="text-xs text-slate-400 text-center py-8">Aucune donnée à répartir</div>;
@@ -9857,11 +9953,12 @@ function SupplierPerfSection({ perf }) {
         <div className="text-xs text-slate-500">Analyse des livraisons reçues : à temps + complet</div>
       </div>
       <div className="p-5">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-5">
           <PerfTile label="OTIF achat global" value={perf.otifRate.toFixed(0) + ' %'} accent={perf.otifRate >= 90 ? '#059669' : perf.otifRate >= 75 ? '#D97706' : '#DC2626'} />
           <PerfTile label="On Time" value={perf.otRate.toFixed(0) + ' %'} accent="#0F172A" />
           <PerfTile label="In Full" value={perf.inFullRate.toFixed(0) + ' %'} accent="#0F172A" />
-          <PerfTile label="Retard moyen" value={perf.avgDelay.toFixed(1) + ' j'} accent={perf.avgDelay > 5 ? '#DC2626' : '#0F172A'} sub="quand en retard" />
+          <PerfTile label="Retard quand en retard" value={perf.avgDelayWhenLate.toFixed(1) + ' j'} accent={perf.avgDelayWhenLate > 5 ? '#DC2626' : '#0F172A'} sub="moyenne / livraisons retardées" />
+          <PerfTile label="Retard moyen toutes liv." value={perf.avgDelayAll.toFixed(1) + ' j'} accent={perf.avgDelayAll > 2 ? '#D97706' : '#0F172A'} sub="à temps comptés 0" />
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
@@ -9872,7 +9969,8 @@ function SupplierPerfSection({ perf }) {
                 <Th className="text-right">OT %</Th>
                 <Th className="text-right">IF %</Th>
                 <Th className="text-right">OTIF %</Th>
-                <Th className="text-right">Retard moyen</Th>
+                <Th className="text-right">Retard si retard</Th>
+                <Th className="text-right">Retard moyen total</Th>
               </tr>
             </thead>
             <tbody>
@@ -9883,7 +9981,8 @@ function SupplierPerfSection({ perf }) {
                   <Td className="text-right font-jetbrains" style={{ color: s.otRate < 80 ? '#DC2626' : s.otRate < 95 ? '#D97706' : '#059669' }}>{s.otRate.toFixed(0)} %</Td>
                   <Td className="text-right font-jetbrains" style={{ color: s.inFullRate < 80 ? '#DC2626' : s.inFullRate < 95 ? '#D97706' : '#059669' }}>{s.inFullRate.toFixed(0)} %</Td>
                   <Td className="text-right font-jetbrains font-semibold" style={{ color: s.otifRate < 70 ? '#DC2626' : s.otifRate < 90 ? '#D97706' : '#059669' }}>{s.otifRate.toFixed(0)} %</Td>
-                  <Td className="text-right font-jetbrains text-slate-600">{s.avgDelay.toFixed(1)} j</Td>
+                  <Td className="text-right font-jetbrains text-slate-600">{s.avgDelayWhenLate.toFixed(1)} j</Td>
+                  <Td className="text-right font-jetbrains text-slate-600">{s.avgDelayAll.toFixed(1)} j</Td>
                 </tr>
               ))}
             </tbody>
@@ -10106,16 +10205,16 @@ function CategoryAnalysisSection({ cat, hasMonetary, cur = 'MAD' }) {
 
         {cat.ltComparison && cat.ltComparison.length > 0 && (
           <div>
-            <div className="font-jetbrains text-xs text-slate-700 font-semibold mb-2">⚠ ÉCARTS LEAD TIME THÉORIQUE vs RÉEL</div>
-            <div className="text-xs text-slate-500 mb-2">Le délai promis dans votre référentiel n'est pas tenu sur ces articles. À recalibrer ou à signaler aux fournisseurs.</div>
+            <div className="font-jetbrains text-xs text-slate-700 font-semibold mb-2">⚠ RETARD MOYEN VS DATE PROMISE (par article)</div>
+            <div className="text-xs text-slate-500 mb-2">Mesure le retard récurrent par rapport à la date promise par le fournisseur. Pour obtenir le vrai écart "lead time théorique vs réel", il faudrait la date de commande dans le fichier livraisons. Ce qui est mesuré ici suppose que la date promise = date commande + lead time théorique.</div>
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50/30">
                     <Th>Référence</Th>
                     <Th>Libellé</Th>
-                    <Th className="text-right">LT théorique</Th>
-                    <Th className="text-right">Écart moyen</Th>
+                    <Th className="text-right">LT théorique référentiel</Th>
+                    <Th className="text-right">Retard moyen vs promise</Th>
                   </tr>
                 </thead>
                 <tbody>
