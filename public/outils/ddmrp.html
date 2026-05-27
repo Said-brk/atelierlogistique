@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DDMRP : méthode complète et calcul des buffers · Atelier Logistique</title>
+  <meta name="description" content="Comprenez la méthode DDMRP (Demand Driven MRP), dimensionnez vos buffers stratégiques en zone rouge / jaune / vert. Guide pratique avec exemples chiffrés et outil gratuit. Par WALYCONSEIL." />
+  <meta name="keywords" content="DDMRP, demand driven MRP, buffers DDMRP, calcul buffer, zone rouge jaune vert, MRP vs DDMRP, méthode DDMRP, planification supply chain" />
+  <link rel="canonical" href="https://atelierlogistique.com/outils/ddmrp" />
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="DDMRP : méthode complète et calcul des buffers" />
+  <meta property="og:description" content="Guide pratique de la méthode DDMRP avec exemples chiffrés et outil de calcul en ligne." />
+  <meta property="og:type" content="article" />
+  <meta property="og:url" content="https://atelierlogistique.com/outils/ddmrp" />
+  <meta property="og:site_name" content="Atelier Logistique" />
+  <meta property="og:locale" content="fr_FR" />
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="DDMRP : méthode et calcul des buffers" />
+  <meta name="twitter:description" content="Guide pratique avec exemples chiffrés et outil gratuit." />
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230F172A'/%3E%3Cpath d='M8 22h16M10 18l3-8 3 8M19 18l3-8 3 8' stroke='%23F59E0B' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;600;700;800&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            bricolage: ['Bricolage Grotesque', 'sans-serif'],
+            sans: ['DM Sans', 'sans-serif'],
+            jetbrains: ['JetBrains Mono', 'monospace'],
+          },
+        },
+      },
+    };
+  </script>
+
+  <style>
+    body { font-family: 'DM Sans', sans-serif; }
+    h1, h2, h3, h4 { font-family: 'Bricolage Grotesque', sans-serif; }
+    .font-jetbrains { font-family: 'JetBrains Mono', monospace; }
+    .prose-content p { margin-bottom: 1rem; line-height: 1.75; }
+    .prose-content ul { list-style: disc; padding-left: 1.5rem; margin-bottom: 1rem; }
+    .prose-content ul li { margin-bottom: 0.5rem; line-height: 1.65; }
+  </style>
+
+  <!-- JSON-LD : Article -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "headline": "DDMRP : méthode complète et calcul des buffers",
+    "description": "Guide pratique de la méthode DDMRP (Demand Driven MRP) avec exemples chiffrés et outil de calcul en ligne.",
+    "author": {
+      "@type": "Organization",
+      "name": "WALYCONSEIL",
+      "url": "https://walyconseil.com"
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": "Atelier Logistique",
+      "logo": {
+        "@type": "ImageObject",
+        "url": "https://atelierlogistique.com/logo.png"
+      }
+    },
+    "datePublished": "2026-05-27",
+    "dateModified": "2026-05-27",
+    "mainEntityOfPage": "https://atelierlogistique.com/outils/ddmrp",
+    "inLanguage": "fr-FR"
+  }
+  </script>
+
+  <!-- JSON-LD : SoftwareApplication -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Calculateur de buffers DDMRP",
+    "applicationCategory": "BusinessApplication",
+    "operatingSystem": "Web",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "EUR"
+    },
+    "description": "Outil gratuit de dimensionnement des buffers DDMRP (zones rouge, jaune, vert) à partir de l'ADU, du délai et de la variabilité.",
+    "url": "https://atelierlogistique.com/?tool=ddmrp"
+  }
+  </script>
+
+  <!-- JSON-LD : FAQPage -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "Qu'est-ce que la méthode DDMRP ?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Le DDMRP (Demand Driven Material Requirements Planning) est une méthode de planification des approvisionnements qui positionne des buffers stratégiques à des points clés du flux logistique. Contrairement au MRP classique qui s'appuie sur des prévisions, le DDMRP pilote par la consommation réelle observée et par des signaux visuels (zones rouge/jaune/vert) pour déclencher les approvisionnements."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Quelle est la différence entre MRP et DDMRP ?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Le MRP planifie en partant des prévisions de vente déversées dans la nomenclature, ce qui amplifie la variabilité (effet coup de fouet) et produit beaucoup de transactions. Le DDMRP positionne des buffers à des points découplants et pilote par signaux de consommation réelle. Résultat typique : -30 à -50 % de stock immobilisé tout en améliorant le service."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Comment dimensionner un buffer DDMRP ?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Un buffer est dimensionné en 3 zones. Zone verte = ADU × DLT × facteur LT (cycle de commande). Zone jaune = ADU × DLT (stock de cycle). Zone rouge = (ADU × DLT × facteur LT) + (variabilité × facteur de variabilité) (sécurité). Le top of red est le seuil de déclenchement, le top of yellow le seuil de surveillance, le top of green le maximum."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Pour quel type d'entreprise le DDMRP est-il adapté ?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Le DDMRP convient particulièrement aux distributeurs et industriels avec nomenclature multi-niveaux, demande variable, lead times longs ou volatils, et besoin de fiabiliser le service tout en maîtrisant le stock. Il s'applique aussi bien dans l'industrie agroalimentaire que dans la distribution B2B, l'aéronautique ou le négoce industriel."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Faut-il un logiciel pour faire du DDMRP ?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Pour démarrer en pilote sur quelques références stratégiques, un tableur Excel et un outil de calcul gratuit comme celui d'Atelier Logistique suffisent. Pour industrialiser sur des milliers de références multi-sites, des éditeurs spécialisés (R+ Demand Driven, Intuiflow, Replenishment+) ou des modules ERP DDMRP (SAP IBP, certains modules Sage X3) sont à envisager."
+        }
+      }
+    ]
+  }
+  </script>
+</head>
+
+<body class="bg-white text-slate-900">
+
+  <!-- HEADER -->
+  <header class="border-b border-slate-200 bg-white sticky top-0 z-50">
+    <div class="max-w-6xl mx-auto px-5 py-3 flex items-center justify-between">
+      <a href="/" class="flex items-center gap-2.5">
+        <div class="w-9 h-9 rounded-md flex items-center justify-center" style="background: #0F172A;">
+          <svg width="18" height="18" viewBox="0 0 32 32" fill="none">
+            <path d="M8 22h16M10 18l3-8 3 8M19 18l3-8 3 8" stroke="#F59E0B" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div>
+          <div class="font-bricolage font-bold text-sm leading-tight">ATELIER LOGISTIQUE</div>
+          <div class="text-[10px] text-slate-500 font-jetbrains tracking-wider">PAR WALYCONSEIL</div>
+        </div>
+      </a>
+      <nav class="hidden md:flex items-center gap-6 text-sm">
+        <a href="/" class="text-slate-600 hover:text-slate-900">Outils</a>
+        <a href="/?tool=audit" class="text-slate-600 hover:text-slate-900">Audit Flash</a>
+        <a href="mailto:contact@walyconseil.com" class="text-slate-600 hover:text-slate-900">Contact</a>
+      </nav>
+      <a href="/?tool=ddmrp" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-md font-jetbrains text-[11px] font-bold text-white" style="background: #0F172A;">
+        LANCER L'OUTIL
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </a>
+    </div>
+  </header>
+
+  <!-- BREADCRUMB -->
+  <nav class="max-w-6xl mx-auto px-5 py-3 text-xs text-slate-500" aria-label="Fil d'Ariane">
+    <a href="/" class="hover:text-slate-900">Atelier Logistique</a>
+    <span class="mx-1.5">/</span>
+    <a href="/" class="hover:text-slate-900">Outils</a>
+    <span class="mx-1.5">/</span>
+    <span class="text-slate-700">DDMRP</span>
+  </nav>
+
+  <!-- HERO -->
+  <section class="border-b border-slate-200" style="background: linear-gradient(135deg, #0F172A 0%, #1E293B 70%, #B45309 100%);">
+    <div class="max-w-6xl mx-auto px-5 py-14 md:py-20">
+      <div class="flex items-center gap-2 mb-4">
+        <span class="inline-flex items-center px-2.5 py-1 rounded font-jetbrains text-[10px] font-bold tracking-widest" style="background: #F59E0B; color: #0F172A;">PLANIFICATION & STOCKS</span>
+        <span class="font-jetbrains text-[10px] text-slate-400 tracking-widest">OUTIL GRATUIT · NAVIGATEUR</span>
+      </div>
+      <h1 class="font-bricolage font-bold text-3xl md:text-5xl text-white mb-4 leading-tight">
+        DDMRP : méthode et outil de calcul<br />
+        <span style="color: #F59E0B;">des buffers stratégiques</span>
+      </h1>
+      <p class="text-slate-300 text-base md:text-lg max-w-2xl leading-relaxed mb-6">
+        Le Demand Driven MRP est l'évolution moderne de la planification d'approvisionnement.
+        Comprenez la méthode, dimensionnez vos buffers en zone rouge / jaune / vert, et calculez en ligne avec l'outil gratuit.
+      </p>
+      <div class="flex flex-wrap gap-3">
+        <a href="/?tool=ddmrp" class="inline-flex items-center gap-2 px-5 py-3 rounded-lg font-jetbrains text-xs font-bold shadow-lg" style="background: #F59E0B; color: #0F172A;">
+          LANCER LE CALCULATEUR
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </a>
+        <a href="#methode" class="inline-flex items-center gap-2 px-5 py-3 rounded-lg font-jetbrains text-xs font-bold text-white" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);">
+          COMPRENDRE LA MÉTHODE
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- CONTENU PRINCIPAL -->
+  <main class="max-w-3xl mx-auto px-5 py-12 prose-content text-slate-700 text-base">
+
+    <!-- SECTION 1 : DÉFINITION -->
+    <section id="definition" class="mb-12">
+      <div class="font-jetbrains text-[10px] tracking-widest mb-2" style="color: #B45309;">01 · DÉFINITION</div>
+      <h2 class="font-bricolage font-bold text-3xl mb-4 text-slate-900">Qu'est-ce que le DDMRP ?</h2>
+      <p>
+        Le <strong>DDMRP (Demand Driven Material Requirements Planning)</strong> est une méthode de planification des approvisionnements
+        formalisée par Carol Ptak et Chad Smith dans les années 2010. Elle constitue une évolution structurelle du MRP traditionnel
+        en répondant à ses limites face à la volatilité de la demande, à l'allongement des chaînes d'approvisionnement et à la complexité
+        des nomenclatures multi-niveaux.
+      </p>
+      <p>
+        L'idée centrale est simple mais puissante : plutôt que de planifier en propageant des prévisions dans une nomenclature
+        (ce qui amplifie la variabilité — phénomène bien connu de l'<em>effet coup de fouet</em>), le DDMRP positionne des <strong>buffers
+        découplants</strong> aux points stratégiques du flux et pilote par la consommation réelle observée.
+      </p>
+      <p>
+        Concrètement, chaque buffer agit comme un <strong>amortisseur entre les variations de la demande et les contraintes
+        d'approvisionnement</strong>. Les ordres d'achat ou de fabrication sont déclenchés non plus sur prévision, mais sur l'érosion
+        réelle du buffer — par un système de signaux visuels en trois zones : rouge (sécurité), jaune (cycle), vert (lot de commande).
+      </p>
+    </section>
+
+    <!-- SECTION 2 : MRP vs DDMRP -->
+    <section id="mrp-vs-ddmrp" class="mb-12">
+      <div class="font-jetbrains text-[10px] tracking-widest mb-2" style="color: #B45309;">02 · COMPARAISON</div>
+      <h2 class="font-bricolage font-bold text-3xl mb-4 text-slate-900">MRP vs DDMRP : ce qui change concrètement</h2>
+      <p>
+        Le MRP classique repose sur trois hypothèses qui s'effritent dans le contexte économique moderne : la stabilité des prévisions,
+        la fiabilité des lead times et la linéarité des nomenclatures. Quand l'une de ces hypothèses tombe — et elle tombe en permanence
+        — le MRP produit des plans irréalistes qui se traduisent par du surstock ou des ruptures.
+      </p>
+      <div class="my-6 rounded-lg overflow-hidden border border-slate-200">
+        <table class="w-full text-sm">
+          <thead style="background: #F8FAFC;">
+            <tr>
+              <th class="text-left p-3 font-jetbrains text-[10px] text-slate-500 tracking-wider">DIMENSION</th>
+              <th class="text-left p-3 font-jetbrains text-[10px] text-slate-500 tracking-wider">MRP CLASSIQUE</th>
+              <th class="text-left p-3 font-jetbrains text-[10px] text-slate-500 tracking-wider">DDMRP</th>
+            </tr>
+          </thead>
+          <tbody class="text-xs">
+            <tr class="border-t border-slate-200"><td class="p-3 font-semibold">Source du calcul</td><td class="p-3">Prévisions futures</td><td class="p-3">Consommation réelle</td></tr>
+            <tr class="border-t border-slate-200" style="background: #FAFAFA;"><td class="p-3 font-semibold">Propagation</td><td class="p-3">Toute la nomenclature</td><td class="p-3">Limitée aux points découplants</td></tr>
+            <tr class="border-t border-slate-200"><td class="p-3 font-semibold">Effet coup de fouet</td><td class="p-3">Fort, amplifié niveau par niveau</td><td class="p-3">Amorti par les buffers</td></tr>
+            <tr class="border-t border-slate-200" style="background: #FAFAFA;"><td class="p-3 font-semibold">Pilotage</td><td class="p-3">Quantité à commander</td><td class="p-3">Zone du buffer (rouge / jaune / vert)</td></tr>
+            <tr class="border-t border-slate-200"><td class="p-3 font-semibold">Stock typique</td><td class="p-3">Élevé (sécurités cumulées)</td><td class="p-3">Réduit de 30 à 50 %</td></tr>
+            <tr class="border-t border-slate-200" style="background: #FAFAFA;"><td class="p-3 font-semibold">Service client</td><td class="p-3">Variable</td><td class="p-3">Stable et élevé (95 à 99 %)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        Cette différence d'approche se traduit dans la pratique par des gains chiffrés : les retours d'expérience documentés par
+        le <em>Demand Driven Institute</em> font état d'une réduction moyenne du stock immobilisé de 30 à 50 % et d'une amélioration
+        du taux de service de 5 à 15 points, pour des PME comme pour des groupes internationaux.
+      </p>
+    </section>
+
+    <!-- SECTION 3 : MÉTHODE -->
+    <section id="methode" class="mb-12">
+      <div class="font-jetbrains text-[10px] tracking-widest mb-2" style="color: #B45309;">03 · MÉTHODE</div>
+      <h2 class="font-bricolage font-bold text-3xl mb-4 text-slate-900">Les 5 composantes du DDMRP</h2>
+      <p>La méthode complète s'articule en cinq étapes séquentielles. Une mise en œuvre rigoureuse exige de toutes les traiter.</p>
+
+      <h3 class="font-bricolage font-semibold text-xl mt-6 mb-3 text-slate-900">1. Positionnement stratégique</h3>
+      <p>
+        Identifier les références sur lesquelles placer un buffer. Tout n'a pas vocation à être bufferisé : on cible les <strong>points
+        découplants</strong> qui maximisent l'absorption de variabilité (changements de fréquence de commande, ruptures de cadence,
+        points de personnalisation, articles à forte rotation). Pour une PME, on commence souvent par 50 à 200 références stratégiques.
+      </p>
+
+      <h3 class="font-bricolage font-semibold text-xl mt-6 mb-3 text-slate-900">2. Dimensionnement des buffers</h3>
+      <p>
+        Chaque buffer se calcule en trois zones, exprimées en quantité :
+      </p>
+      <ul>
+        <li><strong>Zone verte</strong> : ADU × DLT × facteur LT (taille du lot de commande)</li>
+        <li><strong>Zone jaune</strong> : ADU × DLT (stock de cycle)</li>
+        <li><strong>Zone rouge</strong> : (ADU × DLT × facteur LT) + (variabilité × facteur de variabilité) — c'est le stock de sécurité</li>
+      </ul>
+      <p>
+        Avec <strong>ADU</strong> (Average Daily Usage) la demande quotidienne moyenne, <strong>DLT</strong> (Decoupled Lead Time)
+        le délai de réapprovisionnement, et les facteurs LT et variabilité paramétrés selon la criticité de l'article.
+      </p>
+
+      <h3 class="font-bricolage font-semibold text-xl mt-6 mb-3 text-slate-900">3. Ajustements dynamiques</h3>
+      <p>
+        Les buffers ne sont pas figés. Trois mécanismes d'ajustement les font vivre :
+        <strong>recalculated adjustments</strong> (suivi de la consommation glissante), <strong>planned adjustments</strong>
+        (saisonnalité, promotions, lancements connus) et <strong>manual adjustments</strong> (ajustements exceptionnels validés).
+      </p>
+
+      <h3 class="font-bricolage font-semibold text-xl mt-6 mb-3 text-slate-900">4. Planification pilotée par signaux</h3>
+      <p>
+        Chaque jour, on regarde le <strong>Net Flow Equation</strong> = stock physique + commandes en cours − commandes clients fermes
+        − qualified spike. Ce niveau est comparé aux seuils du buffer (top of red, top of yellow, top of green). Si le Net Flow est
+        sous le top of yellow, on déclenche une commande pour le ramener au top of green.
+      </p>
+
+      <h3 class="font-bricolage font-semibold text-xl mt-6 mb-3 text-slate-900">5. Exécution visuelle</h3>
+      <p>
+        Le pilote d'approvisionnement voit en un coup d'œil l'état de chaque buffer : <strong>vert</strong> (au-dessus du top of yellow,
+        rien à faire), <strong>jaune</strong> (entre les seuils, à surveiller), <strong>rouge</strong> (en zone de sécurité, action
+        urgente). C'est cette visualisation qui rend la méthode <em>opérationnellement</em> efficace : pas de calcul à refaire,
+        juste une décision à prendre.
+      </p>
+    </section>
+
+    <!-- SECTION 4 : EXEMPLE CHIFFRÉ -->
+    <section id="exemple" class="mb-12">
+      <div class="font-jetbrains text-[10px] tracking-widest mb-2" style="color: #B45309;">04 · EXEMPLE</div>
+      <h2 class="font-bricolage font-bold text-3xl mb-4 text-slate-900">Exemple chiffré : article B001 — Eau minérale 1.5L</h2>
+      <p>
+        Prenons un cas concret. Un distributeur agroalimentaire à Casablanca vend en moyenne <strong>300 unités/jour</strong> d'eau
+        minérale 1.5L. Son fournisseur a un délai de <strong>10 jours</strong>, et la variabilité de la demande (écart-type des ventes
+        quotidiennes) est de <strong>120 unités/jour</strong>. Catégorisation classique :
+        <em>variabilité moyenne, lead time moyen</em>.
+      </p>
+      <div class="my-6 rounded-lg overflow-hidden border border-slate-200 bg-slate-50 p-5">
+        <div class="font-jetbrains text-[10px] text-slate-500 tracking-widest mb-3">CALCUL DES ZONES</div>
+        <div class="space-y-2 text-sm">
+          <div class="flex justify-between border-b border-slate-200 pb-2"><span><strong>Zone verte</strong> = ADU × DLT × facteur LT = 300 × 10 × 0.5</span><span class="font-jetbrains font-bold">1 500 u</span></div>
+          <div class="flex justify-between border-b border-slate-200 pb-2"><span><strong>Zone jaune</strong> = ADU × DLT = 300 × 10</span><span class="font-jetbrains font-bold">3 000 u</span></div>
+          <div class="flex justify-between border-b border-slate-200 pb-2"><span><strong>Zone rouge</strong> = (300 × 10 × 0.5) + (120 × 1.0)</span><span class="font-jetbrains font-bold">1 620 u</span></div>
+          <div class="flex justify-between pt-2"><span><strong>Top of green</strong> (max)</span><span class="font-jetbrains font-bold" style="color: #059669;">6 120 u</span></div>
+          <div class="flex justify-between"><span><strong>Top of yellow</strong> (déclenchement)</span><span class="font-jetbrains font-bold" style="color: #F59E0B;">4 620 u</span></div>
+          <div class="flex justify-between"><span><strong>Top of red</strong> (alerte)</span><span class="font-jetbrains font-bold" style="color: #DC2626;">1 620 u</span></div>
+        </div>
+      </div>
+      <p>
+        Lecture : le pilote déclenche une commande dès que le Net Flow tombe sous 4 620 unités, pour le ramener à 6 120 unités.
+        Si le Net Flow atteint 1 620 unités, c'est une alerte rouge qui demande une accélération de la livraison fournisseur.
+        Le stock moyen ainsi piloté oscille autour de 4 500 unités, contre 6 000 à 8 000 unités habituellement constatés en MRP
+        classique sur cette typologie d'article.
+      </p>
+    </section>
+
+    <!-- SECTION 5 : POUR QUI -->
+    <section id="cas-usage" class="mb-12">
+      <div class="font-jetbrains text-[10px] tracking-widest mb-2" style="color: #B45309;">05 · CAS D'USAGE</div>
+      <h2 class="font-bricolage font-bold text-3xl mb-4 text-slate-900">À quelles entreprises s'adresse le DDMRP ?</h2>
+      <p>
+        Le DDMRP est pertinent dans tous les contextes où la planification classique génère du surstock <em>ET</em> des ruptures
+        simultanément — symptôme caractéristique d'un MRP poussé à bout. En pratique, les secteurs les plus matures sur la méthode :
+      </p>
+      <ul>
+        <li><strong>Distribution B2B et négoce industriel</strong> : multi-références, demande client variable, fournisseurs à délai long</li>
+        <li><strong>Agroalimentaire</strong> : variabilité saisonnière, contraintes de DLC, production sur prévision</li>
+        <li><strong>Industrie manufacturière à nomenclature</strong> : composants critiques, postures multi-niveaux, lead times fournisseurs longs</li>
+        <li><strong>Pharmacie et santé</strong> : contraintes réglementaires, ruptures critiques pour le service</li>
+        <li><strong>Aéronautique et défense</strong> : pièces de rechange, MRO, criticité du service après-vente</li>
+      </ul>
+      <p>
+        En revanche, le DDMRP apporte moins de valeur dans les contextes purement projet (BTP, ingénierie sur affaire), dans les
+        environnements à très haute prédictibilité (automobile en série stable), ou pour les très petites entreprises où un simple
+        kanban suffit.
+      </p>
+    </section>
+
+    <!-- FAQ -->
+    <section id="faq" class="mb-12">
+      <div class="font-jetbrains text-[10px] tracking-widest mb-2" style="color: #B45309;">06 · FAQ</div>
+      <h2 class="font-bricolage font-bold text-3xl mb-6 text-slate-900">Questions fréquentes</h2>
+
+      <div class="space-y-4">
+        <details class="rounded-lg border border-slate-200 p-4">
+          <summary class="font-bricolage font-semibold text-slate-900 cursor-pointer">Qu'est-ce que la méthode DDMRP ?</summary>
+          <p class="mt-3 text-sm text-slate-600">Le DDMRP (Demand Driven Material Requirements Planning) est une méthode de planification des approvisionnements qui positionne des buffers stratégiques à des points clés du flux logistique. Contrairement au MRP classique qui s'appuie sur des prévisions, le DDMRP pilote par la consommation réelle observée et par des signaux visuels (zones rouge / jaune / vert) pour déclencher les approvisionnements.</p>
+        </details>
+
+        <details class="rounded-lg border border-slate-200 p-4">
+          <summary class="font-bricolage font-semibold text-slate-900 cursor-pointer">Quelle est la différence entre MRP et DDMRP ?</summary>
+          <p class="mt-3 text-sm text-slate-600">Le MRP planifie en partant des prévisions de vente déversées dans la nomenclature, ce qui amplifie la variabilité (effet coup de fouet) et produit beaucoup de transactions. Le DDMRP positionne des buffers à des points découplants et pilote par signaux de consommation réelle. Résultat typique : -30 à -50 % de stock immobilisé tout en améliorant le service.</p>
+        </details>
+
+        <details class="rounded-lg border border-slate-200 p-4">
+          <summary class="font-bricolage font-semibold text-slate-900 cursor-pointer">Comment dimensionner un buffer DDMRP ?</summary>
+          <p class="mt-3 text-sm text-slate-600">Un buffer est dimensionné en 3 zones. Zone verte = ADU × DLT × facteur LT (cycle de commande). Zone jaune = ADU × DLT (stock de cycle). Zone rouge = (ADU × DLT × facteur LT) + (variabilité × facteur de variabilité) (sécurité). Le top of red est le seuil de déclenchement, le top of yellow le seuil de surveillance, le top of green le maximum.</p>
+        </details>
+
+        <details class="rounded-lg border border-slate-200 p-4">
+          <summary class="font-bricolage font-semibold text-slate-900 cursor-pointer">Pour quel type d'entreprise le DDMRP est-il adapté ?</summary>
+          <p class="mt-3 text-sm text-slate-600">Le DDMRP convient particulièrement aux distributeurs et industriels avec nomenclature multi-niveaux, demande variable, lead times longs ou volatils, et besoin de fiabiliser le service tout en maîtrisant le stock. Il s'applique aussi bien dans l'industrie agroalimentaire que dans la distribution B2B, l'aéronautique ou le négoce industriel.</p>
+        </details>
+
+        <details class="rounded-lg border border-slate-200 p-4">
+          <summary class="font-bricolage font-semibold text-slate-900 cursor-pointer">Faut-il un logiciel pour faire du DDMRP ?</summary>
+          <p class="mt-3 text-sm text-slate-600">Pour démarrer en pilote sur quelques références stratégiques, un tableur Excel et un outil de calcul gratuit comme celui d'Atelier Logistique suffisent. Pour industrialiser sur des milliers de références multi-sites, des éditeurs spécialisés (R+ Demand Driven, Intuiflow, Replenishment+) ou des modules ERP DDMRP (SAP IBP, certains modules Sage X3) sont à envisager.</p>
+        </details>
+      </div>
+    </section>
+  </main>
+
+  <!-- CTA OUTIL -->
+  <section class="border-t border-slate-200" style="background: #F8FAFC;">
+    <div class="max-w-3xl mx-auto px-5 py-12 text-center">
+      <div class="font-jetbrains text-[10px] tracking-widest mb-3" style="color: #B45309;">OUTIL EN LIGNE · GRATUIT</div>
+      <h2 class="font-bricolage font-bold text-3xl mb-3 text-slate-900">Calculez vos buffers DDMRP en ligne</h2>
+      <p class="text-slate-600 mb-6 max-w-xl mx-auto">
+        Mode unitaire ou import Excel multi-références. Catégorisation automatique LTF/VF, calcul des trois zones, paramètres
+        globaux ajustables (MOQ, cycle de commande, override LT et variabilité).
+      </p>
+      <a href="/?tool=ddmrp" class="inline-flex items-center gap-2 px-6 py-3.5 rounded-lg font-jetbrains text-sm font-bold shadow-xl transition-transform hover:translate-y-[-2px]" style="background: #F59E0B; color: #0F172A;">
+        LANCER LE CALCULATEUR DDMRP
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </a>
+    </div>
+  </section>
+
+  <!-- CTA AUDIT -->
+  <section class="text-white" style="background: linear-gradient(135deg, #0F172A 0%, #1E3A8A 70%, #B45309 100%);">
+    <div class="max-w-3xl mx-auto px-5 py-12">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
+        <div class="md:col-span-2">
+          <div class="font-jetbrains text-[10px] tracking-widest mb-2" style="color: #F59E0B;">AUDIT FLASH</div>
+          <div class="font-bricolage font-bold text-2xl mb-2 leading-tight">
+            Quelles références méritent un buffer dans votre cas ?
+          </div>
+          <div class="text-slate-300 text-sm leading-relaxed">
+            L'Audit Flash analyse vos ventes et votre stock pour identifier les candidats au DDMRP : articles à forte rotation,
+            sensibles à la variabilité, et représentant un capital significatif. Diagnostic gratuit en 5 minutes.
+          </div>
+        </div>
+        <div>
+          <a href="/?tool=audit" class="inline-flex items-center justify-center gap-2 w-full px-5 py-3 rounded-lg font-jetbrains text-xs font-bold shadow-lg" style="background: #F59E0B; color: #0F172A;">
+            LANCER L'AUDIT FLASH
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="border-t border-slate-200 bg-white">
+    <div class="max-w-6xl mx-auto px-5 py-8 text-xs text-slate-500 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+      <div class="font-jetbrains">ATELIER LOGISTIQUE © 2026 — Outillage par <a href="mailto:contact@walyconseil.com" class="text-slate-700 hover:underline">WALYCONSEIL</a></div>
+      <div class="flex items-center gap-4">
+        <a href="/" class="hover:text-slate-900">Tous les outils</a>
+        <a href="/?tool=audit" class="hover:text-slate-900">Audit Flash</a>
+        <a href="mailto:contact@walyconseil.com" class="hover:text-slate-900">Contact</a>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>
