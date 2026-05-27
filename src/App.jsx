@@ -92,6 +92,16 @@ const CATEGORIES = [
 
 export default function App() {
   const [active, setActive] = useState(null);
+
+  // Deeplink depuis les pages SEO statiques : ?tool=ddmrp ouvre directement l'outil
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const tool = params.get('tool');
+    if (tool && (TOOLS.some(t => t.id === tool) || tool === 'audit')) {
+      setActive(tool);
+    }
+  }, []);
   if (active === 'zpl') return <ZplViewer onBack={() => setActive(null)} />;
   if (active === 'barcode') return <BarcodeGenerator onBack={() => setActive(null)} />;
   if (active === 'pallet') return <PalletCalculator onBack={() => setActive(null)} />;
