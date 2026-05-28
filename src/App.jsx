@@ -4246,6 +4246,11 @@ function IncotermsComparator({ onBack }) {
                 <div className="font-jetbrains text-[10px] text-slate-500">ATELIER / 05</div>
               </div>
             </div>
+            <div className="w-px h-5 bg-slate-200" />
+            <a href="/outils/incoterms-2020" target="_blank" rel="noopener" className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md font-jetbrains text-[10px] font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors">
+              <FileText size={12} />
+              GUIDE MÉTHODE
+            </a>
           </div>
 
           <div className="flex items-center gap-1 p-1 rounded-lg border border-slate-200 bg-slate-50">
