@@ -1,0 +1,8 @@
+# robots.txt — Atelier Logistique
+# https://atelierlogistique.com
+
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://atelierlogistique.com/sitemap.xml
