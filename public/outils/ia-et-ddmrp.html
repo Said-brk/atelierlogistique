@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IA et DDMRP : deux réponses complémentaires à la volatilité · Atelier Logistique</title>
+  <meta name="description" content="Faut-il opposer l'intelligence artificielle au DDMRP ? Non. L'IA anticipe, le DDMRP protège et découple. Comment combiner prévision augmentée et pilotage par la demande pour une supply chain robuste. Par WALYCONSEIL." />
+  <meta name="keywords" content="IA DDMRP, demand driven MRP, buffers DDMRP, demand sensing, effet coup de fouet, points de découplage, planification supply chain, IA supply chain, Dynamics 365" />
+  <link rel="canonical" href="https://atelierlogistique.com/outils/ia-et-ddmrp" />
+
+  <meta property="og:title" content="IA et DDMRP : deux réponses complémentaires à la volatilité" />
+  <meta property="og:description" content="L'IA anticipe, le DDMRP protège et découple. Le guide pour combiner les deux et piloter la demande dans l'incertitude." />
+  <meta property="og:type" content="article" />
+  <meta property="og:url" content="https://atelierlogistique.com/outils/ia-et-ddmrp" />
+  <meta property="og:site_name" content="Atelier Logistique" />
+  <meta property="og:locale" content="fr_FR" />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="IA et DDMRP : deux réponses complémentaires à la volatilité" />
+  <meta name="twitter:description" content="Prévision augmentée par l'IA + pilotage par la demande DDMRP : la combinaison qui rend la supply chain robuste." />
+
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg viewBox='0 0 36 36' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='36' height='36' rx='6' fill='%232563EB'/%3E%3Crect x='5' y='11' width='26' height='2.5' rx='0.5' fill='white'/%3E%3Crect x='5' y='14.5' width='26' height='2.5' rx='0.5' fill='white'/%3E%3Crect x='6' y='17.5' width='4.5' height='5' rx='0.3' fill='white' opacity='0.82'/%3E%3Crect x='15.75' y='17.5' width='4.5' height='5' rx='0.3' fill='white' opacity='0.82'/%3E%3Crect x='25.5' y='17.5' width='4.5' height='5' rx='0.3' fill='white' opacity='0.82'/%3E%3Crect x='5' y='23' width='26' height='2.5' rx='0.5' fill='white'/%3E%3C/svg%3E" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=JetBrains+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = { theme: { extend: { fontFamily: {
+      bricolage: ['Bricolage Grotesque', 'sans-serif'],
+      sans: ['DM Sans', 'sans-serif'],
+      jetbrains: ['JetBrains Mono', 'monospace'],
+    } } } };
+  </script>
+
+  <style>
+    body { font-family: 'DM Sans', system-ui, sans-serif; }
+    .font-bricolage { font-family: 'Bricolage Grotesque', sans-serif; letter-spacing: -0.02em; }
+    .font-jetbrains { font-family: 'JetBrains Mono', monospace; }
+    h1, h2, h3, h4 { font-family: 'Bricolage Grotesque', sans-serif; letter-spacing: -0.02em; }
+    .prose-content p { margin-bottom: 1rem; line-height: 1.75; }
+    .prose-content ul { list-style: disc; padding-left: 1.5rem; margin-bottom: 1rem; }
+    .prose-content ul li { margin-bottom: 0.5rem; line-height: 1.65; }
+    @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+    .pulse-dot { animation: pulse-dot 2s ease-in-out infinite; }
+    details summary { list-style: none; }
+    details summary::-webkit-details-marker { display: none; }
+  </style>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "headline": "IA et DDMRP : deux réponses complémentaires à la volatilité",
+    "description": "L'intelligence artificielle et le DDMRP ne s'opposent pas : l'IA anticipe la demande, le DDMRP protège et découple le flux. Guide pour les combiner.",
+    "author": { "@type": "Person", "name": "Saïd BARKAM" },
+    "publisher": { "@type": "Organization", "name": "Atelier Logistique" },
+    "datePublished": "2026-07-24", "dateModified": "2026-07-24",
+    "mainEntityOfPage": "https://atelierlogistique.com/outils/ia-et-ddmrp", "inLanguage": "fr-FR"
+  }
+  </script>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org", "@type": "FAQPage",
+    "mainEntity": [
+      { "@type": "Question", "name": "L'IA remplace-t-elle le DDMRP ?", "acceptedAnswer": { "@type": "Answer", "text": "Non. L'IA et le DDMRP répondent à deux questions différentes. L'IA cherche à anticiper la demande (demand sensing, détection d'anomalies) ; le DDMRP cherche à protéger le flux de ce qui reste imprévisible via des points de découplage et des buffers. Les meilleures organisations les combinent : l'IA calibre les buffers en continu, le DDMRP exécute et absorbe la variabilité." } },
+      { "@type": "Question", "name": "Qu'est-ce que le DDMRP ?", "acceptedAnswer": { "@type": "Answer", "text": "Le Demand Driven MRP (DDMRP), formalisé par le Demand Driven Institute (Carol Ptak et Chad Smith), est une méthode de planification qui installe des points de découplage stratégiques protégés par des buffers de stock. Ces buffers, lus via un code couleur vert/jaune/rouge, sont réapprovisionnés en fonction de la consommation réelle plutôt que d'une prévision recalculée en permanence." } },
+      { "@type": "Question", "name": "Qu'apporte concrètement l'IA au DDMRP ?", "acceptedAnswer": { "@type": "Answer", "text": "L'IA rend les buffers dynamiques : elle recalcule l'usage moyen journalier (ADU) et ajuste les facteurs (DAF/ZAF) selon des signaux court terme, détecte les anomalies de consommation qui fausseraient les calculs, classe automatiquement les références (régulières, saisonnières, erratiques) et priorise les alertes buffers avec une justification lisible." } },
+      { "@type": "Question", "name": "Par où commencer un projet IA + DDMRP ?", "acceptedAnswer": { "@type": "Answer", "text": "Quatre étapes : 1) poser les points de découplage (décision stratégique) ; 2) fiabiliser les données (ADU, lead times, historiques) ; 3) introduire l'IA d'abord sur le calibrage des paramètres et la détection d'anomalies, pas sur la génération de commandes en boîte noire ; 4) garder le planificateur dans la boucle pour valider et arbitrer sur l'exception." } }
+    ]
+  }
+  </script>
+</head>
+
+<body class="bg-white text-slate-900">
+
+  <!-- HEADER -->
+  <nav class="border-b border-slate-200 sticky top-0 z-20 bg-white/90 backdrop-blur-sm">
+    <div class="max-w-7xl mx-auto px-6 md:px-10 py-4 flex items-center justify-between">
+      <a href="/" class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-md flex items-center justify-center relative overflow-hidden" style="background: #2563EB;">
+          <svg viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg" class="w-[78%] h-[78%]">
+            <rect x="5" y="11" width="26" height="2.5" rx="0.5" fill="white" />
+            <rect x="5" y="14.5" width="26" height="2.5" rx="0.5" fill="white" />
+            <rect x="6" y="17.5" width="4.5" height="5" rx="0.3" fill="white" opacity="0.82" />
+            <rect x="15.75" y="17.5" width="4.5" height="5" rx="0.3" fill="white" opacity="0.82" />
+            <rect x="25.5" y="17.5" width="4.5" height="5" rx="0.3" fill="white" opacity="0.82" />
+            <rect x="5" y="23" width="26" height="2.5" rx="0.5" fill="white" />
+          </svg>
+        </div>
+        <div>
+          <div class="font-bricolage font-bold text-lg tracking-tight text-slate-900">ATELIER LOGISTIQUE</div>
+          <div class="font-jetbrains text-[10px] text-slate-500 -mt-1 tracking-wider">SUITE D'OUTILS · v0.2 · WALYCONSEIL</div>
+        </div>
+      </a>
+      <div class="hidden md:flex items-center gap-5 font-jetbrains text-xs text-slate-500">
+        <a href="/#tools" class="hover:text-slate-900 transition-colors">L'établi</a>
+        <a href="/#how" class="hover:text-slate-900 transition-colors">Comment ça marche</a>
+        <span class="text-slate-300">|</span>
+        <span class="flex items-center gap-2" style="color: #2563EB;">
+          <span class="w-1.5 h-1.5 rounded-full pulse-dot" style="background: #2563EB;"></span>
+          EN LIGNE
+        </span>
+      </div>
+    </div>
+  </nav>
+
+  <!-- BREADCRUMB -->
+  <nav class="max-w-7xl mx-auto px-6 md:px-10 py-3 font-jetbrains text-[11px] text-slate-500" aria-label="Fil d'Ariane">
+    <a href="/" class="hover:text-slate-900 transition-colors">ATELIER</a>
+    <span class="mx-2 text-slate-300">/</span>
+    <a href="/#tools" class="hover:text-slate-900 transition-colors">GUIDES</a>
+    <span class="mx-2 text-slate-300">/</span>
+    <span class="text-slate-800">IA & DDMRP</span>
+  </nav>
+
+  <!-- HERO -->
+  <section class="relative max-w-7xl mx-auto px-6 md:px-10 pt-12 md:pt-16 pb-16 md:pb-20">
+    <div class="font-jetbrains text-xs mb-6 flex items-center gap-2 tracking-wider" style="color: #2563EB;">
+      <span>●</span>
+      <span>PLANIFICATION & DEMANDE — GUIDE COMPLET</span>
+    </div>
+    <h1 class="font-bricolage font-bold text-4xl md:text-6xl lg:text-7xl leading-[0.95] mb-6 tracking-tight max-w-4xl text-slate-900">
+      IA et <em class="italic font-normal text-slate-400">DDMRP</em>
+      <br />ne sont pas <span style="color: #2563EB;">rivaux.</span>
+    </h1>
+    <p class="text-slate-600 text-lg md:text-xl max-w-3xl leading-relaxed">
+      L'intelligence artificielle cherche à anticiper la demande. Le DDMRP cherche à s'en protéger quand elle
+      devient imprévisible. Loin de s'opposer, ces deux approches se renforcent. Voici comment les combiner pour
+      une supply chain robuste dans un environnement volatil.
+    </p>
+    <div class="flex flex-wrap items-center gap-3 mt-10 font-jetbrains text-xs">
+      <a href="/?tool=audit" class="px-5 py-3 rounded-md font-medium transition-all hover:translate-y-[-1px] flex items-center gap-2 text-white" style="background: #2563EB;">
+        LANCER L'AUDIT FLASH
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </a>
+      <a href="#complementarite" class="px-5 py-3 rounded-md font-medium border border-slate-300 text-slate-700 hover:bg-slate-50 transition-all">
+        VOIR LA COMPLÉMENTARITÉ
+      </a>
+    </div>
+  </section>
+
+  <!-- CONTENU PRINCIPAL -->
+  <main class="max-w-3xl mx-auto px-6 md:px-10 py-12 prose-content text-slate-700 text-base">
+
+    <p>
+      On aime les faux débats. Depuis que l'IA s'est invitée dans la supply chain, une question revient à chaque
+      conférence : faut-il faire de la <strong>prévision augmentée par l'IA</strong> ou du <strong>DDMRP</strong> ?
+      Comme s'il fallait choisir un camp. En réalité, cette opposition passe à côté de l'essentiel. L'IA et le DDMRP
+      ne répondent pas à la même question. L'une cherche à <em>anticiper</em> la demande, l'autre à <em>s'en protéger</em>
+      quand elle devient imprévisible. Bien menés, ils ne se concurrencent pas : ils se renforcent.
+    </p>
+
+    <section id="constat" class="mb-12 mt-10">
+      <div class="font-jetbrains text-[10px] tracking-widest mb-2" style="color: #2563EB;">01 · LE CONSTAT</div>
+      <h2 class="font-bricolage font-bold text-3xl mb-4 text-slate-900">Pourquoi la planification classique décroche</h2>
+      <p>
+        Le MRP traditionnel repose sur un pari simple : si la prévision est bonne, la planification suit. Le problème,
+        c'est que ce pari tient de moins en moins. Ruptures d'approvisionnement, lead times qui doublent sans prévenir,
+        comportements d'achat erratiques, promotions qui déforment les signaux… La demande n'est plus une courbe
+        régulière que l'on prolonge, c'est un flux bruité.
+      </p>
+      <p>
+        Dans ce contexte, le MRP amplifie ses propres erreurs. Une petite variation de prévision en bout de chaîne se
+        propage et se démultiplie à chaque niveau de nomenclature : c'est l'<strong>effet coup de fouet</strong> (bullwhip).
+        Résultat familier : on est en rupture sur ce qui se vend et en surstock sur ce qui dort. Et à chaque nouvelle
+        prévision, le plan est recalculé de fond en comble — cette <strong>nervosité du MRP</strong> génère des ordres qui
+        changent d'une semaine à l'autre, au point que les équipes finissent par ne plus leur faire confiance.
+      </p>
+
+      <div class="grid grid-cols-3 gap-3 my-6">
+        <div class="rounded-lg border border-slate-200 p-4 text-center">
+          <div class="font-bricolage font-bold text-2xl" style="color: #2563EB;">~50%</div>
+          <div class="text-xs text-slate-500 mt-1 leading-snug">des références à demande erratique ou intermittente</div>
+        </div>
+        <div class="rounded-lg border border-slate-200 p-4 text-center">
+          <div class="font-bricolage font-bold text-2xl" style="color: #2563EB;">×2–3</div>
+          <div class="text-xs text-slate-500 mt-1 leading-snug">amplification typique d'une erreur par l'effet coup de fouet</div>
+        </div>
+        <div class="rounded-lg border border-slate-200 p-4 text-center">
+          <div class="font-bricolage font-bold text-2xl" style="color: #2563EB;">80/20</div>
+          <div class="text-xs text-slate-500 mt-1 leading-snug">une minorité de références concentre la valeur et le risque</div>
+        </div>
+      </div>
+
+      <p>
+        Le réflexe classique — prévoir mieux — a ses limites. On peut affiner un modèle, ajouter des variables, entraîner
+        un algorithme : sur une demande fondamentalement imprévisible, la meilleure prévision reste… incertaine. C'est
+        précisément là que le DDMRP change de logique.
+      </p>
+    </section>
+
+    <section id="ddmrp" class="mb-12">
+      <div class="font-jetbrains text-[10px] tracking-widest mb-2" style="color: #2563EB;">02 · LE DDMRP</div>
+      <h2 class="font-bricolage font-bold text-3xl mb-4 text-slate-900">Piloter par la demande réelle, pas par la prévision</h2>
+      <p>
+        Le <strong>Demand Driven MRP</strong>, formalisé par le Demand Driven Institute (Carol Ptak et Chad Smith), part
+        d'un principe presque contre-intuitif : plutôt que de tout miser sur la prévision, on installe des
+        <strong>points de découplage</strong> stratégiques dans la chaîne, protégés par des <strong>buffers de stock</strong>
+        dimensionnés intelligemment. Ces buffers absorbent la variabilité et cassent la propagation des erreurs.
+      </p>
+      <p>
+        Concrètement, chaque buffer se lit avec un code couleur — vert, jaune, rouge — qui indique en un coup d'œil s'il
+        faut réapprovisionner et avec quelle urgence. Les ordres ne sont plus déclenchés par une prévision recalculée en
+        permanence, mais par la <strong>consommation réelle</strong> et la position du buffer. La planification devient plus
+        stable, plus lisible, et surtout <em>pilotée par la demande</em>.
+      </p>
+
+      <div class="my-6 rounded-lg border-l-4 pl-5 py-1" style="border-color: #2563EB;">
+        <p class="text-slate-600 italic mb-0">« Le but n'est pas de mieux deviner l'avenir, mais de rendre le flux insensible à ce qu'on n'a pas su deviner. » — principe fondateur du Demand Driven</p>
+      </div>
+
+      <p>
+        Mais le DDMRP a un talon d'Achille souvent passé sous silence : la <strong>qualité de ses paramètres</strong>.
+        Le dimensionnement d'un buffer dépend de l'usage moyen journalier (ADU), du lead time, de la variabilité et de
+        facteurs d'ajustement (DAF, ZAF) pour anticiper saisonnalités, promotions ou fins de vie. Or ces paramètres sont
+        trop souvent figés dans un tableur, révisés une fois par trimestre, à la main. Un buffer mal calibré, c'est un
+        DDMRP qui promet la stabilité et livre du surstock. C'est ici que l'IA entre en jeu.
+      </p>
+    </section>
+
+    <section id="ia" class="mb-12">
+      <div class="font-jetbrains text-[10px] tracking-widest mb-2" style="color: #2563EB;">03 · L'IA</div>
+      <h2 class="font-bricolage font-bold text-3xl mb-4 text-slate-900">Anticiper, sentir, ajuster</h2>
+      <p>L'apport de l'IA à la supply chain ne se limite pas à « prévoir plus juste ». Ses usages les plus utiles sont plus fins :</p>
+      <ul>
+        <li><strong>Demand sensing :</strong> détecter, à partir de signaux court terme (commandes en cours, météo, indicateurs de marché, saisonnalité fine), une inflexion de la demande avant qu'elle n'apparaisse dans les historiques.</li>
+        <li><strong>Détection d'anomalies :</strong> repérer une consommation atypique — pic promotionnel, commande exceptionnelle, donnée aberrante — et éviter qu'elle ne pollue les calculs.</li>
+        <li><strong>Classification de la demande :</strong> distinguer automatiquement les références régulières, saisonnières, erratiques ou intermittentes, pour leur appliquer le bon traitement.</li>
+        <li><strong>Recommandation et priorisation :</strong> transformer des centaines d'alertes en une liste d'actions hiérarchisées, avec une justification lisible.</li>
+      </ul>
+      <p>
+        Prise seule, l'IA hérite pourtant du même défaut que la prévision classique : elle reste une <em>estimation</em>.
+        Sur les références vraiment imprévisibles, un modèle sophistiqué peut donner une fausse impression de maîtrise.
+        L'IA excelle à réduire l'incertitude ; elle ne la supprime pas. Elle a donc besoin d'un mécanisme qui absorbe ce
+        qu'elle ne saura jamais prédire.
+      </p>
+    </section>
+
+    <section id="complementarite" class="mb-12">
+      <div class="font-jetbrains text-[10px] tracking-widest mb-2" style="color: #2563EB;">04 · LA COMPLÉMENTARITÉ</div>
+      <h2 class="font-bricolage font-bold text-3xl mb-4 text-slate-900">L'IA règle les instruments, le DDMRP exécute</h2>
+      <p>
+        C'est l'idée-force : <strong>l'IA anticipe, le DDMRP protège et découple</strong>. L'une travaille sur le signal,
+        l'autre sur la structure du flux. Là où la prévision seule échoue, le buffer amortit ; là où le buffer risque
+        d'être mal réglé, l'IA affine ses paramètres en continu.
+      </p>
+
+      <div class="my-6 rounded-lg overflow-hidden border border-slate-200 overflow-x-auto">
+        <table class="w-full text-xs min-w-[600px]">
+          <thead style="background: #F8FAFC;">
+            <tr>
+              <th class="text-left p-3 font-jetbrains text-[10px] text-slate-500 tracking-wider">APPROCHE</th>
+              <th class="text-left p-3 font-jetbrains text-[10px] text-slate-500 tracking-wider">S'APPUIE SUR</th>
+              <th class="text-left p-3 font-jetbrains text-[10px] text-slate-500 tracking-wider">FORCE</th>
+              <th class="text-left p-3 font-jetbrains text-[10px] text-slate-500 tracking-wider">LIMITE</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="border-t border-slate-200"><td class="p-3 font-jetbrains font-bold">MRP classique</td><td class="p-3">Prévision + nomenclature</td><td class="p-3">Simple, universel</td><td class="p-3">Amplifie les erreurs, nerveux</td></tr>
+            <tr class="border-t border-slate-200" style="background: #FAFAFA;"><td class="p-3 font-jetbrains font-bold">Prévision IA</td><td class="p-3">Signaux et historiques</td><td class="p-3">Anticipe mieux le court terme</td><td class="p-3">Reste une estimation, effet boîte noire</td></tr>
+            <tr class="border-t border-slate-200"><td class="p-3 font-jetbrains font-bold">DDMRP seul</td><td class="p-3">Demande réelle + buffers</td><td class="p-3">Stable, lisible, robuste</td><td class="p-3">Dépend de paramètres souvent figés</td></tr>
+            <tr class="border-t border-slate-200" style="background: #F8FAFC;"><td class="p-3 font-jetbrains font-bold" style="color: #2563EB;">IA + DDMRP</td><td class="p-3">Signaux <em>et</em> buffers</td><td class="p-3"><strong>Buffers auto-adaptatifs, flux protégé</strong></td><td class="p-3">Données propres et gouvernance requises</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>Comment cela se traduit-il au quotidien ? Quelques exemples concrets :</p>
+      <ul>
+        <li>L'IA recalcule l'<strong>ADU</strong> et ajuste les <strong>facteurs (DAF/ZAF)</strong> selon les signaux détectés, au lieu d'une révision trimestrielle manuelle. Les zones vert/jaune/rouge respirent avec le marché.</li>
+        <li>Avant une promotion ou un pic saisonnier annoncé par le modèle, le buffer se re-dimensionne <em>en amont</em> — sans attendre que la rupture se matérialise.</li>
+        <li>La détection d'anomalies nettoie la consommation qui alimente le DDMRP : une commande exceptionnelle ne vient plus gonfler artificiellement un buffer pour les mois suivants.</li>
+        <li>Sur les alertes buffers, l'IA priorise et explique : « cette référence passe au rouge car la demande accélère depuis 8 jours » plutôt qu'un simple voyant.</li>
+      </ul>
+
+      <div class="my-6 rounded-lg p-5" style="background: #EFF6FF; border-left: 4px solid #2563EB;">
+        <p class="mb-0 text-sm" style="color: #1D4ED8;"><strong>À retenir :</strong> on ne cherche pas à prévoir <em>plus</em>, mais à prévoir <em>mieux ce qui est prévisible</em> et à <em>découpler le reste</em>. Dans ce montage, l'IA ne pilote pas les commandes : elle règle les instruments, le DDMRP exécute. On garde la transparence de la méthode, on supprime sa principale faiblesse.</p>
+      </div>
+    </section>
+
+    <section id="feuille-de-route" class="mb-12">
+      <div class="font-jetbrains text-[10px] tracking-widest mb-2" style="color: #2563EB;">05 · FEUILLE DE ROUTE</div>
+      <h2 class="font-bricolage font-bold text-3xl mb-4 text-slate-900">Par où commencer</h2>
+      <p>Inutile de tout transformer d'un coup. Une trajectoire réaliste tient en quatre étapes :</p>
+
+      <div class="my-6 space-y-4">
+        <div class="rounded-lg border border-slate-200 p-4">
+          <div class="flex items-baseline gap-3 mb-1"><span class="font-jetbrains font-bold text-lg" style="color: #2563EB;">01</span><span class="font-bricolage font-semibold text-slate-900">Poser les points de découplage</span></div>
+          <p class="text-sm mb-0 text-slate-600">Avant toute IA, la question DDMRP reste : où placer les buffers pour protéger le flux ? C'est une décision stratégique, pas algorithmique.</p>
+        </div>
+        <div class="rounded-lg border border-slate-200 p-4">
+          <div class="flex items-baseline gap-3 mb-1"><span class="font-jetbrains font-bold text-lg" style="color: #2563EB;">02</span><span class="font-bricolage font-semibold text-slate-900">Fiabiliser les données</span></div>
+          <p class="text-sm mb-0 text-slate-600">ADU, lead times, historiques de consommation : sans données propres, ni le DDMRP ni l'IA ne tiennent leurs promesses. L'étape la moins spectaculaire et la plus décisive.</p>
+        </div>
+        <div class="rounded-lg border border-slate-200 p-4">
+          <div class="flex items-baseline gap-3 mb-1"><span class="font-jetbrains font-bold text-lg" style="color: #2563EB;">03</span><span class="font-bricolage font-semibold text-slate-900">Introduire l'IA sur le calibrage, pas la décision</span></div>
+          <p class="text-sm mb-0 text-slate-600">Commencez par l'ajustement automatique des paramètres et la détection d'anomalies — plus faciles à faire accepter que des commandes générées en boîte noire.</p>
+        </div>
+        <div class="rounded-lg border border-slate-200 p-4">
+          <div class="flex items-baseline gap-3 mb-1"><span class="font-jetbrains font-bold text-lg" style="color: #2563EB;">04</span><span class="font-bricolage font-semibold text-slate-900">Garder l'humain dans la boucle</span></div>
+          <p class="text-sm mb-0 text-slate-600">Le planificateur valide, arbitre sur l'exception et comprend <em>pourquoi</em> le système recommande. L'explicabilité n'est pas un luxe : c'est ce qui crée la confiance.</p>
+        </div>
+      </div>
+
+      <p>
+        Un dernier mot sur l'outillage. La plupart de ces mécanismes s'appuient sur l'ERP qui pilote déjà les flux
+        (Microsoft Dynamics 365 et son écosystème, notamment). La valeur ne vient pas d'un énième module isolé, mais de
+        la cohérence entre la méthode, la donnée et l'exécution.
+      </p>
+    </section>
+
+    <section id="faq" class="mb-12">
+      <div class="font-jetbrains text-[10px] tracking-widest mb-2" style="color: #2563EB;">06 · FAQ</div>
+      <h2 class="font-bricolage font-bold text-3xl mb-6 text-slate-900">Questions fréquentes</h2>
+
+      <div class="space-y-3">
+        <details class="rounded-lg border border-slate-200 p-4 group">
+          <summary class="font-bricolage font-semibold text-slate-900 cursor-pointer flex items-center justify-between">
+            <span>L'IA remplace-t-elle le DDMRP ?</span>
+            <svg class="w-4 h-4 transition-transform group-open:rotate-180 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </summary>
+          <p class="mt-3 text-sm text-slate-600 leading-relaxed">Non. L'IA et le DDMRP répondent à deux questions différentes. L'IA cherche à anticiper la demande ; le DDMRP cherche à protéger le flux de ce qui reste imprévisible. Les meilleures organisations les combinent : l'IA calibre les buffers en continu, le DDMRP exécute et absorbe la variabilité.</p>
+        </details>
+
+        <details class="rounded-lg border border-slate-200 p-4 group">
+          <summary class="font-bricolage font-semibold text-slate-900 cursor-pointer flex items-center justify-between">
+            <span>Qu'est-ce que le DDMRP ?</span>
+            <svg class="w-4 h-4 transition-transform group-open:rotate-180 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </summary>
+          <p class="mt-3 text-sm text-slate-600 leading-relaxed">Le Demand Driven MRP (DDMRP), formalisé par le Demand Driven Institute, installe des points de découplage stratégiques protégés par des buffers de stock. Ces buffers, lus via un code couleur vert/jaune/rouge, sont réapprovisionnés en fonction de la consommation réelle plutôt que d'une prévision recalculée en permanence.</p>
+        </details>
+
+        <details class="rounded-lg border border-slate-200 p-4 group">
+          <summary class="font-bricolage font-semibold text-slate-900 cursor-pointer flex items-center justify-between">
+            <span>Qu'apporte concrètement l'IA au DDMRP ?</span>
+            <svg class="w-4 h-4 transition-transform group-open:rotate-180 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </summary>
+          <p class="mt-3 text-sm text-slate-600 leading-relaxed">L'IA rend les buffers dynamiques : elle recalcule l'ADU et ajuste les facteurs (DAF/ZAF) selon des signaux court terme, détecte les anomalies de consommation qui fausseraient les calculs, classe automatiquement les références et priorise les alertes buffers avec une justification lisible.</p>
+        </details>
+
+        <details class="rounded-lg border border-slate-200 p-4 group">
+          <summary class="font-bricolage font-semibold text-slate-900 cursor-pointer flex items-center justify-between">
+            <span>Par où commencer un projet IA + DDMRP ?</span>
+            <svg class="w-4 h-4 transition-transform group-open:rotate-180 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </summary>
+          <p class="mt-3 text-sm text-slate-600 leading-relaxed">Quatre étapes : poser les points de découplage (décision stratégique), fiabiliser les données (ADU, lead times, historiques), introduire l'IA d'abord sur le calibrage et la détection d'anomalies plutôt que sur la génération de commandes, et garder le planificateur dans la boucle pour valider et arbitrer sur l'exception.</p>
+        </details>
+      </div>
+    </section>
+
+    <!-- CONCLUSION -->
+    <section class="mb-4">
+      <h2 class="font-bricolage font-bold text-3xl mb-4 text-slate-900">Conclusion</h2>
+      <p>
+        Opposer l'IA et le DDMRP, c'est comparer une boussole et une coque renforcée. La boussole aide à anticiper la
+        route ; la coque encaisse ce qu'on n'avait pas vu venir. Sur une mer calme, l'une suffirait peut-être. Dans la
+        volatilité d'aujourd'hui, on veut les deux.
+      </p>
+      <p>
+        La vraie question n'est donc pas « IA <em>ou</em> DDMRP », mais « comment les faire travailler ensemble » : une IA
+        qui règle les buffers, un DDMRP qui protège le flux, et un planificateur qui décide en connaissance de cause.
+      </p>
+    </section>
+
+    <!-- À PROPOS DE L'AUTEUR -->
+    <section class="mt-12 pt-8 border-t border-slate-200">
+      <div class="font-jetbrains text-[10px] tracking-widest mb-4 text-slate-400">À PROPOS DE L'AUTEUR</div>
+      <div class="flex items-start gap-4">
+        <img
+          src="said-barkam.jpg"
+          alt="Saïd BARKAM"
+          onerror="this.style.display='none';this.nextElementSibling.style.display='flex';"
+          class="w-16 h-20 object-contain rounded-md bg-slate-100 border border-slate-200 flex-shrink-0"
+        />
+        <div class="w-16 h-20 rounded-md bg-slate-900 text-white items-center justify-center font-bricolage font-bold text-lg flex-shrink-0" style="display:none;">SB</div>
+        <div>
+          <div class="font-bricolage font-bold text-lg text-slate-900">Saïd BARKAM</div>
+          <p class="text-sm text-slate-600 leading-relaxed mt-1 mb-0">
+            Accompagne les entreprises dans la mise en place d'ERP et la refonte de leur stratégie Supply Chain.
+            Spécialiste ERP Microsoft Dynamics 365.
+          </p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- CTA AUDIT FLASH -->
+  <section class="text-white" style="background: linear-gradient(135deg, #0F172A 0%, #1E3A8A 70%, #B45309 100%);">
+    <div class="max-w-3xl mx-auto px-6 md:px-10 py-14">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
+        <div class="md:col-span-2">
+          <div class="font-jetbrains text-[10px] tracking-widest mb-2" style="color: #F59E0B;">AUDIT FLASH SUPPLY CHAIN</div>
+          <div class="font-bricolage font-bold text-2xl md:text-3xl mb-3 leading-tight tracking-tight">Auditez votre supply chain en 5 minutes</div>
+          <div class="text-slate-300 text-sm leading-relaxed">L'Audit Flash analyse vos ventes et votre stock pour identifier les chantiers prioritaires : stock dormant chiffré, OTIF achat et client, déséquilibres inter-magasins, articles à risque. Diagnostic gratuit avec rapport PDF.</div>
+        </div>
+        <div>
+          <a href="/?tool=audit" class="inline-flex items-center justify-center gap-2 w-full px-5 py-3 rounded-md font-jetbrains text-xs font-bold shadow-lg" style="background: #F59E0B; color: #0F172A;">
+            LANCER L'AUDIT FLASH
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="border-t border-slate-200 bg-white">
+    <div class="max-w-7xl mx-auto px-6 md:px-10 py-8 flex flex-col md:flex-row md:items-center md:justify-between gap-3 font-jetbrains text-[11px] text-slate-500">
+      <div>ATELIER LOGISTIQUE © 2026 — Outillage par <a href="mailto:contact@walyconseil.com" class="text-slate-700 hover:underline">WALYCONSEIL</a></div>
+      <div class="flex items-center gap-5">
+        <a href="/" class="hover:text-slate-900">Tous les outils</a>
+        <a href="/?tool=audit" class="hover:text-slate-900">Audit Flash</a>
+        <a href="mailto:contact@walyconseil.com" class="hover:text-slate-900">Contact</a>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>
