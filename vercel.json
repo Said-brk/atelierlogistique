@@ -1,4 +1,12 @@
 {
   "cleanUrls": true,
-  "trailingSlash": false
+  "trailingSlash": false,
+  "redirects": [
+    { "source": "/outils/incoterms-2020", "destination": "/ressources/incoterms-2020", "permanent": true },
+    { "source": "/outils/ia-et-ddmrp", "destination": "/ressources/ia-et-ddmrp", "permanent": true },
+    { "source": "/audit-supply-chain", "destination": "/ressources/audit-supply-chain", "permanent": true }
+  ],
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
 }

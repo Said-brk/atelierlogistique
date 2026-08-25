@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, Link, useNavigate, useParams, useLocation } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import {
   Package, FileCode2, Download, Upload, ArrowLeft,
@@ -90,59 +91,292 @@ const CATEGORIES = [
   { id: 'utilitaires', label: 'Utilitaires', icon: Wrench, num: '04' },
 ];
 
-export default function App() {
-  const [active, setActive] = useState(null);
 
-  // Deeplink depuis les pages SEO statiques : ?tool=ddmrp ouvre directement l'outil
+// ============================================================
+// ARTICLES / RESSOURCES (pages SEO statiques dans public/ressources)
+// ============================================================
+const ARTICLES = [
+  {
+    slug: 'audit-supply-chain',
+    tag: 'Outil phare',
+    title: 'Audit Supply Chain gratuit : diagnostic en 5 minutes',
+    desc: 'Classification ABC×XYZ, stock dormant chiffré, OTIF, couverture et Health Score 0-100, avec rapport PDF. 100 % navigateur.',
+    icon: Zap,
+    color: '#F59E0B', light: '#FEF3C7', border: '#FDE68A',
+    cta: 'audit',
+  },
+  {
+    slug: 'ddmrp',
+    tag: 'Méthode',
+    title: 'DDMRP : méthode complète et calcul des buffers',
+    desc: 'Comprenez la méthode Demand Driven MRP et dimensionnez vos buffers stratégiques en zones rouge / jaune / vert, exemples chiffrés à l\'appui.',
+    icon: Box,
+    color: '#0D9488', light: '#CCFBF1', border: '#99F6E4',
+    cta: 'ddmrp',
+  },
+  {
+    slug: 'incoterms-2020',
+    tag: 'Guide',
+    title: 'Incoterms 2020 : les 11 règles expliquées',
+    desc: 'Transferts de coûts et de risques en commerce international (EXW, FOB, CIF, DDP…), tableau récapitulatif et comparateur visuel.',
+    icon: Map,
+    color: '#7C3AED', light: '#EDE9FE', border: '#DDD6FE',
+    cta: 'incoterms',
+  },
+  {
+    slug: 'ia-et-ddmrp',
+    tag: 'Analyse',
+    title: 'IA et DDMRP : deux réponses à la volatilité',
+    desc: 'L\'intelligence artificielle anticipe, le DDMRP protège et découple. Comment combiner prévision augmentée et pilotage par la demande.',
+    icon: TrendingUp,
+    color: BLUE, light: BLUE_LIGHT, border: '#BFDBFE',
+    cta: 'ddmrp',
+  },
+];
+
+// ============================================================
+// ROUTEUR & NAVIGATION GLOBALE
+// ============================================================
+const TOOL_COMPONENTS = {
+  zpl: ZplViewer,
+  barcode: BarcodeGenerator,
+  pallet: PalletCalculator,
+  safety: SafetyStockCalculator,
+  ddmrp: DdmrpBuffers,
+  incoterms: IncotermsComparator,
+  cmr: CmrGenerator,
+  sla: OtifAnalyzer,
+  units: LogisticsConverter,
+  audit: AuditFlash,
+};
+
+const TOOL_NAMES = {
+  ...Object.fromEntries(TOOLS.map(t => [t.id, t.name])),
+  audit: 'Audit Flash Supply Chain',
+};
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <ScrollToTop />
+      <Routes>
+        <Route path="/" element={<Landing />} />
+        <Route path="/outils" element={<Navigate to="/#tools" replace />} />
+        <Route path="/outils/:id" element={<ToolRoute />} />
+        <Route path="/ressources" element={<Ressources />} />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </BrowserRouter>
+  );
+}
+
+// Remet le scroll en haut à chaque changement de route (react-router ne le fait pas)
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
+  return null;
+}
+
+// En-tête de site partagé (accueil, ressources, 404)
+function SiteHeader() {
+  return (
+    <nav className="border-b border-slate-200 sticky top-0 z-30 bg-white/90 backdrop-blur-sm">
+      <div className="max-w-7xl mx-auto px-6 md:px-10 py-4 flex items-center justify-between">
+        <Link to="/" className="flex items-center gap-3">
+          <Logo />
+          <div>
+            <div className="font-bricolage font-bold text-lg tracking-tight text-slate-900">ATELIER LOGISTIQUE</div>
+            <div className="font-jetbrains text-[10px] text-slate-500 -mt-1 tracking-wider">SUITE D'OUTILS · v0.2 · WALYCONSEIL</div>
+          </div>
+        </Link>
+        <div className="hidden md:flex items-center gap-5 font-jetbrains text-xs text-slate-500">
+          <a href="/#tools" className="hover:text-slate-900 transition-colors">Outils</a>
+          <a href="/#how" className="hover:text-slate-900 transition-colors">Comment ça marche</a>
+          <Link to="/ressources" className="hover:text-slate-900 transition-colors">Ressources</Link>
+          <a href="mailto:contact@walyconseil.com" className="hover:text-slate-900 transition-colors">Contact</a>
+          <span className="text-slate-300">|</span>
+          <span className="flex items-center gap-2" style={{ color: BLUE }}>
+            <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: BLUE }} />
+            EN LIGNE
+          </span>
+        </div>
+      </div>
+    </nav>
+  );
+}
+
+// Pied de page partagé
+function SiteFooter() {
+  return (
+    <footer className="border-t border-slate-200">
+      <div className="max-w-7xl mx-auto px-6 md:px-10 py-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 font-jetbrains text-xs text-slate-500">
+        <div className="flex items-center gap-3">
+          <Logo small />
+          <span>ATELIER LOGISTIQUE © 2023 — Outillage par WALYCONSEIL</span>
+        </div>
+        <div className="flex items-center gap-5">
+          <a href="/#tools" className="hover:text-slate-800 transition-colors">Outils</a>
+          <Link to="/ressources" className="hover:text-slate-800 transition-colors">Ressources</Link>
+          <span>Contact : <a href="mailto:contact@walyconseil.com" className="hover:text-slate-800 transition-colors underline-offset-2 hover:underline">contact@walyconseil.com</a></span>
+        </div>
+      </div>
+    </footer>
+  );
+}
+
+// Barre fine de fil d'Ariane affichée au-dessus de chaque outil
+function ToolTopBar({ id }) {
+  const name = TOOL_NAMES[id] || id;
+  return (
+    <div className="border-b border-slate-200 bg-white">
+      <div className="max-w-7xl mx-auto px-6 md:px-10 py-2.5 flex items-center justify-between font-jetbrains text-xs">
+        <div className="flex items-center gap-2 text-slate-500 min-w-0">
+          <Link to="/" className="flex items-center gap-2 text-slate-700 hover:text-slate-900 shrink-0">
+            <Logo small />
+            <span className="font-bricolage font-bold tracking-tight hidden sm:inline">ATELIER LOGISTIQUE</span>
+          </Link>
+          <ChevronRight size={12} className="text-slate-300 shrink-0" />
+          <a href="/#tools" className="hover:text-slate-900 shrink-0">Outils</a>
+          <ChevronRight size={12} className="text-slate-300 shrink-0" />
+          <span className="text-slate-900 truncate">{name}</span>
+        </div>
+        <div className="hidden sm:flex items-center gap-4 shrink-0">
+          <Link to="/ressources" className="text-slate-500 hover:text-slate-900">Ressources</Link>
+          <a href="/#tools" className="text-white px-3 py-1.5 rounded-md transition-colors" style={{ background: BLUE }}>Tous les outils</a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Route d'un outil : /outils/:id → composant plein écran + fil d'Ariane
+function ToolRoute() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const Comp = TOOL_COMPONENTS[id];
+  if (!Comp) return <NotFound />;
+  return (
+    <>
+      <ToolTopBar id={id} />
+      <Comp onBack={() => navigate('/')} />
+    </>
+  );
+}
+
+// Page 404
+function NotFound() {
+  return (
+    <div className="min-h-screen text-slate-900" style={{ background: '#FFFFFF', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+      <FontsAndStyles />
+      <SiteHeader />
+      <div className="max-w-3xl mx-auto px-6 py-32 text-center">
+        <div className="font-jetbrains text-xs text-slate-400 tracking-widest mb-4">ERREUR 404</div>
+        <h1 className="font-bricolage font-bold text-4xl md:text-5xl mb-4">Page introuvable</h1>
+        <p className="text-slate-600 mb-8">Cette adresse n'existe pas (ou plus). Reprenez depuis l'atelier.</p>
+        <div className="flex flex-wrap items-center justify-center gap-3 font-jetbrains text-xs">
+          <Link to="/" className="px-5 py-3 rounded-md font-medium text-white" style={{ background: BLUE }}>RETOUR À L'ACCUEIL</Link>
+          <a href="/#tools" className="px-5 py-3 rounded-md font-medium border border-slate-300 text-slate-700 hover:bg-slate-50">VOIR LES OUTILS</a>
+          <Link to="/ressources" className="px-5 py-3 rounded-md font-medium border border-slate-300 text-slate-700 hover:bg-slate-50">RESSOURCES</Link>
+        </div>
+      </div>
+      <SiteFooter />
+    </div>
+  );
+}
+
+// ============================================================
+// PAGE RESSOURCES — index des guides & articles
+// ============================================================
+function Ressources() {
+  const navigate = useNavigate();
+  return (
+    <div className="min-h-screen text-slate-900" style={{ background: '#FFFFFF', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+      <FontsAndStyles />
+      <SiteHeader />
+
+      <section className="max-w-7xl mx-auto px-6 md:px-10 pt-16 md:pt-20 pb-10">
+        <div className="font-jetbrains text-xs mb-5 flex items-center gap-2 tracking-wider" style={{ color: BLUE }}>
+          <span>●</span>
+          <span>RESSOURCES · GUIDES MÉTIER</span>
+        </div>
+        <h1 className="font-bricolage font-bold text-4xl md:text-6xl leading-[0.98] mb-6 tracking-tight">
+          Comprendre avant<br />d'<span style={{ color: BLUE }}>outiller.</span>
+        </h1>
+        <p className="text-slate-600 text-lg max-w-2xl leading-relaxed">
+          Des guides pratiques sur les méthodes de la supply chain — DDMRP, Incoterms, audit de stock — pour tirer le meilleur des outils de l'atelier. Rédigés par WALYCONSEIL.
+        </p>
+      </section>
+
+      <section className="max-w-7xl mx-auto px-6 md:px-10 pb-24">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {ARTICLES.map((a) => {
+            const Icon = a.icon;
+            return (
+              <a
+                key={a.slug}
+                href={`/ressources/${a.slug}`}
+                className="group flex flex-col p-6 rounded-xl border border-slate-200 bg-white hover:shadow-lg hover:-translate-y-0.5 transition-all"
+                onMouseEnter={e => { e.currentTarget.style.borderColor = a.border; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = '#E2E8F0'; }}
+              >
+                <div className="flex items-start justify-between mb-5">
+                  <div className="w-11 h-11 rounded-lg flex items-center justify-center" style={{ background: a.light, border: `1px solid ${a.border}` }}>
+                    <Icon size={19} style={{ color: a.color }} strokeWidth={1.75} />
+                  </div>
+                  <span className="font-jetbrains text-[10px] tracking-widest px-2 py-1 rounded-md" style={{ background: a.light, color: a.color }}>
+                    {a.tag}
+                  </span>
+                </div>
+                <h2 className="font-bricolage font-semibold text-xl mb-2 text-slate-900 leading-snug">{a.title}</h2>
+                <p className="text-sm text-slate-500 leading-relaxed mb-5 flex-1">{a.desc}</p>
+                <div className="font-jetbrains text-xs flex items-center gap-1.5 transition-transform group-hover:translate-x-1" style={{ color: a.color }}>
+                  LIRE LE GUIDE
+                  <ArrowRight size={12} />
+                </div>
+              </a>
+            );
+          })}
+        </div>
+
+        <div className="mt-14 rounded-2xl p-8 md:p-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6" style={{ background: '#0F172A' }}>
+          <div>
+            <h3 className="font-bricolage font-semibold text-2xl md:text-3xl text-white mb-2">Passez de la théorie à la pratique</h3>
+            <p className="text-slate-300 text-sm max-w-xl leading-relaxed">Chaque guide a son outil interactif dans l'atelier. Ouvrez-le en un clic, sans installation ni compte.</p>
+          </div>
+          <div className="flex flex-wrap gap-3 shrink-0 font-jetbrains text-xs">
+            <button onClick={() => navigate('/outils/audit')} className="px-5 py-3 rounded-md font-semibold" style={{ background: '#F59E0B', color: '#0F172A' }}>DÉMARRER L'AUDIT</button>
+            <a href="/#tools" className="px-5 py-3 rounded-md font-medium text-white border border-slate-600 hover:bg-slate-800 transition-colors">VOIR LES 9 OUTILS</a>
+          </div>
+        </div>
+      </section>
+
+      <SiteFooter />
+    </div>
+  );
+}
+
+// ============================================================
+// LANDING
+// ============================================================
+function Landing() {
+  const navigate = useNavigate();
+  const onLaunch = (id) => navigate(`/outils/${id}`);
+
+  // Compatibilité liens historiques : /?tool=ddmrp → /outils/ddmrp
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
     const tool = params.get('tool');
-    if (tool && (TOOLS.some(t => t.id === tool) || tool === 'audit')) {
-      setActive(tool);
+    if (tool && TOOL_COMPONENTS[tool]) {
+      navigate(`/outils/${tool}`, { replace: true });
     }
-  }, []);
-  if (active === 'zpl') return <ZplViewer onBack={() => setActive(null)} />;
-  if (active === 'barcode') return <BarcodeGenerator onBack={() => setActive(null)} />;
-  if (active === 'pallet') return <PalletCalculator onBack={() => setActive(null)} />;
-  if (active === 'safety') return <SafetyStockCalculator onBack={() => setActive(null)} />;
-  if (active === 'incoterms') return <IncotermsComparator onBack={() => setActive(null)} />;
-  if (active === 'cmr') return <CmrGenerator onBack={() => setActive(null)} />;
-  if (active === 'units') return <LogisticsConverter onBack={() => setActive(null)} />;
-  if (active === 'sla') return <OtifAnalyzer onBack={() => setActive(null)} />;
-  if (active === 'audit') return <AuditFlash onBack={() => setActive(null)} />;
-  if (active === 'ddmrp') return <DdmrpBuffers onBack={() => setActive(null)} />;
-  return <Landing onLaunch={setActive} />;
-}
+  }, [navigate]);
 
-// ============================================================
-// LANDING (inchangé)
-// ============================================================
-function Landing({ onLaunch }) {
   return (
     <div className="min-h-screen text-slate-900" style={{ background: '#FFFFFF', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
       <FontsAndStyles />
 
-      <nav className="border-b border-slate-200 sticky top-0 z-20 bg-white/90 backdrop-blur-sm">
-        <div className="max-w-7xl mx-auto px-6 md:px-10 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Logo />
-            <div>
-              <div className="font-bricolage font-bold text-lg tracking-tight">ATELIER LOGISTIQUE</div>
-              <div className="font-jetbrains text-[10px] text-slate-500 -mt-1 tracking-wider">SUITE D'OUTILS · v0.2 · WALYCONSEIL</div>
-            </div>
-          </div>
-          <div className="hidden md:flex items-center gap-5 font-jetbrains text-xs text-slate-500">
-            <a href="#tools" className="hover:text-slate-900 transition-colors">L'établi</a>
-            <a href="#how" className="hover:text-slate-900 transition-colors">Comment ça marche</a>
-            <span className="text-slate-300">|</span>
-            <span className="flex items-center gap-2" style={{ color: BLUE }}>
-              <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: BLUE }} />
-              EN LIGNE
-            </span>
-          </div>
-        </div>
-      </nav>
+      <SiteHeader />
 
       <section className="relative max-w-7xl mx-auto px-6 md:px-10 pt-20 md:pt-28 pb-20">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-end">
@@ -454,15 +688,60 @@ function Landing({ onLaunch }) {
         </div>
       </section>
 
-      <footer className="border-t border-slate-200">
-        <div className="max-w-7xl mx-auto px-6 md:px-10 py-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 font-jetbrains text-xs text-slate-500">
-          <div className="flex items-center gap-3">
-            <Logo small />
-            <span>ATELIER LOGISTIQUE © 2023 — Outillage par WALYCONSEIL</span>
+      <section id="ressources" className="border-t border-slate-200 bg-slate-50">
+        <div className="max-w-7xl mx-auto px-6 md:px-10 py-20">
+          <div className="flex items-end justify-between mb-12 gap-6">
+            <div>
+              <div className="font-jetbrains text-xs text-slate-500 mb-3 tracking-wider">04 / RESSOURCES</div>
+              <h2 className="font-bricolage font-semibold text-3xl md:text-4xl tracking-tight">
+                Les <span style={{ color: BLUE }}>guides</span> derrière les outils
+              </h2>
+              <p className="text-slate-600 leading-relaxed mt-3 max-w-2xl">
+                Chaque méthode expliquée en clair — pour savoir quand et comment utiliser chaque outil.
+              </p>
+            </div>
+            <Link to="/ressources" className="hidden md:inline-flex items-center gap-1.5 font-jetbrains text-xs font-medium shrink-0 px-4 py-2.5 rounded-md border border-slate-300 text-slate-700 hover:bg-white transition-colors">
+              TOUTES LES RESSOURCES
+              <ArrowRight size={12} />
+            </Link>
           </div>
-          <span>Contactez-nous sur <a href="mailto:contact@walyconseil.com" className="hover:text-slate-800 transition-colors underline-offset-2 hover:underline">contact@walyconseil.com</a></span>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {ARTICLES.map((a) => {
+              const Icon = a.icon;
+              return (
+                <a
+                  key={a.slug}
+                  href={`/ressources/${a.slug}`}
+                  className="group flex flex-col p-5 rounded-xl border border-slate-200 bg-white hover:shadow-md hover:-translate-y-0.5 transition-all"
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = a.border; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = '#E2E8F0'; }}
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: a.light, border: `1px solid ${a.border}` }}>
+                      <Icon size={16} style={{ color: a.color }} strokeWidth={1.75} />
+                    </div>
+                    <span className="font-jetbrains text-[9px] tracking-widest px-2 py-0.5 rounded" style={{ background: a.light, color: a.color }}>{a.tag}</span>
+                  </div>
+                  <h3 className="font-bricolage font-semibold text-base mb-1.5 text-slate-900 leading-snug">{a.title}</h3>
+                  <p className="text-xs text-slate-500 leading-relaxed mb-4 flex-1">{a.desc}</p>
+                  <div className="font-jetbrains text-[11px] flex items-center gap-1.5 transition-transform group-hover:translate-x-1" style={{ color: a.color }}>
+                    LIRE
+                    <ArrowRight size={11} />
+                  </div>
+                </a>
+              );
+            })}
+          </div>
+
+          <Link to="/ressources" className="md:hidden mt-6 inline-flex items-center gap-1.5 font-jetbrains text-xs font-medium px-4 py-2.5 rounded-md border border-slate-300 text-slate-700">
+            TOUTES LES RESSOURCES
+            <ArrowRight size={12} />
+          </Link>
         </div>
-      </footer>
+      </section>
+
+      <SiteFooter />
     </div>
   );
 }

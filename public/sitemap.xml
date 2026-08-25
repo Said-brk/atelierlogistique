@@ -4,32 +4,46 @@
   <!-- Accueil -->
   <url>
     <loc>https://atelierlogistique.com/</loc>
-    <lastmod>2026-05-28</lastmod>
+    <lastmod>2026-08-25</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
 
-  <!-- Audit Flash Supply Chain (lead magnet, page phare) -->
+  <!-- Index Ressources -->
   <url>
-    <loc>https://atelierlogistique.com/audit-supply-chain</loc>
-    <lastmod>2026-05-28</lastmod>
+    <loc>https://atelierlogistique.com/ressources</loc>
+    <lastmod>2026-08-25</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Ressources : guides & articles -->
+  <url>
+    <loc>https://atelierlogistique.com/ressources/audit-supply-chain</loc>
+    <lastmod>2026-08-25</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.9</priority>
   </url>
 
-  <!-- Pages outils SEO -->
   <url>
-    <loc>https://atelierlogistique.com/outils/ddmrp</loc>
-    <lastmod>2026-05-28</lastmod>
+    <loc>https://atelierlogistique.com/ressources/ddmrp</loc>
+    <lastmod>2026-08-25</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
 
   <url>
-    <loc>https://atelierlogistique.com/outils/incoterms-2020</loc>
-    <lastmod>2026-05-28</lastmod>
+    <loc>https://atelierlogistique.com/ressources/incoterms-2020</loc>
+    <lastmod>2026-08-25</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
+  </url>
+
+  <url>
+    <loc>https://atelierlogistique.com/ressources/ia-et-ddmrp</loc>
+    <lastmod>2026-08-25</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
   </url>
 
 </urlset>
