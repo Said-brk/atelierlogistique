@@ -9,7 +9,7 @@ import type {
 } from './types';
 import { EPS, MIN_SUPPORT_RATIO } from '../constants/engine-config';
 import { collidesWithAny, isWithinContainer } from './collision';
-import { isStable, supportRatio } from './support';
+import { supportRatio, hasNonStackableBelow } from './support';
 import { getOrientations, rotationAngles } from './rotations';
 import { scorePlacement } from './scoring';
 import { STRATEGIES } from './strategies';
@@ -35,10 +35,6 @@ export function expandInstances(defs: readonly ItemDefinition[]): ItemInstance[]
   return out;
 }
 
-function toBox(p: PlacedItem): Box {
-  return { x: p.x, y: p.y, z: p.z, length: p.length, width: p.width, height: p.height };
-}
-
 const pointKey = (p: Point): string => `${Math.round(p.x)},${Math.round(p.y)},${Math.round(p.z)}`;
 
 function dedupe(points: Point[]): Point[] {
@@ -51,12 +47,56 @@ function dedupe(points: Point[]): Point[] {
   return out;
 }
 
+// Index spatial par tranches le long de l'axe X (longueur du contenant) :
+// un colis ne peut entrer en collision / supporter qu'avec des voisins
+// dont l'intervalle X recouvre le sien. Évite le balayage de toutes les unités.
+class SpatialIndex {
+  private readonly cell: number;
+  private readonly map = new Map<number, PlacedItem[]>();
+
+  constructor(container: ContainerDefinition) {
+    this.cell = Math.max(200, Math.round(container.length / 32));
+  }
+
+  private range(box: Box): [number, number] {
+    return [Math.floor(box.x / this.cell) - 1, Math.floor((box.x + box.length) / this.cell) + 1];
+  }
+
+  insert(item: PlacedItem): void {
+    const [a, b] = this.range(item);
+    for (let i = a; i <= b; i++) {
+      let arr = this.map.get(i);
+      if (!arr) { arr = []; this.map.set(i, arr); }
+      arr.push(item);
+    }
+  }
+
+  query(box: Box): PlacedItem[] {
+    const [a, b] = this.range(box);
+    const seen = new Set<PlacedItem>();
+    const res: PlacedItem[] = [];
+    for (let i = a; i <= b; i++) {
+      const arr = this.map.get(i);
+      if (arr) for (const it of arr) { if (!seen.has(it)) { seen.add(it); res.push(it); } }
+    }
+    return res;
+  }
+}
+
+/** Un point candidat tombe-t-il dans le volume solide d'un colis déjà placé ? */
+function coveredBy(c: Point, p: PlacedItem): boolean {
+  return (
+    c.x >= p.x - EPS && c.x < p.x + p.length - EPS &&
+    c.y >= p.y - EPS && c.y < p.y + p.width - EPS &&
+    c.z >= p.z - EPS && c.z < p.z + p.height - EPS
+  );
+}
+
 /** Meilleur emplacement d'une unité parmi les points candidats et orientations autorisées. */
 function findBestPlacement(
   item: ItemInstance,
   container: ContainerDefinition,
-  placed: readonly PlacedItem[],
-  placedBoxes: readonly Box[],
+  index: SpatialIndex,
   candidates: readonly Point[],
   currentWeight: number,
 ): { placed: PlacedItem; point: Point } | null {
@@ -71,10 +111,15 @@ function findBestPlacement(
     for (const o of orientations) {
       const box: Box = { x: pt.x, y: pt.y, z: pt.z, length: o.length, width: o.width, height: o.height };
       if (!isWithinContainer(box, container)) continue;
-      if (collidesWithAny(box, placedBoxes)) continue;
-      if (!isStable(box, placed, MIN_SUPPORT_RATIO)) continue;
+      const nearby = index.query(box);
+      if (collidesWithAny(box, nearby)) continue;
+      const sr = supportRatio(box, nearby);
+      if (box.z > EPS) {
+        if (hasNonStackableBelow(box, nearby)) continue;
+        if (sr < MIN_SUPPORT_RATIO - EPS) continue;
+      }
 
-      const score = scorePlacement(box, container, placed, supportRatio(box, placed));
+      const score = scorePlacement(box, container, nearby, sr);
       if (best === null || score < best.score) {
         best = {
           score,
@@ -102,21 +147,21 @@ function findBestPlacement(
 /** Une passe de placement sur un ordre d'unités donné (heuristique extreme points). */
 function packOnce(container: ContainerDefinition, ordered: readonly ItemInstance[]): OptimizationResult {
   const placed: PlacedItem[] = [];
-  const placedBoxes: Box[] = [];
+  const index = new SpatialIndex(container);
   const unpacked: ItemInstance[] = [];
   let weight = 0;
   let candidates: Point[] = [{ x: 0, y: 0, z: 0 }];
 
   for (const item of ordered) {
-    const found = findBestPlacement(item, container, placed, placedBoxes, candidates, weight);
+    const found = findBestPlacement(item, container, index, candidates, weight);
     if (!found) { unpacked.push(item); continue; }
 
     const p = found.placed;
     placed.push(p);
-    placedBoxes.push(toBox(p));
+    index.insert(p);
     weight += item.weight;
 
-    candidates = candidates.filter((c) => pointKey(c) !== pointKey(found.point));
+    candidates = candidates.filter((c) => pointKey(c) !== pointKey(found.point) && !coveredBy(c, p));
     const generated: Point[] = [
       { x: p.x + p.length, y: p.y, z: p.z },
       { x: p.x, y: p.y + p.width, z: p.z },
@@ -185,18 +230,24 @@ export function optimize(
   definitions: readonly ItemDefinition[],
   _options: OptimizeOptions = {},
 ): OptimizationResult {
-  const start = typeof performance !== 'undefined' ? performance.now() : Date.now();
+  const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
+  const start = now();
   const instances = expandInstances(definitions);
 
+  // Au-delà d'un gros volume, on limite le nombre de stratégies, et un budget
+  // de temps garantit qu'on ne bloque jamais plusieurs dizaines de secondes (§55).
+  const strategies = instances.length > 400 ? STRATEGIES.slice(0, 2) : STRATEGIES;
+  const budgetMs = 6000;
+
   let best: OptimizationResult | null = null;
-  for (const strategy of STRATEGIES) {
+  for (const strategy of strategies) {
     const ordered = [...instances].sort(strategy.compare);
     const result = packOnce(container, ordered);
     if (best === null || compareOptimizationResults(result, best) < 0) best = result;
+    if (now() - start > budgetMs) break;
   }
   if (best === null) best = buildResult(container, [], [], 0);
 
-  const end = typeof performance !== 'undefined' ? performance.now() : Date.now();
-  best.computationTimeMs = Math.round(end - start);
+  best.computationTimeMs = Math.round(now() - start);
   return best;
 }

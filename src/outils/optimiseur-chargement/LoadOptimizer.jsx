@@ -20,6 +20,15 @@ import {
   rowsToDefinitions, cmToMm, refColor, ROTATION_OPTIONS,
   formatM3, formatKg, formatPct, mm3ToM3,
 } from './uiHelpers';
+import { track } from './analytics';
+
+const FAQ = [
+  { q: 'L’outil est-il gratuit et sans compte ?', a: 'Oui. L’optimiseur fonctionne entièrement dans votre navigateur, sans inscription. Vos données ne sont ni enregistrées ni transmises à un service externe.' },
+  { q: 'Quelles marchandises puis-je charger ?', a: 'Des cartons, colis ou palettes de forme rectangulaire. Vous indiquez pour chaque référence ses dimensions, son poids, sa quantité, si la rotation est autorisée et si elle est empilable.' },
+  { q: 'Quels véhicules et conteneurs sont pris en charge ?', a: 'Une semi-remorque standard, les conteneurs maritimes 20 pieds, 40 pieds et 40 pieds High Cube, ainsi que des dimensions personnalisées.' },
+  { q: 'Comment est calculé le plan de chargement ?', a: 'Un moteur de bin packing 3D place les unités une à une en respectant les parois, le poids maximal, les rotations autorisées, l’empilabilité et la stabilité (chaque objet est supporté). Plusieurs ordres de placement sont testés et le meilleur résultat est conservé.' },
+  { q: 'Le taux de remplissage de 100 % est-il atteignable ?', a: 'Rarement. Un taux volumétrique ne signifie pas que l’espace restant est exploitable d’un seul tenant. L’objectif est un chargement dense, stable et réaliste à préparer.' },
+];
 
 const BLUE = '#2563EB';
 const BLUE_LIGHT = '#EFF6FF';
@@ -176,17 +185,47 @@ export default function LoadOptimizer({ onBack }) {
   const containerVolume = container.length * container.width * container.height;
   const overweight = container.maxWeight != null && totals.weight > container.maxWeight;
 
+  // Analytics anonyme (uniquement si un système existe sur le site)
+  useEffect(() => { track('load_optimizer_view'); }, []);
+  useEffect(() => {
+    if (status === 'done' && result) {
+      track('load_optimizer_calculation_success');
+      track('load_optimizer_result', {
+        references: rows.length,
+        units: totals.units,
+        container: containerId,
+        fill_rate: Math.round(result.volumeUtilization * 100),
+      });
+    } else if (status === 'error') {
+      track('load_optimizer_calculation_failed');
+    }
+  }, [status, result, rows.length, totals.units, containerId]);
+
+  // FAQ structurée (Schema.org) pour le SEO
+  useEffect(() => {
+    const el = document.createElement('script');
+    el.type = 'application/ld+json';
+    el.text = JSON.stringify({
+      '@context': 'https://schema.org',
+      '@type': 'FAQPage',
+      mainEntity: FAQ.map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })),
+    });
+    document.head.appendChild(el);
+    return () => { el.remove(); };
+  }, []);
+
   const updateRow = (id, field, value) => {
     setRows((rs) => rs.map((r) => (r.id === id ? { ...r, [field]: coerceField(field, value) } : r)));
     if (status !== 'idle') reset();
   };
   const removeRow = (id) => { setRows((rs) => rs.filter((r) => r.id !== id)); if (status !== 'idle') reset(); };
   const addRow = () => setRows((rs) => [...rs, emptyRow()]);
-  const loadExample = () => { setRows(exampleRows()); reset(); };
+  const loadExample = () => { setRows(exampleRows()); reset(); track('load_optimizer_example_clicked'); };
 
   const optimize = () => {
     if (!valid) return;
     setHighlight(null);
+    track('load_optimizer_calculation_started', { references: rows.length, units: totals.units, container: containerId });
     run(container, rowsToDefinitions(rows));
   };
 
@@ -447,6 +486,56 @@ export default function LoadOptimizer({ onBack }) {
             )}
           </div>
         </div>
+      </div>
+
+      {/* Contenu SEO */}
+      <div className="max-w-3xl mx-auto px-6 py-12 space-y-8">
+        <section>
+          <h2 className="font-bricolage font-bold text-xl text-slate-900 mb-2">Comment fonctionne l'optimiseur de chargement ?</h2>
+          <p className="text-slate-600 leading-relaxed">
+            Vous saisissez vos marchandises (dimensions, poids, quantité, rotation et empilabilité), vous choisissez un camion
+            ou un conteneur, puis l'outil calcule un plan de chargement en 3D. Un moteur de <em>bin packing</em> place les unités
+            une à une en respectant les parois du contenant, le poids maximal, les orientations autorisées, l'empilabilité et la
+            stabilité de chaque colis. Le calcul s'exécute dans votre navigateur, en quelques instants.
+          </p>
+        </section>
+        <section>
+          <h2 className="font-bricolage font-bold text-xl text-slate-900 mb-2">Pourquoi optimiser le chargement d'un camion ou conteneur ?</h2>
+          <p className="text-slate-600 leading-relaxed">
+            Mieux remplir un véhicule, c'est moins de trajets, un meilleur taux de remplissage et des coûts de transport réduits.
+            C'est aussi moins d'émissions de CO₂ par unité transportée et un gain de productivité à la préparation : un plan clair
+            évite les reprises et les palettes mal réparties.
+          </p>
+        </section>
+        <section>
+          <h2 className="font-bricolage font-bold text-xl text-slate-900 mb-2">Quels types de chargements sont pris en charge ?</h2>
+          <p className="text-slate-600 leading-relaxed">
+            Cartons, colis et palettes de forme rectangulaire, dans une semi-remorque ou des conteneurs maritimes 20', 40' et 40' High Cube,
+            ou un contenant aux dimensions personnalisées.
+          </p>
+        </section>
+        <section>
+          <h2 className="font-bricolage font-bold text-xl text-slate-900 mb-3">Questions fréquentes</h2>
+          <div className="space-y-3">
+            {FAQ.map((f) => (
+              <details key={f.q} className="rounded-lg border border-slate-200 bg-white px-4 py-3">
+                <summary className="font-jetbrains text-sm text-slate-800 cursor-pointer">{f.q}</summary>
+                <p className="text-slate-600 text-sm mt-2 leading-relaxed">{f.a}</p>
+              </details>
+            ))}
+          </div>
+        </section>
+
+        {/* CTA vers les autres outils */}
+        <section className="rounded-xl border border-slate-200 p-6 text-center" style={{ background: BLUE_LIGHT, borderColor: '#BFDBFE' }}>
+          <h2 className="font-bricolage font-bold text-lg text-slate-900 mb-1">Vous souhaitez aller plus loin dans l'optimisation de vos flux logistiques ?</h2>
+          <p className="text-slate-600 text-sm mb-4 max-w-xl mx-auto">
+            Atelier Logistique vous propose également des outils pour analyser vos stocks, vos approvisionnements et votre performance Supply Chain.
+          </p>
+          <a href="/#tools" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg font-jetbrains text-sm font-medium text-white" style={{ background: BLUE }}>
+            Découvrir les autres outils <ArrowRight size={15} />
+          </a>
+        </section>
       </div>
     </div>
   );
