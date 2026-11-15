@@ -415,7 +415,7 @@ function Landing() {
               <div className="font-jetbrains text-[10px] text-slate-400 tracking-wider mb-4">ÉTAT DE L'ATELIER</div>
               <div className="space-y-3">
                 {[
-                  { l: 'Outils actifs', v: '9 / 9' },
+                  { l: 'Outils actifs', v: `${TOOLS.filter(t => t.status === 'live').length} / ${TOOLS.length}` },
                   { l: 'Mode', v: 'navigateur' },
                   { l: 'Confidentialité', v: '100% local' },
                   { l: 'Version', v: '0.2' },
@@ -539,6 +539,7 @@ function Landing() {
                 color: '#F59E0B', colorLight: '#FEF3C7', colorBorder: '#FDE68A',
                 tools: [
                   { name: 'Palettisation 3D', id: 'pallet' },
+                  { name: 'Optimiseur de chargement 3D', id: 'optimiseur-chargement' },
                   { name: 'Convertisseur cascade', id: 'units' },
                 ],
               },
