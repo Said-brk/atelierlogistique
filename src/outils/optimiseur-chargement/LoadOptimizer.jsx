@@ -1,9 +1,18 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useMemo, useEffect, useCallback, lazy, Suspense, Component } from 'react';
 import {
   ArrowLeft, Plus, Trash2, Truck, Box, Loader2, AlertCircle,
   RotateCcw, Check, ArrowRight, Boxes,
 } from 'lucide-react';
+
+const LoadView3D = lazy(() => import('./LoadView3D.jsx'));
+
+// Error boundary : si Three.js échoue, on retombe sur le schéma 2D (CDC §53).
+class ThreeErrorBoundary extends Component {
+  constructor(props) { super(props); this.state = { failed: false }; }
+  static getDerivedStateFromError() { return { failed: true }; }
+  componentDidCatch(err) { if (import.meta.env?.DEV) console.error('Vue 3D indisponible :', err); }
+  render() { return this.state.failed ? this.props.fallback : this.props.children; }
+}
 import { CONTAINER_PRESETS } from './constants/containers';
 import { useOptimizer } from './useOptimizer';
 import {
@@ -132,6 +141,8 @@ export default function LoadOptimizer({ onBack }) {
   const [containerId, setContainerId] = useState('semi');
   const [custom, setCustom] = useState({ label: 'Mon contenant', length: 600, width: 240, height: 240, maxWeight: '' });
   const [highlight, setHighlight] = useState(null);
+  const [view3d, setView3d] = useState(true);
+  const [hovered, setHovered] = useState(null);
   const { run, reset, result, status } = useOptimizer();
 
   // Index couleur stable par référence (ordre des lignes)
@@ -357,12 +368,32 @@ export default function LoadOptimizer({ onBack }) {
                 </div>
 
                 <div className="rounded-xl border border-slate-200 overflow-hidden bg-white">
-                  <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 font-jetbrains text-xs text-slate-600 flex items-center justify-between">
+                  <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 font-jetbrains text-xs text-slate-600 flex items-center justify-between gap-2">
                     <span className="flex items-center gap-2"><Box size={13} /> PLAN DE CHARGEMENT</span>
-                    <span className="text-[10px] text-slate-400">{result.computationTimeMs} ms · 3D à venir</span>
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-0.5 p-0.5 rounded-md" style={{ background: '#F1F5F9' }}>
+                        <button onClick={() => setView3d(true)} className="px-2 py-1 rounded text-[10px]" style={view3d ? { background: '#fff', color: BLUE, fontWeight: 600 } : { color: '#64748B' }}>3D</button>
+                        <button onClick={() => setView3d(false)} className="px-2 py-1 rounded text-[10px]" style={!view3d ? { background: '#fff', color: BLUE, fontWeight: 600 } : { color: '#64748B' }}>Schéma</button>
+                      </div>
+                      <span className="text-[10px] text-slate-400">{result.computationTimeMs} ms</span>
+                    </div>
                   </div>
-                  <div className="p-4">
-                    <Schematic2D container={container} placed={result.placedItems} colorOf={colorOf} highlight={highlight} />
+                  <div className="p-4 relative">
+                    {view3d ? (
+                      <ThreeErrorBoundary fallback={<Schematic2D container={container} placed={result.placedItems} colorOf={colorOf} highlight={highlight} />}>
+                        <Suspense fallback={<div className="flex items-center justify-center text-slate-400 font-jetbrains text-xs" style={{ height: 460 }}><Loader2 size={18} className="animate-spin mr-2" /> Chargement de la vue 3D…</div>}>
+                          <LoadView3D container={container} placed={result.placedItems} colorOf={colorOf} highlight={highlight} onHover={setHovered} />
+                        </Suspense>
+                      </ThreeErrorBoundary>
+                    ) : (
+                      <Schematic2D container={container} placed={result.placedItems} colorOf={colorOf} highlight={highlight} />
+                    )}
+                    {hovered && (
+                      <div className="absolute bottom-3 left-3 bg-white/95 border border-slate-200 rounded-lg px-3 py-2 font-jetbrains text-[11px] shadow-sm pointer-events-none">
+                        <div className="font-semibold text-slate-800">{hovered.reference}</div>
+                        <div className="text-slate-500">{Math.round(hovered.originalLength / 10)} × {Math.round(hovered.originalWidth / 10)} × {Math.round(hovered.originalHeight / 10)} cm · {hovered.weight} kg</div>
+                      </div>
+                    )}
                   </div>
                   {/* Légende */}
                   <div className="px-4 py-3 border-t border-slate-100 flex flex-wrap gap-x-4 gap-y-1.5">
