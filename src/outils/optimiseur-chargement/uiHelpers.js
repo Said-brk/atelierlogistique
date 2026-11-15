@@ -84,6 +84,79 @@ export function refColor(index) {
   };
 }
 
+// ---- Import en masse (coller un tableau ou un fichier Excel/CSV) ----
+const normKey = (s) => String(s).trim().toLowerCase().replace(/\s+/g, ' ');
+const toNum = (v) => {
+  if (typeof v === 'number') return isFinite(v) ? v : 0;
+  const n = parseFloat(String(v).replace(',', '.').replace(/[^0-9.\-]/g, ''));
+  return isNaN(n) ? 0 : n;
+};
+
+const BULK_ALIASES = {
+  reference: ['reference', 'référence', 'ref', 'réf', 'sku', 'code', 'article', 'designation', 'désignation', 'libelle', 'libellé', 'nom'],
+  quantity: ['quantity', 'quantité', 'quantite', 'qte', 'qté', 'qty', 'nb', 'nombre'],
+  length: ['length', 'longueur', 'long'],
+  width: ['width', 'largeur', 'larg'],
+  height: ['height', 'hauteur', 'haut'],
+  weight: ['weight', 'poids', 'masse', 'kg'],
+  rotation: ['rotation', 'rot'],
+  stackable: ['stackable', 'empilable', 'gerbable', 'empil'],
+};
+
+const parseRotation = (v) => {
+  const s = normKey(v);
+  if (['none', 'interdite', 'interdit', 'non', 'no', '0', 'false', 'aucune'].includes(s)) return 'NONE';
+  if (['horizontal', 'horizontale', 'h', 'z'].includes(s)) return 'HORIZONTAL';
+  return 'FULL';
+};
+const parseBool = (v) => !['non', 'no', '0', 'false', 'n', ''].includes(normKey(v));
+
+/** Transforme un collage tableur (TSV / CSV / point-virgule) en lignes d'objets. */
+export function parsePastedTable(text) {
+  const lines = text.replace(/\r/g, '').split('\n').filter((l) => l.trim().length > 0);
+  if (lines.length === 0) return [];
+  const delim = lines[0].includes('\t') ? '\t' : (lines[0].includes(';') ? ';' : ',');
+  const first = lines[0].split(delim).map((h) => h.trim());
+  // Ligne d'en-tête seulement si plusieurs cellules correspondent à des noms de colonnes connus.
+  const aliasList = Object.values(BULK_ALIASES).flat();
+  const headerMatches = first.filter((h) => {
+    const k = normKey(h);
+    return aliasList.some((a) => k === a || k.includes(a));
+  }).length;
+  const looksHeader = headerMatches >= 2;
+  const cols = looksHeader ? first : ['reference', 'quantity', 'length', 'width', 'height', 'weight', 'rotation', 'stackable'];
+  return lines.slice(looksHeader ? 1 : 0).map((line) => {
+    const cells = line.split(delim);
+    const o = {};
+    cols.forEach((h, i) => { o[h] = (cells[i] ?? '').trim(); });
+    return o;
+  });
+}
+
+/** Mappe des lignes d'objets (collage ou Excel) vers des lignes de l'outil (cm). */
+export function bulkToRows(json) {
+  if (!json || json.length === 0) return [];
+  const headers = Object.keys(json[0]);
+  const map = {};
+  for (const field in BULK_ALIASES) {
+    const aliases = BULK_ALIASES[field];
+    let key = headers.find((h) => aliases.includes(normKey(h)));
+    if (!key) key = headers.find((h) => aliases.some((a) => normKey(h).includes(a)));
+    if (key) map[field] = key;
+  }
+  return json.map((r) => ({
+    id: newRowId(),
+    reference: map.reference ? String(r[map.reference] ?? '').trim() : '',
+    quantity: map.quantity ? Math.max(0, Math.round(toNum(r[map.quantity]))) : 1,
+    length: map.length ? toNum(r[map.length]) : 0,
+    width: map.width ? toNum(r[map.width]) : 0,
+    height: map.height ? toNum(r[map.height]) : 0,
+    weight: map.weight ? toNum(r[map.weight]) : 0,
+    rotationMode: map.rotation ? parseRotation(r[map.rotation]) : 'FULL',
+    stackable: map.stackable ? parseBool(r[map.stackable]) : true,
+  })).filter((r) => r.reference || r.length || r.width || r.height);
+}
+
 export const mm3ToM3 = (mm3) => mm3 / 1e9;
 export const formatM3 = (mm3) => mm3ToM3(mm3).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 export const formatKg = (kg) => Math.round(kg).toLocaleString('fr-FR');

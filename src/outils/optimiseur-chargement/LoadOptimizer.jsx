@@ -1,7 +1,8 @@
-import { useState, useMemo, useEffect, useCallback, lazy, Suspense, Component } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef, lazy, Suspense, Component } from 'react';
+import * as XLSX from 'xlsx';
 import {
   ArrowLeft, Plus, Trash2, Truck, Box, Loader2, AlertCircle,
-  RotateCcw, Check, ArrowRight, Boxes,
+  RotateCcw, Check, ArrowRight, Boxes, Upload, Copy, Download,
 } from 'lucide-react';
 
 const LoadView3D = lazy(() => import('./LoadView3D.jsx'));
@@ -19,6 +20,7 @@ import {
   emptyRow, exampleRows, validateRow, rowsAreValid, coerceField,
   rowsToDefinitions, cmToMm, refColor, ROTATION_OPTIONS,
   formatM3, formatKg, formatPct, mm3ToM3,
+  parsePastedTable, bulkToRows,
 } from './uiHelpers';
 import { track } from './analytics';
 
@@ -152,6 +154,10 @@ export default function LoadOptimizer({ onBack }) {
   const [highlight, setHighlight] = useState(null);
   const [view3d, setView3d] = useState(true);
   const [hovered, setHovered] = useState(null);
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkText, setBulkText] = useState('');
+  const [importMsg, setImportMsg] = useState(null);
+  const fileRef = useRef(null);
   const { run, reset, result, status } = useOptimizer();
 
   // Index couleur stable par référence (ordre des lignes)
@@ -222,6 +228,51 @@ export default function LoadOptimizer({ onBack }) {
   const addRow = () => setRows((rs) => [...rs, emptyRow()]);
   const loadExample = () => { setRows(exampleRows()); reset(); track('load_optimizer_example_clicked'); };
 
+  const flashImport = (type, text) => { setImportMsg({ type, text }); setTimeout(() => setImportMsg(null), 6000); };
+
+  const applyRows = (parsed, src) => {
+    const mapped = bulkToRows(parsed);
+    if (mapped.length === 0) { flashImport('error', 'Aucune ligne exploitable. Colonnes attendues : Référence, Qté, Longueur, Largeur, Hauteur, Poids, Rotation, Empilable.'); return; }
+    setRows(mapped);
+    reset();
+    flashImport('success', `${mapped.length} ligne(s) importée(s)${src ? ` depuis « ${src} »` : ''}.`);
+  };
+
+  const importFile = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: 'array' });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      if (!sheet) throw new Error('Fichier vide');
+      applyRows(XLSX.utils.sheet_to_json(sheet, { defval: '' }), file.name);
+    } catch (err) {
+      flashImport('error', "Erreur d'import : " + err.message);
+    } finally {
+      if (fileRef.current) fileRef.current.value = '';
+    }
+  };
+
+  const applyBulk = () => {
+    const json = parsePastedTable(bulkText);
+    if (json.length === 0) { flashImport('error', 'Collez au moins une ligne.'); return; }
+    applyRows(json, 'collage');
+    setBulkOpen(false);
+    setBulkText('');
+  };
+
+  const downloadTemplate = () => {
+    const sample = [
+      { 'Référence': 'CARTON-A', 'Quantité': 40, 'Longueur (cm)': 60, 'Largeur (cm)': 40, 'Hauteur (cm)': 40, 'Poids (kg)': 12, 'Rotation': 'Libre', 'Empilable': 'Oui' },
+      { 'Référence': 'PALETTE-EURO', 'Quantité': 4, 'Longueur (cm)': 120, 'Largeur (cm)': 80, 'Hauteur (cm)': 140, 'Poids (kg)': 450, 'Rotation': 'Horizontale', 'Empilable': 'Non' },
+    ];
+    const ws = XLSX.utils.json_to_sheet(sample);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Marchandises');
+    XLSX.writeFile(wb, 'atelier-chargement-modele.xlsx');
+  };
+
   const optimize = () => {
     if (!valid) return;
     setHighlight(null);
@@ -263,10 +314,34 @@ export default function LoadOptimizer({ onBack }) {
 
             {/* 1. Marchandises */}
             <div className="rounded-xl border border-slate-200 overflow-hidden bg-white">
-              <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+              <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between flex-wrap gap-2">
                 <div className="font-jetbrains text-xs text-slate-600 flex items-center gap-2"><Boxes size={13} /> 1 · QUE SOUHAITEZ-VOUS CHARGER ?</div>
-                <button onClick={loadExample} className="font-jetbrains text-[11px] px-2.5 py-1.5 rounded-md" style={{ background: BLUE_LIGHT, color: BLUE }}>Charger un exemple</button>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <button onClick={() => fileRef.current?.click()} className="flex items-center gap-1 font-jetbrains text-[11px] px-2.5 py-1.5 rounded-md" style={{ background: BLUE, color: '#fff' }}><Upload size={11} /> Importer</button>
+                  <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" onChange={importFile} className="hidden" />
+                  <button onClick={() => setBulkOpen((o) => !o)} className="flex items-center gap-1 font-jetbrains text-[11px] px-2.5 py-1.5 rounded-md" style={{ background: '#F1F5F9', color: '#475569' }}><Copy size={11} /> Coller</button>
+                  <button onClick={downloadTemplate} className="flex items-center gap-1 font-jetbrains text-[11px] px-2.5 py-1.5 rounded-md" style={{ background: '#F1F5F9', color: '#475569' }}><Download size={11} /> Modèle</button>
+                  <button onClick={loadExample} className="font-jetbrains text-[11px] px-2.5 py-1.5 rounded-md" style={{ background: BLUE_LIGHT, color: BLUE }}>Exemple</button>
+                </div>
               </div>
+              {bulkOpen && (
+                <div className="px-4 py-3 border-b border-slate-100 space-y-2">
+                  <textarea value={bulkText} onChange={(e) => setBulkText(e.target.value)} rows={5}
+                    placeholder={'Collez depuis Excel (avec ou sans en-têtes). Ex :\nRéférence\tQté\tLongueur\tLargeur\tHauteur\tPoids\tRotation\tEmpilable\nCARTON-A\t40\t60\t40\t40\t12\tLibre\tOui'}
+                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-md outline-none font-jetbrains text-[11px] text-slate-800 focus:border-slate-400" />
+                  <div className="flex gap-2">
+                    <button onClick={applyBulk} className="px-3 py-1.5 rounded-md text-xs font-jetbrains" style={{ background: BLUE, color: '#fff' }}>Analyser</button>
+                    <button onClick={() => { setBulkOpen(false); setBulkText(''); }} className="px-3 py-1.5 rounded-md text-xs font-jetbrains" style={{ background: '#F1F5F9', color: '#475569' }}>Annuler</button>
+                  </div>
+                </div>
+              )}
+              {importMsg && (
+                <div className="mx-4 mt-3 text-[11px] font-jetbrains px-3 py-2 rounded-md" style={importMsg.type === 'error'
+                  ? { background: '#FEF2F2', color: '#B91C1C', border: '1px solid #FECACA' }
+                  : { background: '#F0FDF4', color: '#15803D', border: '1px solid #BBF7D0' }}>
+                  {importMsg.text}
+                </div>
+              )}
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
@@ -393,7 +468,7 @@ export default function LoadOptimizer({ onBack }) {
           </div>
 
           {/* DROITE : résultat */}
-          <div className="lg:col-span-2 space-y-4">
+          <div className="lg:col-span-2 flex flex-col gap-4">
             {status === 'done' && result ? (
               <>
                 <div className="grid grid-cols-2 gap-3">
@@ -406,7 +481,7 @@ export default function LoadOptimizer({ onBack }) {
                   <Bar label="Volume utilisé" value={mm3ToM3(result.usedVolume)} max={mm3ToM3(result.containerVolume)} unit="m³" format={(v) => v.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} />
                 </div>
 
-                <div className="rounded-xl border border-slate-200 overflow-hidden bg-white">
+                <div className="rounded-xl border border-slate-200 overflow-hidden bg-white order-first lg:sticky lg:top-20 z-10">
                   <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 font-jetbrains text-xs text-slate-600 flex items-center justify-between gap-2">
                     <span className="flex items-center gap-2"><Box size={13} /> PLAN DE CHARGEMENT</span>
                     <div className="flex items-center gap-2">
