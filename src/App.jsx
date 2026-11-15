@@ -12,6 +12,7 @@ import {
   Factory, Warehouse, Ship, Plane, Anchor, Info,
   Shield, ShieldCheck, X
 } from 'lucide-react';
+import LoadOptimizer from './outils/optimiseur-chargement/LoadOptimizer.jsx';
 
 const BLUE = '#2563EB';
 const BLUE_DARK = '#1D4ED8';
@@ -76,6 +77,7 @@ const TOOLS = [
   { id: 'zpl', cat: 'etiquettes', name: 'ZPL Viewer', icon: FileCode2, desc: 'Visualisez et exportez vos étiquettes ZPL en PNG ou PDF.', status: 'live' },
   { id: 'barcode', cat: 'etiquettes', name: 'Codes-barres', icon: Barcode, desc: '10 symbologies : EAN, UPC, Code 128, GTIN-14, QR, Data Matrix, PDF417.', status: 'live' },
   { id: 'pallet', cat: 'planification', name: 'Palettisation', icon: Package, desc: 'Calcul du plan optimal · EUR, US, ISO, custom · vue 3D isométrique.', status: 'live' },
+  { id: 'optimiseur-chargement', cat: 'planification', name: 'Optimiseur de chargement 3D', icon: Truck, desc: 'Remplissage optimal d\'un camion ou conteneur · cartons et palettes · plan de chargement 3D.', status: 'live' },
   { id: 'safety', cat: 'planification', name: 'Stock de sécurité', icon: TrendingUp, desc: 'Calcul σL, taux de service, ROP · courbe de distribution.', status: 'live' },
   { id: 'ddmrp', cat: 'planification', name: 'Buffers DDMRP', icon: Box, desc: 'Dimensionnement des buffers stratégiques (zones rouge/jaune/vert) à partir de l\'ADU, du délai et de la variabilité.', status: 'live' },
   { id: 'incoterms', cat: 'transport', name: 'Incoterms 2020', icon: Map, desc: 'Comparateur visuel des 11 incoterms, transferts coûts/risques sur la chaîne logistique.', status: 'live' },
@@ -141,6 +143,7 @@ const TOOL_COMPONENTS = {
   zpl: ZplViewer,
   barcode: BarcodeGenerator,
   pallet: PalletCalculator,
+  'optimiseur-chargement': LoadOptimizer,
   safety: SafetyStockCalculator,
   ddmrp: DdmrpBuffers,
   incoterms: IncotermsComparator,
