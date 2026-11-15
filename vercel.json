@@ -1,5 +1,4 @@
 {
-  "cleanUrls": true,
   "trailingSlash": false,
   "redirects": [
     { "source": "/outils/incoterms-2020", "destination": "/ressources/incoterms-2020", "permanent": true },
@@ -7,6 +6,10 @@
     { "source": "/audit-supply-chain", "destination": "/ressources/audit-supply-chain", "permanent": true }
   ],
   "rewrites": [
+    { "source": "/ressources/incoterms-2020", "destination": "/ressources/incoterms-2020.html" },
+    { "source": "/ressources/ia-et-ddmrp", "destination": "/ressources/ia-et-ddmrp.html" },
+    { "source": "/ressources/ddmrp", "destination": "/ressources/ddmrp.html" },
+    { "source": "/ressources/audit-supply-chain", "destination": "/ressources/audit-supply-chain.html" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
