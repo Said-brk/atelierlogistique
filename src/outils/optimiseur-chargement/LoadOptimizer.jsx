@@ -158,6 +158,7 @@ export default function LoadOptimizer({ onBack }) {
   const [bulkText, setBulkText] = useState('');
   const [importMsg, setImportMsg] = useState(null);
   const fileRef = useRef(null);
+  const resultRef = useRef(null);
   const { run, reset, result, status } = useOptimizer();
 
   // Index couleur stable par référence (ordre des lignes)
@@ -219,6 +220,13 @@ export default function LoadOptimizer({ onBack }) {
     document.head.appendChild(el);
     return () => { el.remove(); };
   }, []);
+
+  // À la fin du calcul, on amène le résultat (camion + KPI) dans la vue.
+  useEffect(() => {
+    if (status === 'done' && resultRef.current) {
+      resultRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [status]);
 
   const updateRow = (id, field, value) => {
     setRows((rs) => rs.map((r) => (r.id === id ? { ...r, [field]: coerceField(field, value) } : r)));
@@ -468,7 +476,7 @@ export default function LoadOptimizer({ onBack }) {
           </div>
 
           {/* DROITE : résultat */}
-          <div className="lg:col-span-2 flex flex-col gap-4">
+          <div ref={resultRef} className="lg:col-span-2 flex flex-col gap-4 scroll-mt-20">
             {status === 'done' && result ? (
               <>
                 <div className="grid grid-cols-2 gap-3">
@@ -481,7 +489,7 @@ export default function LoadOptimizer({ onBack }) {
                   <Bar label="Volume utilisé" value={mm3ToM3(result.usedVolume)} max={mm3ToM3(result.containerVolume)} unit="m³" format={(v) => v.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} />
                 </div>
 
-                <div className="rounded-xl border border-slate-200 overflow-hidden bg-white order-first lg:sticky lg:top-20 z-10">
+                <div className="rounded-xl border border-slate-200 overflow-hidden bg-white order-first">
                   <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 font-jetbrains text-xs text-slate-600 flex items-center justify-between gap-2">
                     <span className="flex items-center gap-2"><Box size={13} /> PLAN DE CHARGEMENT</span>
                     <div className="flex items-center gap-2">
