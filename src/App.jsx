@@ -8,7 +8,7 @@ import {
   Copy, Check, RotateCw, FileDown, ArrowRight, Zap,
   Tag, Map, Wrench, AlertTriangle,
   ChevronLeft, ChevronRight, Files,
-  FileArchive, ChevronDown,
+  FileArchive, ChevronDown, Plus, Trash2, Layers, ClipboardList,
   Factory, Warehouse, Ship, Plane, Anchor, Info,
   Shield, ShieldCheck, X
 } from 'lucide-react';
@@ -2945,7 +2945,7 @@ function PalletDiagram({ pallet, carton, result }) {
   );
 }
 
-function PalletCalculator({ onBack }) {
+function SingleCartonCalculator({ onBack, mode, setMode }) {
   const [palletPresetId, setPalletPresetId] = useState('eur');
   const [customPallet, setCustomPallet] = useState({ length: 120, width: 80, height: 14.4 });
   const [carton, setCarton] = useState({ length: 40, width: 30, height: 25, weight: 5 });
@@ -2985,10 +2985,7 @@ function PalletCalculator({ onBack }) {
               </div>
             </div>
           </div>
-          <div className="hidden md:flex items-center gap-2 font-jetbrains text-[10px] text-slate-500 tracking-wider">
-            <span className="w-1.5 h-1.5 rounded-full" style={{ background: '#10B981' }} />
-            CALCUL EN TEMPS RÉEL
-          </div>
+          <PalletModeToggle mode={mode} setMode={setMode} />
         </div>
       </nav>
 
@@ -3186,6 +3183,600 @@ function DetailRow({ label, value }) {
       <span className="font-jetbrains text-xs font-medium text-slate-800 text-right">{value}</span>
     </div>
   );
+}
+
+// ============================================================
+// PALETTISATION MULTI-RÉFÉRENCES (Expédition ERP / WMS)
+// ============================================================
+
+// Bascule entre le mode carton unique et le mode expédition multi-références
+function PalletModeToggle({ mode, setMode }) {
+  const Btn = ({ id, label }) => (
+    <button
+      onClick={() => setMode(id)}
+      className="px-3 py-1.5 rounded-md font-jetbrains text-[11px] transition-all"
+      style={mode === id
+        ? { background: BLUE, color: '#FFFFFF', fontWeight: 600 }
+        : { background: '#F1F5F9', color: '#475569' }}
+    >
+      {label}
+    </button>
+  );
+  return (
+    <div className="flex items-center gap-1 p-1 rounded-lg" style={{ background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+      <Btn id="single" label="Carton unique" />
+      <Btn id="shipment" label="Expédition multi-réf" />
+    </div>
+  );
+}
+
+// --- Import / mapping des colonnes ERP-WMS ---
+const ARTICLE_ALIASES = {
+  ref:         ['ref', 'réf', 'référence', 'reference', 'sku', 'code', 'code article', 'article', 'item', 'ean'],
+  designation: ['désignation', 'designation', 'libellé', 'libelle', 'nom', 'description', 'label', 'produit', 'intitulé'],
+  length:      ['longueur', 'length', 'long', 'long.', 'l', 'longueur (cm)', 'l (cm)', 'lcm'],
+  width:       ['largeur', 'width', 'larg', 'larg.', 'w', 'largeur (cm)', 'w (cm)'],
+  height:      ['hauteur', 'height', 'haut', 'haut.', 'h', 'hauteur (cm)', 'h (cm)'],
+  weight:      ['poids', 'weight', 'masse', 'kg', 'poids (kg)', 'poids unitaire', 'poids unit', 'pds'],
+  qty:         ['quantité', 'quantite', 'qté', 'qte', 'qty', 'quantity', 'nombre', 'nb', 'colis', 'cartons', 'units', 'unités'],
+};
+
+const normKey = (s) => String(s).trim().toLowerCase().replace(/\s+/g, ' ');
+
+const toNum = (v) => {
+  if (typeof v === 'number') return isFinite(v) ? v : 0;
+  const n = parseFloat(String(v).replace(',', '.').replace(/[^0-9.\-]/g, ''));
+  return isNaN(n) ? 0 : n;
+};
+
+function detectColumnMap(headers) {
+  const map = {};
+  const norm = headers.map(normKey);
+  for (const field in ARTICLE_ALIASES) {
+    const aliases = ARTICLE_ALIASES[field];
+    let idx = norm.findIndex(h => aliases.includes(h));
+    if (idx < 0) idx = norm.findIndex(h => aliases.some(a => h.includes(a)));
+    if (idx >= 0) map[field] = headers[idx];
+  }
+  return map;
+}
+
+// Transforme des lignes JSON (issues d'un xlsx ou d'un collage) en articles
+function ingestRows(json) {
+  if (!json || json.length === 0) return { articles: [], missing: ['(fichier vide)'] };
+  const headers = Object.keys(json[0]);
+  const map = detectColumnMap(headers);
+  const required = ['length', 'width', 'height', 'qty'];
+  const missing = required.filter(f => !map[f]);
+  if (missing.length > 0) {
+    const labels = { length: 'Longueur', width: 'Largeur', height: 'Hauteur', qty: 'Quantité' };
+    return { articles: [], missing: missing.map(f => labels[f]) };
+  }
+  const articles = json.map((r, i) => ({
+    id: 'a' + i + '_' + Math.random().toString(36).slice(2, 6),
+    ref: map.ref ? String(r[map.ref] ?? '').trim() : `REF-${i + 1}`,
+    designation: map.designation ? String(r[map.designation] ?? '').trim() : '',
+    length: toNum(r[map.length]),
+    width: toNum(r[map.width]),
+    height: toNum(r[map.height]),
+    weight: map.weight ? toNum(r[map.weight]) : 0,
+    qty: Math.max(0, Math.round(toNum(r[map.qty]))),
+  })).filter(a => a.qty > 0 && a.length > 0 && a.width > 0 && a.height > 0);
+  return { articles, missing: [] };
+}
+
+// Parse un collage tableur (TSV / CSV / point-virgule)
+function parsePasted(text) {
+  const lines = text.replace(/\r/g, '').split('\n').filter(l => l.trim().length > 0);
+  if (lines.length < 2) return [];
+  const delim = lines[0].includes('\t') ? '\t' : (lines[0].includes(';') ? ';' : ',');
+  const headers = lines[0].split(delim).map(h => h.trim());
+  return lines.slice(1).map(line => {
+    const cells = line.split(delim);
+    const o = {};
+    headers.forEach((h, i) => { o[h] = (cells[i] ?? '').trim(); });
+    return o;
+  });
+}
+
+// Couleurs distinctes par référence (3 faces + contour)
+function refFaces(i) {
+  const hue = (i * 47) % 360;
+  return {
+    top:    `hsl(${hue}, 48%, 74%)`,
+    front:  `hsl(${hue}, 45%, 61%)`,
+    side:   `hsl(${hue}, 42%, 48%)`,
+    stroke: `hsl(${hue}, 48%, 30%)`,
+  };
+}
+
+// --- Algorithme : couches homogènes par référence, multi-palettes ---
+function buildShipmentPlan({ articles, pallet, maxHeight, maxWeight, multiPallet }) {
+  const palL = pallet.length, palW = pallet.width, palH = pallet.height;
+  const availH = Math.max(0, maxHeight - palH);
+
+  // Index couleur par référence + packing d'une couche pour chaque article
+  const refs = articles.map((a, idx) => {
+    const pack = packLayerGuillotine(palL, palW, a.length, a.width);
+    return { ...a, colorIdx: idx, perLayer: pack.count, placements: pack.boxes };
+  });
+
+  // Les gros / lourds d'abord → ils se retrouvent en bas des palettes
+  const order = [...refs].sort((x, y) => {
+    const fx = x.length * x.width, fy = y.length * y.width;
+    if (fy !== fx) return fy - fx;
+    if (y.weight !== x.weight) return y.weight - x.weight;
+    return y.height - x.height;
+  });
+
+  const pallets = [];
+  const unplaced = [];
+  let current = null;
+  const newPallet = () => { current = { layers: [], height: palH, weight: 0 }; pallets.push(current); };
+  if (!multiPallet) newPallet();
+
+  for (const ref of order) {
+    if (ref.perLayer === 0) { unplaced.push({ ref, qty: ref.qty, reason: 'ne tient pas sur la palette' }); continue; }
+    if (ref.height > availH + 1e-6) { unplaced.push({ ref, qty: ref.qty, reason: 'hauteur unitaire > hauteur max' }); continue; }
+    if (ref.weight > maxWeight + 1e-6) { unplaced.push({ ref, qty: ref.qty, reason: 'poids unitaire > charge max' }); continue; }
+
+    let remaining = ref.qty;
+    let guard = 0;
+    while (remaining > 0 && guard++ < 100000) {
+      if (!current) newPallet();
+      const fitsHeight = current.height + ref.height <= maxHeight + 1e-6;
+      const weightRoom = maxWeight - current.weight;
+      const unitsByWeight = ref.weight > 0 ? Math.floor(weightRoom / ref.weight) : remaining;
+      const place = fitsHeight ? Math.min(ref.perLayer, remaining, Math.max(0, unitsByWeight)) : 0;
+
+      if (place > 0) {
+        current.layers.push({
+          refId: ref.id, ref, count: place,
+          z: current.height, height: ref.height,
+          placements: ref.placements.slice(0, place),
+        });
+        current.height += ref.height;
+        current.weight += place * ref.weight;
+        remaining -= place;
+      } else if (multiPallet) {
+        newPallet(); // palette courante pleine → on en ouvre une nouvelle
+      } else {
+        unplaced.push({ ref, qty: remaining, reason: 'reliquat (palette pleine)' });
+        remaining = 0;
+      }
+    }
+  }
+
+  // Stats par palette
+  const palletStats = pallets.map((p, i) => {
+    const items = p.layers.reduce((s, l) => s + l.count, 0);
+    const usedVol = p.layers.reduce((s, l) => s + l.count * l.ref.length * l.ref.width * l.ref.height, 0);
+    const loadH = p.height - palH;
+    const palVol = palL * palW * loadH;
+    return {
+      index: i + 1,
+      layers: p.layers,
+      height: p.height,
+      weight: p.weight,
+      items,
+      fillRate: palVol > 0 ? usedVol / palVol : 0,
+    };
+  });
+
+  const totalRequested = articles.reduce((s, a) => s + a.qty, 0);
+  const totalPlaced = palletStats.reduce((s, p) => s + p.items, 0);
+
+  return {
+    pallets: palletStats.filter(p => p.items > 0),
+    unplaced,
+    refs,
+    totalRequested,
+    totalPlaced,
+    totalUnplaced: totalRequested - totalPlaced,
+    pallet,
+    palH,
+  };
+}
+
+// --- Rendu isométrique d'une palette (pile multi-références) ---
+function ShipmentDiagram({ pallet, palletPlan, palH }) {
+  if (!palletPlan) return null;
+  const palL = pallet.length, palW = pallet.width;
+  const totalH = palletPlan.height;
+
+  const corners = [
+    iso(0, 0, 0), iso(palL, 0, 0), iso(palL, palW, 0), iso(0, palW, 0),
+    iso(0, 0, totalH), iso(palL, 0, totalH), iso(palL, palW, totalH), iso(0, palW, totalH),
+  ];
+  const minX = Math.min(...corners.map(p => p.x));
+  const maxX = Math.max(...corners.map(p => p.x));
+  const minY = Math.min(...corners.map(p => p.y));
+  const maxY = Math.max(...corners.map(p => p.y));
+
+  const padding = 24;
+  const naturalW = maxX - minX;
+  const naturalH = maxY - minY;
+  const scale = Math.min(520 / naturalW, 440 / naturalH);
+  const viewW = naturalW * scale + padding * 2;
+  const viewH = naturalH * scale + padding * 2;
+
+  const t = (p) => ({ x: (p.x - minX) * scale + padding, y: (p.y - minY) * scale + padding });
+
+  const PALLET_COLORS = { top: '#D9B279', front: '#B58A52', side: '#8E6738', stroke: '#5A4220' };
+
+  const drawBox = (x, y, z, w, d, h, c, key) => {
+    const v = {
+      B: t(iso(x + w, y, z)), C: t(iso(x + w, y + d, z)),
+      D: t(iso(x, y + d, z)),
+      E: t(iso(x, y, z + h)), F: t(iso(x + w, y, z + h)),
+      G: t(iso(x + w, y + d, z + h)), H: t(iso(x, y + d, z + h)),
+    };
+    return (
+      <g key={key}>
+        <polygon points={`${v.B.x},${v.B.y} ${v.C.x},${v.C.y} ${v.G.x},${v.G.y} ${v.F.x},${v.F.y}`} fill={c.side} stroke={c.stroke} strokeWidth="0.8" />
+        <polygon points={`${v.D.x},${v.D.y} ${v.C.x},${v.C.y} ${v.G.x},${v.G.y} ${v.H.x},${v.H.y}`} fill={c.front} stroke={c.stroke} strokeWidth="0.8" />
+        <polygon points={`${v.E.x},${v.E.y} ${v.F.x},${v.F.y} ${v.G.x},${v.G.y} ${v.H.x},${v.H.y}`} fill={c.top} stroke={c.stroke} strokeWidth="0.8" />
+      </g>
+    );
+  };
+
+  const elements = [drawBox(0, 0, 0, palL, palW, palH, PALLET_COLORS, 'pallet')];
+  palletPlan.layers.forEach((layer, li) => {
+    const faces = refFaces(layer.ref.colorIdx);
+    const ordered = [...layer.placements].sort((p1, p2) => (p1.x + p1.y) - (p2.x + p2.y));
+    ordered.forEach((p, idx) => {
+      elements.push(drawBox(p.x, p.y, layer.z, p.w, p.d, layer.height, faces, `l${li}-${idx}`));
+    });
+  });
+
+  return (
+    <svg viewBox={`0 0 ${viewW} ${viewH}`} className="w-full h-auto" style={{ maxHeight: '460px' }} preserveAspectRatio="xMidYMid meet">
+      {elements}
+    </svg>
+  );
+}
+
+const SHIPMENT_EXAMPLE = [
+  { id: 'ex1', ref: 'SKU-1001', designation: 'Cartons boîtes A', length: 40, width: 30, height: 25, weight: 6, qty: 48 },
+  { id: 'ex2', ref: 'SKU-2050', designation: 'Fûts produit B', length: 60, width: 40, height: 35, weight: 14, qty: 20 },
+  { id: 'ex3', ref: 'SKU-3300', designation: 'Colis plats C', length: 35, width: 25, height: 12, weight: 3, qty: 60 },
+];
+
+function ShipmentPalletizer({ onBack, mode, setMode }) {
+  const [articles, setArticles] = useState(SHIPMENT_EXAMPLE);
+  const [palletPresetId, setPalletPresetId] = useState('eur');
+  const [customPallet, setCustomPallet] = useState({ length: 120, width: 80, height: 14.4 });
+  const [maxHeight, setMaxHeight] = useState(180);
+  const [maxWeight, setMaxWeight] = useState(1000);
+  const [multiPallet, setMultiPallet] = useState(true);
+  const [activePallet, setActivePallet] = useState(0);
+  const [importMsg, setImportMsg] = useState(null);
+  const [pasteOpen, setPasteOpen] = useState(false);
+  const [pasteText, setPasteText] = useState('');
+  const fileInputRef = useRef(null);
+
+  const pallet = useMemo(() => {
+    if (palletPresetId === 'custom') return customPallet;
+    return PALLET_PRESETS.find(p => p.id === palletPresetId);
+  }, [palletPresetId, customPallet]);
+
+  const plan = useMemo(
+    () => buildShipmentPlan({ articles, pallet, maxHeight, maxWeight, multiPallet }),
+    [articles, pallet, maxHeight, maxWeight, multiPallet]
+  );
+
+  useEffect(() => { if (activePallet >= plan.pallets.length) setActivePallet(0); }, [plan.pallets.length, activePallet]);
+
+  const flash = (type, text) => { setImportMsg({ type, text }); setTimeout(() => setImportMsg(null), 6000); };
+
+  const applyIngest = (json, srcName) => {
+    const { articles: parsed, missing } = ingestRows(json);
+    if (missing.length > 0) {
+      flash('error', `Colonnes manquantes : ${missing.join(', ')}. Attendu : Référence, Longueur, Largeur, Hauteur, Poids, Quantité.`);
+      return;
+    }
+    if (parsed.length === 0) { flash('error', 'Aucune ligne valide (dimensions et quantité > 0 requises).'); return; }
+    setArticles(parsed);
+    setActivePallet(0);
+    flash('success', `${parsed.length} référence(s) importée(s)${srcName ? ` depuis « ${srcName} »` : ''}.`);
+  };
+
+  const handleFileImport = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: 'array' });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      if (!sheet) throw new Error('Fichier vide');
+      applyIngest(XLSX.utils.sheet_to_json(sheet, { defval: '' }), file.name);
+    } catch (err) {
+      flash('error', "Erreur d'import : " + err.message);
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handlePaste = () => {
+    const json = parsePasted(pasteText);
+    if (json.length === 0) { flash('error', 'Collez au moins une ligne d\'en-tête + une ligne de données.'); return; }
+    applyIngest(json, 'collage');
+    setPasteOpen(false);
+    setPasteText('');
+  };
+
+  const downloadTemplate = () => {
+    const rows = [
+      { 'Référence': 'SKU-1001', 'Désignation': 'Exemple produit A', 'Longueur (cm)': 40, 'Largeur (cm)': 30, 'Hauteur (cm)': 25, 'Poids (kg)': 6, 'Quantité': 48 },
+      { 'Référence': 'SKU-2050', 'Désignation': 'Exemple produit B', 'Longueur (cm)': 60, 'Largeur (cm)': 40, 'Hauteur (cm)': 35, 'Poids (kg)': 14, 'Quantité': 20 },
+    ];
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Expédition');
+    XLSX.writeFile(wb, 'atelier-template-expedition.xlsx');
+  };
+
+  const updateArticle = (id, key, val) => setArticles(as => as.map(a => a.id === id
+    ? { ...a, [key]: (key === 'ref' || key === 'designation') ? val : Math.max(0, parseFloat(val) || 0) }
+    : a));
+  const removeArticle = (id) => setArticles(as => as.filter(a => a.id !== id));
+  const addArticle = () => setArticles(as => [...as, {
+    id: 'n' + Date.now().toString(36), ref: `REF-${as.length + 1}`, designation: '',
+    length: 40, width: 30, height: 20, weight: 5, qty: 10,
+  }]);
+  const updateCustomPallet = (key, val) => setCustomPallet(p => ({ ...p, [key]: Math.max(0, parseFloat(val) || 0) }));
+
+  const current = plan.pallets[activePallet];
+
+  return (
+    <div className="min-h-screen text-slate-900" style={{ background: '#F8FAFC', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+      <FontsAndStyles />
+
+      <nav className="border-b border-slate-200 bg-white sticky top-0 z-20">
+        <div className="max-w-[1600px] mx-auto px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-5">
+            <button onClick={onBack} className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors font-jetbrains text-xs">
+              <ArrowLeft size={14} />
+              RETOUR
+            </button>
+            <div className="w-px h-5 bg-slate-200" />
+            <div className="flex items-center gap-3">
+              <Logo small />
+              <div>
+                <div className="font-bricolage font-semibold text-sm leading-tight text-slate-900">Palettisation d'expédition</div>
+                <div className="font-jetbrains text-[10px] text-slate-500">ATELIER / 03 · MULTI-RÉFÉRENCES</div>
+              </div>
+            </div>
+          </div>
+          <PalletModeToggle mode={mode} setMode={setMode} />
+        </div>
+      </nav>
+
+      <div className="max-w-[1600px] mx-auto px-6 py-6">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
+
+          {/* LEFT : données + config */}
+          <div className="lg:col-span-2 space-y-4">
+
+            {/* Import */}
+            <div className="rounded-xl border border-slate-200 overflow-hidden bg-white">
+              <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 font-jetbrains text-xs text-slate-600 flex items-center gap-2">
+                <ClipboardList size={13} /> DONNÉES EXPÉDITION (ERP / WMS)
+              </div>
+              <div className="p-4 space-y-3">
+                <div className="flex flex-wrap gap-2">
+                  <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-jetbrains" style={{ background: BLUE, color: '#fff' }}>
+                    <Upload size={13} /> Importer Excel / CSV
+                  </button>
+                  <input ref={fileInputRef} type="file" accept=".xlsx,.xls,.csv" onChange={handleFileImport} className="hidden" />
+                  <button onClick={() => setPasteOpen(o => !o)} className="flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-jetbrains" style={{ background: '#F1F5F9', color: '#475569' }}>
+                    <Copy size={13} /> Coller un tableau
+                  </button>
+                  <button onClick={downloadTemplate} className="flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-jetbrains" style={{ background: '#F1F5F9', color: '#475569' }}>
+                    <Download size={13} /> Modèle
+                  </button>
+                </div>
+
+                {pasteOpen && (
+                  <div className="space-y-2 pt-1">
+                    <textarea
+                      value={pasteText}
+                      onChange={e => setPasteText(e.target.value)}
+                      placeholder={'Collez depuis Excel (avec en-têtes). Ex :\nRéférence\tLongueur\tLargeur\tHauteur\tPoids\tQuantité\nSKU-1\t40\t30\t25\t6\t48'}
+                      rows={5}
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-md outline-none font-jetbrains text-[11px] text-slate-800 focus:border-slate-400"
+                    />
+                    <div className="flex gap-2">
+                      <button onClick={handlePaste} className="px-3 py-1.5 rounded-md text-xs font-jetbrains" style={{ background: BLUE, color: '#fff' }}>Analyser</button>
+                      <button onClick={() => { setPasteOpen(false); setPasteText(''); }} className="px-3 py-1.5 rounded-md text-xs font-jetbrains" style={{ background: '#F1F5F9', color: '#475569' }}>Annuler</button>
+                    </div>
+                  </div>
+                )}
+
+                {importMsg && (
+                  <div className="text-[11px] font-jetbrains px-3 py-2 rounded-md" style={importMsg.type === 'error'
+                    ? { background: '#FEF2F2', color: '#B91C1C', border: '1px solid #FECACA' }
+                    : { background: '#F0FDF4', color: '#15803D', border: '1px solid #BBF7D0' }}>
+                    {importMsg.text}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Table d'articles */}
+            <div className="rounded-xl border border-slate-200 overflow-hidden bg-white">
+              <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 font-jetbrains text-xs text-slate-600 flex items-center justify-between">
+                <span>ARTICLES · {articles.length} réf.</span>
+                <button onClick={addArticle} className="flex items-center gap-1 text-[11px]" style={{ color: BLUE }}><Plus size={12} /> Ligne</button>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-[11px] font-jetbrains">
+                  <thead>
+                    <tr className="text-slate-400 border-b border-slate-100">
+                      <th className="text-left font-normal px-2 py-1.5">Réf.</th>
+                      <th className="font-normal px-1 py-1.5">L</th>
+                      <th className="font-normal px-1 py-1.5">l</th>
+                      <th className="font-normal px-1 py-1.5">H</th>
+                      <th className="font-normal px-1 py-1.5">kg</th>
+                      <th className="font-normal px-1 py-1.5">Qté</th>
+                      <th className="px-1 py-1.5"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {articles.map((a, i) => (
+                      <tr key={a.id} className="border-b border-slate-50">
+                        <td className="px-2 py-1">
+                          <div className="flex items-center gap-1.5">
+                            <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: refFaces(i).front }} />
+                            <input value={a.ref} onChange={e => updateArticle(a.id, 'ref', e.target.value)} className="w-16 bg-transparent outline-none text-slate-800" />
+                          </div>
+                        </td>
+                        {['length', 'width', 'height', 'weight', 'qty'].map(k => (
+                          <td key={k} className="px-1 py-1">
+                            <input type="number" value={a[k]} min="0" onChange={e => updateArticle(a.id, k, e.target.value)} className="w-11 bg-transparent outline-none text-center text-slate-800 border border-transparent focus:border-slate-200 rounded" />
+                          </td>
+                        ))}
+                        <td className="px-1 py-1 text-center">
+                          <button onClick={() => removeArticle(a.id)} className="text-slate-300 hover:text-red-500"><Trash2 size={12} /></button>
+                        </td>
+                      </tr>
+                    ))}
+                    {articles.length === 0 && (
+                      <tr><td colSpan={7} className="text-center text-slate-400 py-6">Aucune référence — importez un fichier ou ajoutez une ligne.</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Palette + contraintes */}
+            <div className="rounded-xl border border-slate-200 overflow-hidden bg-white">
+              <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 font-jetbrains text-xs text-slate-600">PALETTE & CONTRAINTES</div>
+              <div className="p-4 space-y-3">
+                <div className="grid grid-cols-3 gap-1.5">
+                  {PALLET_PRESETS.map(p => (
+                    <button key={p.id} onClick={() => setPalletPresetId(p.id)}
+                      className="px-2 py-1.5 rounded-md text-[10px] font-jetbrains transition-all text-left"
+                      style={palletPresetId === p.id ? { background: BLUE, color: '#fff', fontWeight: 600 } : { background: '#F8FAFC', color: '#475569', border: '1px solid #E2E8F0' }}>
+                      <div>{p.label}</div>
+                      <div className="text-[8px] opacity-80">{p.id === 'custom' ? 'sur mesure' : `${p.length}×${p.width}`}</div>
+                    </button>
+                  ))}
+                </div>
+                {palletPresetId === 'custom' && (
+                  <div className="grid grid-cols-3 gap-2 pt-1">
+                    <NumberField label="Long. (cm)" value={customPallet.length} onChange={v => updateCustomPallet('length', v)} />
+                    <NumberField label="Larg. (cm)" value={customPallet.width} onChange={v => updateCustomPallet('width', v)} />
+                    <NumberField label="Haut. (cm)" value={customPallet.height} onChange={v => updateCustomPallet('height', v)} step="0.1" />
+                  </div>
+                )}
+                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100">
+                  <NumberField label="Hauteur max (cm)" value={maxHeight} onChange={v => setMaxHeight(Math.max(0, parseFloat(v) || 0))} />
+                  <NumberField label="Charge max (kg)" value={maxWeight} onChange={v => setMaxWeight(Math.max(0, parseFloat(v) || 0))} />
+                </div>
+                <div className="flex items-center gap-1 p-1 rounded-lg" style={{ background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+                  <button onClick={() => setMultiPallet(true)} className="flex-1 px-2 py-1.5 rounded-md font-jetbrains text-[11px]" style={multiPallet ? { background: BLUE, color: '#fff', fontWeight: 600 } : { color: '#475569' }}>Multi-palettes (auto)</button>
+                  <button onClick={() => setMultiPallet(false)} className="flex-1 px-2 py-1.5 rounded-md font-jetbrains text-[11px]" style={!multiPallet ? { background: BLUE, color: '#fff', fontWeight: 600 } : { color: '#475569' }}>Une palette</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* RIGHT : plan */}
+          <div className="lg:col-span-3 space-y-4">
+
+            {/* Récap global */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <StatCard label="Palettes" value={plan.pallets.length} sub={multiPallet ? 'auto' : 'mono'} />
+              <StatCard label="Articles placés" value={plan.totalPlaced} sub={`/ ${plan.totalRequested} demandés`} />
+              <StatCard label="Non placés" value={plan.totalUnplaced} sub={plan.totalUnplaced > 0 ? 'reliquat' : 'tout rentre'} />
+              <StatCard label="Poids total" value={`${plan.pallets.reduce((s, p) => s + p.weight, 0).toFixed(0)} kg`} sub={`${plan.refs.length} réf.`} />
+            </div>
+
+            {/* Vue palette */}
+            <div className="rounded-xl border border-slate-200 overflow-hidden bg-white">
+              <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center gap-2 font-jetbrains text-xs text-slate-600">
+                  <Layers size={13} /> PLAN DE CHARGEMENT
+                  {current && <><span className="text-slate-300">·</span><span className="text-slate-500">H {Math.round(current.height)} cm · {current.weight.toFixed(0)} kg</span></>}
+                </div>
+                {plan.pallets.length > 1 && (
+                  <div className="flex items-center gap-2 font-jetbrains text-xs">
+                    <button onClick={() => setActivePallet(i => Math.max(0, i - 1))} disabled={activePallet === 0} className="p-1 rounded disabled:opacity-30 hover:bg-white"><ChevronLeft size={14} /></button>
+                    <span style={{ color: BLUE }} className="font-medium">Palette {activePallet + 1} / {plan.pallets.length}</span>
+                    <button onClick={() => setActivePallet(i => Math.min(plan.pallets.length - 1, i + 1))} disabled={activePallet === plan.pallets.length - 1} className="p-1 rounded disabled:opacity-30 hover:bg-white"><ChevronRight size={14} /></button>
+                  </div>
+                )}
+              </div>
+              <div className="p-6 flex items-center justify-center" style={{ minHeight: '470px', background: 'repeating-linear-gradient(45deg, #F8FAFC 0, #F8FAFC 14px, #F1F5F9 14px, #F1F5F9 15px)' }}>
+                {current
+                  ? <ShipmentDiagram pallet={pallet} palletPlan={current} palH={plan.palH} />
+                  : <div className="text-center text-sm text-slate-500 font-jetbrains">Aucune palette — vérifiez les dimensions des articles.</div>}
+              </div>
+              {current && (
+                <div className="px-4 py-3 border-t border-slate-100 flex flex-wrap gap-x-4 gap-y-1.5">
+                  {current.layers.filter((l, i, arr) => arr.findIndex(x => x.ref.id === l.ref.id) === i).map(l => l.ref).map(r => (
+                    <div key={r.id} className="flex items-center gap-1.5 text-[11px] font-jetbrains text-slate-600">
+                      <span className="w-3 h-3 rounded-sm" style={{ background: refFaces(r.colorIdx).front }} />
+                      {r.ref || 'réf.'}
+                      <span className="text-slate-400">· {current.layers.filter(l => l.ref.id === r.id).reduce((s, l) => s + l.count, 0)} u.</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Détail des couches */}
+            {current && (
+              <div className="rounded-xl border border-slate-200 p-5 bg-white">
+                <div className="font-jetbrains text-[10px] text-slate-500 tracking-wider mb-3">COUCHES — PALETTE {activePallet + 1} (de bas en haut)</div>
+                <div className="space-y-1">
+                  {current.layers.map((l, i) => (
+                    <div key={i} className="flex items-center gap-2 text-xs">
+                      <span className="w-6 text-right text-slate-400 font-jetbrains text-[10px]">{i + 1}</span>
+                      <span className="w-3 h-3 rounded-sm shrink-0" style={{ background: refFaces(l.ref.colorIdx).front }} />
+                      <span className="font-jetbrains text-slate-700 w-20 truncate">{l.ref.ref}</span>
+                      <span className="text-slate-500">{l.count} u.</span>
+                      <span className="text-slate-300">·</span>
+                      <span className="text-slate-500">{l.ref.length}×{l.ref.width}×{l.ref.height} cm</span>
+                      <span className="text-slate-300 ml-auto font-jetbrains text-[10px]">z {Math.round(l.z)}→{Math.round(l.z + l.height)} cm</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Non placés */}
+            {plan.unplaced.length > 0 && (
+              <div className="rounded-xl border p-4 bg-white" style={{ borderColor: '#FECACA' }}>
+                <div className="font-jetbrains text-[10px] tracking-wider mb-2 flex items-center gap-1.5" style={{ color: '#B91C1C' }}>
+                  <AlertCircle size={12} /> NON PLACÉS
+                </div>
+                <div className="space-y-1">
+                  {plan.unplaced.map((u, i) => (
+                    <div key={i} className="flex items-center gap-2 text-xs font-jetbrains text-slate-600">
+                      <span className="font-medium text-slate-800">{u.ref.ref}</span>
+                      <span className="text-slate-500">{u.qty} u.</span>
+                      <span className="text-slate-300">·</span>
+                      <span style={{ color: '#B91C1C' }}>{u.reason}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Point d'entrée de l'outil 03 : bascule carton unique / expédition
+function PalletCalculator({ onBack }) {
+  const [mode, setMode] = useState('single');
+  return mode === 'single'
+    ? <SingleCartonCalculator onBack={onBack} mode={mode} setMode={setMode} />
+    : <ShipmentPalletizer onBack={onBack} mode={mode} setMode={setMode} />;
 }
 
 // ============================================================
