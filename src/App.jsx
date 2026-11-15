@@ -2682,6 +2682,81 @@ const PALLET_PRESETS = [
   { id: 'custom', label: 'Personnalisée', length: 0, width: 0, height: 14.4, desc: 'Dimensions sur mesure' },
 ];
 
+// Remplissage homogène d'un rectangle L×W par des cartons a×b (une seule orientation)
+function homogeneousFill(L, W, a, b) {
+  const nx = Math.floor(L / a);
+  const ny = Math.floor(W / b);
+  const boxes = [];
+  for (let i = 0; i < nx; i++) {
+    for (let j = 0; j < ny; j++) {
+      boxes.push({ x: i * a, y: j * b, w: a, d: b });
+    }
+  }
+  return { count: nx * ny, boxes };
+}
+
+// Positions de coupe candidates : multiples des dimensions du carton, côté court
+// de la symétrie (une coupe en xc est équivalente à une coupe en len−xc).
+function cutPositions(len, a, b) {
+  const set = new Set();
+  const CAP = 60; // garde-fou pour les très petits cartons
+  for (let k = 1; k * a < len && k <= CAP; k++) set.add(+(k * a).toFixed(3));
+  for (let k = 1; k * b < len && k <= CAP; k++) set.add(+(k * b).toFixed(3));
+  return [...set].filter(x => x > 0 && x <= len / 2 + 1e-6);
+}
+
+// Motif croisé : packing guillotine récursif qui combine les deux orientations
+// à plat pour maximiser le nombre de cartons par couche. Le remplissage homogène
+// (ancien comportement) sert de référence, donc le résultat ne régresse jamais.
+function packLayerGuillotine(L, W, a, b) {
+  if (a <= 0 || b <= 0) return { count: 0, boxes: [] };
+  const memo = Object.create(null); // évite la collision avec l'icône `Map` de lucide
+  const budget = { nodes: 20000 };  // plafond d'expansion → UI toujours réactive
+
+  const solve = (pl, pw) => {
+    if (pl <= 0 || pw <= 0) return { count: 0, boxes: [] };
+    const key = `${pl.toFixed(2)}|${pw.toFixed(2)}`;
+    const cached = memo[key];
+    if (cached) return cached;
+
+    // Référence : meilleur remplissage homogène des deux orientations
+    let best = homogeneousFill(pl, pw, a, b);
+    const alt = homogeneousFill(pl, pw, b, a);
+    if (alt.count > best.count) best = alt;
+
+    if (budget.nodes > 0 && best.count > 0 && (a + b) < (pl + pw)) {
+      budget.nodes--;
+      // Coupes verticales (le long de L)
+      for (const xc of cutPositions(pl, a, b)) {
+        const left = solve(xc, pw);
+        const right = solve(pl - xc, pw);
+        if (left.count + right.count > best.count) {
+          best = {
+            count: left.count + right.count,
+            boxes: left.boxes.concat(right.boxes.map(bx => ({ ...bx, x: bx.x + xc }))),
+          };
+        }
+      }
+      // Coupes horizontales (le long de W)
+      for (const yc of cutPositions(pw, a, b)) {
+        const bot = solve(pl, yc);
+        const top = solve(pl, pw - yc);
+        if (bot.count + top.count > best.count) {
+          best = {
+            count: bot.count + top.count,
+            boxes: bot.boxes.concat(top.boxes.map(bx => ({ ...bx, y: bx.y + yc }))),
+          };
+        }
+      }
+    }
+
+    memo[key] = best;
+    return best;
+  };
+
+  return solve(L, W);
+}
+
 function calculatePalletization({ pallet, carton, maxHeight, maxWeight }) {
   const palL = pallet.length, palW = pallet.width, palH = pallet.height;
   const carL = carton.length, carW = carton.width, carH = carton.height, carWt = carton.weight;
@@ -2693,35 +2768,36 @@ function calculatePalletization({ pallet, carton, maxHeight, maxWeight }) {
     return { valid: false, reason: 'Le carton est plus grand que la palette' };
   }
 
-  // Tester les 2 orientations à plat
-  const orientations = [
-    { l: carL, w: carW, key: 'lw' }, // L parallèle à L palette
-    { l: carW, w: carL, key: 'wl' }, // L perpendiculaire
-  ];
+  // Meilleur agencement d'une couche en combinant les deux orientations
+  // (motif croisé, découpe guillotine). Ne régresse jamais vs l'homogène.
+  const pack = packLayerGuillotine(palL, palW, carL, carW);
 
-  let best = { perLayer: 0 };
-  for (const o of orientations) {
-    const nx = Math.floor(palL / o.l);
-    const ny = Math.floor(palW / o.w);
-    const perLayer = nx * ny;
-    if (perLayer > best.perLayer) {
-      best = { perLayer, nx, ny, cartonL: o.l, cartonW: o.w, key: o.key };
-    }
+  if (pack.count === 0) {
+    return { valid: false, reason: 'Aucun carton ne tient sur la palette' };
   }
 
-  if (best.perLayer === 0) {
-    return { valid: false, reason: 'Aucun carton ne tient sur la palette' };
+  const perLayer = pack.count;
+  const placements = pack.boxes;
+
+  // Orientation / motif pour l'affichage
+  const orientKeys = new Set(placements.map(p => `${p.w}x${p.d}`));
+  const mixed = orientKeys.size > 1;
+  let nx = 0, ny = 0, key = 'mixed';
+  if (!mixed) {
+    nx = new Set(placements.map(p => p.x)).size;
+    ny = new Set(placements.map(p => p.y)).size;
+    key = placements[0].w === carL ? 'lw' : 'wl';
   }
 
   const availableHeight = Math.max(0, maxHeight - palH);
   const maxLayersByHeight = Math.floor(availableHeight / carH);
-  const weightPerLayer = best.perLayer * carWt;
+  const weightPerLayer = perLayer * carWt;
   const maxLayersByWeight = weightPerLayer > 0
     ? Math.floor(maxWeight / weightPerLayer)
     : 999;
 
   const layers = Math.max(0, Math.min(maxLayersByHeight, maxLayersByWeight));
-  const totalCartons = best.perLayer * layers;
+  const totalCartons = perLayer * layers;
   const totalWeight = totalCartons * carWt;
   const totalHeight = palH + layers * carH;
 
@@ -2730,15 +2806,15 @@ function calculatePalletization({ pallet, carton, maxHeight, maxWeight }) {
   const availableVolume = palL * palW * (layers * carH);
   const fillRate = availableVolume > 0 ? usedVol / availableVolume : 0;
 
-  const usedAreaPerLayer = best.perLayer * best.cartonL * best.cartonW;
+  const usedAreaPerLayer = perLayer * carL * carW;
   const surfaceFillRate = (palL * palW) > 0 ? usedAreaPerLayer / (palL * palW) : 0;
 
   const limiter = maxLayersByHeight <= maxLayersByWeight ? 'height' : 'weight';
 
   return {
     valid: true,
-    perLayer: best.perLayer,
-    layout: { nx: best.nx, ny: best.ny, cartonL: best.cartonL, cartonW: best.cartonW, key: best.key },
+    perLayer,
+    layout: { nx, ny, cartonL: placements[0].w, cartonW: placements[0].d, key, mixed, placements },
     layers,
     totalCartons,
     totalWeight,
@@ -2849,18 +2925,17 @@ function PalletDiagram({ pallet, carton, result }) {
   // 1. Palette
   elements.push(drawBox(0, 0, 0, palL, palW, palH, PALLET_COLORS, 'pallet'));
 
-  // 2. Cartons : du bas vers le haut, et à l'intérieur de chaque couche
-  //    on dessine de l'arrière (y max) vers l'avant (y=0) et de gauche à droite
+  // 2. Cartons : du bas vers le haut. À l'intérieur de chaque couche, on dessine
+  //    selon l'ordre du peintre (arrière x+y faible → avant), compatible motif croisé.
+  const placements = (layout.placements || [])
+    .slice()
+    .sort((p1, p2) => (p1.x + p1.y) - (p2.x + p2.y));
   for (let layer = 0; layer < layers; layer++) {
     const z = palH + layer * carH;
     const c = layer % 2 === 0 ? CARTON_COLORS_A : CARTON_COLORS_B;
-    for (let row = layout.ny - 1; row >= 0; row--) {
-      for (let col = 0; col < layout.nx; col++) {
-        const x = col * layout.cartonL;
-        const y = row * layout.cartonW;
-        elements.push(drawBox(x, y, z, layout.cartonL, layout.cartonW, carH, c, `c-${layer}-${row}-${col}`));
-      }
-    }
+    placements.forEach((p, idx) => {
+      elements.push(drawBox(p.x, p.y, z, p.w, p.d, carH, c, `c-${layer}-${idx}`));
+    });
   }
 
   return (
@@ -3024,7 +3099,7 @@ function PalletCalculator({ onBack }) {
             {/* Stats */}
             {result.valid && (
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <StatCard label="Par couche" value={result.perLayer} sub={`${result.layout.nx} × ${result.layout.ny}`} />
+                <StatCard label="Par couche" value={result.perLayer} sub={result.layout.mixed ? 'motif croisé' : `${result.layout.nx} × ${result.layout.ny}`} />
                 <StatCard label="Couches" value={result.layers} sub={`${result.totalCartons} cartons`} />
                 <StatCard
                   label="Poids total"
@@ -3044,8 +3119,8 @@ function PalletCalculator({ onBack }) {
               <div className="rounded-xl border border-slate-200 p-5 bg-white">
                 <div className="font-jetbrains text-[10px] text-slate-500 tracking-wider mb-3">DÉTAILS TECHNIQUES</div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-sm">
-                  <DetailRow label="Orientation carton" value={result.layout.key === 'lw' ? 'L parallèle à la palette' : 'L perpendiculaire à la palette'} />
-                  <DetailRow label="Cartons par couche" value={`${result.perLayer} (${result.layout.nx} × ${result.layout.ny})`} />
+                  <DetailRow label="Orientation carton" value={result.layout.mixed ? 'Motif croisé (2 orientations)' : (result.layout.key === 'lw' ? 'L parallèle à la palette' : 'L perpendiculaire à la palette')} />
+                  <DetailRow label="Cartons par couche" value={result.layout.mixed ? `${result.perLayer} (motif croisé)` : `${result.perLayer} (${result.layout.nx} × ${result.layout.ny})`} />
                   <DetailRow label="Hauteur empilée" value={`${result.totalHeight.toFixed(1)} cm`} />
                   <DetailRow label="Volume utilisé" value={`${(result.totalCartons * carton.length * carton.width * carton.height / 1e6).toFixed(3)} m³`} />
                   <DetailRow label="Charge totale" value={`${result.totalWeight.toFixed(1)} kg / ${maxWeight} kg`} />
