@@ -366,27 +366,8 @@
       </p>
     </section>
 
-    <!-- À PROPOS DE L'AUTEUR -->
-    <section class="mt-12 pt-8 border-t border-slate-200">
-      <div class="font-jetbrains text-[10px] tracking-widest mb-4 text-slate-400">À PROPOS DE L'AUTEUR</div>
-      <div class="flex items-start gap-4">
-        <img
-          src="/outils/said-barkam.jpg"
-          alt="Saïd BARKAM"
-          onerror="this.style.display='none';this.nextElementSibling.style.display='flex';"
-          class="w-16 h-20 object-contain rounded-md bg-slate-100 border border-slate-200 flex-shrink-0"
-        />
-        <div class="w-16 h-20 rounded-md bg-slate-900 text-white items-center justify-center font-bricolage font-bold text-lg flex-shrink-0" style="display:none;">SB</div>
-        <div>
-          <div class="font-bricolage font-bold text-lg text-slate-900">Saïd BARKAM</div>
-          <p class="text-sm text-slate-600 leading-relaxed mt-1 mb-0">
-            Accompagne les entreprises dans la mise en place d'ERP et la refonte de leur stratégie Supply Chain.
-            Spécialiste ERP Microsoft Dynamics 365.
-          </p>
-        </div>
-      </div>
-    </section>
-
+    <!-- À PROPOS DE L'AUTEUR (bloc commun : /ressources/auteur.js) -->
+    <div id="auteur"></div>
   </main>
 
   <!-- CTA AUDIT FLASH -->
@@ -420,5 +401,6 @@
     </div>
   </footer>
 
+  <script src="/ressources/auteur.js" defer></script>
 </body>
 </html>
