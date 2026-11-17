@@ -108,6 +108,15 @@ const ARTICLES = [
     cta: 'audit',
   },
   {
+    slug: 'plan-de-chargement-camion',
+    tag: 'Guide',
+    title: 'Plan de chargement camion : méthode et tournées multi-arrêts',
+    desc: 'Dimensions utiles, palettes par semi-remorque ou conteneur, empilage, poids et règle LIFO pour les tournées à plusieurs livraisons. Exemple chiffré.',
+    icon: Truck,
+    color: '#0369A1', light: '#E0F2FE', border: '#BAE6FD',
+    cta: 'optimiseur-chargement',
+  },
+  {
     slug: 'ddmrp',
     tag: 'Méthode',
     title: 'DDMRP : méthode complète et calcul des buffers',
@@ -306,7 +315,7 @@ function Ressources() {
           Comprendre avant<br />d'<span style={{ color: BLUE }}>outiller.</span>
         </h1>
         <p className="text-slate-600 text-lg max-w-2xl leading-relaxed">
-          Des guides pratiques sur les méthodes de la supply chain — DDMRP, Incoterms, audit de stock — pour tirer le meilleur des outils de l'atelier. Rédigés par WALYCONSEIL.
+          Des guides pratiques sur les méthodes de la supply chain — DDMRP, Incoterms, plan de chargement, audit de stock — pour tirer le meilleur des outils de l'atelier. Rédigés par WALYCONSEIL.
         </p>
       </section>
 

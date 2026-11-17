@@ -10,6 +10,7 @@
     { "source": "/ressources/ia-et-ddmrp", "destination": "/ressources/ia-et-ddmrp.html" },
     { "source": "/ressources/ddmrp", "destination": "/ressources/ddmrp.html" },
     { "source": "/ressources/audit-supply-chain", "destination": "/ressources/audit-supply-chain.html" },
+    { "source": "/ressources/plan-de-chargement-camion", "destination": "/ressources/plan-de-chargement-camion.html" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

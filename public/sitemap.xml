@@ -20,7 +20,7 @@
   <!-- Index Ressources -->
   <url>
     <loc>https://atelierlogistique.com/ressources</loc>
-    <lastmod>2026-08-25</lastmod>
+    <lastmod>2026-11-17</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -29,6 +29,13 @@
   <url>
     <loc>https://atelierlogistique.com/ressources/audit-supply-chain</loc>
     <lastmod>2026-08-25</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+  <url>
+    <loc>https://atelierlogistique.com/ressources/plan-de-chargement-camion</loc>
+    <lastmod>2026-11-17</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.9</priority>
   </url>
