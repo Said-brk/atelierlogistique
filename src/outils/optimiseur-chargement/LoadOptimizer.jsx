@@ -54,7 +54,21 @@ function useDocumentMeta(title, description) {
 
 // ---- Petits composants d'interface ----
 function Th({ children, className = '', title }) {
-  return <th title={title} className={`font-normal text-slate-400 px-2 py-2 text-[10px] tracking-wider ${className}`}>{children}</th>;
+  return <th title={title} className={`font-normal text-slate-400 px-1 py-2 text-[10px] tracking-wider ${className}`}>{children}</th>;
+}
+
+// Champ numérique libellé, version mobile (police 16 px : évite le zoom iOS).
+function MobileNum({ label, value, onChange, error, step = '1' }) {
+  return (
+    <label className="block min-w-0">
+      <span className="block font-jetbrains text-[10px] text-slate-400 mb-0.5">{label}</span>
+      <input type="number" inputMode="decimal" value={value} min="0" step={step}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full px-2 py-2 bg-white border rounded-md outline-none font-jetbrains text-base text-center text-slate-800 focus:border-slate-400"
+        style={{ borderColor: error ? '#FCA5A5' : '#E2E8F0' }} />
+      {error && <span className="block text-[10px] text-red-500 mt-0.5 leading-tight">{error}</span>}
+    </label>
+  );
 }
 
 function NumCell({ value, onChange, error, width = 'w-14', step = '1' }) {
@@ -349,6 +363,15 @@ export default function LoadOptimizer({ onBack }) {
   const [importMsg, setImportMsg] = useState(null);
   const fileRef = useRef(null);
   const resultRef = useRef(null);
+  const ctaRef = useRef(null);
+  const [ctaVisible, setCtaVisible] = useState(true);
+  useEffect(() => {
+    const el = ctaRef.current;
+    if (!el || typeof IntersectionObserver === 'undefined') return undefined;
+    const io = new IntersectionObserver(([e]) => setCtaVisible(e.isIntersecting), { threshold: 0.1 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
   const { run, reset, result, status } = useOptimizer();
 
   // Tournée multi-arrêts
@@ -577,13 +600,13 @@ export default function LoadOptimizer({ onBack }) {
   return (
     <div className="min-h-screen text-slate-900" style={{ background: '#F8FAFC', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
       <nav className="border-b border-slate-200 bg-white sticky top-0 z-20">
-        <div className="max-w-[1600px] mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-5">
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-2.5 sm:py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3 sm:gap-5 min-w-0">
             <button onClick={onBack} className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors font-jetbrains text-xs">
               <ArrowLeft size={14} /> RETOUR
             </button>
-            <div className="w-px h-5 bg-slate-200" />
-            <div>
+            <div className="w-px h-5 bg-slate-200 hidden sm:block" />
+            <div className="hidden sm:block">
               <div className="font-bricolage font-semibold text-sm leading-tight text-slate-900">Optimiseur de chargement 3D</div>
               <div className="font-jetbrains text-[10px] text-slate-500">ATELIER / CHARGEMENT</div>
             </div>
@@ -595,34 +618,34 @@ export default function LoadOptimizer({ onBack }) {
       </nav>
 
       {/* En-tête SEO */}
-      <div className="max-w-[1600px] mx-auto px-6 pt-8 pb-2">
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 pt-5 sm:pt-8 pb-1 sm:pb-2">
         <h1 className="font-bricolage font-bold text-2xl md:text-3xl text-slate-900">Optimiseur de chargement 3D</h1>
-        <p className="text-slate-600 mt-1">Optimisez le remplissage de vos camions et conteneurs en quelques secondes.</p>
+        <p className="text-slate-600 mt-1 text-sm sm:text-base">Optimisez le remplissage de vos camions et conteneurs en quelques secondes.</p>
       </div>
 
-      <div className="max-w-[1600px] mx-auto px-6 py-4">
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
+      <div className={`max-w-[1600px] mx-auto px-4 sm:px-6 py-4 ${status !== 'done' ? 'pb-24 xl:pb-4' : ''}`}>
+        <div className="grid grid-cols-1 xl:grid-cols-5 gap-4 sm:gap-5">
 
           {/* GAUCHE : saisie */}
-          <div className="lg:col-span-3 space-y-4">
+          <div className="xl:col-span-3 space-y-4">
 
             {/* 1. Marchandises */}
             <div className="rounded-xl border border-slate-200 overflow-hidden bg-white">
-              <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between flex-wrap gap-2">
+              <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div className="font-jetbrains text-xs text-slate-600 flex items-center gap-2"><Boxes size={13} /> 1 · QUE SOUHAITEZ-VOUS CHARGER ?</div>
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <button onClick={() => fileRef.current?.click()} className="flex items-center gap-1 font-jetbrains text-[11px] px-2.5 py-1.5 rounded-md" style={{ background: BLUE, color: '#fff' }}><Upload size={11} /> Importer</button>
+                <div className="grid grid-cols-4 sm:flex sm:items-center gap-1.5">
+                  <button onClick={() => fileRef.current?.click()} className="flex items-center justify-center gap-1 font-jetbrains text-[11px] px-2.5 py-2 sm:py-1.5 rounded-md" style={{ background: BLUE, color: '#fff' }}><Upload size={11} /> Importer</button>
                   <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" onChange={importFile} className="hidden" />
-                  <button onClick={() => setBulkOpen((o) => !o)} className="flex items-center gap-1 font-jetbrains text-[11px] px-2.5 py-1.5 rounded-md" style={{ background: '#F1F5F9', color: '#475569' }}><Copy size={11} /> Coller</button>
-                  <button onClick={downloadTemplate} className="flex items-center gap-1 font-jetbrains text-[11px] px-2.5 py-1.5 rounded-md" style={{ background: '#F1F5F9', color: '#475569' }}><Download size={11} /> Modèle</button>
-                  <button onClick={loadExample} className="font-jetbrains text-[11px] px-2.5 py-1.5 rounded-md" style={{ background: BLUE_LIGHT, color: BLUE }}>Exemple</button>
+                  <button onClick={() => setBulkOpen((o) => !o)} className="flex items-center justify-center gap-1 font-jetbrains text-[11px] px-2.5 py-2 sm:py-1.5 rounded-md" style={{ background: '#F1F5F9', color: '#475569' }}><Copy size={11} /> Coller</button>
+                  <button onClick={downloadTemplate} className="flex items-center justify-center gap-1 font-jetbrains text-[11px] px-2.5 py-2 sm:py-1.5 rounded-md" style={{ background: '#F1F5F9', color: '#475569' }}><Download size={11} /> Modèle</button>
+                  <button onClick={loadExample} className="flex items-center justify-center font-jetbrains text-[11px] px-2.5 py-2 sm:py-1.5 rounded-md" style={{ background: BLUE_LIGHT, color: BLUE }}>Exemple</button>
                 </div>
               </div>
               {bulkOpen && (
                 <div className="px-4 py-3 border-b border-slate-100 space-y-2">
                   <textarea value={bulkText} onChange={(e) => setBulkText(e.target.value)} rows={5}
                     placeholder={'Collez depuis Excel (avec ou sans en-têtes). Ex :\nRéférence\tQté\tLongueur\tLargeur\tHauteur\tPoids\tRotation\tEmpilable\nCARTON-A\t40\t60\t40\t40\t12\tLibre\tOui'}
-                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-md outline-none font-jetbrains text-[11px] text-slate-800 focus:border-slate-400" />
+                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-md outline-none font-jetbrains text-base sm:text-[11px] text-slate-800 focus:border-slate-400" />
                   <div className="flex gap-2">
                     <button onClick={applyBulk} className="px-3 py-1.5 rounded-md text-xs font-jetbrains" style={{ background: BLUE, color: '#fff' }}>Analyser</button>
                     <button onClick={() => { setBulkOpen(false); setBulkText(''); }} className="px-3 py-1.5 rounded-md text-xs font-jetbrains" style={{ background: '#F1F5F9', color: '#475569' }}>Annuler</button>
@@ -636,7 +659,60 @@ export default function LoadOptimizer({ onBack }) {
                   {importMsg.text}
                 </div>
               )}
-              <div className="overflow-x-auto">
+              {/* Mobile : une carte par référence */}
+              <div className="md:hidden divide-y divide-slate-100">
+                {rows.map((r, i) => {
+                  const err = validateRow(r);
+                  return (
+                    <div key={r.id} className="px-4 py-3 space-y-2.5">
+                      <div className="flex items-center gap-2">
+                        <span className="w-3 h-3 rounded-sm shrink-0" style={{ background: refColor(i).solid }} />
+                        <input value={r.reference} onChange={(e) => updateRow(r.id, 'reference', e.target.value)}
+                          placeholder="Référence" aria-label="Référence"
+                          className="flex-1 min-w-0 px-2.5 py-2 bg-white border rounded-md outline-none font-jetbrains text-base text-slate-800 focus:border-slate-400"
+                          style={{ borderColor: err.reference ? '#FCA5A5' : '#E2E8F0' }} />
+                        <button onClick={() => removeRow(r.id)} aria-label="Supprimer la référence"
+                          className="w-10 h-10 shrink-0 rounded-md flex items-center justify-center text-slate-400 hover:text-red-500 bg-slate-50"><Trash2 size={15} /></button>
+                      </div>
+                      <div className="grid grid-cols-5 gap-1.5">
+                        <MobileNum label="Qté" value={r.quantity} onChange={(v) => updateRow(r.id, 'quantity', v)} error={err.quantity} />
+                        <MobileNum label="L cm" value={r.length} onChange={(v) => updateRow(r.id, 'length', v)} error={err.length} />
+                        <MobileNum label="l cm" value={r.width} onChange={(v) => updateRow(r.id, 'width', v)} error={err.width} />
+                        <MobileNum label="H cm" value={r.height} onChange={(v) => updateRow(r.id, 'height', v)} error={err.height} />
+                        <MobileNum label="kg" value={r.weight} onChange={(v) => updateRow(r.id, 'weight', v)} error={err.weight} step="0.1" />
+                      </div>
+                      <div className="grid grid-cols-[1fr_auto] gap-1.5 items-end">
+                        <label className="block min-w-0">
+                          <span className="block font-jetbrains text-[10px] text-slate-400 mb-0.5">Rotation</span>
+                          <select value={r.rotationMode} onChange={(e) => updateRow(r.id, 'rotationMode', e.target.value)}
+                            className="w-full px-2 py-2 bg-white border border-slate-200 rounded-md outline-none font-jetbrains text-base text-slate-700">
+                            {ROTATION_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                          </select>
+                        </label>
+                        <button onClick={() => updateRow(r.id, 'stackable', !r.stackable)}
+                          className="h-[42px] px-3 rounded-md font-jetbrains text-xs flex items-center gap-1.5"
+                          style={r.stackable ? { background: BLUE_LIGHT, color: BLUE } : { background: '#F1F5F9', color: '#64748B' }}>
+                          {r.stackable ? <Check size={13} /> : <span>—</span>} Empilable
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-[4.5rem_1fr] gap-1.5 items-end">
+                        <MobileNum label="Arrêt" value={r.stop ?? 1} onChange={(v) => updateRow(r.id, 'stop', v)} error={err.stop} />
+                        <label className="block min-w-0">
+                          <span className="block font-jetbrains text-[10px] text-slate-400 mb-0.5">Destination (facultatif)</span>
+                          <input value={r.destination ?? ''} onChange={(e) => updateRow(r.id, 'destination', e.target.value)}
+                            placeholder="Client, ville…"
+                            className="w-full px-2.5 py-2 bg-white border border-slate-200 rounded-md outline-none font-jetbrains text-base text-slate-800 focus:border-slate-400" />
+                        </label>
+                      </div>
+                    </div>
+                  );
+                })}
+                {rows.length === 0 && (
+                  <div className="text-center text-slate-400 py-6 text-sm px-4">Aucune marchandise — ajoutez une référence ou chargez l'exemple.</div>
+                )}
+              </div>
+
+              <div className="hidden md:block overflow-x-auto">
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-slate-100">
@@ -651,10 +727,10 @@ export default function LoadOptimizer({ onBack }) {
                       const err = validateRow(r);
                       return (
                         <tr key={r.id} className="border-b border-slate-50 align-top">
-                          <td className="px-2 py-1.5">
+                          <td className="pl-2 pr-0.5 py-1.5">
                             <div className="flex items-center gap-1.5">
                               <span className="w-2.5 h-2.5 rounded-sm shrink-0 mt-1" style={{ background: refColor(i).solid }} />
-                              <div className="flex-1 min-w-[90px]">
+                              <div className="flex-1 min-w-[72px]">
                                 <input value={r.reference} onChange={(e) => updateRow(r.id, 'reference', e.target.value)}
                                   placeholder="Réf."
                                   className="w-full px-2 py-1.5 bg-white border rounded-md outline-none font-jetbrains text-xs text-slate-800 focus:border-slate-400"
@@ -663,18 +739,18 @@ export default function LoadOptimizer({ onBack }) {
                               </div>
                             </div>
                           </td>
-                          <td className="px-1 py-1.5"><NumCell value={r.quantity} onChange={(v) => updateRow(r.id, 'quantity', v)} error={err.quantity} width="w-12" /></td>
-                          <td className="px-1 py-1.5"><NumCell value={r.length} onChange={(v) => updateRow(r.id, 'length', v)} error={err.length} /></td>
-                          <td className="px-1 py-1.5"><NumCell value={r.width} onChange={(v) => updateRow(r.id, 'width', v)} error={err.width} /></td>
-                          <td className="px-1 py-1.5"><NumCell value={r.height} onChange={(v) => updateRow(r.id, 'height', v)} error={err.height} /></td>
-                          <td className="px-1 py-1.5"><NumCell value={r.weight} onChange={(v) => updateRow(r.id, 'weight', v)} error={err.weight} step="0.1" /></td>
-                          <td className="px-1 py-1.5">
+                          <td className="px-0.5 py-1.5"><NumCell value={r.quantity} onChange={(v) => updateRow(r.id, 'quantity', v)} error={err.quantity} width="w-12" /></td>
+                          <td className="px-0.5 py-1.5"><NumCell value={r.length} onChange={(v) => updateRow(r.id, 'length', v)} error={err.length} /></td>
+                          <td className="px-0.5 py-1.5"><NumCell value={r.width} onChange={(v) => updateRow(r.id, 'width', v)} error={err.width} /></td>
+                          <td className="px-0.5 py-1.5"><NumCell value={r.height} onChange={(v) => updateRow(r.id, 'height', v)} error={err.height} /></td>
+                          <td className="px-0.5 py-1.5"><NumCell value={r.weight} onChange={(v) => updateRow(r.id, 'weight', v)} error={err.weight} step="0.1" /></td>
+                          <td className="px-0.5 py-1.5">
                             <select value={r.rotationMode} onChange={(e) => updateRow(r.id, 'rotationMode', e.target.value)}
                               className="px-1.5 py-1.5 bg-white border border-slate-200 rounded-md outline-none font-jetbrains text-[11px] text-slate-700">
                               {ROTATION_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                             </select>
                           </td>
-                          <td className="px-1 py-1.5 text-center">
+                          <td className="px-0.5 py-1.5 text-center">
                             <button onClick={() => updateRow(r.id, 'stackable', !r.stackable)}
                               className="w-7 h-7 rounded-md flex items-center justify-center mx-auto"
                               style={r.stackable ? { background: BLUE_LIGHT, color: BLUE } : { background: '#F1F5F9', color: '#94A3B8' }}
@@ -682,13 +758,13 @@ export default function LoadOptimizer({ onBack }) {
                               {r.stackable ? <Check size={13} /> : '—'}
                             </button>
                           </td>
-                          <td className="px-1 py-1.5"><NumCell value={r.stop ?? 1} onChange={(v) => updateRow(r.id, 'stop', v)} error={err.stop} width="w-12" /></td>
-                          <td className="px-1 py-1.5">
+                          <td className="px-0.5 py-1.5"><NumCell value={r.stop ?? 1} onChange={(v) => updateRow(r.id, 'stop', v)} error={err.stop} width="w-12" /></td>
+                          <td className="px-0.5 py-1.5">
                             <input value={r.destination ?? ''} onChange={(e) => updateRow(r.id, 'destination', e.target.value)}
                               placeholder="Client…"
-                              className="w-24 px-2 py-1.5 bg-white border border-slate-200 rounded-md outline-none font-jetbrains text-xs text-slate-800 focus:border-slate-400" />
+                              className="w-20 px-2 py-1.5 bg-white border border-slate-200 rounded-md outline-none font-jetbrains text-xs text-slate-800 focus:border-slate-400" />
                           </td>
-                          <td className="px-1 py-1.5 text-center">
+                          <td className="px-0.5 py-1.5 text-center">
                             <button onClick={() => removeRow(r.id)} className="text-slate-300 hover:text-red-500"><Trash2 size={13} /></button>
                           </td>
                         </tr>
@@ -700,11 +776,11 @@ export default function LoadOptimizer({ onBack }) {
                   </tbody>
                 </table>
               </div>
-              <div className="px-4 py-3 border-t border-slate-100 flex items-center justify-between">
-                <button onClick={addRow} className="flex items-center gap-1.5 font-jetbrains text-xs px-3 py-2 rounded-md" style={{ background: '#F1F5F9', color: '#475569' }}>
+              <div className="px-4 py-3 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <button onClick={addRow} className="flex items-center justify-center gap-1.5 font-jetbrains text-xs px-3 py-2.5 sm:py-2 rounded-md" style={{ background: '#F1F5F9', color: '#475569' }}>
                   <Plus size={13} /> Ajouter une référence
                 </button>
-                <span className="font-jetbrains text-[10px] text-slate-400">dimensions en cm · poids en kg · arrêt 1 = livré en premier</span>
+                <span className="font-jetbrains text-[10px] text-slate-400 text-center sm:text-right">dimensions en cm · poids en kg · arrêt 1 = livré en premier</span>
               </div>
             </div>
 
@@ -717,7 +793,7 @@ export default function LoadOptimizer({ onBack }) {
                     className="text-left px-3 py-2.5 rounded-lg font-jetbrains transition-all"
                     style={containerId === c.id ? { background: BLUE, color: '#fff' } : { background: '#F8FAFC', color: '#475569', border: '1px solid #E2E8F0' }}>
                     <div className="text-[11px] font-semibold leading-tight">{c.label}</div>
-                    <div className="text-[9px] opacity-80 mt-1">{(c.length / 1000).toFixed(2)}×{(c.width / 1000).toFixed(2)}×{(c.height / 1000).toFixed(2)} m</div>
+                    <div className="text-[10px] opacity-80 mt-1">{(c.length / 1000).toFixed(2)}×{(c.width / 1000).toFixed(2)}×{(c.height / 1000).toFixed(2)} m</div>
                     <div className="text-[9px] opacity-80">{formatKg(c.maxWeight)} kg</div>
                   </button>
                 ))}
@@ -780,8 +856,8 @@ export default function LoadOptimizer({ onBack }) {
                   Le poids total ({formatKg(totals.weight)} kg) dépasse le poids utile du contenant ({formatKg(container.maxWeight)} kg). Le moteur chargera ce qui est admissible.
                 </div>
               )}
-              <button onClick={optimize} disabled={!valid || status === 'running'}
-                className="w-full flex items-center justify-center gap-2 py-3 rounded-lg font-bricolage font-semibold text-white transition-all disabled:opacity-50"
+              <button ref={ctaRef} onClick={optimize} disabled={!valid || status === 'running'}
+                className="w-full flex items-center justify-center gap-2 py-3.5 sm:py-3 rounded-lg font-bricolage font-semibold text-white transition-all disabled:opacity-50"
                 style={{ background: BLUE }}>
                 {status === 'running' ? <><Loader2 size={16} className="animate-spin" /> Optimisation du chargement…</> : <>Optimiser le chargement <ArrowRight size={16} /></>}
               </button>
@@ -790,7 +866,7 @@ export default function LoadOptimizer({ onBack }) {
           </div>
 
           {/* DROITE : résultat */}
-          <div ref={resultRef} className="lg:col-span-2 flex flex-col gap-4 scroll-mt-20">
+          <div ref={resultRef} className="xl:col-span-2 flex flex-col gap-4 scroll-mt-20">
             {status === 'done' && result ? (
               <>
                 <div className="grid grid-cols-2 gap-3">
@@ -804,28 +880,28 @@ export default function LoadOptimizer({ onBack }) {
                 </div>
 
                 <div className="rounded-xl border border-slate-200 overflow-hidden bg-white order-first">
-                  <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 font-jetbrains text-xs text-slate-600 flex items-center justify-between gap-2">
-                    <span className="flex items-center gap-2"><Box size={13} /> PLAN DE CHARGEMENT</span>
-                    <div className="flex items-center gap-2">
+                  <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-slate-200 bg-slate-50 font-jetbrains text-xs text-slate-600 flex flex-wrap items-center justify-between gap-2">
+                    <span className="flex items-center gap-2 shrink-0"><Box size={13} /> PLAN<span className="hidden sm:inline"> DE CHARGEMENT</span></span>
+                    <div className="flex flex-wrap items-center justify-end gap-1.5 sm:gap-2">
                       <button onClick={printSheet} className="flex items-center gap-1 font-jetbrains text-[10px] px-2 py-1 rounded-md" style={{ background: BLUE_LIGHT, color: BLUE }} title="Imprimer ou enregistrer en PDF la fiche de chargement (ordre de chargement, arrêt par arrêt)"><Printer size={11} /> Fiche</button>
                       {multiStopResult && (
                         <div className="flex items-center gap-0.5 p-0.5 rounded-md" style={{ background: '#F1F5F9' }} title="Couleur des colis — Réf. : par produit · Arrêt : par destination · Les 2 : remplissage = produit, contour = destination">
-                          <button onClick={() => { setColorBy('ref'); setHighlight(null); }} className="px-2 py-1 rounded text-[10px]" style={effColorBy === 'ref' ? { background: '#fff', color: BLUE, fontWeight: 600 } : { color: '#64748B' }}>Réf.</button>
-                          <button onClick={() => { setColorBy('stop'); setHighlight(null); }} className="px-2 py-1 rounded text-[10px]" style={effColorBy === 'stop' ? { background: '#fff', color: BLUE, fontWeight: 600 } : { color: '#64748B' }}>Arrêt</button>
-                          <button onClick={() => { setColorBy('both'); setHighlight(null); }} className="px-2 py-1 rounded text-[10px]" style={effColorBy === 'both' ? { background: '#fff', color: BLUE, fontWeight: 600 } : { color: '#64748B' }}>Les 2</button>
+                          <button onClick={() => { setColorBy('ref'); setHighlight(null); }} className="px-2 py-1.5 sm:py-1 rounded text-[10px]" style={effColorBy === 'ref' ? { background: '#fff', color: BLUE, fontWeight: 600 } : { color: '#64748B' }}>Réf.</button>
+                          <button onClick={() => { setColorBy('stop'); setHighlight(null); }} className="px-2 py-1.5 sm:py-1 rounded text-[10px]" style={effColorBy === 'stop' ? { background: '#fff', color: BLUE, fontWeight: 600 } : { color: '#64748B' }}>Arrêt</button>
+                          <button onClick={() => { setColorBy('both'); setHighlight(null); }} className="px-2 py-1.5 sm:py-1 rounded text-[10px]" style={effColorBy === 'both' ? { background: '#fff', color: BLUE, fontWeight: 600 } : { color: '#64748B' }}>Les 2</button>
                         </div>
                       )}
                       <div className="flex items-center gap-0.5 p-0.5 rounded-md" style={{ background: '#F1F5F9' }}>
-                        <button onClick={() => setView3d(true)} className="px-2 py-1 rounded text-[10px]" style={view3d ? { background: '#fff', color: BLUE, fontWeight: 600 } : { color: '#64748B' }}>3D</button>
-                        <button onClick={() => setView3d(false)} className="px-2 py-1 rounded text-[10px]" style={!view3d ? { background: '#fff', color: BLUE, fontWeight: 600 } : { color: '#64748B' }}>Schéma</button>
+                        <button onClick={() => setView3d(true)} className="px-2 py-1.5 sm:py-1 rounded text-[10px]" style={view3d ? { background: '#fff', color: BLUE, fontWeight: 600 } : { color: '#64748B' }}>3D</button>
+                        <button onClick={() => setView3d(false)} className="px-2 py-1.5 sm:py-1 rounded text-[10px]" style={!view3d ? { background: '#fff', color: BLUE, fontWeight: 600 } : { color: '#64748B' }}>Schéma</button>
                       </div>
-                      <span className="text-[10px] text-slate-400">{result.computationTimeMs} ms</span>
+                      <span className="hidden xl:inline text-[10px] text-slate-400">{result.computationTimeMs} ms</span>
                     </div>
                   </div>
-                  <div className="p-4 relative">
+                  <div className="p-2 sm:p-4 relative">
                     {view3d ? (
                       <ThreeErrorBoundary fallback={<Schematic2D container={container} placed={visiblePlaced} colorOf={colorOf} isDimmed={isDimmed} blockedIds={blockedIds} />}>
-                        <Suspense fallback={<div className="flex items-center justify-center text-slate-400 font-jetbrains text-xs" style={{ height: 460 }}><Loader2 size={18} className="animate-spin mr-2" /> Chargement de la vue 3D…</div>}>
+                        <Suspense fallback={<div className="flex items-center justify-center text-slate-400 font-jetbrains text-xs h-[340px] sm:h-[420px] lg:h-[460px]"><Loader2 size={18} className="animate-spin mr-2" /> Chargement de la vue 3D…</div>}>
                           <LoadView3D container={container} placed={visiblePlaced} colorOf={colorOf} isDimmed={isDimmed} blockedIds={blockedIds} onHover={setHovered} />
                         </Suspense>
                       </ThreeErrorBoundary>
@@ -904,11 +980,11 @@ export default function LoadOptimizer({ onBack }) {
                     </div>
                     <div className="divide-y divide-slate-50">
                       {resultStops.map((s) => (
-                        <div key={s.stop} className="px-4 py-2 flex items-center justify-between gap-2 text-[11px] font-jetbrains">
-                          <span className="flex items-center gap-1.5 text-slate-800">
+                        <div key={s.stop} className="px-4 py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-0.5 sm:gap-2 text-[11px] font-jetbrains">
+                          <span className="flex items-center gap-1.5 text-slate-800 min-w-0">
                             <span className="w-2.5 h-2.5 rounded-sm" style={{ background: stopColor(s.stop).solid }} />{stopLabel(s.stop, rows)}
                           </span>
-                          <span className="text-slate-500">
+                          <span className="text-slate-500 pl-4 sm:pl-0 whitespace-nowrap">
                             <span style={{ color: s.unpackedItems > 0 ? '#B91C1C' : undefined }}>{s.packedItems}/{s.totalItems}</span> · {formatKg(s.packedWeight)} kg · {formatM3(s.packedVolume)} m³
                           </span>
                         </div>
@@ -1023,7 +1099,7 @@ export default function LoadOptimizer({ onBack }) {
                 </button>
               </>
             ) : (
-              <div className="rounded-xl border border-slate-200 bg-white p-8 flex flex-col items-center justify-center text-center" style={{ minHeight: 360 }}>
+              <div className={`rounded-xl border border-slate-200 bg-white p-8 flex-col items-center justify-center text-center xl:min-h-[360px] ${status === 'running' ? 'flex' : 'hidden xl:flex'}`}>
                 {status === 'running' ? (
                   <><Loader2 size={28} className="animate-spin text-slate-400 mb-3" /><div className="font-jetbrains text-sm text-slate-500">Optimisation du chargement…</div></>
                 ) : (
@@ -1037,8 +1113,29 @@ export default function LoadOptimizer({ onBack }) {
         </div>
       </div>
 
+      {/* Mobile / tablette : action principale toujours accessible tant que le plan n'est pas calculé */}
+      {status !== 'done' && !ctaVisible && rows.length > 0 && (
+        <div className="xl:hidden fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 backdrop-blur-sm px-4 py-3 print:hidden"
+          style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
+          <div className="max-w-xl mx-auto flex items-center gap-3">
+            <div className="font-jetbrains text-[10px] text-slate-500 leading-tight shrink-0">
+              <div><span className="text-slate-900 font-medium">{totals.units}</span> unités</div>
+              <div>{formatM3(totals.volume)} m³ · {formatKg(totals.weight)} kg</div>
+            </div>
+            <button onClick={optimize} disabled={!valid || status === 'running'}
+              className="flex-1 flex items-center justify-center gap-2 py-3 rounded-lg font-bricolage font-semibold text-white disabled:opacity-50"
+              style={{ background: BLUE }}>
+              {status === 'running' ? <><Loader2 size={16} className="animate-spin" /> Calcul…</> : <>Optimiser <ArrowRight size={16} /></>}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Contenu SEO */}
-      <div className="max-w-3xl mx-auto px-6 py-12 space-y-8">
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-12 space-y-8">
+        <p className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
+          Guide complet : <a href="/ressources/plan-de-chargement-camion" className="font-medium underline underline-offset-2" style={{ color: BLUE }}>comment faire un plan de chargement de camion ou de conteneur</a> (dimensions utiles, palettes, tournées multi-arrêts).
+        </p>
         <section>
           <h2 className="font-bricolage font-bold text-xl text-slate-900 mb-2">Comment fonctionne l'optimiseur de chargement ?</h2>
           <p className="text-slate-600 leading-relaxed">
