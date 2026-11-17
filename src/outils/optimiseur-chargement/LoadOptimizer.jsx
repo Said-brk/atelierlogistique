@@ -86,7 +86,7 @@ function Schematic2D({ container, placed, colorOf, isDimmed, blockedIds }) {
     const blocked = blockedIds?.has(p.id);
     return (
       <rect key={i} x={r.x} y={r.y} width={r.w} height={r.h}
-        fill={c.light} stroke={blocked ? '#DC2626' : c.dark} strokeWidth={blocked ? 1.6 : 0.7}
+        fill={c.light} stroke={blocked ? '#DC2626' : (c.edge ?? c.dark)} strokeWidth={blocked ? 1.6 : c.combined ? 1.6 : 0.7}
         opacity={dim ? 0.18 : 0.92} />
     );
   });
@@ -170,7 +170,7 @@ export default function LoadOptimizer({ onBack }) {
 
   // Tournée multi-arrêts
   const [deliveryMode, setDeliveryMode] = useState('STRICT');
-  const [colorBy, setColorBy] = useState('auto'); // 'auto' | 'ref' | 'stop'
+  const [colorBy, setColorBy] = useState('auto'); // 'auto' | 'ref' | 'stop' | 'both'
   const [unloadedUpTo, setUnloadedUpTo] = useState(0); // 0 = chargement complet
   const [excludedStops, setExcludedStops] = useState([]); // arrêts retirés du camion
   const [deferredExcess, setDeferredExcess] = useState([]); // arrêts dont l'excédent est reporté
@@ -181,7 +181,7 @@ export default function LoadOptimizer({ onBack }) {
 
   const resultStops = result?.stops ?? [];
   const multiStopResult = resultStops.length > 1;
-  const effColorBy = colorBy === 'auto' ? (multiStopResult ? 'stop' : 'ref') : colorBy;
+  const effColorBy = colorBy === 'auto' ? (multiStopResult ? 'both' : 'ref') : colorBy;
 
   // Index couleur stable par référence (ordre des lignes)
   const colorIndex = useMemo(() => {
@@ -190,7 +190,14 @@ export default function LoadOptimizer({ onBack }) {
     return map;
   }, [rows]);
   const colorOf = useCallback(
-    (item) => (effColorBy === 'stop' ? stopColor(item.stop ?? 1) : refColor(colorIndex[item.definitionId] ?? 0)),
+    (item) => {
+      const ref = refColor(colorIndex[item.definitionId] ?? 0);
+      const stp = stopColor(item.stop ?? 1);
+      if (effColorBy === 'stop') return stp;
+      // Mode combiné : remplissage = référence (colis), contour = arrêt (destination).
+      if (effColorBy === 'both') return { solid: ref.solid, light: ref.light, dark: stp.dark, edge: stp.solid, combined: true };
+      return ref;
+    },
     [colorIndex, effColorBy],
   );
   const isDimmed = useCallback((item) => {
@@ -616,9 +623,10 @@ export default function LoadOptimizer({ onBack }) {
                     <span className="flex items-center gap-2"><Box size={13} /> PLAN DE CHARGEMENT</span>
                     <div className="flex items-center gap-2">
                       {multiStopResult && (
-                        <div className="flex items-center gap-0.5 p-0.5 rounded-md" style={{ background: '#F1F5F9' }} title="Couleur des colis">
+                        <div className="flex items-center gap-0.5 p-0.5 rounded-md" style={{ background: '#F1F5F9' }} title="Couleur des colis — Réf. : par produit · Arrêt : par destination · Les 2 : remplissage = produit, contour = destination">
                           <button onClick={() => { setColorBy('ref'); setHighlight(null); }} className="px-2 py-1 rounded text-[10px]" style={effColorBy === 'ref' ? { background: '#fff', color: BLUE, fontWeight: 600 } : { color: '#64748B' }}>Réf.</button>
                           <button onClick={() => { setColorBy('stop'); setHighlight(null); }} className="px-2 py-1 rounded text-[10px]" style={effColorBy === 'stop' ? { background: '#fff', color: BLUE, fontWeight: 600 } : { color: '#64748B' }}>Arrêt</button>
+                          <button onClick={() => { setColorBy('both'); setHighlight(null); }} className="px-2 py-1 rounded text-[10px]" style={effColorBy === 'both' ? { background: '#fff', color: BLUE, fontWeight: 600 } : { color: '#64748B' }}>Les 2</button>
                         </div>
                       )}
                       <div className="flex items-center gap-0.5 p-0.5 rounded-md" style={{ background: '#F1F5F9' }}>
@@ -661,35 +669,45 @@ export default function LoadOptimizer({ onBack }) {
                       ))}
                     </div>
                   )}
-                  {effColorBy === 'stop' ? (
-                    <div className="px-4 py-3 border-t border-slate-100 flex flex-wrap gap-x-4 gap-y-1.5">
+                  {(effColorBy === 'stop' || effColorBy === 'both') && (
+                    <div className="px-4 py-3 border-t border-slate-100 flex flex-wrap items-center gap-x-4 gap-y-1.5">
+                      {effColorBy === 'both' && (
+                        <span className="font-jetbrains text-[9px] tracking-wider text-slate-400 mr-1 w-full sm:w-auto">CONTOUR · ARRÊT</span>
+                      )}
                       {resultStops.filter((s) => s.packedItems > 0).map((s) => {
                         const key = `stop:${s.stop}`;
+                        const swatch = effColorBy === 'both'
+                          ? { background: '#fff', border: `2px solid ${stopColor(s.stop).solid}` }
+                          : { background: stopColor(s.stop).solid };
                         return (
                           <button key={key} onClick={() => setHighlight((h) => (h === key ? null : key))}
                             className="flex items-center gap-1.5 text-[11px] font-jetbrains"
                             style={{ opacity: (highlight && highlight !== key) || s.stop <= unloadedUpTo ? 0.4 : 1 }}>
-                            <span className="w-3 h-3 rounded-sm" style={{ background: stopColor(s.stop).solid }} />
+                            <span className="w-3 h-3 rounded-sm" style={swatch} />
                             {stopLabel(s.stop, rows)} <span className="text-slate-400">· {s.packedItems}</span>
                           </button>
                         );
                       })}
                     </div>
-                  ) : (
-                  <div className="px-4 py-3 border-t border-slate-100 flex flex-wrap gap-x-4 gap-y-1.5">
-                    {rows.map((r, i) => {
-                      const count = result.placedItems.filter((p) => p.definitionId === r.id).length;
-                      if (count === 0) return null;
-                      return (
-                        <button key={r.id} onClick={() => setHighlight((h) => (h === r.id ? null : r.id))}
-                          className="flex items-center gap-1.5 text-[11px] font-jetbrains"
-                          style={{ opacity: highlight && highlight !== r.id ? 0.4 : 1 }}>
-                          <span className="w-3 h-3 rounded-sm" style={{ background: refColor(i).solid }} />
-                          {r.reference || 'réf.'} <span className="text-slate-400">· {count}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
+                  )}
+                  {(effColorBy === 'ref' || effColorBy === 'both') && (
+                    <div className="px-4 py-3 border-t border-slate-100 flex flex-wrap items-center gap-x-4 gap-y-1.5">
+                      {effColorBy === 'both' && (
+                        <span className="font-jetbrains text-[9px] tracking-wider text-slate-400 mr-1 w-full sm:w-auto">REMPLISSAGE · RÉFÉRENCE</span>
+                      )}
+                      {rows.map((r, i) => {
+                        const count = result.placedItems.filter((p) => p.definitionId === r.id).length;
+                        if (count === 0) return null;
+                        return (
+                          <button key={r.id} onClick={() => setHighlight((h) => (h === r.id ? null : r.id))}
+                            className="flex items-center gap-1.5 text-[11px] font-jetbrains"
+                            style={{ opacity: highlight && highlight !== r.id ? 0.4 : 1 }}>
+                            <span className="w-3 h-3 rounded-sm" style={{ background: refColor(i).solid }} />
+                            {r.reference || 'réf.'} <span className="text-slate-400">· {count}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
                   )}
                 </div>
 

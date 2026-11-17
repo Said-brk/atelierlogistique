@@ -22,7 +22,9 @@ function ItemMesh({ item, color, dimmed, blocked, withEdges, onHover }) {
     >
       <boxGeometry args={size} />
       <meshStandardMaterial color={color.solid} transparent opacity={opacity} roughness={0.75} metalness={0.05} />
-      {blocked ? <Edges color="#DC2626" /> : withEdges && <Edges color={color.dark} />}
+      {blocked
+        ? <Edges color="#DC2626" lineWidth={2} />
+        : (withEdges || color.combined) && <Edges color={color.edge ?? color.dark} lineWidth={color.combined ? 3 : 1} />}
     </mesh>
   );
 }
