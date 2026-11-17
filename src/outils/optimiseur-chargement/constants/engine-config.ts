@@ -21,3 +21,12 @@ export const SCORING = {
   wastedSpacePenalty: 2,    // pénalise l'espace perdu créé sous/autour de l'objet
   contactBonus: 1.5,        // récompense le contact avec parois et autres objets
 } as const;
+
+/**
+ * Livraisons multi-arrêts. En mode SOUPLE, chaque colis d'un arrêt ultérieur
+ * qui bloquerait l'unité ajoute cette pénalité au score de l'emplacement
+ * (à comparer aux autres coefficients, de l'ordre de 1).
+ */
+export const DELIVERY = {
+  blockedPenalty: 10,
+} as const;

@@ -10,7 +10,7 @@ const placed = (over: Partial<PlacedItem>): PlacedItem => ({
   id: 'p', definitionId: 'd', reference: 'R',
   x: 0, y: 0, z: 0, length: 100, width: 100, height: 100,
   originalLength: 100, originalWidth: 100, originalHeight: 100,
-  rotation: { x: 0, y: 0, z: 0 }, weight: 1, stackable: true,
+  rotation: { x: 0, y: 0, z: 0 }, weight: 1, stackable: true, stop: 1, destination: '',
   ...over,
 });
 

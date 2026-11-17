@@ -23,19 +23,26 @@ export function emptyRow() {
     weight: 0,
     rotationMode: 'FULL',
     stackable: true,
+    stop: 1,
+    destination: '',
   };
 }
+
+export const DELIVERY_MODES = [
+  { value: 'STRICT', label: 'Strict', hint: 'Chaque arrêt est accessible sans déplacer un colis d’un arrêt suivant. Ce qui ne respecte pas la règle reste à quai.' },
+  { value: 'SOFT', label: 'Souple', hint: 'Charge au maximum ; les colis qui devront être manipulés à la livraison sont signalés.' },
+];
 
 // Données d'exemple (cm / kg) — cf. cahier des charges §9.
 export function exampleRows() {
   return [
-    { id: newRowId(), reference: 'CARTON-A',     quantity: 40, length: 60,  width: 40, height: 40,  weight: 12,  rotationMode: 'FULL',       stackable: true },
-    { id: newRowId(), reference: 'CARTON-B',     quantity: 20, length: 80,  width: 60, height: 50,  weight: 18,  rotationMode: 'FULL',       stackable: true },
-    { id: newRowId(), reference: 'PALETTE-EURO', quantity: 4,  length: 120, width: 80, height: 140, weight: 450, rotationMode: 'HORIZONTAL', stackable: false },
+    { id: newRowId(), reference: 'CARTON-A',     quantity: 40, length: 60,  width: 40, height: 40,  weight: 12,  rotationMode: 'FULL',       stackable: true,  stop: 1, destination: '' },
+    { id: newRowId(), reference: 'CARTON-B',     quantity: 20, length: 80,  width: 60, height: 50,  weight: 18,  rotationMode: 'FULL',       stackable: true,  stop: 1, destination: '' },
+    { id: newRowId(), reference: 'PALETTE-EURO', quantity: 4,  length: 120, width: 80, height: 140, weight: 450, rotationMode: 'HORIZONTAL', stackable: false, stop: 1, destination: '' },
   ];
 }
 
-const NUMERIC_FIELDS = ['quantity', 'length', 'width', 'height', 'weight'];
+const NUMERIC_FIELDS = ['quantity', 'length', 'width', 'height', 'weight', 'stop'];
 
 /** Erreurs de validation d'une ligne (clé champ → message). Vide = valide. */
 export function validateRow(row) {
@@ -46,6 +53,7 @@ export function validateRow(row) {
   if (!(row.width > 0)) errors.width = 'Largeur > 0';
   if (!(row.height > 0)) errors.height = 'Hauteur > 0';
   if (!(row.weight >= 0)) errors.weight = 'Poids ≥ 0';
+  if (!Number.isInteger(row.stop ?? 1) || (row.stop ?? 1) < 1) errors.stop = 'Arrêt ≥ 1';
   return errors;
 }
 
@@ -56,6 +64,7 @@ export function rowsAreValid(rows) {
 export function coerceField(field, value) {
   if (!NUMERIC_FIELDS.includes(field)) return value;
   if (field === 'quantity') return Math.max(0, Math.round(Number(value) || 0));
+  if (field === 'stop') return Math.max(1, Math.round(Number(value) || 1));
   return Math.max(0, Number(value) || 0);
 }
 
@@ -71,7 +80,31 @@ export function rowsToDefinitions(rows) {
     weight: r.weight,
     rotationMode: r.rotationMode,
     stackable: r.stackable,
+    stop: r.stop ?? 1,
+    destination: (r.destination ?? '').trim(),
   }));
+}
+
+/** Arrêts distincts présents dans les lignes, triés. */
+export function distinctStops(rows) {
+  return [...new Set(rows.map((r) => r.stop ?? 1))].sort((a, b) => a - b);
+}
+
+/** Libellé d'un arrêt : « Arrêt 2 · Client B » (destination = 1re renseignée). */
+export function stopLabel(stop, rows) {
+  const dest = rows.find((r) => (r.stop ?? 1) === stop && String(r.destination ?? '').trim())?.destination;
+  return dest ? `Arrêt ${stop} · ${String(dest).trim()}` : `Arrêt ${stop}`;
+}
+
+// Palette distincte par arrêt (contrastée, lisible en 3D).
+const STOP_HUES = [217, 142, 32, 280, 350, 190, 60, 10, 250, 100];
+export function stopColor(stop) {
+  const hue = STOP_HUES[(Math.max(1, stop) - 1) % STOP_HUES.length];
+  return {
+    solid: `hsl(${hue}, 65%, 52%)`,
+    light: `hsl(${hue}, 65%, 86%)`,
+    dark: `hsl(${hue}, 65%, 30%)`,
+  };
 }
 
 // Couleur stable par référence (même réf → même couleur).
@@ -101,6 +134,8 @@ const BULK_ALIASES = {
   weight: ['weight', 'poids', 'masse', 'kg'],
   rotation: ['rotation', 'rot'],
   stackable: ['stackable', 'empilable', 'gerbable', 'empil'],
+  stop: ['arrêt', 'arret', 'stop', 'ordre de livraison', 'ordre', 'tournée', 'tournee', 'séquence', 'sequence'],
+  destination: ['destination', 'client', 'destinataire', 'ville'],
 };
 
 const parseRotation = (v) => {
@@ -124,7 +159,7 @@ export function parsePastedTable(text) {
     return aliasList.some((a) => k === a || k.includes(a));
   }).length;
   const looksHeader = headerMatches >= 2;
-  const cols = looksHeader ? first : ['reference', 'quantity', 'length', 'width', 'height', 'weight', 'rotation', 'stackable'];
+  const cols = looksHeader ? first : ['reference', 'quantity', 'length', 'width', 'height', 'weight', 'rotation', 'stackable', 'stop', 'destination'];
   return lines.slice(looksHeader ? 1 : 0).map((line) => {
     const cells = line.split(delim);
     const o = {};
@@ -138,13 +173,31 @@ export function bulkToRows(json) {
   if (!json || json.length === 0) return [];
   const headers = Object.keys(json[0]);
   const map = {};
+  const used = new Set();
+  // Correspondances exactes d'abord (toutes colonnes), puis partielles.
   for (const field in BULK_ALIASES) {
-    const aliases = BULK_ALIASES[field];
-    let key = headers.find((h) => aliases.includes(normKey(h)));
-    if (!key) key = headers.find((h) => aliases.some((a) => normKey(h).includes(a)));
-    if (key) map[field] = key;
+    const key = headers.find((h) => !used.has(h) && BULK_ALIASES[field].includes(normKey(h)));
+    if (key) { map[field] = key; used.add(key); }
   }
-  return json.map((r) => ({
+  for (const field in BULK_ALIASES) {
+    if (map[field]) continue;
+    const key = headers.find((h) => !used.has(h) && BULK_ALIASES[field].some((a) => normKey(h).includes(a)));
+    if (key) { map[field] = key; used.add(key); }
+  }
+  // Arrêt saisi en texte (ex. nom du client) : numérotation dans l'ordre d'apparition.
+  const textStops = new Map();
+  const readStop = (r) => {
+    if (!map.stop) return { stop: 1, dest: '' };
+    const raw = String(r[map.stop] ?? '').trim();
+    const n = Math.round(toNum(raw));
+    if (raw && /^\s*\d+([.,]0+)?\s*$/.test(raw) && n >= 1) return { stop: n, dest: '' };
+    if (!raw) return { stop: 1, dest: '' };
+    if (!textStops.has(raw)) textStops.set(raw, textStops.size + 1);
+    return { stop: textStops.get(raw), dest: raw };
+  };
+  return json.map((r) => {
+    const { stop, dest } = readStop(r);
+    return {
     id: newRowId(),
     reference: map.reference ? String(r[map.reference] ?? '').trim() : '',
     quantity: map.quantity ? Math.max(0, Math.round(toNum(r[map.quantity]))) : 1,
@@ -154,7 +207,10 @@ export function bulkToRows(json) {
     weight: map.weight ? toNum(r[map.weight]) : 0,
     rotationMode: map.rotation ? parseRotation(r[map.rotation]) : 'FULL',
     stackable: map.stackable ? parseBool(r[map.stackable]) : true,
-  })).filter((r) => r.reference || r.length || r.width || r.height);
+    stop,
+    destination: map.destination ? String(r[map.destination] ?? '').trim() : dest,
+    };
+  }).filter((r) => r.reference || r.length || r.width || r.height);
 }
 
 export const mm3ToM3 = (mm3) => mm3 / 1e9;

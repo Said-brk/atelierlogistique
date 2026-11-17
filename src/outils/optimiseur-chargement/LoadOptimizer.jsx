@@ -3,6 +3,7 @@ import * as XLSX from 'xlsx';
 import {
   ArrowLeft, Plus, Trash2, Truck, Box, Loader2, AlertCircle,
   RotateCcw, Check, ArrowRight, Boxes, Upload, Copy, Download,
+  MapPin, Undo2,
 } from 'lucide-react';
 
 const LoadView3D = lazy(() => import('./LoadView3D.jsx'));
@@ -21,6 +22,7 @@ import {
   rowsToDefinitions, cmToMm, refColor, ROTATION_OPTIONS,
   formatM3, formatKg, formatPct, mm3ToM3,
   parsePastedTable, bulkToRows,
+  DELIVERY_MODES, distinctStops, stopLabel, stopColor,
 } from './uiHelpers';
 import { track } from './analytics';
 
@@ -29,6 +31,7 @@ const FAQ = [
   { q: 'Quelles marchandises puis-je charger ?', a: 'Des cartons, colis ou palettes de forme rectangulaire. Vous indiquez pour chaque référence ses dimensions, son poids, sa quantité, si la rotation est autorisée et si elle est empilable.' },
   { q: 'Quels véhicules et conteneurs sont pris en charge ?', a: 'Une semi-remorque standard, les conteneurs maritimes 20 pieds, 40 pieds et 40 pieds High Cube, ainsi que des dimensions personnalisées.' },
   { q: 'Comment est calculé le plan de chargement ?', a: 'Un moteur de bin packing 3D place les unités une à une en respectant les parois, le poids maximal, les rotations autorisées, l’empilabilité et la stabilité (chaque objet est supporté). Plusieurs ordres de placement sont testés et le meilleur résultat est conservé.' },
+  { q: 'Puis-je préparer un camion pour plusieurs livraisons (tournée) ?', a: 'Oui. Indiquez pour chaque référence son numéro d’arrêt (1 = livré en premier) et, si vous le souhaitez, la destination. Le dernier arrêt est chargé au fond, le premier côté portes, et aucun colis d’un arrêt ultérieur ne bloque l’accès à un arrêt précédent. Si tout ne rentre pas, vous choisissez de retirer un arrêt entier ou seulement les colis en excès.' },
   { q: 'Le taux de remplissage de 100 % est-il atteignable ?', a: 'Rarement. Un taux volumétrique ne signifie pas que l’espace restant est exploitable d’un seul tenant. L’objectif est un chargement dense, stable et réaliste à préparer.' },
 ];
 
@@ -50,8 +53,8 @@ function useDocumentMeta(title, description) {
 }
 
 // ---- Petits composants d'interface ----
-function Th({ children, className = '' }) {
-  return <th className={`font-normal text-slate-400 px-2 py-2 text-[10px] tracking-wider ${className}`}>{children}</th>;
+function Th({ children, className = '', title }) {
+  return <th title={title} className={`font-normal text-slate-400 px-2 py-2 text-[10px] tracking-wider ${className}`}>{children}</th>;
 }
 
 function NumCell({ value, onChange, error, width = 'w-14', step = '1' }) {
@@ -69,7 +72,7 @@ function NumCell({ value, onChange, error, width = 'w-14', step = '1' }) {
 }
 
 // ---- Schéma 2D (vue de dessus + vue de côté) — étape intermédiaire avant la 3D ----
-function Schematic2D({ container, placed, colorOf, highlight }) {
+function Schematic2D({ container, placed, colorOf, isDimmed, blockedIds }) {
   const target = 520;
   const scale = target / container.length;
   const topH = container.width * scale;
@@ -78,22 +81,25 @@ function Schematic2D({ container, placed, colorOf, highlight }) {
 
   const rects = (project) => placed.map((p, i) => {
     const r = project(p);
-    const c = colorOf(p.definitionId);
-    const dim = highlight && highlight !== p.definitionId;
+    const c = colorOf(p);
+    const dim = isDimmed(p);
+    const blocked = blockedIds?.has(p.id);
     return (
       <rect key={i} x={r.x} y={r.y} width={r.w} height={r.h}
-        fill={c.light} stroke={c.dark} strokeWidth="0.7"
+        fill={c.light} stroke={blocked ? '#DC2626' : c.dark} strokeWidth={blocked ? 1.6 : 0.7}
         opacity={dim ? 0.18 : 0.92} />
     );
   });
+  const doors = (h) => <line x1={W} y1={0} x2={W} y2={h} stroke="#F59E0B" strokeWidth="3" />;
 
   return (
     <div className="space-y-4">
       <div>
-        <div className="font-jetbrains text-[10px] text-slate-400 mb-1 tracking-wider">VUE DE DESSUS — X × Y</div>
+        <div className="font-jetbrains text-[10px] text-slate-400 mb-1 tracking-wider">VUE DE DESSUS — X × Y · <span className="text-amber-600">portes à droite</span></div>
         <svg viewBox={`-2 -2 ${W + 4} ${topH + 4}`} className="w-full h-auto" style={{ maxHeight: 220 }}>
           <rect x="0" y="0" width={W} height={topH} fill="#F8FAFC" stroke="#CBD5E1" strokeWidth="1" />
           {rects((p) => ({ x: p.x * scale, y: p.y * scale, w: p.length * scale, h: p.width * scale }))}
+          {doors(topH)}
         </svg>
       </div>
       <div>
@@ -101,6 +107,7 @@ function Schematic2D({ container, placed, colorOf, highlight }) {
         <svg viewBox={`-2 -2 ${W + 4} ${sideH + 4}`} className="w-full h-auto" style={{ maxHeight: 220 }}>
           <rect x="0" y="0" width={W} height={sideH} fill="#F8FAFC" stroke="#CBD5E1" strokeWidth="1" />
           {rects((p) => ({ x: p.x * scale, y: (container.height - (p.z + p.height)) * scale, w: p.length * scale, h: p.height * scale }))}
+          {doors(sideH)}
         </svg>
       </div>
     </div>
@@ -161,13 +168,41 @@ export default function LoadOptimizer({ onBack }) {
   const resultRef = useRef(null);
   const { run, reset, result, status } = useOptimizer();
 
+  // Tournée multi-arrêts
+  const [deliveryMode, setDeliveryMode] = useState('STRICT');
+  const [colorBy, setColorBy] = useState('auto'); // 'auto' | 'ref' | 'stop'
+  const [unloadedUpTo, setUnloadedUpTo] = useState(0); // 0 = chargement complet
+  const [excludedStops, setExcludedStops] = useState([]); // arrêts retirés du camion
+  const [deferredExcess, setDeferredExcess] = useState([]); // arrêts dont l'excédent est reporté
+
+  const stops = useMemo(() => distinctStops(rows), [rows]);
+  const multiStop = stops.length > 1;
+  useEffect(() => { setExcludedStops((ex) => ex.filter((s) => stops.includes(s))); }, [stops]);
+
+  const resultStops = result?.stops ?? [];
+  const multiStopResult = resultStops.length > 1;
+  const effColorBy = colorBy === 'auto' ? (multiStopResult ? 'stop' : 'ref') : colorBy;
+
   // Index couleur stable par référence (ordre des lignes)
   const colorIndex = useMemo(() => {
     const map = {};
     rows.forEach((r, i) => { map[r.id] = i; });
     return map;
   }, [rows]);
-  const colorOf = useCallback((definitionId) => refColor(colorIndex[definitionId] ?? 0), [colorIndex]);
+  const colorOf = useCallback(
+    (item) => (effColorBy === 'stop' ? stopColor(item.stop ?? 1) : refColor(colorIndex[item.definitionId] ?? 0)),
+    [colorIndex, effColorBy],
+  );
+  const isDimmed = useCallback((item) => {
+    if (!highlight) return false;
+    if (highlight.startsWith('stop:')) return `stop:${item.stop}` !== highlight;
+    return item.definitionId !== highlight;
+  }, [highlight]);
+  const blockedIds = useMemo(() => new Set(result?.blockedItemIds ?? []), [result]);
+  const visiblePlaced = useMemo(
+    () => (result ? result.placedItems.filter((p) => (p.stop ?? 1) > unloadedUpTo) : []),
+    [result, unloadedUpTo],
+  );
 
   const container = useMemo(() => {
     if (containerId === 'custom') {
@@ -182,12 +217,14 @@ export default function LoadOptimizer({ onBack }) {
 
   const valid = rowsAreValid(rows);
 
+  const activeRows = useMemo(() => rows.filter((r) => !excludedStops.includes(r.stop ?? 1)), [rows, excludedStops]);
+
   const totals = useMemo(() => {
-    const units = rows.reduce((s, r) => s + (r.quantity || 0), 0);
-    const volume = rows.reduce((s, r) => s + (r.quantity || 0) * cmToMm(r.length) * cmToMm(r.width) * cmToMm(r.height), 0);
-    const weight = rows.reduce((s, r) => s + (r.quantity || 0) * (r.weight || 0), 0);
+    const units = activeRows.reduce((s, r) => s + (r.quantity || 0), 0);
+    const volume = activeRows.reduce((s, r) => s + (r.quantity || 0) * cmToMm(r.length) * cmToMm(r.width) * cmToMm(r.height), 0);
+    const weight = activeRows.reduce((s, r) => s + (r.quantity || 0) * (r.weight || 0), 0);
     return { units, volume, weight };
-  }, [rows]);
+  }, [activeRows]);
 
   const containerVolume = container.length * container.width * container.height;
   const overweight = container.maxWeight != null && totals.weight > container.maxWeight;
@@ -234,7 +271,7 @@ export default function LoadOptimizer({ onBack }) {
   };
   const removeRow = (id) => { setRows((rs) => rs.filter((r) => r.id !== id)); if (status !== 'idle') reset(); };
   const addRow = () => setRows((rs) => [...rs, emptyRow()]);
-  const loadExample = () => { setRows(exampleRows()); reset(); track('load_optimizer_example_clicked'); };
+  const loadExample = () => { setRows(exampleRows()); setExcludedStops([]); reset(); track('load_optimizer_example_clicked'); };
 
   const flashImport = (type, text) => { setImportMsg({ type, text }); setTimeout(() => setImportMsg(null), 6000); };
 
@@ -242,6 +279,7 @@ export default function LoadOptimizer({ onBack }) {
     const mapped = bulkToRows(parsed);
     if (mapped.length === 0) { flashImport('error', 'Aucune ligne exploitable. Colonnes attendues : Référence, Qté, Longueur, Largeur, Hauteur, Poids, Rotation, Empilable.'); return; }
     setRows(mapped);
+    setExcludedStops([]);
     reset();
     flashImport('success', `${mapped.length} ligne(s) importée(s)${src ? ` depuis « ${src} »` : ''}.`);
   };
@@ -272,8 +310,8 @@ export default function LoadOptimizer({ onBack }) {
 
   const downloadTemplate = () => {
     const sample = [
-      { 'Référence': 'CARTON-A', 'Quantité': 40, 'Longueur (cm)': 60, 'Largeur (cm)': 40, 'Hauteur (cm)': 40, 'Poids (kg)': 12, 'Rotation': 'Libre', 'Empilable': 'Oui' },
-      { 'Référence': 'PALETTE-EURO', 'Quantité': 4, 'Longueur (cm)': 120, 'Largeur (cm)': 80, 'Hauteur (cm)': 140, 'Poids (kg)': 450, 'Rotation': 'Horizontale', 'Empilable': 'Non' },
+      { 'Référence': 'CARTON-A', 'Quantité': 40, 'Longueur (cm)': 60, 'Largeur (cm)': 40, 'Hauteur (cm)': 40, 'Poids (kg)': 12, 'Rotation': 'Libre', 'Empilable': 'Oui', 'Arrêt': 1, 'Destination': 'Client A' },
+      { 'Référence': 'PALETTE-EURO', 'Quantité': 4, 'Longueur (cm)': 120, 'Largeur (cm)': 80, 'Hauteur (cm)': 140, 'Poids (kg)': 450, 'Rotation': 'Horizontale', 'Empilable': 'Non', 'Arrêt': 2, 'Destination': 'Client B' },
     ];
     const ws = XLSX.utils.json_to_sheet(sample);
     const wb = XLSX.utils.book_new();
@@ -281,11 +319,67 @@ export default function LoadOptimizer({ onBack }) {
     XLSX.writeFile(wb, 'atelier-chargement-modele.xlsx');
   };
 
+  const runWith = (excluded, mode = deliveryMode) => {
+    const defs = rowsToDefinitions(rows.filter((r) => !excluded.includes(r.stop ?? 1)));
+    setHighlight(null);
+    setUnloadedUpTo(0);
+    setDeferredExcess([]);
+    if (defs.length === 0) { reset(); return; }
+    run(container, defs, { deliveryMode: mode });
+  };
+
   const optimize = () => {
     if (!valid) return;
-    setHighlight(null);
-    track('load_optimizer_calculation_started', { references: rows.length, units: totals.units, container: containerId });
-    run(container, rowsToDefinitions(rows));
+    track('load_optimizer_calculation_started', { references: rows.length, units: totals.units, container: containerId, stops: stops.length });
+    runWith(excludedStops);
+  };
+
+  const changeDeliveryMode = (mode) => { setDeliveryMode(mode); if (status !== 'idle') reset(); };
+  const trySoft = () => { setDeliveryMode('SOFT'); runWith(excludedStops, 'SOFT'); };
+
+  // Dépassement : retirer un arrêt entier (re-calcul) ou reporter seulement l'excédent.
+  const excludeStop = (stop) => {
+    const next = [...new Set([...excludedStops, stop])];
+    setExcludedStops(next);
+    track('load_optimizer_stop_removed');
+    runWith(next);
+  };
+  const restoreStop = (stop) => {
+    const next = excludedStops.filter((s) => s !== stop);
+    setExcludedStops(next);
+    runWith(next);
+  };
+  const deferExcess = (stop) => { setDeferredExcess((d) => [...new Set([...d, stop])]); track('load_optimizer_excess_deferred'); };
+  const undoDefer = (stop) => setDeferredExcess((d) => d.filter((s) => s !== stop));
+
+  /** Lignes à reporter sur un autre véhicule : arrêts retirés + excédents acceptés. */
+  const leftovers = useMemo(() => {
+    const out = [];
+    for (const stop of excludedStops) {
+      for (const r of rows.filter((x) => (x.stop ?? 1) === stop)) {
+        out.push({ stop, destination: r.destination || '', reference: r.reference, quantity: r.quantity, reason: 'Arrêt retiré' });
+      }
+    }
+    if (result) {
+      for (const stop of deferredExcess) {
+        const byRef = {};
+        for (const u of result.unpackedItems.filter((x) => x.stop === stop)) {
+          byRef[u.reference] = byRef[u.reference] || { stop, destination: u.destination || '', reference: u.reference, quantity: 0, reason: 'Colis en excès' };
+          byRef[u.reference].quantity++;
+        }
+        out.push(...Object.values(byRef));
+      }
+    }
+    return out.sort((a, b) => a.stop - b.stop);
+  }, [excludedStops, deferredExcess, rows, result]);
+
+  const exportLeftovers = () => {
+    const ws = XLSX.utils.json_to_sheet(leftovers.map((l) => ({
+      'Arrêt': l.stop, 'Destination': l.destination, 'Référence': l.reference, 'Quantité': l.quantity, 'Motif': l.reason,
+    })));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'A reporter');
+    XLSX.writeFile(wb, 'atelier-chargement-reliquats.xlsx');
   };
 
   return (
@@ -356,7 +450,8 @@ export default function LoadOptimizer({ onBack }) {
                     <tr className="border-b border-slate-100">
                       <Th className="text-left">Référence</Th>
                       <Th>Qté</Th><Th>L</Th><Th>l</Th><Th>H</Th><Th>Poids</Th>
-                      <Th>Rotation</Th><Th>Empil.</Th><Th></Th>
+                      <Th>Rotation</Th><Th>Empil.</Th>
+                      <Th title="1 = livré en premier">Arrêt</Th><Th className="text-left">Destination</Th><Th></Th>
                     </tr>
                   </thead>
                   <tbody>
@@ -395,6 +490,12 @@ export default function LoadOptimizer({ onBack }) {
                               {r.stackable ? <Check size={13} /> : '—'}
                             </button>
                           </td>
+                          <td className="px-1 py-1.5"><NumCell value={r.stop ?? 1} onChange={(v) => updateRow(r.id, 'stop', v)} error={err.stop} width="w-12" /></td>
+                          <td className="px-1 py-1.5">
+                            <input value={r.destination ?? ''} onChange={(e) => updateRow(r.id, 'destination', e.target.value)}
+                              placeholder="Client…"
+                              className="w-24 px-2 py-1.5 bg-white border border-slate-200 rounded-md outline-none font-jetbrains text-xs text-slate-800 focus:border-slate-400" />
+                          </td>
                           <td className="px-1 py-1.5 text-center">
                             <button onClick={() => removeRow(r.id)} className="text-slate-300 hover:text-red-500"><Trash2 size={13} /></button>
                           </td>
@@ -402,7 +503,7 @@ export default function LoadOptimizer({ onBack }) {
                       );
                     })}
                     {rows.length === 0 && (
-                      <tr><td colSpan={9} className="text-center text-slate-400 py-6 text-sm">Aucune marchandise — ajoutez une référence ou chargez l'exemple.</td></tr>
+                      <tr><td colSpan={11} className="text-center text-slate-400 py-6 text-sm">Aucune marchandise — ajoutez une référence ou chargez l'exemple.</td></tr>
                     )}
                   </tbody>
                 </table>
@@ -411,7 +512,7 @@ export default function LoadOptimizer({ onBack }) {
                 <button onClick={addRow} className="flex items-center gap-1.5 font-jetbrains text-xs px-3 py-2 rounded-md" style={{ background: '#F1F5F9', color: '#475569' }}>
                   <Plus size={13} /> Ajouter une référence
                 </button>
-                <span className="font-jetbrains text-[10px] text-slate-400">dimensions en cm · poids en kg</span>
+                <span className="font-jetbrains text-[10px] text-slate-400">dimensions en cm · poids en kg · arrêt 1 = livré en premier</span>
               </div>
             </div>
 
@@ -460,6 +561,27 @@ export default function LoadOptimizer({ onBack }) {
                 <div><div className="font-jetbrains text-[10px] text-slate-500">Poids total</div><div className="font-bricolage font-bold text-xl text-slate-800">{formatKg(totals.weight)} kg</div></div>
                 <div><div className="font-jetbrains text-[10px] text-slate-500">Contenant</div><div className="font-bricolage font-bold text-xl text-slate-800">{formatM3(containerVolume)} m³</div></div>
               </div>
+              {multiStop && (
+                <div className="mb-3 px-3 py-2.5 rounded-md bg-white border border-slate-200">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="font-jetbrains text-[11px] text-slate-700 flex items-center gap-1.5">
+                      <MapPin size={12} style={{ color: BLUE }} /> Tournée : {stops.length} arrêts · arrêt 1 chargé côté portes
+                    </div>
+                    <div className="flex items-center gap-0.5 p-0.5 rounded-md" style={{ background: '#F1F5F9' }}>
+                      {DELIVERY_MODES.map((m) => (
+                        <button key={m.value} onClick={() => changeDeliveryMode(m.value)} className="px-2 py-1 rounded text-[10px] font-jetbrains"
+                          style={deliveryMode === m.value ? { background: '#fff', color: BLUE, fontWeight: 600 } : { color: '#64748B' }}>{m.label}</button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="text-[10px] text-slate-500 mt-1">{DELIVERY_MODES.find((m) => m.value === deliveryMode)?.hint}</div>
+                  {excludedStops.length > 0 && (
+                    <div className="text-[10px] mt-1" style={{ color: '#B45309' }}>
+                      Retiré(s) du camion : {excludedStops.map((s) => stopLabel(s, rows)).join(', ')}
+                    </div>
+                  )}
+                </div>
+              )}
               {overweight && (
                 <div className="flex items-start gap-2 text-[11px] mb-3 px-3 py-2 rounded-md" style={{ background: '#FFFBEB', color: '#B45309', border: '1px solid #FDE68A' }}>
                   <AlertCircle size={13} className="mt-0.5 shrink-0" />
@@ -493,6 +615,12 @@ export default function LoadOptimizer({ onBack }) {
                   <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 font-jetbrains text-xs text-slate-600 flex items-center justify-between gap-2">
                     <span className="flex items-center gap-2"><Box size={13} /> PLAN DE CHARGEMENT</span>
                     <div className="flex items-center gap-2">
+                      {multiStopResult && (
+                        <div className="flex items-center gap-0.5 p-0.5 rounded-md" style={{ background: '#F1F5F9' }} title="Couleur des colis">
+                          <button onClick={() => { setColorBy('ref'); setHighlight(null); }} className="px-2 py-1 rounded text-[10px]" style={effColorBy === 'ref' ? { background: '#fff', color: BLUE, fontWeight: 600 } : { color: '#64748B' }}>Réf.</button>
+                          <button onClick={() => { setColorBy('stop'); setHighlight(null); }} className="px-2 py-1 rounded text-[10px]" style={effColorBy === 'stop' ? { background: '#fff', color: BLUE, fontWeight: 600 } : { color: '#64748B' }}>Arrêt</button>
+                        </div>
+                      )}
                       <div className="flex items-center gap-0.5 p-0.5 rounded-md" style={{ background: '#F1F5F9' }}>
                         <button onClick={() => setView3d(true)} className="px-2 py-1 rounded text-[10px]" style={view3d ? { background: '#fff', color: BLUE, fontWeight: 600 } : { color: '#64748B' }}>3D</button>
                         <button onClick={() => setView3d(false)} className="px-2 py-1 rounded text-[10px]" style={!view3d ? { background: '#fff', color: BLUE, fontWeight: 600 } : { color: '#64748B' }}>Schéma</button>
@@ -502,22 +630,52 @@ export default function LoadOptimizer({ onBack }) {
                   </div>
                   <div className="p-4 relative">
                     {view3d ? (
-                      <ThreeErrorBoundary fallback={<Schematic2D container={container} placed={result.placedItems} colorOf={colorOf} highlight={highlight} />}>
+                      <ThreeErrorBoundary fallback={<Schematic2D container={container} placed={visiblePlaced} colorOf={colorOf} isDimmed={isDimmed} blockedIds={blockedIds} />}>
                         <Suspense fallback={<div className="flex items-center justify-center text-slate-400 font-jetbrains text-xs" style={{ height: 460 }}><Loader2 size={18} className="animate-spin mr-2" /> Chargement de la vue 3D…</div>}>
-                          <LoadView3D container={container} placed={result.placedItems} colorOf={colorOf} highlight={highlight} onHover={setHovered} />
+                          <LoadView3D container={container} placed={visiblePlaced} colorOf={colorOf} isDimmed={isDimmed} blockedIds={blockedIds} onHover={setHovered} />
                         </Suspense>
                       </ThreeErrorBoundary>
                     ) : (
-                      <Schematic2D container={container} placed={result.placedItems} colorOf={colorOf} highlight={highlight} />
+                      <Schematic2D container={container} placed={visiblePlaced} colorOf={colorOf} isDimmed={isDimmed} blockedIds={blockedIds} />
                     )}
                     {hovered && (
                       <div className="absolute bottom-3 left-3 bg-white/95 border border-slate-200 rounded-lg px-3 py-2 font-jetbrains text-[11px] shadow-sm pointer-events-none">
                         <div className="font-semibold text-slate-800">{hovered.reference}</div>
                         <div className="text-slate-500">{Math.round(hovered.originalLength / 10)} × {Math.round(hovered.originalWidth / 10)} × {Math.round(hovered.originalHeight / 10)} cm · {hovered.weight} kg</div>
+                        {multiStopResult && <div className="text-slate-500">{stopLabel(hovered.stop ?? 1, rows)}</div>}
+                        {blockedIds.has(hovered.id) && <div style={{ color: '#DC2626' }}>À déplacer pour livrer cet arrêt</div>}
                       </div>
                     )}
                   </div>
                   {/* Légende */}
+                  {multiStopResult && (
+                    <div className="px-4 py-2.5 border-t border-slate-100 flex items-center gap-1.5 flex-wrap">
+                      <span className="font-jetbrains text-[10px] text-slate-500 mr-1">DÉCHARGEMENT</span>
+                      <button onClick={() => setUnloadedUpTo(0)} className="px-2 py-1 rounded text-[10px] font-jetbrains"
+                        style={unloadedUpTo === 0 ? { background: BLUE, color: '#fff' } : { background: '#F1F5F9', color: '#475569' }}>Complet</button>
+                      {resultStops.slice(0, -1).map((s) => (
+                        <button key={s.stop} onClick={() => setUnloadedUpTo(s.stop)} className="px-2 py-1 rounded text-[10px] font-jetbrains"
+                          style={unloadedUpTo === s.stop ? { background: BLUE, color: '#fff' } : { background: '#F1F5F9', color: '#475569' }}>
+                          Après arrêt {s.stop}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {effColorBy === 'stop' ? (
+                    <div className="px-4 py-3 border-t border-slate-100 flex flex-wrap gap-x-4 gap-y-1.5">
+                      {resultStops.filter((s) => s.packedItems > 0).map((s) => {
+                        const key = `stop:${s.stop}`;
+                        return (
+                          <button key={key} onClick={() => setHighlight((h) => (h === key ? null : key))}
+                            className="flex items-center gap-1.5 text-[11px] font-jetbrains"
+                            style={{ opacity: (highlight && highlight !== key) || s.stop <= unloadedUpTo ? 0.4 : 1 }}>
+                            <span className="w-3 h-3 rounded-sm" style={{ background: stopColor(s.stop).solid }} />
+                            {stopLabel(s.stop, rows)} <span className="text-slate-400">· {s.packedItems}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : (
                   <div className="px-4 py-3 border-t border-slate-100 flex flex-wrap gap-x-4 gap-y-1.5">
                     {rows.map((r, i) => {
                       const count = result.placedItems.filter((p) => p.definitionId === r.id).length;
@@ -532,9 +690,113 @@ export default function LoadOptimizer({ onBack }) {
                       );
                     })}
                   </div>
+                  )}
                 </div>
 
-                {result.unpackedCount > 0 && (
+                {multiStopResult && (
+                  <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+                    <div className="px-4 py-2.5 border-b border-slate-100 font-jetbrains text-[10px] tracking-wider text-slate-500 flex items-center gap-1.5">
+                      <MapPin size={12} /> TOURNÉE · {result.deliveryMode === 'SOFT' ? 'MODE SOUPLE' : 'MODE STRICT'}
+                    </div>
+                    <div className="divide-y divide-slate-50">
+                      {resultStops.map((s) => (
+                        <div key={s.stop} className="px-4 py-2 flex items-center justify-between gap-2 text-[11px] font-jetbrains">
+                          <span className="flex items-center gap-1.5 text-slate-800">
+                            <span className="w-2.5 h-2.5 rounded-sm" style={{ background: stopColor(s.stop).solid }} />{stopLabel(s.stop, rows)}
+                          </span>
+                          <span className="text-slate-500">
+                            <span style={{ color: s.unpackedItems > 0 ? '#B91C1C' : undefined }}>{s.packedItems}/{s.totalItems}</span> · {formatKg(s.packedWeight)} kg · {formatM3(s.packedVolume)} m³
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                    {result.blockedItemIds.length > 0 ? (
+                      <div className="px-4 py-2.5 border-t border-slate-100 text-[11px] flex items-start gap-1.5" style={{ color: '#B91C1C', background: '#FEF2F2' }}>
+                        <AlertCircle size={13} className="mt-0.5 shrink-0" />
+                        {result.blockedItemIds.length} colis devront être déplacés pour accéder à leur arrêt (bordure rouge sur le plan).
+                      </div>
+                    ) : (
+                      <div className="px-4 py-2.5 border-t border-slate-100 text-[11px] flex items-center gap-1.5" style={{ color: '#15803D', background: '#F0FDF4' }}>
+                        <Check size={13} /> Chaque arrêt est accessible sans déplacer de colis.
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {result.unpackedCount > 0 && multiStopResult && (
+                  <div className="rounded-xl border p-4 bg-white space-y-3" style={{ borderColor: '#FECACA' }}>
+                    <div className="font-jetbrains text-[10px] tracking-wider flex items-center gap-1.5" style={{ color: '#B91C1C' }}>
+                      <AlertCircle size={12} /> TOUT NE RENTRE PAS — QUE FAIRE ?
+                    </div>
+                    {resultStops.filter((s) => s.unpackedItems > 0).map((s) => {
+                      const refs = Object.entries(result.unpackedItems.filter((u) => u.stop === s.stop)
+                        .reduce((acc, u) => { acc[u.reference] = (acc[u.reference] || 0) + 1; return acc; }, {}));
+                      const deferred = deferredExcess.includes(s.stop);
+                      return (
+                        <div key={s.stop} className="rounded-lg border border-slate-200 p-3">
+                          <div className="flex items-center justify-between gap-2 flex-wrap">
+                            <span className="font-jetbrains text-xs font-medium text-slate-800 flex items-center gap-1.5">
+                              <span className="w-2.5 h-2.5 rounded-sm" style={{ background: stopColor(s.stop).solid }} />{stopLabel(s.stop, rows)}
+                            </span>
+                            <span className="font-jetbrains text-[11px]" style={{ color: '#B91C1C' }}>{s.unpackedItems} colis en excès sur {s.totalItems}</span>
+                          </div>
+                          <div className="font-jetbrains text-[11px] text-slate-500 mt-1">{refs.map(([ref, q]) => `${ref} ×${q}`).join(' · ')}</div>
+                          {deferred ? (
+                            <div className="mt-2 flex items-center justify-between gap-2 text-[11px] font-jetbrains" style={{ color: '#15803D' }}>
+                              <span className="flex items-center gap-1"><Check size={12} /> Excédent reporté, le reste de l'arrêt est chargé.</span>
+                              <button onClick={() => undoDefer(s.stop)} className="text-slate-400 hover:text-slate-700 flex items-center gap-1"><Undo2 size={11} /> Annuler</button>
+                            </div>
+                          ) : (
+                            <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                              <button onClick={() => deferExcess(s.stop)} className="px-2.5 py-2 rounded-md text-[11px] font-jetbrains text-left" style={{ background: BLUE_LIGHT, color: BLUE }}>
+                                Reporter seulement les {s.unpackedItems} colis en excès
+                              </button>
+                              <button onClick={() => excludeStop(s.stop)} className="px-2.5 py-2 rounded-md text-[11px] font-jetbrains text-left" style={{ background: '#FEF2F2', color: '#B91C1C' }}>
+                                Retirer tout l'arrêt ({s.totalItems} colis) et recalculer
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                    {result.deliveryMode === 'STRICT' && (
+                      <button onClick={trySoft} className="w-full text-[11px] font-jetbrains text-slate-500 hover:text-slate-800 underline underline-offset-2">
+                        Ou essayer le mode souple (charge plus, avec des colis à déplacer en livraison)
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {leftovers.length > 0 && (
+                  <div className="rounded-xl border p-4 bg-white" style={{ borderColor: '#FDE68A' }}>
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <div className="font-jetbrains text-[10px] tracking-wider" style={{ color: '#B45309' }}>À REPORTER SUR UN AUTRE VÉHICULE</div>
+                      <button onClick={exportLeftovers} className="flex items-center gap-1 font-jetbrains text-[10px] px-2 py-1 rounded-md" style={{ background: '#FFFBEB', color: '#B45309' }}>
+                        <Download size={11} /> Excel
+                      </button>
+                    </div>
+                    <div className="space-y-1">
+                      {leftovers.map((l, i) => (
+                        <div key={i} className="flex items-center gap-2 text-[11px] font-jetbrains text-slate-600">
+                          <span className="text-slate-800">{stopLabel(l.stop, rows)}</span>
+                          <span>{l.reference} ×{l.quantity}</span>
+                          <span className="text-slate-400">· {l.reason}</span>
+                        </div>
+                      ))}
+                    </div>
+                    {excludedStops.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {excludedStops.map((s) => (
+                          <button key={s} onClick={() => restoreStop(s)} className="flex items-center gap-1 font-jetbrains text-[10px] px-2 py-1 rounded-md" style={{ background: '#F1F5F9', color: '#475569' }}>
+                            <Undo2 size={11} /> Réintégrer l'arrêt {s}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {result.unpackedCount > 0 && !multiStopResult && (
                   <div className="rounded-xl border p-4 bg-white" style={{ borderColor: '#FECACA' }}>
                     <div className="font-jetbrains text-[10px] tracking-wider mb-2 flex items-center gap-1.5" style={{ color: '#B91C1C' }}>
                       <AlertCircle size={12} /> MARCHANDISES NON CHARGÉES
