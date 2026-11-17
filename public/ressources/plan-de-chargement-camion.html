@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Plan de chargement camion et conteneur : méthode, calcul et tournées multi-arrêts · Atelier Logistique</title>
+  <meta name="description" content="Comment faire un plan de chargement de camion ou de conteneur : dimensions utiles, nombre de palettes, empilage, poids, ordre de livraison LIFO pour les tournées multi-arrêts. Méthode en 5 étapes, exemple chiffré et optimiseur 3D gratuit." />
+  <meta name="keywords" content="plan de chargement camion, optimisation chargement camion, calcul chargement conteneur, combien de palettes dans un camion, chargement semi-remorque, taux de remplissage camion, chargement multi-destinations, tournée de livraison, LIFO chargement, logiciel plan de chargement gratuit" />
+  <link rel="canonical" href="https://atelierlogistique.com/ressources/plan-de-chargement-camion" />
+
+  <meta property="og:title" content="Plan de chargement camion et conteneur : la méthode complète" />
+  <meta property="og:description" content="Dimensions utiles, palettes, empilage, poids et ordre de livraison multi-arrêts. Méthode en 5 étapes et optimiseur 3D gratuit." />
+  <meta property="og:type" content="article" />
+  <meta property="og:url" content="https://atelierlogistique.com/ressources/plan-de-chargement-camion" />
+  <meta property="og:site_name" content="Atelier Logistique" />
+  <meta property="og:locale" content="fr_FR" />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Plan de chargement camion : méthode + optimiseur 3D gratuit" />
+  <meta name="twitter:description" content="Remplir un camion sans rien oublier : volume, poids, empilage et tournées multi-arrêts." />
+
+  <link rel="icon" type="image/png" href="/favicon_atelierlogistique.png" />
+  <link rel="apple-touch-icon" href="/favicon_atelierlogistique.png" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=JetBrains+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = { theme: { extend: { fontFamily: {
+      bricolage: ['Bricolage Grotesque', 'sans-serif'],
+      sans: ['DM Sans', 'sans-serif'],
+      jetbrains: ['JetBrains Mono', 'monospace'],
+    } } } };
+  </script>
+
+  <style>
+    body { font-family: 'DM Sans', system-ui, sans-serif; }
+    .font-bricolage { font-family: 'Bricolage Grotesque', sans-serif; letter-spacing: -0.02em; }
+    .font-jetbrains { font-family: 'JetBrains Mono', monospace; }
+    h1, h2, h3, h4 { font-family: 'Bricolage Grotesque', sans-serif; letter-spacing: -0.02em; }
+    .prose-content p { margin-bottom: 1rem; line-height: 1.75; }
+    .prose-content ul, .prose-content ol { padding-left: 1.5rem; margin-bottom: 1rem; }
+    .prose-content ul { list-style: disc; }
+    .prose-content ol { list-style: decimal; }
+    .prose-content li { margin-bottom: 0.5rem; line-height: 1.65; }
+    .prose-content a { color: #2563EB; text-decoration: underline; text-underline-offset: 2px; }
+    @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+    .pulse-dot { animation: pulse-dot 2s ease-in-out infinite; }
+    details summary { list-style: none; }
+    details summary::-webkit-details-marker { display: none; }
+  </style>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "headline": "Plan de chargement camion et conteneur : méthode, calcul et tournées multi-arrêts",
+    "description": "Méthode complète pour établir un plan de chargement de camion ou de conteneur : dimensions utiles, capacité en palettes, empilage, poids, ordre de livraison LIFO pour les tournées multi-arrêts, exemple chiffré et erreurs à éviter.",
+    "author": { "@type": "Organization", "name": "WALYCONSEIL", "url": "https://walyconseil.com" },
+    "publisher": { "@type": "Organization", "name": "Atelier Logistique" },
+    "datePublished": "2026-11-17", "dateModified": "2026-11-17",
+    "mainEntityOfPage": "https://atelierlogistique.com/ressources/plan-de-chargement-camion", "inLanguage": "fr-FR",
+    "about": ["Plan de chargement", "Optimisation du transport", "Tournée de livraison multi-arrêts"]
+  }
+  </script>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org", "@type": "SoftwareApplication",
+    "name": "Optimiseur de chargement 3D",
+    "applicationCategory": "BusinessApplication", "operatingSystem": "Web",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "EUR" },
+    "description": "Optimiseur gratuit de chargement de camion et de conteneur : cartons et palettes, rotations, empilage, poids, tournées multi-arrêts (LIFO), plan 3D et fiche de chargement imprimable.",
+    "url": "https://atelierlogistique.com/outils/optimiseur-chargement"
+  }
+  </script>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org", "@type": "BreadcrumbList",
+    "itemListElement": [
+      { "@type": "ListItem", "position": 1, "name": "Atelier Logistique", "item": "https://atelierlogistique.com/" },
+      { "@type": "ListItem", "position": 2, "name": "Ressources", "item": "https://atelierlogistique.com/ressources" },
+      { "@type": "ListItem", "position": 3, "name": "Plan de chargement camion", "item": "https://atelierlogistique.com/ressources/plan-de-chargement-camion" }
+    ]
+  }
+  </script>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org", "@type": "FAQPage",
+    "mainEntity": [
+      { "@type": "Question", "name": "Combien de palettes peut-on charger dans une semi-remorque ?", "acceptedAnswer": { "@type": "Answer", "text": "Une semi-remorque standard de 13,60 m de long et 2,45 m de large intérieur accepte 33 palettes Europe (120 × 80 cm) au sol, ou 26 palettes 120 × 100 cm. Si les palettes sont gerbables et que la hauteur et la charge utile le permettent, ce nombre peut doubler. C'est souvent le poids, et non le volume, qui limite alors le chargement." } },
+      { "@type": "Question", "name": "Combien de palettes dans un conteneur 20 pieds ou 40 pieds ?", "acceptedAnswer": { "@type": "Answer", "text": "Au sol, un conteneur 20 pieds reçoit environ 11 palettes Europe et un conteneur 40 pieds environ 23 à 24. La largeur intérieure (environ 2,35 m) étant inférieure à celle d'une semi-remorque, le calepinage des palettes est moins efficace qu'en camion. Le 40 pieds High Cube offre environ 30 cm de hauteur supplémentaire, utile pour gerber des palettes basses." } },
+      { "@type": "Question", "name": "Comment charger un camion pour une tournée à plusieurs livraisons ?", "acceptedAnswer": { "@type": "Answer", "text": "On applique la règle LIFO (dernier entré, premier sorti) : la marchandise du dernier arrêt est chargée en premier, au fond du camion, et celle du premier arrêt en dernier, côté portes. Aucun colis d'un arrêt ultérieur ne doit se trouver devant ou au-dessus d'un colis à livrer plus tôt, sinon il faudra le décharger puis le recharger en cours de tournée." } },
+      { "@type": "Question", "name": "Que faire si toute la marchandise ne rentre pas dans le camion ?", "acceptedAnswer": { "@type": "Answer", "text": "Deux options s'offrent au planificateur : reporter uniquement les colis en excès sur un autre véhicule, ce qui livre partiellement un client, ou retirer un arrêt entier de la tournée pour le confier à un autre camion, ce qui garantit des livraisons complètes. Le choix dépend des engagements de service (livraison complète obligatoire ou non) et du coût d'un second passage." } },
+      { "@type": "Question", "name": "Comment calculer le taux de remplissage d'un camion ?", "acceptedAnswer": { "@type": "Answer", "text": "Le taux de remplissage volumique est le volume total des colis chargés divisé par le volume utile du contenant (longueur × largeur × hauteur intérieures). Il faut le lire en parallèle du taux d'utilisation de la charge utile : une marchandise dense sature le poids avant le volume, une marchandise légère et encombrante sature le volume avant le poids." } },
+      { "@type": "Question", "name": "Existe-t-il un logiciel gratuit pour faire un plan de chargement ?", "acceptedAnswer": { "@type": "Answer", "text": "Oui. L'optimiseur de chargement 3D d'Atelier Logistique est gratuit, sans compte et fonctionne dans le navigateur. Il calcule le placement des cartons et palettes dans une semi-remorque ou un conteneur, gère les rotations, l'empilage, le poids et les tournées multi-arrêts, affiche le plan en 3D et produit une fiche de chargement imprimable." } }
+    ]
+  }
+  </script>
+</head>
+
+<body class="bg-white text-slate-900">
+
+  <!-- HEADER -->
+  <nav class="border-b border-slate-200 sticky top-0 z-20 bg-white/90 backdrop-blur-sm">
+    <div class="max-w-7xl mx-auto px-6 md:px-10 py-4 flex items-center justify-between">
+      <a href="/" class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-md flex items-center justify-center relative overflow-hidden" style="background: #2563EB;">
+          <svg viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg" class="w-[78%] h-[78%]">
+            <rect x="5" y="11" width="26" height="2.5" rx="0.5" fill="white" />
+            <rect x="5" y="14.5" width="26" height="2.5" rx="0.5" fill="white" />
+            <rect x="6" y="17.5" width="4.5" height="5" rx="0.3" fill="white" opacity="0.82" />
+            <rect x="15.75" y="17.5" width="4.5" height="5" rx="0.3" fill="white" opacity="0.82" />
+            <rect x="25.5" y="17.5" width="4.5" height="5" rx="0.3" fill="white" opacity="0.82" />
+            <rect x="5" y="23" width="26" height="2.5" rx="0.5" fill="white" />
+          </svg>
+        </div>
+        <div>
+          <div class="font-bricolage font-bold text-lg tracking-tight text-slate-900">ATELIER LOGISTIQUE</div>
+          <div class="font-jetbrains text-[10px] text-slate-500 -mt-1 tracking-wider">SUITE D'OUTILS · v0.2 · WALYCONSEIL</div>
+        </div>
+      </a>
+      <div class="hidden md:flex items-center gap-5 font-jetbrains text-xs text-slate-500">
+        <a href="/#tools" class="hover:text-slate-900 transition-colors">Outils</a>
+        <a href="/#how" class="hover:text-slate-900 transition-colors">Comment ça marche</a>
+        <a href="/ressources" class="hover:text-slate-900 transition-colors">Ressources</a>
+        <span class="text-slate-300">|</span>
+        <span class="flex items-center gap-2" style="color: #2563EB;">
+          <span class="w-1.5 h-1.5 rounded-full pulse-dot" style="background: #2563EB;"></span>
+          EN LIGNE
+        </span>
+      </div>
+    </div>
+  </nav>
+
+  <!-- BREADCRUMB -->
+  <nav class="max-w-7xl mx-auto px-6 md:px-10 py-3 font-jetbrains text-[11px] text-slate-500" aria-label="Fil d'Ariane">
+    <a href="/" class="hover:text-slate-900 transition-colors">ATELIER</a>
+    <span class="mx-2 text-slate-300">/</span>
+    <a href="/ressources" class="hover:text-slate-900 transition-colors">RESSOURCES</a>
+    <span class="mx-2 text-slate-300">/</span>
+    <span class="text-slate-800">PLAN DE CHARGEMENT</span>
+  </nav>
+
+  <!-- HERO -->
+  <section class="relative max-w-7xl mx-auto px-6 md:px-10 pt-12 md:pt-16 pb-16 md:pb-20">
+    <div class="font-jetbrains text-xs mb-6 flex items-center gap-2 tracking-wider" style="color: #2563EB;">
+      <span>●</span>
+      <span>TRANSPORT & EXPÉDITION — GUIDE PRATIQUE</span>
+    </div>
+    <h1 class="font-bricolage font-bold text-4xl md:text-6xl lg:text-7xl leading-[0.95] mb-6 tracking-tight max-w-4xl text-slate-900">
+      Le <em class="italic font-normal text-slate-400">plan de chargement</em>
+      <br />d'un camion, <span style="color: #2563EB;">sans à-peu-près.</span>
+    </h1>
+    <p class="text-slate-600 text-lg md:text-xl max-w-3xl leading-relaxed">
+      Combien de palettes dans une semi-remorque, comment empiler sans écraser, comment respecter la charge utile,
+      et surtout comment charger une tournée à plusieurs livraisons pour que chaque client soit accessible au bon moment.
+      La méthode complète, avec un exemple chiffré et un optimiseur 3D gratuit.
+    </p>
+    <div class="flex flex-wrap items-center gap-3 mt-10 font-jetbrains text-xs">
+      <a href="/outils/optimiseur-chargement" class="px-5 py-3 rounded-md font-medium transition-all hover:translate-y-[-1px] flex items-center gap-2 text-white" style="background: #2563EB;">
+        OUVRIR L'OPTIMISEUR 3D
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </a>
+      <a href="#multi-arrets" class="px-5 py-3 rounded-md font-medium border border-slate-300 text-slate-700 hover:bg-slate-50 transition-all">
+        TOURNÉES MULTI-ARRÊTS
+      </a>
+    </div>
+  </section>
+
+  <!-- CONTENU PRINCIPAL -->
+  <main class="max-w-3xl mx-auto px-6 md:px-10 py-12 prose-content text-slate-700 text-base">
+
+    <!-- SOMMAIRE -->
+    <nav class="mb-12 rounded-lg border border-slate-200 p-5" style="background: #F8FAFC;" aria-label="Sommaire">
+      <div class="font-jetbrains text-[10px] tracking-widest mb-3 text-slate-500">SOMMAIRE</div>
+      <ol class="text-sm space-y-1 mb-0">
+        <li><a href="#definition">Qu'est-ce qu'un plan de chargement ?</a></li>
+        <li><a href="#dimensions">Dimensions utiles et capacité en palettes</a></li>
+        <li><a href="#methode">La méthode en 5 étapes</a></li>
+        <li><a href="#multi-arrets">Tournées multi-arrêts : la règle LIFO</a></li>
+        <li><a href="#depassement">Quand tout ne rentre pas : que retirer ?</a></li>
+        <li><a href="#exemple">Exemple chiffré : une tournée à 3 arrêts</a></li>
+        <li><a href="#remplissage">Bien lire le taux de remplissage</a></li>
+        <li><a href="#erreurs">Les erreurs classiques</a></li>
+        <li><a href="#faq">FAQ</a></li>
+      </ol>
+    </nav>
+
+    <section id="definition" class="mb-12">
+      <div class="font-jetbrains text-[10px] tracking-widest mb-2" style="color: #2563EB;">01 · DÉFINITION</div>
+      <h2 class="font-bricolage font-bold text-3xl mb-4 text-slate-900">Qu'est-ce qu'un plan de chargement ?</h2>
+      <p>
+        Un <strong>plan de chargement</strong> décrit la position exacte de chaque colis (carton, palette, caisse)
+        dans un contenant : semi-remorque, porteur, conteneur maritime 20 ou 40 pieds. Il répond à trois objectifs
+        qui tirent souvent dans des directions opposées :
+      </p>
+      <ul>
+        <li><strong>Remplir au maximum</strong> le véhicule, parce qu'un camion qui roule à moitié vide coûte presque autant qu'un camion plein ;</li>
+        <li><strong>Respecter les contraintes physiques</strong> : charge utile, colis non gerbables, sens « haut », stabilité de la pile ;</li>
+        <li><strong>Faciliter le déchargement</strong>, en particulier quand le camion livre plusieurs clients dans la même tournée.</li>
+      </ul>
+      <p>
+        Fait « à l'œil » par le chef de quai, le plan est rarement optimal : on charge ce qui arrive en premier, on
+        laisse des vides en hauteur, et on découvre en bout de quai que les trois dernières palettes ne rentrent pas.
+        Calculé en amont, il devient un outil de décision : on sait <em>avant</em> de charger combien de véhicules
+        commander et ce qui partira demain.
+      </p>
+    </section>
+
+    <section id="dimensions" class="mb-12">
+      <div class="font-jetbrains text-[10px] tracking-widest mb-2" style="color: #2563EB;">02 · LES BASES</div>
+      <h2 class="font-bricolage font-bold text-3xl mb-4 text-slate-900">Dimensions utiles et capacité en palettes</h2>
+      <p>
+        Tout plan part des <strong>dimensions intérieures utiles</strong>, et non des dimensions extérieures du véhicule.
+        Les valeurs ci-dessous sont des ordres de grandeur courants : vérifiez toujours la fiche technique du
+        véhicule réellement affrété (hayon, ridelles, passages de roues et isolation réduisent l'espace).
+      </p>
+
+      <div class="my-6 rounded-lg overflow-hidden border border-slate-200 overflow-x-auto">
+        <table class="w-full text-xs min-w-[600px]">
+          <thead style="background: #F8FAFC;">
+            <tr>
+              <th class="text-left p-3 font-jetbrains text-[10px] text-slate-500 tracking-wider">CONTENANT</th>
+              <th class="text-left p-3 font-jetbrains text-[10px] text-slate-500 tracking-wider">L × l × H INTÉRIEURS</th>
+              <th class="text-left p-3 font-jetbrains text-[10px] text-slate-500 tracking-wider">VOLUME</th>
+              <th class="text-left p-3 font-jetbrains text-[10px] text-slate-500 tracking-wider">PALETTES EUROPE AU SOL</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="border-t border-slate-200"><td class="p-3 font-semibold">Semi-remorque standard</td><td class="p-3 font-jetbrains">13,60 × 2,45 × 2,70 m</td><td class="p-3 font-jetbrains">≈ 90 m³</td><td class="p-3"><strong>33</strong> (26 en 120 × 100)</td></tr>
+            <tr class="border-t border-slate-200" style="background: #FAFAFA;"><td class="p-3 font-semibold">Conteneur 20 pieds</td><td class="p-3 font-jetbrains">5,90 × 2,35 × 2,39 m</td><td class="p-3 font-jetbrains">≈ 33 m³</td><td class="p-3"><strong>11</strong></td></tr>
+            <tr class="border-t border-slate-200"><td class="p-3 font-semibold">Conteneur 40 pieds</td><td class="p-3 font-jetbrains">12,03 × 2,35 × 2,39 m</td><td class="p-3 font-jetbrains">≈ 67 m³</td><td class="p-3"><strong>23 à 24</strong></td></tr>
+            <tr class="border-t border-slate-200" style="background: #FAFAFA;"><td class="p-3 font-semibold">Conteneur 40 pieds High Cube</td><td class="p-3 font-jetbrains">12,03 × 2,35 × 2,69 m</td><td class="p-3 font-jetbrains">≈ 76 m³</td><td class="p-3"><strong>23 à 24</strong> (+30 cm de hauteur)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>
+        Pourquoi 33 palettes Europe dans une semi-remorque ? Une palette mesure 120 × 80 cm. Posées dans le sens de la
+        longueur, trois palettes côte à côte occupent 3 × 80 = 240 cm, ce qui tient dans les 245 cm de largeur. On
+        aligne ensuite 13,60 / 1,20 ≈ 11 rangées : 11 × 3 = <strong>33 palettes</strong>. Avec des palettes
+        120 × 100 cm, on n'en met que deux de front : 26 au total. Ce petit calcul de calepinage, c'est exactement
+        ce qu'un <a href="/outils/pallet">calculateur de palettisation</a> fait au niveau du colis, et un optimiseur
+        de chargement au niveau du camion.
+      </p>
+      <p>
+        Le conteneur maritime est moins favorable : avec 2,35 m de large, on ne pose pas trois palettes Europe de
+        front dans le même sens, et il reste des vides que seuls des cartons en vrac peuvent combler.
+      </p>
+    </section>
+
+    <section id="methode" class="mb-12">
+      <div class="font-jetbrains text-[10px] tracking-widest mb-2" style="color: #2563EB;">03 · MÉTHODE</div>
+      <h2 class="font-bricolage font-bold text-3xl mb-4 text-slate-900">La méthode en 5 étapes</h2>
+
+      <h3 class="font-bricolage font-semibold text-xl mt-6 mb-3 text-slate-900">1. Fiabiliser les données colis</h3>
+      <p>
+        Pour chaque référence : quantité, longueur, largeur, hauteur et poids unitaire. C'est l'étape la plus
+        sous-estimée : une hauteur de palette saisie sans le support bois (14,4 cm sur une Europe) suffit à
+        fausser tout le plan. Partez de votre ERP ou WMS et contrôlez les articles les plus volumineux.
+      </p>
+
+      <h3 class="font-bricolage font-semibold text-xl mt-6 mb-3 text-slate-900">2. Déclarer les contraintes de manipulation</h3>
+      <ul>
+        <li><strong>Rotation</strong> : libre (le carton peut être couché), horizontale uniquement (la palette reste sur ses pieds) ou interdite ;</li>
+        <li><strong>Gerbage</strong> : la marchandise supporte-t-elle d'être surmontée ? Un colis non gerbable « consomme » toute la hauteur au-dessus de lui ;</li>
+        <li><strong>Appui</strong> : un colis posé sur d'autres doit reposer sur une surface suffisante pour ne pas basculer au premier freinage.</li>
+      </ul>
+
+      <h3 class="font-bricolage font-semibold text-xl mt-6 mb-3 text-slate-900">3. Choisir le contenant et vérifier le poids</h3>
+      <p>
+        On compare le volume total au volume utile, et le poids total à la charge utile. Le premier seuil atteint
+        est la vraie limite. Une marchandise dense (boissons, carrelage, métal) sature le poids bien avant le
+        volume ; à l'inverse, de l'emballage vide ou du mobilier saturent le volume en restant très léger.
+      </p>
+
+      <h3 class="font-bricolage font-semibold text-xl mt-6 mb-3 text-slate-900">4. Ordonner le chargement</h3>
+      <p>
+        L'ordre dans lequel on présente les colis change le résultat. Les heuristiques classiques chargent d'abord
+        les plus gros volumes, ou les plus lourds pour les placer en bas, ou les non gerbables au sol. Un bon outil
+        essaie plusieurs ordres et garde le meilleur. Et si le camion livre plusieurs clients, l'ordre de livraison
+        prime sur tout le reste (voir la section suivante).
+      </p>
+
+      <h3 class="font-bricolage font-semibold text-xl mt-6 mb-3 text-slate-900">5. Valider et transmettre au quai</h3>
+      <p>
+        Le plan n'a de valeur que s'il est appliqué. Une vue 3D permet de contrôler la cohérence (rien ne flotte,
+        rien ne dépasse), puis une <strong>fiche de chargement</strong> imprimée donne au cariste la séquence
+        exacte : quoi charger en premier, où, et dans quel ordre. N'oubliez pas l'arrimage : la répartition des
+        charges et le calage restent sous la responsabilité du chargeur et du transporteur.
+      </p>
+    </section>
+
+    <section id="multi-arrets" class="mb-12">
+      <div class="font-jetbrains text-[10px] tracking-widest mb-2" style="color: #2563EB;">04 · TOURNÉES</div>
+      <h2 class="font-bricolage font-bold text-3xl mb-4 text-slate-900">Tournées multi-arrêts : la règle LIFO</h2>
+      <p>
+        Un camion de distribution livre rarement un seul client. Dès qu'il y a plusieurs arrêts, le problème change
+        de nature : il ne suffit plus de remplir, il faut que <strong>chaque livraison soit accessible au moment où
+        le camion arrive chez le client</strong>, sans décharger puis recharger la marchandise des clients suivants.
+      </p>
+      <p>
+        La règle est celle de la pile : <strong>LIFO, dernier entré, premier sorti</strong>.
+      </p>
+      <ul>
+        <li>La marchandise du <strong>dernier arrêt</strong> de la tournée est chargée <strong>en premier</strong>, au fond, côté cabine ;</li>
+        <li>celle du <strong>premier arrêt</strong> est chargée <strong>en dernier</strong>, côté portes ;</li>
+        <li>aucun colis d'un arrêt ultérieur ne doit se trouver <strong>devant</strong> (côté portes) ni <strong>au-dessus</strong> d'un colis à livrer plus tôt.</li>
+      </ul>
+
+      <div class="my-6 rounded-lg border border-slate-200 p-5" style="background: #F8FAFC;">
+        <div class="font-jetbrains text-[10px] text-slate-500 tracking-widest mb-3">VUE DE DESSUS · TOURNÉE À 3 ARRÊTS</div>
+        <svg viewBox="0 0 600 120" class="w-full h-auto" role="img" aria-label="Schéma d'une semi-remorque chargée en LIFO : arrêt 3 au fond côté cabine, arrêt 2 au milieu, arrêt 1 côté portes">
+          <rect x="10" y="20" width="560" height="80" fill="#fff" stroke="#94A3B8" stroke-width="1.5" />
+          <rect x="12" y="22" width="150" height="76" fill="#FDE7D2" stroke="#C2410C" />
+          <rect x="162" y="22" width="220" height="76" fill="#DCFCE7" stroke="#15803D" />
+          <rect x="382" y="22" width="186" height="76" fill="#DBEAFE" stroke="#1D4ED8" />
+          <text x="87" y="64" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="13" fill="#9A3412">Arrêt 3</text>
+          <text x="272" y="64" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="13" fill="#166534">Arrêt 2</text>
+          <text x="475" y="64" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="13" fill="#1E40AF">Arrêt 1</text>
+          <line x1="572" y1="18" x2="572" y2="102" stroke="#F59E0B" stroke-width="5" />
+          <text x="12" y="14" font-family="JetBrains Mono, monospace" font-size="10" fill="#64748B">CABINE · chargé en premier</text>
+          <text x="570" y="116" text-anchor="end" font-family="JetBrains Mono, monospace" font-size="10" fill="#B45309">PORTES · livré en premier</text>
+        </svg>
+      </div>
+
+      <p>
+        Respecter strictement cette règle a un coût : on ne peut plus combler un vide au fond avec un petit carton
+        du premier arrêt, et le taux de remplissage baisse un peu. D'où deux politiques possibles :
+      </p>
+      <ul>
+        <li><strong>Mode strict</strong> : chaque arrêt est accessible sans aucune manipulation. Ce qui ne peut pas respecter la règle reste à quai. C'est le bon choix pour les livraisons en centre-ville, les créneaux serrés ou les marchandises fragiles.</li>
+        <li><strong>Mode souple</strong> : on charge au maximum et l'on accepte que quelques colis soient à déplacer en cours de route, à condition de les identifier à l'avance. Pertinent quand le chauffeur dispose de temps et d'un transpalette.</li>
+      </ul>
+      <p>
+        Sur nos essais, sur un chargement serré de plusieurs centaines de cartons et palettes en semi-remorque, le
+        mode strict ne coûte qu'environ un point de remplissage, là où le mode souple laisse quelques colis à
+        manipuler. Dans la plupart des cas, le strict est donc le bon réglage par défaut.
+      </p>
+    </section>
+
+    <section id="depassement" class="mb-12">
+      <div class="font-jetbrains text-[10px] tracking-widest mb-2" style="color: #2563EB;">05 · ARBITRAGE</div>
+      <h2 class="font-bricolage font-bold text-3xl mb-4 text-slate-900">Quand tout ne rentre pas : que retirer ?</h2>
+      <p>
+        Le plan révèle parfois que la commande du jour dépasse la capacité du véhicule. Plutôt que de laisser le
+        quai décider au hasard, le planificateur a deux options claires, à arbitrer arrêt par arrêt :
+      </p>
+
+      <div class="my-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="rounded-lg border border-slate-200 p-4">
+          <div class="font-jetbrains text-[10px] tracking-widest mb-2" style="color: #2563EB;">OPTION A</div>
+          <div class="font-bricolage font-semibold text-lg text-slate-900 mb-2">Reporter seulement l'excédent</div>
+          <p class="text-sm mb-0">Le client est livré partiellement aujourd'hui, le reliquat part sur le véhicule suivant. On maximise le remplissage, au prix d'une livraison incomplète et d'un second passage.</p>
+        </div>
+        <div class="rounded-lg border border-slate-200 p-4">
+          <div class="font-jetbrains text-[10px] tracking-widest mb-2" style="color: #B91C1C;">OPTION B</div>
+          <div class="font-bricolage font-semibold text-lg text-slate-900 mb-2">Retirer l'arrêt entier</div>
+          <p class="text-sm mb-0">Toute la commande d'un client bascule sur un autre camion. Les livraisons restent complètes, et la place libérée permet souvent de charger intégralement les autres arrêts.</p>
+        </div>
+      </div>
+
+      <p>
+        Le bon choix dépend de vos engagements : un client grande distribution qui pénalise les livraisons
+        incomplètes (taux de service, <a href="/outils/sla">OTIF</a>) justifie l'option B ; un réassort non urgent
+        s'accommode très bien de l'option A. Dans les deux cas, la liste des reliquats doit sortir du plan et partir
+        directement à l'affrètement.
+      </p>
+    </section>
+
+    <section id="exemple" class="mb-12">
+      <div class="font-jetbrains text-[10px] tracking-widest mb-2" style="color: #2563EB;">06 · CAS PRATIQUE</div>
+      <h2 class="font-bricolage font-bold text-3xl mb-4 text-slate-900">Exemple chiffré : une tournée à 3 arrêts</h2>
+      <p>
+        Un distributeur prépare une semi-remorque au départ de Casablanca pour trois clients, avec des palettes
+        Europe de 140 cm de haut, non gerbables, de 400 kg chacune :
+      </p>
+
+      <div class="my-6 rounded-lg overflow-hidden border border-slate-200 overflow-x-auto">
+        <table class="w-full text-xs min-w-[520px]">
+          <thead style="background: #F8FAFC;">
+            <tr>
+              <th class="text-left p-3 font-jetbrains text-[10px] text-slate-500 tracking-wider">ARRÊT</th>
+              <th class="text-left p-3 font-jetbrains text-[10px] text-slate-500 tracking-wider">DESTINATION</th>
+              <th class="text-left p-3 font-jetbrains text-[10px] text-slate-500 tracking-wider">PALETTES</th>
+              <th class="text-left p-3 font-jetbrains text-[10px] text-slate-500 tracking-wider">POIDS</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="border-t border-slate-200"><td class="p-3 font-jetbrains font-bold">1</td><td class="p-3">Casa Nord</td><td class="p-3">15</td><td class="p-3">6 000 kg</td></tr>
+            <tr class="border-t border-slate-200" style="background: #FAFAFA;"><td class="p-3 font-jetbrains font-bold">2</td><td class="p-3">Rabat</td><td class="p-3">15</td><td class="p-3">6 000 kg</td></tr>
+            <tr class="border-t border-slate-200"><td class="p-3 font-jetbrains font-bold">3</td><td class="p-3">Kénitra</td><td class="p-3">10</td><td class="p-3">4 000 kg</td></tr>
+            <tr class="border-t border-slate-200 font-semibold" style="background: #F8FAFC;"><td class="p-3" colspan="2">Total</td><td class="p-3">40</td><td class="p-3">16 000 kg</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>
+        Le poids passe largement (16 t pour 24 t de charge utile), mais les palettes ne sont pas gerbables : on est
+        limité aux <strong>33 emplacements au sol</strong>. Il manque donc 7 places. Le plan en mode strict charge
+        les 10 palettes de Kénitra au fond, les 15 de Rabat au milieu, et seulement 8 des 15 palettes de Casa Nord
+        côté portes.
+      </p>
+      <ul>
+        <li><strong>Option A</strong> : on reporte les 7 palettes Casa Nord en excès. Le camion part avec 33 palettes, le client du premier arrêt est livré à moitié.</li>
+        <li><strong>Option B</strong> : on retire tout l'arrêt Casa Nord (15 palettes) pour un autre véhicule. Le camion part avec 25 palettes pour Rabat et Kénitra, toutes accessibles dans l'ordre, et il reste de la place pour un complément de dernière minute.</li>
+      </ul>
+      <p>
+        Le calcul prend quelques millisecondes. L'arbitrage, lui, est commercial, et c'est précisément ce que le
+        plan rend possible : décider avant de charger, plutôt que constater en bout de quai.
+      </p>
+    </section>
+
+    <section id="remplissage" class="mb-12">
+      <div class="font-jetbrains text-[10px] tracking-widest mb-2" style="color: #2563EB;">07 · INDICATEURS</div>
+      <h2 class="font-bricolage font-bold text-3xl mb-4 text-slate-900">Bien lire le taux de remplissage</h2>
+      <p>
+        Le <strong>taux de remplissage volumique</strong> se calcule simplement :
+        volume des colis chargés ÷ volume utile du contenant. Dans l'exemple ci-dessus, 33 palettes de
+        1,2 × 0,8 × 1,4 m représentent environ 44 m³ pour 90 m³ utiles : à peine 49 %, alors que le camion
+        est « plein ».
+      </p>
+      <p>
+        Ce chiffre n'est pas une erreur, c'est une information : les palettes non gerbables gaspillent plus d'un
+        mètre de hauteur sur toute la longueur. Les vraies questions deviennent alors : peut-on rendre certaines
+        palettes gerbables (coiffe, cornières, film) ? Peut-on combler la hauteur avec des colis légers ? Faut-il
+        un véhicule surbaissé ? C'est en croisant volume, poids et contraintes que l'on trouve les vrais gisements
+        d'économie sur le transport.
+      </p>
+    </section>
+
+    <section id="erreurs" class="mb-12">
+      <div class="font-jetbrains text-[10px] tracking-widest mb-2" style="color: #2563EB;">08 · ERREURS COURANTES</div>
+      <h2 class="font-bricolage font-bold text-3xl mb-4 text-slate-900">Les erreurs classiques à éviter</h2>
+      <ul>
+        <li><strong>Raisonner en volume seul</strong> : 90 m³ de colis ne rentrent jamais dans 90 m³ de camion. Les formes, les vides et les colis non gerbables imposent toujours une marge.</li>
+        <li><strong>Oublier le poids</strong> : un camion « pas plein » peut déjà être en surcharge avec une marchandise dense.</li>
+        <li><strong>Utiliser les dimensions extérieures</strong> du véhicule ou du conteneur au lieu des cotes intérieures utiles.</li>
+        <li><strong>Charger dans l'ordre de préparation</strong> plutôt que dans l'ordre inverse de la tournée : c'est la cause n°1 des déchargements-rechargements chez le client.</li>
+        <li><strong>Ignorer les colis non gerbables</strong> : un seul colis fragile posé au sol bloque toute la colonne au-dessus de lui.</li>
+        <li><strong>Ne rien transmettre au quai</strong> : un plan qui reste sur l'écran du planificateur n'a jamais chargé un camion. Imprimez une fiche de chargement.</li>
+      </ul>
+    </section>
+
+    <section id="faq" class="mb-12">
+      <div class="font-jetbrains text-[10px] tracking-widest mb-2" style="color: #2563EB;">09 · FAQ</div>
+      <h2 class="font-bricolage font-bold text-3xl mb-6 text-slate-900">Questions fréquentes</h2>
+
+      <div class="space-y-3">
+        <details class="rounded-lg border border-slate-200 p-4 group">
+          <summary class="font-bricolage font-semibold text-slate-900 cursor-pointer flex items-center justify-between">
+            <span>Combien de palettes peut-on charger dans une semi-remorque ?</span>
+            <svg class="w-4 h-4 transition-transform group-open:rotate-180 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </summary>
+          <p class="mt-3 text-sm text-slate-600 leading-relaxed">Une semi-remorque standard de 13,60 m de long et 2,45 m de large intérieur accepte 33 palettes Europe (120 × 80 cm) au sol, ou 26 palettes 120 × 100 cm. Si les palettes sont gerbables et que la hauteur et la charge utile le permettent, ce nombre peut doubler. C'est souvent le poids, et non le volume, qui limite alors le chargement.</p>
+        </details>
+
+        <details class="rounded-lg border border-slate-200 p-4 group">
+          <summary class="font-bricolage font-semibold text-slate-900 cursor-pointer flex items-center justify-between">
+            <span>Combien de palettes dans un conteneur 20 pieds ou 40 pieds ?</span>
+            <svg class="w-4 h-4 transition-transform group-open:rotate-180 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </summary>
+          <p class="mt-3 text-sm text-slate-600 leading-relaxed">Au sol, un conteneur 20 pieds reçoit environ 11 palettes Europe et un conteneur 40 pieds environ 23 à 24. La largeur intérieure (environ 2,35 m) étant inférieure à celle d'une semi-remorque, le calepinage des palettes est moins efficace qu'en camion. Le 40 pieds High Cube offre environ 30 cm de hauteur supplémentaire, utile pour gerber des palettes basses.</p>
+        </details>
+
+        <details class="rounded-lg border border-slate-200 p-4 group">
+          <summary class="font-bricolage font-semibold text-slate-900 cursor-pointer flex items-center justify-between">
+            <span>Comment charger un camion pour une tournée à plusieurs livraisons ?</span>
+            <svg class="w-4 h-4 transition-transform group-open:rotate-180 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </summary>
+          <p class="mt-3 text-sm text-slate-600 leading-relaxed">On applique la règle LIFO (dernier entré, premier sorti) : la marchandise du dernier arrêt est chargée en premier, au fond du camion, et celle du premier arrêt en dernier, côté portes. Aucun colis d'un arrêt ultérieur ne doit se trouver devant ou au-dessus d'un colis à livrer plus tôt, sinon il faudra le décharger puis le recharger en cours de tournée.</p>
+        </details>
+
+        <details class="rounded-lg border border-slate-200 p-4 group">
+          <summary class="font-bricolage font-semibold text-slate-900 cursor-pointer flex items-center justify-between">
+            <span>Que faire si toute la marchandise ne rentre pas dans le camion ?</span>
+            <svg class="w-4 h-4 transition-transform group-open:rotate-180 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </summary>
+          <p class="mt-3 text-sm text-slate-600 leading-relaxed">Deux options s'offrent au planificateur : reporter uniquement les colis en excès sur un autre véhicule, ce qui livre partiellement un client, ou retirer un arrêt entier de la tournée pour le confier à un autre camion, ce qui garantit des livraisons complètes. Le choix dépend des engagements de service (livraison complète obligatoire ou non) et du coût d'un second passage.</p>
+        </details>
+
+        <details class="rounded-lg border border-slate-200 p-4 group">
+          <summary class="font-bricolage font-semibold text-slate-900 cursor-pointer flex items-center justify-between">
+            <span>Comment calculer le taux de remplissage d'un camion ?</span>
+            <svg class="w-4 h-4 transition-transform group-open:rotate-180 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </summary>
+          <p class="mt-3 text-sm text-slate-600 leading-relaxed">Le taux de remplissage volumique est le volume total des colis chargés divisé par le volume utile du contenant (longueur × largeur × hauteur intérieures). Il faut le lire en parallèle du taux d'utilisation de la charge utile : une marchandise dense sature le poids avant le volume, une marchandise légère et encombrante sature le volume avant le poids.</p>
+        </details>
+
+        <details class="rounded-lg border border-slate-200 p-4 group">
+          <summary class="font-bricolage font-semibold text-slate-900 cursor-pointer flex items-center justify-between">
+            <span>Existe-t-il un logiciel gratuit pour faire un plan de chargement ?</span>
+            <svg class="w-4 h-4 transition-transform group-open:rotate-180 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </summary>
+          <p class="mt-3 text-sm text-slate-600 leading-relaxed">Oui. L'optimiseur de chargement 3D d'Atelier Logistique est gratuit, sans compte et fonctionne dans le navigateur. Il calcule le placement des cartons et palettes dans une semi-remorque ou un conteneur, gère les rotations, l'empilage, le poids et les tournées multi-arrêts, affiche le plan en 3D et produit une fiche de chargement imprimable.</p>
+        </details>
+      </div>
+    </section>
+
+    <!-- À LIRE AUSSI -->
+    <section class="mb-4">
+      <div class="font-jetbrains text-[10px] tracking-widest mb-3 text-slate-500">À LIRE AUSSI</div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3 not-prose">
+        <a href="/ressources/incoterms-2020" class="block rounded-lg border border-slate-200 p-4 hover:bg-slate-50 transition-colors" style="text-decoration: none;">
+          <div class="font-jetbrains text-[10px] tracking-widest mb-1" style="color: #7C3AED;">GUIDE</div>
+          <div class="font-bricolage font-semibold text-slate-900">Incoterms 2020 : qui paie le transport et qui porte le risque</div>
+        </a>
+        <a href="/ressources/audit-supply-chain" class="block rounded-lg border border-slate-200 p-4 hover:bg-slate-50 transition-colors" style="text-decoration: none;">
+          <div class="font-jetbrains text-[10px] tracking-widest mb-1" style="color: #B45309;">OUTIL PHARE</div>
+          <div class="font-bricolage font-semibold text-slate-900">Audit Supply Chain gratuit : diagnostic en 5 minutes</div>
+        </a>
+      </div>
+    </section>
+  </main>
+
+  <!-- CTA OUTIL -->
+  <section class="border-t border-slate-200" style="background: #F8FAFC;">
+    <div class="max-w-3xl mx-auto px-6 md:px-10 py-14 text-center">
+      <div class="font-jetbrains text-[10px] tracking-widest mb-3" style="color: #2563EB;">OUTIL EN LIGNE · GRATUIT · NAVIGATEUR</div>
+      <h2 class="font-bricolage font-bold text-3xl md:text-4xl mb-4 text-slate-900 tracking-tight">Optimiseur de chargement 3D</h2>
+      <p class="text-slate-600 mb-8 max-w-xl mx-auto leading-relaxed">Saisissez ou importez vos colis depuis Excel, choisissez une semi-remorque ou un conteneur, renseignez l'ordre de livraison : l'outil calcule le plan, l'affiche en 3D arrêt par arrêt, vous propose quoi retirer si tout ne rentre pas, et imprime la fiche de chargement pour le quai.</p>
+      <a href="/outils/optimiseur-chargement" class="inline-flex items-center gap-2 px-6 py-3.5 rounded-md font-jetbrains text-xs font-medium shadow-lg transition-transform hover:translate-y-[-1px] text-white" style="background: #2563EB;">
+        CALCULER MON PLAN DE CHARGEMENT
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </a>
+    </div>
+  </section>
+
+  <!-- CTA AUDIT FLASH -->
+  <section class="text-white" style="background: linear-gradient(135deg, #0F172A 0%, #1E3A8A 70%, #B45309 100%);">
+    <div class="max-w-3xl mx-auto px-6 md:px-10 py-14">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
+        <div class="md:col-span-2">
+          <div class="font-jetbrains text-[10px] tracking-widest mb-2" style="color: #F59E0B;">AUDIT FLASH SUPPLY CHAIN</div>
+          <div class="font-bricolage font-bold text-2xl md:text-3xl mb-3 leading-tight tracking-tight">Auditez votre supply chain en 5 minutes</div>
+          <div class="text-slate-300 text-sm leading-relaxed">L'Audit Flash analyse vos ventes et votre stock pour identifier les chantiers prioritaires : stock dormant chiffré, OTIF achat et client, déséquilibres inter-magasins, articles à risque. Diagnostic gratuit avec rapport PDF.</div>
+        </div>
+        <div>
+          <a href="/outils/audit" class="inline-flex items-center justify-center gap-2 w-full px-5 py-3 rounded-md font-jetbrains text-xs font-bold shadow-lg" style="background: #F59E0B; color: #0F172A;">
+            LANCER L'AUDIT FLASH
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="border-t border-slate-200 bg-white">
+    <div class="max-w-7xl mx-auto px-6 md:px-10 py-8 flex flex-col md:flex-row md:items-center md:justify-between gap-3 font-jetbrains text-[11px] text-slate-500">
+      <div>ATELIER LOGISTIQUE © 2026 — Outillage par <a href="mailto:contact@walyconseil.com" class="text-slate-700 hover:underline">WALYCONSEIL</a></div>
+      <div class="flex items-center gap-5">
+        <a href="/" class="hover:text-slate-900">Tous les outils</a>
+        <a href="/outils/optimiseur-chargement" class="hover:text-slate-900">Optimiseur 3D</a>
+        <a href="/outils/audit" class="hover:text-slate-900">Audit Flash</a>
+        <a href="mailto:contact@walyconseil.com" class="hover:text-slate-900">Contact</a>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>
