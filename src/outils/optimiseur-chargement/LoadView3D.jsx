@@ -82,7 +82,7 @@ export default function LoadView3D({ container, placed, colorOf, isDimmed, block
   }, [container.length, container.width, container.height]);
 
   return (
-    <div className="relative" style={{ height: 460 }}>
+    <div className="relative h-[340px] sm:h-[420px] lg:h-[460px]">
       <div className="absolute top-2 right-2 z-10 flex gap-1.5">
         <button onClick={() => setShowWalls((w) => !w)}
           className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md font-jetbrains text-[11px] bg-white/90 border border-slate-200 text-slate-600 hover:text-slate-900"
