@@ -5,7 +5,7 @@ import { RotateCcw, Eye, EyeOff } from 'lucide-react';
 
 const S = 1 / 1000; // mm → unités de scène (mètres)
 
-function ItemMesh({ item, color, dimmed, withEdges, onHover }) {
+function ItemMesh({ item, color, dimmed, blocked, withEdges, onHover }) {
   const [hovered, setHovered] = useState(false);
   const size = [item.length * S, item.height * S, item.width * S];
   const position = [
@@ -22,12 +22,12 @@ function ItemMesh({ item, color, dimmed, withEdges, onHover }) {
     >
       <boxGeometry args={size} />
       <meshStandardMaterial color={color.solid} transparent opacity={opacity} roughness={0.75} metalness={0.05} />
-      {withEdges && <Edges color={color.dark} />}
+      {blocked ? <Edges color="#DC2626" /> : withEdges && <Edges color={color.dark} />}
     </mesh>
   );
 }
 
-function Scene({ container, placed, colorOf, highlight, showWalls, onHover }) {
+function Scene({ container, placed, colorOf, isDimmed, blockedIds, showWalls, onHover }) {
   const CL = container.length * S;
   const CW = container.width * S;
   const CH = container.height * S;
@@ -48,12 +48,20 @@ function Scene({ container, placed, colorOf, highlight, showWalls, onHover }) {
         <Edges color="#94A3B8" />
       </mesh>
 
-      {placed.map((item, i) => (
+      {/* Portes (arrière, X = longueur) : repère pour le déchargement par arrêt */}
+      <mesh position={[CL, CH / 2, CW / 2]} rotation={[0, Math.PI / 2, 0]}>
+        <planeGeometry args={[CW, CH]} />
+        <meshStandardMaterial color="#F59E0B" transparent opacity={0.16} side={2} depthWrite={false} />
+        <Edges color="#F59E0B" />
+      </mesh>
+
+      {placed.map((item) => (
         <ItemMesh
-          key={i}
+          key={item.id}
           item={item}
-          color={colorOf(item.definitionId)}
-          dimmed={highlight && highlight !== item.definitionId}
+          color={colorOf(item)}
+          dimmed={isDimmed(item)}
+          blocked={blockedIds?.has(item.id)}
           withEdges={withEdges}
           onHover={onHover}
         />
@@ -62,7 +70,7 @@ function Scene({ container, placed, colorOf, highlight, showWalls, onHover }) {
   );
 }
 
-export default function LoadView3D({ container, placed, colorOf, highlight, onHover }) {
+export default function LoadView3D({ container, placed, colorOf, isDimmed, blockedIds, onHover }) {
   const controls = useRef(null);
   const [showWalls, setShowWalls] = useState(true);
 
@@ -86,6 +94,10 @@ export default function LoadView3D({ container, placed, colorOf, highlight, onHo
         </button>
       </div>
 
+      <div className="absolute bottom-2 right-2 z-10 font-jetbrains text-[10px] px-2 py-1 rounded-md bg-white/90 border border-amber-200 text-amber-700 pointer-events-none">
+        ▮ Portes (arrière)
+      </div>
+
       <Canvas camera={camera} dpr={[1, 2]} style={{ background: 'transparent' }}>
         <ambientLight intensity={0.75} />
         <directionalLight position={[8, 15, 10]} intensity={0.55} />
@@ -94,7 +106,8 @@ export default function LoadView3D({ container, placed, colorOf, highlight, onHo
           container={container}
           placed={placed}
           colorOf={colorOf}
-          highlight={highlight}
+          isDimmed={isDimmed}
+          blockedIds={blockedIds}
           showWalls={showWalls}
           onHover={onHover}
         />

@@ -15,6 +15,7 @@ optimiseur-chargement/
     support.ts       surface de contact, support ≥ 80 %, non-empilable
     scoring.ts       score d'un emplacement (sol, origine, support, contact)
     strategies.ts    5 ordres de tri des unités
+    delivery.ts      tournées multi-arrêts : règle LIFO, colis bloqués, synthèse par arrêt
     optimizer.ts     heuristique extreme points + index spatial + multi-stratégies
   constants/
     containers.ts    presets (semi, 20', 40', 40' HC), en mm
@@ -54,6 +55,25 @@ est réduit et un budget de temps (~6 s) borne le calcul.
 
 Repère : X = longueur du contenant, Y = largeur, Z = hauteur ; origine à l'angle
 inférieur avant gauche. Unités internes : millimètres et kilogrammes.
+
+## Tournées multi-arrêts (LIFO)
+
+Chaque référence peut porter un **arrêt** (`stop`, 1 = livré en premier) et une
+**destination** facultative. Les portes sont à l'arrière (X = longueur).
+
+- Les unités sont triées par arrêt **décroissant** : le dernier arrêt est chargé
+  au fond, le premier côté portes. Les stratégies de tri s'appliquent à
+  l'intérieur de chaque arrêt.
+- Règle d'accessibilité (`engine/delivery.ts`) : un colis livré tôt ne doit
+  avoir, ni devant lui (côté portes, même section YZ) ni au-dessus de lui, un
+  colis d'un arrêt ultérieur.
+- `deliveryMode` : `STRICT` (par défaut, règle absolue : ce qui ne la respecte
+  pas reste non chargé) ou `SOFT` (pénalité `DELIVERY.blockedPenalty`, colis
+  bloqués listés dans `blockedItemIds`).
+- Le résultat expose `stops` (synthèse par arrêt). En cas de dépassement, l'UI
+  propose de **retirer l'arrêt entier** (recalcul) ou de **reporter seulement
+  les colis en excès**, avec export Excel des reliquats.
+- Sans arrêt renseigné, le comportement est strictement identique au mono-destination.
 
 ## Tests
 

@@ -22,7 +22,11 @@ export interface ItemDefinition {
   weight: number;     // kg
   rotationMode: RotationMode;
   stackable: boolean;
-  // Réservé V2 : fragile, maxStackWeight, mustStayUpright, priority, group, etc.
+  /** Ordre de livraison (1 = livré en premier). Absent = 1 (mono-destination). */
+  stop?: number;
+  /** Libellé facultatif de la destination (client, ville…). */
+  destination?: string;
+  // Réservé V2 : fragile, maxStackWeight, mustStayUpright, group, etc.
 }
 
 /** Une unité physique à placer (une par quantité). */
@@ -34,6 +38,8 @@ export interface ItemInstance {
   weight: number;
   rotationMode: RotationMode;
   stackable: boolean;
+  stop: number;
+  destination: string;
 }
 
 /** Boîte alignée sur les axes, utilisée pour la géométrie (collision, support). */
@@ -68,6 +74,8 @@ export interface PlacedItem {
 
   weight: number;
   stackable: boolean;
+  stop: number;
+  destination: string;
 }
 
 /** Contenant cible (camion ou conteneur). */
@@ -97,9 +105,33 @@ export interface OptimizationResult {
   weightUtilization: number | null; // 0..1
 
   computationTimeMs: number;
+
+  /** Synthèse par arrêt de livraison (un seul élément en mono-destination). */
+  stops: DeliveryStopSummary[];
+  /** Colis placés dont l'accès est bloqué par un arrêt ultérieur (mode souple). */
+  blockedItemIds: string[];
+  deliveryMode: DeliveryMode;
+}
+
+/**
+ * STRICT : chaque arrêt est accessible sans manipuler un colis d'un arrêt
+ * ultérieur ; ce qui ne peut pas respecter la règle reste non chargé.
+ * SOUPLE : la règle devient une pénalité ; les colis bloqués sont signalés.
+ */
+export type DeliveryMode = 'STRICT' | 'SOFT';
+
+export interface DeliveryStopSummary {
+  stop: number;
+  destination: string;
+  totalItems: number;
+  packedItems: number;
+  unpackedItems: number;
+  packedWeight: number;  // kg
+  packedVolume: number;  // mm³
 }
 
 export interface OptimizeOptions {
   iterations?: number;
   seed?: number;
+  deliveryMode?: DeliveryMode;
 }
