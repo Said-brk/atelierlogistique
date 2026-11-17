@@ -3,7 +3,7 @@ import * as XLSX from 'xlsx';
 import {
   ArrowLeft, Plus, Trash2, Truck, Box, Loader2, AlertCircle,
   RotateCcw, Check, ArrowRight, Boxes, Upload, Copy, Download,
-  MapPin, Undo2,
+  MapPin, Undo2, Printer,
 } from 'lucide-react';
 
 const LoadView3D = lazy(() => import('./LoadView3D.jsx'));
@@ -109,6 +109,189 @@ function Schematic2D({ container, placed, colorOf, isDimmed, blockedIds }) {
           {rects((p) => ({ x: p.x * scale, y: (container.height - (p.z + p.height)) * scale, w: p.length * scale, h: p.height * scale }))}
           {doors(sideH)}
         </svg>
+      </div>
+    </div>
+  );
+}
+
+// ---- Fiche de chargement imprimable (bon de quai, arrêt par arrêt) ----
+const PRINT_CSS = `
+.lo-print-sheet { display: none; }
+@media print {
+  @page { size: A4; margin: 14mm; }
+  html, body { background: #fff !important; }
+  body * { visibility: hidden !important; }
+  .lo-print-sheet, .lo-print-sheet * { visibility: visible !important; }
+  .lo-print-sheet {
+    display: block !important;
+    position: absolute; left: 0; top: 0; width: 100%;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  .lo-stop { break-inside: avoid; page-break-inside: avoid; }
+  .lo-sheet-head { break-after: avoid; }
+}
+`;
+
+function groupByReference(items) {
+  const m = new Map();
+  for (const p of items) {
+    const g = m.get(p.definitionId) || {
+      definitionId: p.definitionId, reference: p.reference, count: 0,
+      l: Math.round(p.originalLength / 10), w: Math.round(p.originalWidth / 10), h: Math.round(p.originalHeight / 10),
+      total: 0,
+    };
+    g.count += 1; g.total += p.weight;
+    m.set(p.definitionId, g);
+  }
+  return [...m.values()];
+}
+
+// Vue de dessus compacte : ce arrêt en couleur, le reste du chargement en gris (repère de zone).
+function StopMiniPlan({ container, placed, stop, color }) {
+  const scale = 460 / container.length;
+  const W = container.length * scale;
+  const H = container.width * scale;
+  return (
+    <svg viewBox={`-2 -2 ${W + 4} ${H + 4}`} style={{ width: '100%', maxWidth: 460, height: 'auto' }}>
+      <rect x="0" y="0" width={W} height={H} fill="#FFFFFF" stroke="#CBD5E1" strokeWidth="1" />
+      {placed.map((p, i) => {
+        const here = (p.stop ?? 1) === stop;
+        return (
+          <rect key={i} x={p.x * scale} y={p.y * scale} width={p.length * scale} height={p.width * scale}
+            fill={here ? color.light : '#F1F5F9'} stroke={here ? color.dark : '#E2E8F0'} strokeWidth={here ? 0.9 : 0.5}
+            opacity={here ? 1 : 0.45} />
+        );
+      })}
+      <line x1={W} y1="0" x2={W} y2={H} stroke="#F59E0B" strokeWidth="2.5" />
+    </svg>
+  );
+}
+
+function PrintSheet({ container, result, rows, colorIndex, multiStopResult, leftovers }) {
+  const refColorOf = (defId) => refColor(colorIndex[defId] ?? 0);
+  const blocked = new Set(result.blockedItemIds ?? []);
+  const canDrawPlan = result.placedItems.length <= 400;
+  // Ordre de chargement = inverse de l'ordre de livraison (dernier arrêt chargé au fond).
+  const ordered = multiStopResult ? [...result.stops].sort((a, b) => b.stop - a.stop) : result.stops;
+  const n = ordered.filter((s) => s.packedItems > 0).length;
+  const today = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
+  const td = { padding: '4px 8px', borderBottom: '1px solid #E2E8F0', fontSize: 11 };
+  const th = { padding: '5px 8px', textAlign: 'left', fontSize: 9, letterSpacing: '0.05em', color: '#64748B', borderBottom: '2px solid #CBD5E1', textTransform: 'uppercase' };
+  const m = (x) => (x / 1000).toLocaleString('fr-FR', { maximumFractionDigits: 2 });
+
+  return (
+    <div className="lo-print-sheet" style={{ fontFamily: "'DM Sans', system-ui, sans-serif", color: '#0F172A', padding: 4 }}>
+      <style>{PRINT_CSS}</style>
+
+      <div className="lo-sheet-head" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '2px solid #0F172A', paddingBottom: 10, marginBottom: 14 }}>
+        <div>
+          <div style={{ fontSize: 20, fontWeight: 700 }}>Fiche de chargement</div>
+          <div style={{ fontSize: 11, color: '#475569', marginTop: 2 }}>
+            {container.label} · {m(container.length)}×{m(container.width)}×{m(container.height)} m
+            {result.deliveryMode ? ` · mode ${result.deliveryMode === 'SOFT' ? 'souple' : 'strict'}` : ''}
+          </div>
+        </div>
+        <div style={{ textAlign: 'right', fontSize: 11, color: '#475569' }}>
+          <div>{today}</div>
+          <div style={{ marginTop: 2 }}>Atelier Logistique · WALYCONSEIL</div>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', gap: 18, marginBottom: 14, fontSize: 11, flexWrap: 'wrap' }}>
+        <div><strong style={{ fontSize: 15 }}>{result.packedItems}/{result.totalItems}</strong> colis chargés</div>
+        <div><strong style={{ fontSize: 15 }}>{formatKg(result.usedWeight)}</strong> kg</div>
+        <div><strong style={{ fontSize: 15 }}>{formatM3(result.usedVolume)}</strong> m³</div>
+        <div><strong style={{ fontSize: 15 }}>{formatPct(result.volumeUtilization)} %</strong> de remplissage</div>
+      </div>
+
+      {multiStopResult && (
+        <div style={{ background: '#FFFBEB', border: '1px solid #FDE68A', color: '#B45309', borderRadius: 6, padding: '8px 10px', fontSize: 11, marginBottom: 16 }}>
+          <strong>Ordre de chargement :</strong> chargez du fond vers les portes — commencez par l'arrêt {ordered.find((s) => s.packedItems > 0)?.stop} (livré en dernier), terminez par l'arrêt 1 (livré en premier, côté portes, repère ▮).
+        </div>
+      )}
+
+      {ordered.filter((s) => s.packedItems > 0).map((s, idx) => {
+        const items = result.placedItems.filter((p) => (p.stop ?? 1) === s.stop);
+        const groups = groupByReference(items);
+        const color = stopColor(s.stop);
+        const blockedHere = items.filter((p) => blocked.has(p.id)).length;
+        return (
+          <div key={s.stop} className="lo-stop" style={{ marginBottom: 18 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              {multiStopResult && (
+                <span style={{ fontSize: 10, fontWeight: 700, color: '#fff', background: '#0F172A', borderRadius: 4, padding: '2px 7px' }}>
+                  CHARGEMENT {idx + 1}/{n}
+                </span>
+              )}
+              {multiStopResult && <span style={{ width: 13, height: 13, borderRadius: 3, background: color.solid, display: 'inline-block' }} />}
+              <strong style={{ fontSize: 14 }}>{multiStopResult ? stopLabel(s.stop, rows) : 'Colis à charger'}</strong>
+              {multiStopResult && <span style={{ fontSize: 11, color: '#64748B' }}>· livré en position {s.stop}</span>}
+            </div>
+
+            <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+              <table style={{ borderCollapse: 'collapse', flex: 1 }}>
+                <thead><tr>
+                  <th style={th}>Référence</th>
+                  <th style={{ ...th, textAlign: 'right' }}>Qté</th>
+                  <th style={{ ...th, textAlign: 'right' }}>Dim. (L×l×h cm)</th>
+                  <th style={{ ...th, textAlign: 'right' }}>Poids tot.</th>
+                </tr></thead>
+                <tbody>
+                  {groups.map((g) => (
+                    <tr key={g.definitionId}>
+                      <td style={td}>
+                        <span style={{ display: 'inline-block', width: 9, height: 9, borderRadius: 2, background: refColorOf(g.definitionId).solid, marginRight: 6, verticalAlign: 'middle' }} />
+                        {g.reference || 'réf.'}
+                      </td>
+                      <td style={{ ...td, textAlign: 'right' }}>{g.count}</td>
+                      <td style={{ ...td, textAlign: 'right' }}>{g.l}×{g.w}×{g.h}</td>
+                      <td style={{ ...td, textAlign: 'right' }}>{formatKg(g.total)} kg</td>
+                    </tr>
+                  ))}
+                  <tr>
+                    <td style={{ ...td, fontWeight: 700, borderBottom: 'none' }}>Total</td>
+                    <td style={{ ...td, textAlign: 'right', fontWeight: 700, borderBottom: 'none' }}>{s.packedItems}</td>
+                    <td style={{ ...td, borderBottom: 'none' }} />
+                    <td style={{ ...td, textAlign: 'right', fontWeight: 700, borderBottom: 'none' }}>{formatKg(s.packedWeight)} kg</td>
+                  </tr>
+                </tbody>
+              </table>
+              {canDrawPlan && (
+                <div style={{ width: 220 }}>
+                  <div style={{ fontSize: 8, letterSpacing: '0.05em', color: '#94A3B8', marginBottom: 2, textTransform: 'uppercase' }}>Vue de dessus · portes ▮ à droite</div>
+                  <StopMiniPlan container={container} placed={result.placedItems} stop={s.stop} color={color} />
+                </div>
+              )}
+            </div>
+            {blockedHere > 0 && (
+              <div style={{ fontSize: 10, color: '#B91C1C', marginTop: 4 }}>⚠ {blockedHere} colis à déplacer pour accéder à cet arrêt.</div>
+            )}
+          </div>
+        );
+      })}
+
+      {leftovers && leftovers.length > 0 && (
+        <div className="lo-stop" style={{ marginTop: 10, marginBottom: 14 }}>
+          <strong style={{ fontSize: 13, color: '#B45309' }}>À reporter sur un autre véhicule</strong>
+          <table style={{ borderCollapse: 'collapse', width: '100%', marginTop: 6 }}>
+            <thead><tr>
+              <th style={th}>Arrêt</th><th style={th}>Destination</th><th style={th}>Référence</th>
+              <th style={{ ...th, textAlign: 'right' }}>Qté</th><th style={th}>Motif</th>
+            </tr></thead>
+            <tbody>
+              {leftovers.map((l, i) => (
+                <tr key={i}>
+                  <td style={td}>{l.stop}</td><td style={td}>{l.destination}</td><td style={td}>{l.reference || 'réf.'}</td>
+                  <td style={{ ...td, textAlign: 'right' }}>{l.quantity}</td><td style={td}>{l.reason}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <div style={{ marginTop: 18, paddingTop: 8, borderTop: '1px solid #E2E8F0', fontSize: 9, color: '#94A3B8' }}>
+        Généré par Atelier Logistique — l'optimiseur de chargement fonctionne dans le navigateur, sans envoi de données.
       </div>
     </div>
   );
@@ -389,6 +572,8 @@ export default function LoadOptimizer({ onBack }) {
     XLSX.writeFile(wb, 'atelier-chargement-reliquats.xlsx');
   };
 
+  const printSheet = () => { track('load_optimizer_print_sheet'); window.print(); };
+
   return (
     <div className="min-h-screen text-slate-900" style={{ background: '#F8FAFC', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
       <nav className="border-b border-slate-200 bg-white sticky top-0 z-20">
@@ -622,6 +807,7 @@ export default function LoadOptimizer({ onBack }) {
                   <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 font-jetbrains text-xs text-slate-600 flex items-center justify-between gap-2">
                     <span className="flex items-center gap-2"><Box size={13} /> PLAN DE CHARGEMENT</span>
                     <div className="flex items-center gap-2">
+                      <button onClick={printSheet} className="flex items-center gap-1 font-jetbrains text-[10px] px-2 py-1 rounded-md" style={{ background: BLUE_LIGHT, color: BLUE }} title="Imprimer ou enregistrer en PDF la fiche de chargement (ordre de chargement, arrêt par arrêt)"><Printer size={11} /> Fiche</button>
                       {multiStopResult && (
                         <div className="flex items-center gap-0.5 p-0.5 rounded-md" style={{ background: '#F1F5F9' }} title="Couleur des colis — Réf. : par produit · Arrêt : par destination · Les 2 : remplissage = produit, contour = destination">
                           <button onClick={() => { setColorBy('ref'); setHighlight(null); }} className="px-2 py-1 rounded text-[10px]" style={effColorBy === 'ref' ? { background: '#fff', color: BLUE, fontWeight: 600 } : { color: '#64748B' }}>Réf.</button>
@@ -900,6 +1086,10 @@ export default function LoadOptimizer({ onBack }) {
           </a>
         </section>
       </div>
+
+      {result && status === 'done' && (
+        <PrintSheet container={container} result={result} rows={rows} colorIndex={colorIndex} multiStopResult={multiStopResult} leftovers={leftovers} />
+      )}
     </div>
   );
 }
