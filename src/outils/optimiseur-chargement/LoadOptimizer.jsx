@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useCallback, useRef, lazy, Suspense, Component } from 'react';
+import { createPortal } from 'react-dom';
 import * as XLSX from 'xlsx';
 import {
   ArrowLeft, Plus, Trash2, Truck, Box, Loader2, AlertCircle,
@@ -133,12 +134,14 @@ const PRINT_CSS = `
 .lo-print-sheet { display: none; }
 @media print {
   @page { size: A4; margin: 14mm; }
-  html, body { background: #fff !important; }
-  body * { visibility: hidden !important; }
-  .lo-print-sheet, .lo-print-sheet * { visibility: visible !important; }
+  html, body { background: #fff !important; height: auto !important; min-height: 0 !important; }
+  /* On retire réellement la page du flux (display:none) : avec visibility:hidden,
+     sa hauteur restait imprimée et produisait des pages blanches. */
+  body > *:not(.lo-print-root) { display: none !important; }
+  .lo-print-root { display: block !important; }
   .lo-print-sheet {
     display: block !important;
-    position: absolute; left: 0; top: 0; width: 100%;
+    position: static; width: 100%;
     -webkit-print-color-adjust: exact; print-color-adjust: exact;
   }
   .lo-stop { break-inside: avoid; page-break-inside: avoid; }
@@ -207,7 +210,7 @@ function PrintSheet({ container, result, rows, colorIndex, multiStopResult, left
         </div>
         <div style={{ textAlign: 'right', fontSize: 11, color: '#475569' }}>
           <div>{today}</div>
-          <div style={{ marginTop: 2 }}>Atelier Logistique · WALYCONSEIL</div>
+          <div style={{ marginTop: 2 }}>atelierlogistique.com</div>
         </div>
       </div>
 
@@ -305,7 +308,7 @@ function PrintSheet({ container, result, rows, colorIndex, multiStopResult, left
       )}
 
       <div style={{ marginTop: 18, paddingTop: 8, borderTop: '1px solid #E2E8F0', fontSize: 9, color: '#94A3B8' }}>
-        Généré par Atelier Logistique — l'optimiseur de chargement fonctionne dans le navigateur, sans envoi de données.
+        Généré sur atelierlogistique.com — l'optimiseur de chargement fonctionne dans le navigateur, sans envoi de données.
       </div>
     </div>
   );
@@ -1185,7 +1188,12 @@ export default function LoadOptimizer({ onBack }) {
       </div>
 
       {result && status === 'done' && (
-        <PrintSheet container={container} result={result} rows={rows} colorIndex={colorIndex} multiStopResult={multiStopResult} leftovers={leftovers} />
+        createPortal(
+          <div className="lo-print-root">
+            <PrintSheet container={container} result={result} rows={rows} colorIndex={colorIndex} multiStopResult={multiStopResult} leftovers={leftovers} />
+          </div>,
+          document.body,
+        )
       )}
     </div>
   );
