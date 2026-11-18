@@ -31,15 +31,7 @@ export const DELIVERY = {
   blockedPenalty: 10,
 } as const;
 
-/**
- * Règles de chargement par défaut côté interface (repères d'ergonomie, réglables).
- * Le moteur, appelé sans options, reste en chargement libre sans limite de hauteur.
- */
+/** Méthode de chargement par défaut côté interface (pas de limite de hauteur de pose). */
 export const LOADING_DEFAULTS = {
   mode: 'WALLS',
-  wallDepth: null,          // automatique
-  manualMaxHeight: 1800,    // mm — portée bras tendus
-  heavyMaxHeight: 1500,     // mm — hauteur d'épaule
-  heavyThresholdKg: 15,
-  mechanizedAboveKg: 25,
 } as const;

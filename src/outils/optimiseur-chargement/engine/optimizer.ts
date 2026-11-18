@@ -33,6 +33,7 @@ export function expandInstances(defs: readonly ItemDefinition[]): ItemInstance[]
         weight: d.weight,
         rotationMode: d.rotationMode,
         stackable: d.stackable,
+        floorOnly: !!d.floorOnly,
         stop: normalizeStop(d.stop),
         destination: (d.destination ?? '').trim(),
       });
@@ -132,6 +133,7 @@ function findBestPlacement(
     for (const o of orientations) {
       const box: Box = { x: pt.x, y: pt.y, z: pt.z, length: o.length, width: o.width, height: o.height };
       if (!isWithinContainer(box, container)) continue;
+      if (item.floorOnly && box.z > EPS) continue; // doit rester au sol
       if (box.z + box.height > cap + EPS) continue; // hauteur de manutention
       if (load.cfg.mode === 'WALLS' && box.x + box.length > load.wallEnd + EPS) {
         // Hors du mur en cours, sauf colis plus long que le mur lui-même.
