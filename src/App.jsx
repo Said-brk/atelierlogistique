@@ -23,7 +23,7 @@ const EXAMPLE_ZPL = `^XA
 ^FO40,40^FDATELIER^FS
 ^CF0,28
 ^FO40,125^FDColis n AT-2023-0001^FS
-^FO40,170^FDExpediteur : WALYCONSEIL^FS
+^FO40,170^FDExpediteur : ATELIER LOGISTIQUE^FS
 ^FO40,215^FDDestinataire : Client SAS^FS
 ^FO40,270^GB720,2,2^FS
 ^BY3,2,100
@@ -198,14 +198,14 @@ function SiteHeader() {
           <Logo />
           <div>
             <div className="font-bricolage font-bold text-lg tracking-tight text-slate-900">ATELIER LOGISTIQUE</div>
-            <div className="font-jetbrains text-[10px] text-slate-500 -mt-1 tracking-wider">SUITE D'OUTILS · v0.2 · WALYCONSEIL</div>
+            <div className="font-jetbrains text-[10px] text-slate-500 -mt-1 tracking-wider"><span className="hidden sm:inline">LA BOÎTE À OUTILS DES PROS DE LA SUPPLY CHAIN</span><span className="sm:hidden">BOÎTE À OUTILS SUPPLY CHAIN</span></div>
           </div>
         </Link>
         <div className="hidden md:flex items-center gap-5 font-jetbrains text-xs text-slate-500">
           <a href="/#tools" className="hover:text-slate-900 transition-colors">Outils</a>
           <a href="/#how" className="hover:text-slate-900 transition-colors">Comment ça marche</a>
           <Link to="/ressources" className="hover:text-slate-900 transition-colors">Ressources</Link>
-          <a href="mailto:contact@walyconseil.com" className="hover:text-slate-900 transition-colors">Contact</a>
+          <a href="mailto:contact@atelierlogistique.com" className="hover:text-slate-900 transition-colors">Contact</a>
           <span className="text-slate-300">|</span>
           <span className="flex items-center gap-2" style={{ color: BLUE }}>
             <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: BLUE }} />
@@ -224,12 +224,12 @@ function SiteFooter() {
       <div className="max-w-7xl mx-auto px-6 md:px-10 py-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 font-jetbrains text-xs text-slate-500">
         <div className="flex items-center gap-3">
           <Logo small />
-          <span>ATELIER LOGISTIQUE © 2023 — Outillage par WALYCONSEIL</span>
+          <span>ATELIER LOGISTIQUE © 2026 — La boîte à outils des pros de la supply chain</span>
         </div>
         <div className="flex items-center gap-5">
           <a href="/#tools" className="hover:text-slate-800 transition-colors">Outils</a>
           <Link to="/ressources" className="hover:text-slate-800 transition-colors">Ressources</Link>
-          <span>Contact : <a href="mailto:contact@walyconseil.com" className="hover:text-slate-800 transition-colors underline-offset-2 hover:underline">contact@walyconseil.com</a></span>
+          <span>Contact : <a href="mailto:contact@atelierlogistique.com" className="hover:text-slate-800 transition-colors underline-offset-2 hover:underline">contact@atelierlogistique.com</a></span>
         </div>
       </div>
     </footer>
@@ -315,7 +315,7 @@ function Ressources() {
           Comprendre avant<br />d'<span style={{ color: BLUE }}>outiller.</span>
         </h1>
         <p className="text-slate-600 text-lg max-w-2xl leading-relaxed">
-          Des guides pratiques sur les méthodes de la supply chain — DDMRP, Incoterms, plan de chargement, audit de stock — pour tirer le meilleur des outils de l'atelier. Rédigés par WALYCONSEIL.
+          Des guides pratiques sur les méthodes de la supply chain — DDMRP, Incoterms, plan de chargement, audit de stock — pour tirer le meilleur des outils de l'atelier, rédigés par des praticiens du terrain.
         </p>
       </section>
 
@@ -464,7 +464,7 @@ function Landing() {
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 items-center">
             <div className="lg:col-span-3">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-jetbrains tracking-widest mb-5" style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#F59E0B', border: '1px solid rgba(245, 158, 11, 0.3)' }}>
-                ★ NOUVEAU · LEAD MAGNET WALYCONSEIL
+                ★ NOUVEAU · AUDIT GRATUIT
               </div>
               <h2 className="font-bricolage font-bold text-3xl md:text-4xl lg:text-5xl text-white leading-tight mb-4">
                 Auditez votre supply chain<br />
@@ -1982,7 +1982,7 @@ const BARCODE_TYPES = [
   {
     id: 'qrcode', label: 'QR Code', bcid: 'qrcode', cat: '2d',
     desc: 'Universel · URLs, vCards, jusqu\'à ~4000 caractères. Lecture smartphone.',
-    example: 'https://atelier.walyconseil.com/colis/AT-2023-001',
+    example: 'https://atelierlogistique.com/colis/AT-2023-001',
     placeholder: 'URL, texte, ou données structurées',
     validate: (d) => d.length > 0
       ? { ok: true, msg: `OK · ${d.length} caractères` }
@@ -6020,7 +6020,7 @@ function CmrGenerator({ onBack }) {
     // Bottom mentions
     doc.setFontSize(5.5);
     doc.setTextColor(120);
-    doc.text(`Document généré par Atelier Logistique — WALYCONSEIL · ${new Date().toLocaleString('fr-FR')}`, M, H - 2);
+    doc.text(`Document généré sur atelierlogistique.com · ${new Date().toLocaleString('fr-FR')}`, M, H - 2);
     doc.setTextColor(0);
 
     if (action === 'print') {
@@ -8901,7 +8901,7 @@ function StatusDot({ ok, emphasis }) {
 
 // ============================================================
 // AuditFlash · Audit Supply Chain Express
-// Lead magnet WALYCONSEIL — analyse rapide à partir de 2 fichiers
+// Lead magnet Atelier Logistique — analyse rapide à partir de 2 fichiers
 // ============================================================
 
 const AUDIT_SALES_ALIASES = {
@@ -9422,7 +9422,7 @@ function generateAuditPdf(audit, companyName, currency) {
     // Liseré ambre en haut
     setFill(C.amber);
     doc.rect(0, 0, PW, 4, 'F');
-    // Titre WALYCONSEIL en haut à gauche
+    // Titre du site en haut à gauche
     setText(C.inkDim);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(7);
@@ -9464,7 +9464,7 @@ function generateAuditPdf(audit, companyName, currency) {
     setText(C.inkDim);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7);
-    doc.text('© WALYCONSEIL · contact@walyconseil.com', M.l, PH - 9);
+    doc.text('© atelierlogistique.com · contact@atelierlogistique.com', M.l, PH - 9);
     const now = new Date();
     const dateStr = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
     doc.text(`Généré le ${dateStr}`, PW / 2, PH - 9, { align: 'center' });
@@ -9505,18 +9505,18 @@ function generateAuditPdf(audit, companyName, currency) {
     setFill(C.amberDk);
     doc.rect(0, PH - 8, PW, 8, 'F');
 
-    // Logo WALYCONSEIL (simulé : carré ambre + texte)
+    // Logo Atelier Logistique (simulé : carré ambre + texte)
     setFill(C.amber);
     doc.roundedRect(M.l, M.t, 12, 12, 2, 2, 'F');
     setText(C.ink);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(11);
-    doc.text('W', M.l + 6, M.t + 8.5, { align: 'center' });
+    doc.text('A', M.l + 6, M.t + 8.5, { align: 'center' });
 
     setText(C.white);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9);
-    doc.text('WALYCONSEIL', M.l + 17, M.t + 6);
+    doc.text('ATELIER LOGISTIQUE', M.l + 17, M.t + 6);
     setText(C.inkMute);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7);
@@ -9597,7 +9597,7 @@ function generateAuditPdf(audit, companyName, currency) {
     setText(C.amber);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(7);
-    doc.text('WALYCONSEIL · contact@walyconseil.com', PW / 2, PH - 3, { align: 'center' });
+    doc.text('atelierlogistique.com · contact@atelierlogistique.com', PW / 2, PH - 3, { align: 'center' });
   }
 
   // ========== PAGE 2 — SYNTHÈSE EXÉCUTIVE ==========
@@ -10775,7 +10775,7 @@ function generateAuditPdf(audit, companyName, currency) {
     });
   }
 
-  // ========== PAGE FINALE — CTA WALYCONSEIL ==========
+  // ========== PAGE FINALE — CTA CONTACT ==========
 
   function drawContact() {
     doc.addPage();
@@ -10811,11 +10811,11 @@ function generateAuditPdf(audit, companyName, currency) {
     setText(C.white);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(20);
-    doc.text('WALYCONSEIL', M.l + 12, 157);
+    doc.text('ATELIER LOGISTIQUE', M.l + 12, 157);
     setText(C.amber);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(13);
-    doc.text('contact@walyconseil.com', M.l + 12, 167);
+    doc.text('contact@atelierlogistique.com', M.l + 12, 167);
     setText(C.inkMute);
     doc.setFontSize(9);
     doc.text('Conseil supply chain · ERP · WMS · TMS · Digitalisation logistique', M.l + 12, 175);
@@ -10884,7 +10884,7 @@ function generateAuditPdf(audit, companyName, currency) {
   }
 
   // Téléchargement
-  const safeName = (companyName || 'walyconseil').replace(/[^a-zA-Z0-9-_]/g, '-').toLowerCase();
+  const safeName = (companyName || 'audit').replace(/[^a-zA-Z0-9-_]/g, '-').toLowerCase();
   const now = new Date();
   const dateTag = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
   doc.save(`audit-supply-chain-${safeName}-${dateTag}.pdf`);
@@ -12153,7 +12153,7 @@ function AuditResults({ audit, companyName, currency }) {
         </div>
       )}
 
-      {/* CTA WALYCONSEIL */}
+      {/* CTA contact */}
       <div className="rounded-xl p-6 md:p-8 text-white" style={{ background: 'linear-gradient(135deg, #0F172A 0%, #1E3A8A 70%, ' + AMBER_DARK + ' 100%)' }}>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
           <div className="md:col-span-2">
@@ -12173,13 +12173,13 @@ function AuditResults({ audit, companyName, currency }) {
               <FileDown size={13} />
               TÉLÉCHARGER LE PDF
             </button>
-            <a href={'mailto:contact@walyconseil.com?subject=Suivi%20audit%20supply%20chain%20' + encodeURIComponent(companyName || '')}
+            <a href={'mailto:contact@atelierlogistique.com?subject=Suivi%20audit%20supply%20chain%20' + encodeURIComponent(companyName || '')}
               className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg font-jetbrains text-xs font-semibold shadow-lg transition-all hover:translate-y-[-2px]"
               style={{ background: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.2)' }}>
-              CONTACTER WALYCONSEIL
+              PARLER À UN EXPERT
               <ArrowRight size={13} />
             </a>
-            <div className="text-[10px] text-slate-400 text-center font-jetbrains">contact@walyconseil.com</div>
+            <div className="text-[10px] text-slate-400 text-center font-jetbrains">contact@atelierlogistique.com</div>
           </div>
         </div>
       </div>
