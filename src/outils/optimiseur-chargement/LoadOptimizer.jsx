@@ -4,7 +4,7 @@ import * as XLSX from 'xlsx';
 import {
   ArrowLeft, Plus, Trash2, Truck, Box, Loader2, AlertCircle,
   RotateCcw, Check, ArrowRight, Boxes, Upload, Copy, Download,
-  MapPin, Undo2, Printer, Layers, ChevronDown,
+  MapPin, Undo2, Printer,
 } from 'lucide-react';
 
 const LoadView3D = lazy(() => import('./LoadView3D.jsx'));
@@ -25,12 +25,13 @@ import {
   formatM3, formatKg, formatPct, mm3ToM3,
   parsePastedTable, bulkToRows,
   DELIVERY_MODES, distinctStops, stopLabel, stopColor,
+  STACKING_OPTIONS, stackingOf, stackingFields,
 } from './uiHelpers';
 import { track } from './analytics';
 
 const FAQ = [
   { q: 'L’outil est-il gratuit et sans compte ?', a: 'Oui. L’optimiseur fonctionne entièrement dans votre navigateur, sans inscription. Vos données ne sont ni enregistrées ni transmises à un service externe.' },
-  { q: 'Quelles marchandises puis-je charger ?', a: 'Des cartons, colis ou palettes de forme rectangulaire. Vous indiquez pour chaque référence ses dimensions, son poids, sa quantité, si la rotation est autorisée et si elle est empilable.' },
+  { q: 'Quelles marchandises puis-je charger ?', a: 'Des cartons, colis ou palettes de forme rectangulaire. Vous indiquez pour chaque référence ses dimensions, son poids, sa quantité, si la rotation est autorisée et son empilage : libre, dessus uniquement (rien par-dessus), au sol, ou au sol sans rien dessus. Le camion est chargé par murs, de la cabine vers les portes, pour que chaque colis reste accessible.' },
   { q: 'Quels véhicules et conteneurs sont pris en charge ?', a: 'Une semi-remorque standard, les conteneurs maritimes 20 pieds, 40 pieds et 40 pieds High Cube, ainsi que des dimensions personnalisées.' },
   { q: 'Comment est calculé le plan de chargement ?', a: 'Un moteur de bin packing 3D place les unités une à une en respectant les parois, le poids maximal, les rotations autorisées, l’empilabilité et la stabilité (chaque objet est supporté). Plusieurs ordres de placement sont testés et le meilleur résultat est conservé.' },
   { q: 'Puis-je préparer un camion pour plusieurs livraisons (tournée) ?', a: 'Oui. Indiquez pour chaque référence son numéro d’arrêt (1 = livré en premier) et, si vous le souhaitez, la destination. Le dernier arrêt est chargé au fond, le premier côté portes, et aucun colis d’un arrêt ultérieur ne bloque l’accès à un arrêt précédent. Si tout ne rentre pas, vous choisissez de retirer un arrêt entier ou seulement les colis en excès.' },
@@ -59,22 +60,6 @@ function Th({ children, className = '', title }) {
   return <th title={title} className={`font-normal text-slate-400 px-1 py-2 text-[10px] tracking-wider ${className}`}>{children}</th>;
 }
 
-// Champ de réglage (règles de manutention)
-function RuleField({ label, unit, value, onChange, hint, placeholder }) {
-  return (
-    <label className="block">
-      <span className="block font-jetbrains text-[10px] text-slate-500 mb-0.5">{label}</span>
-      <span className="flex items-center gap-1.5">
-        <input type="number" inputMode="numeric" min="0" value={value} placeholder={placeholder}
-          onChange={(e) => onChange(e.target.value)}
-          className="w-24 px-2 py-1.5 bg-white border border-slate-200 rounded-md outline-none font-jetbrains text-base sm:text-xs text-slate-800 focus:border-slate-400" />
-        <span className="font-jetbrains text-[10px] text-slate-400">{unit}</span>
-      </span>
-      {hint && <span className="block text-[10px] text-slate-400 mt-0.5">{hint}</span>}
-    </label>
-  );
-}
-
 // Champ numérique libellé, version mobile (police 16 px : évite le zoom iOS).
 function MobileNum({ label, value, onChange, error, step = '1' }) {
   return (
@@ -95,7 +80,7 @@ function NumCell({ value, onChange, error, width = 'w-14', step = '1' }) {
       <input
         type="number" value={value} min="0" step={step}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full px-2 py-1.5 bg-white border rounded-md outline-none font-jetbrains text-xs text-center text-slate-800 focus:border-slate-400"
+        className="w-full px-1 py-1.5 bg-white border rounded-md outline-none font-jetbrains text-xs text-center text-slate-800 focus:border-slate-400 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
         style={{ borderColor: error ? '#FCA5A5' : '#E2E8F0' }}
       />
       {error && <div className="text-[9px] text-red-500 mt-0.5 leading-tight">{error}</div>}
@@ -428,24 +413,9 @@ export default function LoadOptimizer({ onBack }) {
   }, []);
   const { run, reset, result, status } = useOptimizer();
 
-  // Règles de chargement physique (persistées dans le navigateur)
-  const LOADING_KEY = 'al_loading_rules_v1';
-  const defaultLoadingCfg = {
-    mode: LOADING_DEFAULTS.mode,
-    wallDepthCm: '',
-    stacking: 'BY_REF', // 'BY_REF' = selon la colonne « Empil. » ; 'NONE' = aucun colis posé sur un autre
-  };
-  const [loadingCfg, setLoadingCfg] = useState(() => {
-    try { return { ...defaultLoadingCfg, ...JSON.parse(localStorage.getItem(LOADING_KEY) || '{}') }; } catch { return defaultLoadingCfg; }
-  });
-  useEffect(() => { try { localStorage.setItem(LOADING_KEY, JSON.stringify(loadingCfg)); } catch { /* stockage indisponible */ } }, [loadingCfg]);
-  const [rulesOpen, setRulesOpen] = useState(false);
+  // Chargement physique : toujours par murs, de la cabine vers les portes
+  // (aucun colis posé en passant par-dessus un autre). Pas de réglage exposé.
   const [loadedUpToWall, setLoadedUpToWall] = useState(null); // null = chargement complet
-  const toLoadingOptions = (c) => ({
-    mode: c.mode,
-    wallDepth: Number(c.wallDepthCm) > 0 ? Number(c.wallDepthCm) * 10 : null,
-    // Pas de limite de hauteur de pose : seule la hauteur du contenant compte.
-  });
 
   // Tournée multi-arrêts
   const [deliveryMode, setDeliveryMode] = useState('STRICT');
@@ -557,6 +527,10 @@ export default function LoadOptimizer({ onBack }) {
     setRows((rs) => rs.map((r) => (r.id === id ? { ...r, [field]: coerceField(field, value) } : r)));
     if (status !== 'idle') reset();
   };
+  const updateStacking = (id, value) => {
+    setRows((rs) => rs.map((r) => (r.id === id ? { ...r, ...stackingFields(value) } : r)));
+    if (status !== 'idle') reset();
+  };
   const removeRow = (id) => { setRows((rs) => rs.filter((r) => r.id !== id)); if (status !== 'idle') reset(); };
   const addRow = () => setRows((rs) => [...rs, emptyRow()]);
   const loadExample = () => { setRows(exampleRows()); setExcludedStops([]); reset(); track('load_optimizer_example_clicked'); };
@@ -565,7 +539,7 @@ export default function LoadOptimizer({ onBack }) {
 
   const applyRows = (parsed, src) => {
     const mapped = bulkToRows(parsed);
-    if (mapped.length === 0) { flashImport('error', 'Aucune ligne exploitable. Colonnes attendues : Référence, Qté, Longueur, Largeur, Hauteur, Poids, Rotation, Empilable.'); return; }
+    if (mapped.length === 0) { flashImport('error', 'Aucune ligne exploitable. Colonnes attendues : Référence, Qté, Longueur, Largeur, Hauteur, Poids, Rotation, Empilage.'); return; }
     setRows(mapped);
     setExcludedStops([]);
     reset();
@@ -598,8 +572,8 @@ export default function LoadOptimizer({ onBack }) {
 
   const downloadTemplate = () => {
     const sample = [
-      { 'Référence': 'CARTON-A', 'Quantité': 40, 'Longueur (cm)': 60, 'Largeur (cm)': 40, 'Hauteur (cm)': 40, 'Poids (kg)': 12, 'Rotation': 'Libre', 'Empilable': 'Oui', 'Arrêt': 1, 'Destination': 'Client A' },
-      { 'Référence': 'PALETTE-EURO', 'Quantité': 4, 'Longueur (cm)': 120, 'Largeur (cm)': 80, 'Hauteur (cm)': 140, 'Poids (kg)': 450, 'Rotation': 'Horizontale', 'Empilable': 'Non', 'Arrêt': 2, 'Destination': 'Client B' },
+      { 'Référence': 'CARTON-A', 'Quantité': 40, 'Longueur (cm)': 60, 'Largeur (cm)': 40, 'Hauteur (cm)': 40, 'Poids (kg)': 12, 'Rotation': 'Libre', 'Empilage': 'Libre', 'Arrêt': 1, 'Destination': 'Client A' },
+      { 'Référence': 'PALETTE-EURO', 'Quantité': 4, 'Longueur (cm)': 120, 'Largeur (cm)': 80, 'Hauteur (cm)': 140, 'Poids (kg)': 450, 'Rotation': 'Horizontale', 'Empilage': 'Au sol, rien dessus', 'Arrêt': 2, 'Destination': 'Client B' },
     ];
     const ws = XLSX.utils.json_to_sheet(sample);
     const wb = XLSX.utils.book_new();
@@ -607,23 +581,14 @@ export default function LoadOptimizer({ onBack }) {
     XLSX.writeFile(wb, 'atelier-chargement-modele.xlsx');
   };
 
-  const runWith = (excluded, mode = deliveryMode, cfg = loadingCfg) => {
-    const defs = rowsToDefinitions(rows.filter((r) => !excluded.includes(r.stop ?? 1)))
-      .map((d) => (cfg.stacking === 'NONE' ? { ...d, stackable: false } : d));
+  const runWith = (excluded, mode = deliveryMode) => {
+    const defs = rowsToDefinitions(rows.filter((r) => !excluded.includes(r.stop ?? 1)));
     setHighlight(null);
     setUnloadedUpTo(0);
     setLoadedUpToWall(null);
     setDeferredExcess([]);
     if (defs.length === 0) { reset(); return; }
-    run(container, defs, { deliveryMode: mode, loading: toLoadingOptions(cfg) });
-  };
-
-  const updateLoading = (patch) => { setLoadingCfg((c) => ({ ...c, ...patch })); if (status !== 'idle') reset(); };
-  const switchToWalls = () => {
-    const next = { ...loadingCfg, mode: 'WALLS' };
-    setLoadingCfg(next);
-    track('load_optimizer_walls_switch');
-    runWith(excludedStops, deliveryMode, next);
+    run(container, defs, { deliveryMode: mode, loading: { mode: LOADING_DEFAULTS.mode } });
   };
 
   const optimize = () => {
@@ -633,7 +598,7 @@ export default function LoadOptimizer({ onBack }) {
   };
 
   const changeDeliveryMode = (mode) => { setDeliveryMode(mode); if (status !== 'idle') reset(); };
-  const trySoft = () => { setDeliveryMode('SOFT'); runWith(excludedStops, 'SOFT', loadingCfg); };
+  const trySoft = () => { setDeliveryMode('SOFT'); runWith(excludedStops, 'SOFT'); };
 
   // Dépassement : retirer un arrêt entier (re-calcul) ou reporter seulement l'excédent.
   const excludeStop = (stop) => {
@@ -729,7 +694,7 @@ export default function LoadOptimizer({ onBack }) {
               {bulkOpen && (
                 <div className="px-4 py-3 border-b border-slate-100 space-y-2">
                   <textarea value={bulkText} onChange={(e) => setBulkText(e.target.value)} rows={5}
-                    placeholder={'Collez depuis Excel (avec ou sans en-têtes). Ex :\nRéférence\tQté\tLongueur\tLargeur\tHauteur\tPoids\tRotation\tEmpilable\nCARTON-A\t40\t60\t40\t40\t12\tLibre\tOui'}
+                    placeholder={'Collez depuis Excel (avec ou sans en-têtes). Ex :\nRéférence\tQté\tLongueur\tLargeur\tHauteur\tPoids\tRotation\tEmpilage\nCARTON-A\t40\t60\t40\t40\t12\tLibre\tLibre'}
                     className="w-full px-3 py-2 bg-white border border-slate-200 rounded-md outline-none font-jetbrains text-base sm:text-[11px] text-slate-800 focus:border-slate-400" />
                   <div className="flex gap-2">
                     <button onClick={applyBulk} className="px-3 py-1.5 rounded-md text-xs font-jetbrains" style={{ background: BLUE, color: '#fff' }}>Analyser</button>
@@ -766,7 +731,7 @@ export default function LoadOptimizer({ onBack }) {
                         <MobileNum label="H cm" value={r.height} onChange={(v) => updateRow(r.id, 'height', v)} error={err.height} />
                         <MobileNum label="kg" value={r.weight} onChange={(v) => updateRow(r.id, 'weight', v)} error={err.weight} step="0.1" />
                       </div>
-                      <div className="grid grid-cols-[1fr_auto] gap-1.5 items-end">
+                      <div className="grid grid-cols-2 gap-1.5 items-end">
                         <label className="block min-w-0">
                           <span className="block font-jetbrains text-[10px] text-slate-400 mb-0.5">Rotation</span>
                           <select value={r.rotationMode} onChange={(e) => updateRow(r.id, 'rotationMode', e.target.value)}
@@ -774,11 +739,13 @@ export default function LoadOptimizer({ onBack }) {
                             {ROTATION_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                           </select>
                         </label>
-                        <button onClick={() => updateRow(r.id, 'stackable', !r.stackable)}
-                          className="h-[42px] px-3 rounded-md font-jetbrains text-xs flex items-center gap-1.5"
-                          style={r.stackable ? { background: BLUE_LIGHT, color: BLUE } : { background: '#F1F5F9', color: '#64748B' }}>
-                          {r.stackable ? <Check size={13} /> : <span>—</span>} Empilable
-                        </button>
+                        <label className="block min-w-0">
+                          <span className="block font-jetbrains text-[10px] text-slate-400 mb-0.5">Empilage</span>
+                          <select value={stackingOf(r)} onChange={(e) => updateStacking(r.id, e.target.value)}
+                            className="w-full px-2 py-2 bg-white border border-slate-200 rounded-md outline-none font-jetbrains text-base text-slate-700">
+                            {STACKING_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                          </select>
+                        </label>
                       </div>
                       <div className="grid grid-cols-[4.5rem_1fr] gap-1.5 items-end">
                         <MobileNum label="Arrêt" value={r.stop ?? 1} onChange={(v) => updateRow(r.id, 'stop', v)} error={err.stop} />
@@ -803,7 +770,7 @@ export default function LoadOptimizer({ onBack }) {
                     <tr className="border-b border-slate-100">
                       <Th className="text-left">Référence</Th>
                       <Th>Qté</Th><Th>L</Th><Th>l</Th><Th>H</Th><Th>Poids</Th>
-                      <Th>Rotation</Th><Th>Empil.</Th>
+                      <Th>Rotation</Th><Th title="Libre · Dessus uniquement (rien dessus) · Au sol · Au sol, rien dessus">Empilage</Th>
                       <Th title="1 = livré en premier">Arrêt</Th><Th className="text-left">Destination</Th><Th></Th>
                     </tr>
                   </thead>
@@ -815,7 +782,7 @@ export default function LoadOptimizer({ onBack }) {
                           <td className="pl-2 pr-0.5 py-1.5">
                             <div className="flex items-center gap-1.5">
                               <span className="w-2.5 h-2.5 rounded-sm shrink-0 mt-1" style={{ background: refColor(i).solid }} />
-                              <div className="flex-1 min-w-[72px]">
+                              <div className="flex-1 min-w-[64px]">
                                 <input value={r.reference} onChange={(e) => updateRow(r.id, 'reference', e.target.value)}
                                   placeholder="Réf."
                                   className="w-full px-2 py-1.5 bg-white border rounded-md outline-none font-jetbrains text-xs text-slate-800 focus:border-slate-400"
@@ -825,29 +792,28 @@ export default function LoadOptimizer({ onBack }) {
                             </div>
                           </td>
                           <td className="px-0.5 py-1.5"><NumCell value={r.quantity} onChange={(v) => updateRow(r.id, 'quantity', v)} error={err.quantity} width="w-12" /></td>
-                          <td className="px-0.5 py-1.5"><NumCell value={r.length} onChange={(v) => updateRow(r.id, 'length', v)} error={err.length} /></td>
-                          <td className="px-0.5 py-1.5"><NumCell value={r.width} onChange={(v) => updateRow(r.id, 'width', v)} error={err.width} /></td>
-                          <td className="px-0.5 py-1.5"><NumCell value={r.height} onChange={(v) => updateRow(r.id, 'height', v)} error={err.height} /></td>
-                          <td className="px-0.5 py-1.5"><NumCell value={r.weight} onChange={(v) => updateRow(r.id, 'weight', v)} error={err.weight} step="0.1" /></td>
+                          <td className="px-0.5 py-1.5"><NumCell value={r.length} onChange={(v) => updateRow(r.id, 'length', v)} error={err.length} width="w-12" /></td>
+                          <td className="px-0.5 py-1.5"><NumCell value={r.width} onChange={(v) => updateRow(r.id, 'width', v)} error={err.width} width="w-12" /></td>
+                          <td className="px-0.5 py-1.5"><NumCell value={r.height} onChange={(v) => updateRow(r.id, 'height', v)} error={err.height} width="w-12" /></td>
+                          <td className="px-0.5 py-1.5"><NumCell value={r.weight} onChange={(v) => updateRow(r.id, 'weight', v)} error={err.weight} step="0.1" width="w-12" /></td>
                           <td className="px-0.5 py-1.5">
                             <select value={r.rotationMode} onChange={(e) => updateRow(r.id, 'rotationMode', e.target.value)}
                               className="px-1.5 py-1.5 bg-white border border-slate-200 rounded-md outline-none font-jetbrains text-[11px] text-slate-700">
                               {ROTATION_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                             </select>
                           </td>
-                          <td className="px-0.5 py-1.5 text-center">
-                            <button onClick={() => updateRow(r.id, 'stackable', !r.stackable)}
-                              className="w-7 h-7 rounded-md flex items-center justify-center mx-auto"
-                              style={r.stackable ? { background: BLUE_LIGHT, color: BLUE } : { background: '#F1F5F9', color: '#94A3B8' }}
-                              title={r.stackable ? 'Empilable' : 'Non empilable'}>
-                              {r.stackable ? <Check size={13} /> : '—'}
-                            </button>
+                          <td className="px-0.5 py-1.5">
+                            <select value={stackingOf(r)} onChange={(e) => updateStacking(r.id, e.target.value)}
+                              title={STACKING_OPTIONS.find((o) => o.value === stackingOf(r))?.hint}
+                              className="w-[7.5rem] px-1 py-1.5 bg-white border border-slate-200 rounded-md outline-none font-jetbrains text-[11px] text-slate-700">
+                              {STACKING_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                            </select>
                           </td>
-                          <td className="px-0.5 py-1.5"><NumCell value={r.stop ?? 1} onChange={(v) => updateRow(r.id, 'stop', v)} error={err.stop} width="w-12" /></td>
+                          <td className="px-0.5 py-1.5"><NumCell value={r.stop ?? 1} onChange={(v) => updateRow(r.id, 'stop', v)} error={err.stop} width="w-10" /></td>
                           <td className="px-0.5 py-1.5">
                             <input value={r.destination ?? ''} onChange={(e) => updateRow(r.id, 'destination', e.target.value)}
                               placeholder="Client…"
-                              className="w-20 px-2 py-1.5 bg-white border border-slate-200 rounded-md outline-none font-jetbrains text-xs text-slate-800 focus:border-slate-400" />
+                              className="w-16 px-2 py-1.5 bg-white border border-slate-200 rounded-md outline-none font-jetbrains text-xs text-slate-800 focus:border-slate-400" />
                           </td>
                           <td className="px-0.5 py-1.5 text-center">
                             <button onClick={() => removeRow(r.id)} className="text-slate-300 hover:text-red-500"><Trash2 size={13} /></button>
@@ -913,56 +879,6 @@ export default function LoadOptimizer({ onBack }) {
                 <div><div className="font-jetbrains text-[10px] text-slate-500">Volume march.</div><div className="font-bricolage font-bold text-xl text-slate-800">{formatM3(totals.volume)} m³</div></div>
                 <div><div className="font-jetbrains text-[10px] text-slate-500">Poids total</div><div className="font-bricolage font-bold text-xl text-slate-800">{formatKg(totals.weight)} kg</div></div>
                 <div><div className="font-jetbrains text-[10px] text-slate-500">Contenant</div><div className="font-bricolage font-bold text-xl text-slate-800">{formatM3(containerVolume)} m³</div></div>
-              </div>
-              <div id="lo-loading-rules" className="mb-3 px-3 py-2.5 rounded-md bg-white border border-slate-200">
-                <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <div className="font-jetbrains text-[11px] text-slate-700 flex items-center gap-1.5">
-                    <Layers size={12} style={{ color: BLUE }} /> Méthode de chargement
-                  </div>
-                  <div className="flex items-center gap-0.5 p-0.5 rounded-md" style={{ background: '#F1F5F9' }}>
-                    {[{ v: 'WALLS', l: 'Par murs' }, { v: 'FREE', l: 'Libre' }].map((o) => (
-                      <button key={o.v} onClick={() => updateLoading({ mode: o.v })} className="px-2 py-1.5 sm:py-1 rounded text-[10px] font-jetbrains"
-                        style={loadingCfg.mode === o.v ? { background: '#fff', color: BLUE, fontWeight: 600 } : { color: '#64748B' }}>{o.l}</button>
-                    ))}
-                  </div>
-                </div>
-                <div className="text-[10px] text-slate-500 mt-1">
-                  {loadingCfg.mode === 'WALLS'
-                    ? 'Recommandé : chargement de la cabine vers les portes, mur par mur. Aucun colis n’est posé en passant par-dessus un autre.'
-                    : 'Remplissage maximal, mais certains colis devront être posés en passant par-dessus d’autres (ils seront signalés).'}
-                </div>
-                <div className="mt-2.5 pt-2.5 border-t border-slate-100 flex items-center justify-between gap-2 flex-wrap">
-                  <div className="font-jetbrains text-[11px] text-slate-700">Poser des colis sur d'autres</div>
-                  <div className="flex items-center gap-0.5 p-0.5 rounded-md" style={{ background: '#F1F5F9' }}>
-                    {[{ v: 'BY_REF', l: 'Selon les réf.' }, { v: 'NONE', l: 'Jamais' }].map((o) => (
-                      <button key={o.v} onClick={() => updateLoading({ stacking: o.v })} className="px-2 py-1.5 sm:py-1 rounded text-[10px] font-jetbrains"
-                        style={loadingCfg.stacking === o.v ? { background: '#fff', color: BLUE, fontWeight: 600 } : { color: '#64748B' }}>{o.l}</button>
-                    ))}
-                  </div>
-                </div>
-                <div className="text-[10px] text-slate-500 mt-1">
-                  {loadingCfg.stacking === 'NONE'
-                    ? 'Tous les colis sont posés au sol, rien n’est gerbé.'
-                    : 'Un colis peut recevoir d’autres colis s’il est coché « Empilable » dans la liste des marchandises. La hauteur du camion fixe la limite.'}
-                </div>
-                {loadingCfg.mode === 'WALLS' && (
-                  <>
-                    <button onClick={() => setRulesOpen((o) => !o)} className="mt-2 w-full flex items-center justify-between gap-2 text-left font-jetbrains text-[10px] text-slate-500 hover:text-slate-800">
-                      <span>Profondeur d'un mur · {Number(loadingCfg.wallDepthCm) > 0 ? `${loadingCfg.wallDepthCm} cm` : 'automatique'}</span>
-                      <ChevronDown size={12} className={`shrink-0 transition-transform ${rulesOpen ? 'rotate-180' : ''}`} />
-                    </button>
-                    {rulesOpen && (
-                      <div className="mt-2 pt-2 border-t border-slate-100 space-y-2">
-                        <RuleField label="Profondeur d'un mur" unit="cm" value={loadingCfg.wallDepthCm} placeholder="auto"
-                          hint="Vide = automatique (plus grande dimension au sol des colis)."
-                          onChange={(v) => updateLoading({ wallDepthCm: v })} />
-                        <button onClick={() => updateLoading(defaultLoadingCfg)} className="font-jetbrains text-[10px] text-slate-400 hover:text-slate-700 underline underline-offset-2">
-                          Revenir aux réglages recommandés
-                        </button>
-                      </div>
-                    )}
-                  </>
-                )}
               </div>
               {multiStop && (
                 <div className="mb-3 px-3 py-2.5 rounded-md bg-white border border-slate-200">
@@ -1120,26 +1036,17 @@ export default function LoadOptimizer({ onBack }) {
                   )}
                 </div>
 
-                <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
-                  <div className="px-4 py-2.5 border-b border-slate-100 font-jetbrains text-[10px] tracking-wider text-slate-500 flex items-center gap-1.5">
-                    <Layers size={12} /> CHARGEMENT {result.loadingMode === 'WALLS' ? `PAR MURS · ${result.walls.length} MURS` : 'LIBRE'}
+                {result.loadingViolationIds.length === 0 ? (
+                  <div className="rounded-xl border px-4 py-3 text-[11px] flex items-start gap-1.5" style={{ color: '#15803D', background: '#F0FDF4', borderColor: '#BBF7D0' }}>
+                    <Check size={13} className="mt-0.5 shrink-0" />
+                    Chargement par murs, de la cabine vers les portes : chaque colis est accessible sans monter sur la marchandise.
                   </div>
-                  {result.loadingViolationIds.length > 0 ? (
-                    <div className="px-4 py-3 text-[11px] flex flex-col sm:flex-row sm:items-center justify-between gap-2" style={{ color: '#B91C1C', background: '#FEF2F2' }}>
-                      <span className="flex items-start gap-1.5">
-                        <AlertCircle size={13} className="mt-0.5 shrink-0" />
-                        {result.loadingViolationIds.length} colis devront être posés en passant par-dessus d'autres colis.
-                      </span>
-                      <button onClick={switchToWalls} className="shrink-0 px-3 py-1.5 rounded-md font-jetbrains text-[10px] font-semibold text-white" style={{ background: BLUE }}>
-                        Charger par murs
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="px-4 py-2.5 text-[11px] flex items-center gap-1.5" style={{ color: '#15803D', background: '#F0FDF4' }}>
-                      <Check size={13} /> Chaque colis est accessible depuis les portes au moment de le charger.
-                    </div>
-                  )}
-                </div>
+                ) : (
+                  <div className="rounded-xl border px-4 py-3 text-[11px] flex items-start gap-1.5" style={{ color: '#B91C1C', background: '#FEF2F2', borderColor: '#FECACA' }}>
+                    <AlertCircle size={13} className="mt-0.5 shrink-0" />
+                    {result.loadingViolationIds.length} colis devront être posés en passant par-dessus d'autres colis.
+                  </div>
+                )}
 
                 {multiStopResult && (
                   <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">

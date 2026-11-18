@@ -12,6 +12,38 @@ export const ROTATION_OPTIONS = [
   { value: 'NONE', label: 'Interdite' },
 ];
 
+// Empilage : deux propriétés indépendantes réunies en 4 choix simples.
+//  - stackable : le colis peut recevoir d'autres colis par-dessus
+//  - floorOnly : le colis doit rester au sol (ne peut pas être posé sur un autre)
+export const STACKING_OPTIONS = [
+  { value: 'FREE',         label: 'Libre',              stackable: true,  floorOnly: false, hint: 'Peut aller sur un autre colis et en recevoir dessus.' },
+  { value: 'TOP_ONLY',     label: 'Dessus uniquement',  stackable: false, floorOnly: false, hint: 'Rien par-dessus (fragile), mais peut être posé sur un autre colis.' },
+  { value: 'FLOOR',        label: 'Au sol',             stackable: true,  floorOnly: true,  hint: 'Reste au sol, peut recevoir des colis dessus.' },
+  { value: 'FLOOR_NO_TOP', label: 'Au sol, rien dessus', stackable: false, floorOnly: true, hint: 'Reste au sol et ne reçoit rien dessus.' },
+];
+
+export function stackingOf(row) {
+  const st = row.stackable !== false;
+  const fl = !!row.floorOnly;
+  return (STACKING_OPTIONS.find((o) => o.stackable === st && o.floorOnly === fl) ?? STACKING_OPTIONS[0]).value;
+}
+
+export function stackingFields(value) {
+  const o = STACKING_OPTIONS.find((x) => x.value === value) ?? STACKING_OPTIONS[0];
+  return { stackable: o.stackable, floorOnly: o.floorOnly };
+}
+
+/** Lit un libellé d'empilage (4 choix) ; null si non reconnu. */
+export function parseStacking(v) {
+  const k = String(v ?? '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  if (!k) return null;
+  if (k.includes('sol') && (k.includes('rien') || k.includes('non'))) return 'FLOOR_NO_TOP';
+  if (k.includes('sol')) return 'FLOOR';
+  if (k.includes('dessus') || k.includes('fragile')) return 'TOP_ONLY';
+  if (k.includes('libre')) return 'FREE';
+  return null;
+}
+
 export function emptyRow() {
   return {
     id: newRowId(),
@@ -23,6 +55,7 @@ export function emptyRow() {
     weight: 0,
     rotationMode: 'FULL',
     stackable: true,
+    floorOnly: false,
     stop: 1,
     destination: '',
   };
@@ -38,7 +71,7 @@ export function exampleRows() {
   return [
     { id: newRowId(), reference: 'CARTON-A',     quantity: 40, length: 60,  width: 40, height: 40,  weight: 12,  rotationMode: 'FULL',       stackable: true,  stop: 1, destination: '' },
     { id: newRowId(), reference: 'CARTON-B',     quantity: 20, length: 80,  width: 60, height: 50,  weight: 18,  rotationMode: 'FULL',       stackable: true,  stop: 1, destination: '' },
-    { id: newRowId(), reference: 'PALETTE-EURO', quantity: 4,  length: 120, width: 80, height: 140, weight: 450, rotationMode: 'HORIZONTAL', stackable: false, stop: 1, destination: '' },
+    { id: newRowId(), reference: 'PALETTE-EURO', quantity: 4,  length: 120, width: 80, height: 140, weight: 450, rotationMode: 'HORIZONTAL', stackable: false, floorOnly: true, stop: 1, destination: '' },
   ];
 }
 
@@ -79,7 +112,8 @@ export function rowsToDefinitions(rows) {
     height: cmToMm(r.height),
     weight: r.weight,
     rotationMode: r.rotationMode,
-    stackable: r.stackable,
+    stackable: r.stackable !== false,
+    floorOnly: !!r.floorOnly,
     stop: r.stop ?? 1,
     destination: (r.destination ?? '').trim(),
   }));
@@ -133,6 +167,7 @@ const BULK_ALIASES = {
   height: ['height', 'hauteur', 'haut'],
   weight: ['weight', 'poids', 'masse', 'kg'],
   rotation: ['rotation', 'rot'],
+  stacking: ['empilage', 'superposition', 'gerbage'],
   stackable: ['stackable', 'empilable', 'gerbable', 'empil'],
   stop: ['arrêt', 'arret', 'stop', 'ordre de livraison', 'ordre', 'tournée', 'tournee', 'séquence', 'sequence'],
   destination: ['destination', 'client', 'destinataire', 'ville'],
@@ -206,7 +241,12 @@ export function bulkToRows(json) {
     height: map.height ? toNum(r[map.height]) : 0,
     weight: map.weight ? toNum(r[map.weight]) : 0,
     rotationMode: map.rotation ? parseRotation(r[map.rotation]) : 'FULL',
-    stackable: map.stackable ? parseBool(r[map.stackable]) : true,
+    ...(() => {
+      // Colonne « Empilage » (4 choix) prioritaire ; sinon ancienne colonne Empilable Oui/Non.
+      const st = map.stacking ? parseStacking(r[map.stacking]) : null;
+      if (st) return stackingFields(st);
+      return { stackable: map.stackable ? parseBool(r[map.stackable]) : true, floorOnly: false };
+    })(),
     stop,
     destination: map.destination ? String(r[map.destination] ?? '').trim() : dest,
     };

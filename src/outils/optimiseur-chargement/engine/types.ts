@@ -22,6 +22,8 @@ export interface ItemDefinition {
   weight: number;     // kg
   rotationMode: RotationMode;
   stackable: boolean;
+  /** Doit rester au sol (ne peut pas être posé sur un autre colis). */
+  floorOnly?: boolean;
   /** Ordre de livraison (1 = livré en premier). Absent = 1 (mono-destination). */
   stop?: number;
   /** Libellé facultatif de la destination (client, ville…). */
@@ -38,6 +40,7 @@ export interface ItemInstance {
   weight: number;
   rotationMode: RotationMode;
   stackable: boolean;
+  floorOnly: boolean;
   stop: number;
   destination: string;
 }

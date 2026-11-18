@@ -129,3 +129,26 @@ describe('Compatibilité et indicateurs', () => {
     expect(r.heightLimitCost).toBeNull();
   });
 });
+
+describe('Empilage : colis au sol', () => {
+  it('un colis « au sol » n\'est jamais posé sur un autre', () => {
+    const defs = [
+      item({ id: 'f', quantity: 60, length: 600, width: 400, height: 400, floorOnly: true }),
+      item({ id: 'c', quantity: 60, length: 600, width: 400, height: 400 }),
+    ];
+    const r = optimize(container(3000, 2400, 2400), defs, { loading: { mode: 'WALLS' } });
+    for (const p of r.placedItems.filter((x) => x.definitionId === 'f')) expect(p.z).toBe(0);
+    expect(r.placedItems.some((p) => p.definitionId === 'c' && p.z > 0)).toBe(true);
+  });
+
+  it('« dessus uniquement » : peut monter sur un autre, mais rien dessus', () => {
+    const defs = [
+      item({ id: 'base', quantity: 4, length: 1200, width: 800, height: 500, floorOnly: true, rotationMode: 'NONE' }),
+      item({ id: 'top', quantity: 4, length: 1200, width: 800, height: 500, stackable: false, rotationMode: 'NONE' }),
+    ];
+    const r = optimize(container(2400, 1600, 2000), defs, { loading: { mode: 'WALLS' } });
+    expect(r.unpackedCount).toBe(0);
+    const tops = r.placedItems.filter((p) => p.definitionId === 'top');
+    expect(tops.every((p) => p.z === 500)).toBe(true);
+  });
+});
