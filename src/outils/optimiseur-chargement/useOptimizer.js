@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
-import { optimize } from './engine/optimizer';
+import { optimizeWithInsights } from './engine/optimizer';
 
 /**
  * Pilote le moteur d'optimisation via un Web Worker (calcul hors thread UI).
@@ -43,7 +43,7 @@ export function useOptimizer() {
     }
     // Repli synchrone
     try {
-      const r = optimize(container, definitions, options);
+      const r = optimizeWithInsights(container, definitions, options);
       setResult(r);
       setStatus('done');
     } catch (e) {

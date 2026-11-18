@@ -15,6 +15,7 @@ optimiseur-chargement/
     support.ts       surface de contact, support ≥ 80 %, non-empilable
     scoring.ts       score d'un emplacement (sol, origine, support, contact)
     strategies.ts    5 ordres de tri des unités
+    loading.ts       chargement par murs, chargeabilité, hauteurs de manutention
     delivery.ts      tournées multi-arrêts : règle LIFO, colis bloqués, synthèse par arrêt
     optimizer.ts     heuristique extreme points + index spatial + multi-stratégies
   constants/
@@ -74,6 +75,23 @@ Chaque référence peut porter un **arrêt** (`stop`, 1 = livré en premier) et 
   propose de **retirer l'arrêt entier** (recalcul) ou de **reporter seulement
   les colis en excès**, avec export Excel des reliquats.
 - Sans arrêt renseigné, le comportement est strictement identique au mono-destination.
+
+## Chargement physique : murs, chargeabilité, hauteurs (engine/loading.ts)
+
+- `loading.mode` : `WALLS` (par murs, de la cabine vers les portes) ou `FREE`
+  (historique, remplissage maximal). Sans option, le moteur reste en `FREE`.
+- En `WALLS`, un colis n'est placé que si rien de déjà chargé ne se trouve entre
+  lui et les portes sur sa section YZ ; on remplit le mur courant puis on avance
+  de `wallDepth` (auto = plus grande dimension au sol).
+- `loadingViolationIds` : colis à poser par-dessus d'autres en suivant la
+  séquence (toujours vide en `WALLS`, signalés en `FREE`).
+- Hauteurs de manutention : `manualMaxHeight` (1 800 mm), `heavyMaxHeight`
+  (1 500 mm au-delà de `heavyThresholdKg` = 15 kg), sans limite au-delà de
+  `mechanizedAboveKg` = 25 kg (engin). Valeurs par défaut de l'UI :
+  `LOADING_DEFAULTS`.
+- `optimizeWithInsights` chiffre le coût des limites de hauteur
+  (`heightLimitCost`) quand tout ne rentre pas.
+- Chaque `PlacedItem` porte `sequence` (ordre de chargement) et `wall`.
 
 ## Tests
 
