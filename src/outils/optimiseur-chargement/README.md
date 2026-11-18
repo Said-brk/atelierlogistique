@@ -85,7 +85,7 @@ Chaque référence peut porter un **arrêt** (`stop`, 1 = livré en premier) et 
   de `wallDepth` (auto = plus grande dimension au sol).
 - `loadingViolationIds` : colis à poser par-dessus d'autres en suivant la
   séquence (toujours vide en `WALLS`, signalés en `FREE`).
-- Hauteurs de manutention : `manualMaxHeight` (1 800 mm), `heavyMaxHeight`
+- Hauteurs de manutention (moteur uniquement, non exposées dans l’UI) : `manualMaxHeight`, `heavyMaxHeight`
   (1 500 mm au-delà de `heavyThresholdKg` = 15 kg), sans limite au-delà de
   `mechanizedAboveKg` = 25 kg (engin). Valeurs par défaut de l'UI :
   `LOADING_DEFAULTS`.

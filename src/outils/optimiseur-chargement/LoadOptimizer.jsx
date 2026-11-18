@@ -104,7 +104,7 @@ function NumCell({ value, onChange, error, width = 'w-14', step = '1' }) {
 }
 
 // ---- Schéma 2D (vue de dessus + vue de côté) — étape intermédiaire avant la 3D ----
-function Schematic2D({ container, placed, colorOf, isDimmed, blockedIds, manualLine }) {
+function Schematic2D({ container, placed, colorOf, isDimmed, blockedIds }) {
   const target = 520;
   const scale = target / container.length;
   const topH = container.width * scale;
@@ -140,10 +140,6 @@ function Schematic2D({ container, placed, colorOf, isDimmed, blockedIds, manualL
           <rect x="0" y="0" width={W} height={sideH} fill="#F8FAFC" stroke="#CBD5E1" strokeWidth="1" />
           {rects((p) => ({ x: p.x * scale, y: (container.height - (p.z + p.height)) * scale, w: p.length * scale, h: p.height * scale }))}
           {doors(sideH)}
-          {manualLine > 0 && manualLine < container.height && (
-            <line x1={0} x2={W} y1={(container.height - manualLine) * scale} y2={(container.height - manualLine) * scale}
-              stroke="#F59E0B" strokeWidth="1" strokeDasharray="4 3" />
-          )}
         </svg>
       </div>
     </div>
@@ -437,11 +433,7 @@ export default function LoadOptimizer({ onBack }) {
   const defaultLoadingCfg = {
     mode: LOADING_DEFAULTS.mode,
     wallDepthCm: '',
-    limitHeights: true,
-    manualMaxCm: LOADING_DEFAULTS.manualMaxHeight / 10,
-    heavyMaxCm: LOADING_DEFAULTS.heavyMaxHeight / 10,
-    heavyKg: LOADING_DEFAULTS.heavyThresholdKg,
-    mechKg: LOADING_DEFAULTS.mechanizedAboveKg,
+    stacking: 'BY_REF', // 'BY_REF' = selon la colonne « Empil. » ; 'NONE' = aucun colis posé sur un autre
   };
   const [loadingCfg, setLoadingCfg] = useState(() => {
     try { return { ...defaultLoadingCfg, ...JSON.parse(localStorage.getItem(LOADING_KEY) || '{}') }; } catch { return defaultLoadingCfg; }
@@ -452,10 +444,7 @@ export default function LoadOptimizer({ onBack }) {
   const toLoadingOptions = (c) => ({
     mode: c.mode,
     wallDepth: Number(c.wallDepthCm) > 0 ? Number(c.wallDepthCm) * 10 : null,
-    manualMaxHeight: c.limitHeights && Number(c.manualMaxCm) > 0 ? Number(c.manualMaxCm) * 10 : null,
-    heavyMaxHeight: c.limitHeights && Number(c.heavyMaxCm) > 0 ? Number(c.heavyMaxCm) * 10 : null,
-    heavyThresholdKg: Number(c.heavyKg) || 0,
-    mechanizedAboveKg: Number(c.mechKg) || 0,
+    // Pas de limite de hauteur de pose : seule la hauteur du contenant compte.
   });
 
   // Tournée multi-arrêts
@@ -619,7 +608,8 @@ export default function LoadOptimizer({ onBack }) {
   };
 
   const runWith = (excluded, mode = deliveryMode, cfg = loadingCfg) => {
-    const defs = rowsToDefinitions(rows.filter((r) => !excluded.includes(r.stop ?? 1)));
+    const defs = rowsToDefinitions(rows.filter((r) => !excluded.includes(r.stop ?? 1)))
+      .map((d) => (cfg.stacking === 'NONE' ? { ...d, stackable: false } : d));
     setHighlight(null);
     setUnloadedUpTo(0);
     setLoadedUpToWall(null);
@@ -634,10 +624,6 @@ export default function LoadOptimizer({ onBack }) {
     setLoadingCfg(next);
     track('load_optimizer_walls_switch');
     runWith(excludedStops, deliveryMode, next);
-  };
-  const openRules = () => {
-    setRulesOpen(true);
-    document.getElementById('lo-loading-rules')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   };
 
   const optimize = () => {
@@ -945,39 +931,37 @@ export default function LoadOptimizer({ onBack }) {
                     ? 'Recommandé : chargement de la cabine vers les portes, mur par mur. Aucun colis n’est posé en passant par-dessus un autre.'
                     : 'Remplissage maximal, mais certains colis devront être posés en passant par-dessus d’autres (ils seront signalés).'}
                 </div>
-                <button onClick={() => setRulesOpen((o) => !o)} className="mt-2 w-full flex items-center justify-between gap-2 text-left font-jetbrains text-[10px] text-slate-500 hover:text-slate-800">
-                  <span>
-                    Règles de manutention · {loadingCfg.mode === 'WALLS' ? `murs ${Number(loadingCfg.wallDepthCm) > 0 ? `${loadingCfg.wallDepthCm} cm` : 'auto'} · ` : ''}
-                    {loadingCfg.limitHeights ? `manuel ≤ ${loadingCfg.manualMaxCm} cm (≤ ${loadingCfg.heavyMaxCm} cm > ${loadingCfg.heavyKg} kg)` : 'hauteur libre'} · engin &gt; {loadingCfg.mechKg} kg
-                  </span>
-                  <ChevronDown size={12} className={`shrink-0 transition-transform ${rulesOpen ? 'rotate-180' : ''}`} />
-                </button>
-                {rulesOpen && (
-                  <div className="mt-2 pt-2 border-t border-slate-100 space-y-2.5">
-                    {loadingCfg.mode === 'WALLS' && (
-                      <RuleField label="Profondeur d'un mur" unit="cm" value={loadingCfg.wallDepthCm} placeholder="auto"
-                        hint="Vide = automatique (plus grande dimension au sol des colis)."
-                        onChange={(v) => updateLoading({ wallDepthCm: v })} />
-                    )}
-                    <label className="flex items-center gap-2 text-[11px] text-slate-700 cursor-pointer">
-                      <input type="checkbox" checked={loadingCfg.limitHeights} onChange={(e) => updateLoading({ limitHeights: e.target.checked })} />
-                      Limiter la hauteur de pose des colis manipulés à la main
-                    </label>
-                    {loadingCfg.limitHeights && (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                        <RuleField label="Hauteur maxi colis manuels" unit="cm" value={loadingCfg.manualMaxCm} onChange={(v) => updateLoading({ manualMaxCm: v })}
-                          hint="Portée bras tendus (repère : 180 cm)." />
-                        <RuleField label="Hauteur maxi colis lourds" unit="cm" value={loadingCfg.heavyMaxCm} onChange={(v) => updateLoading({ heavyMaxCm: v })}
-                          hint="Hauteur d'épaule (repère : 150 cm)." />
-                        <RuleField label="Colis « lourd » au-delà de" unit="kg" value={loadingCfg.heavyKg} onChange={(v) => updateLoading({ heavyKg: v })} />
-                        <RuleField label="Manutention à l'engin au-delà de" unit="kg" value={loadingCfg.mechKg} onChange={(v) => updateLoading({ mechKg: v })}
-                          hint="Palettes, colis lourds : pas de limite de hauteur manuelle." />
+                <div className="mt-2.5 pt-2.5 border-t border-slate-100 flex items-center justify-between gap-2 flex-wrap">
+                  <div className="font-jetbrains text-[11px] text-slate-700">Poser des colis sur d'autres</div>
+                  <div className="flex items-center gap-0.5 p-0.5 rounded-md" style={{ background: '#F1F5F9' }}>
+                    {[{ v: 'BY_REF', l: 'Selon les réf.' }, { v: 'NONE', l: 'Jamais' }].map((o) => (
+                      <button key={o.v} onClick={() => updateLoading({ stacking: o.v })} className="px-2 py-1.5 sm:py-1 rounded text-[10px] font-jetbrains"
+                        style={loadingCfg.stacking === o.v ? { background: '#fff', color: BLUE, fontWeight: 600 } : { color: '#64748B' }}>{o.l}</button>
+                    ))}
+                  </div>
+                </div>
+                <div className="text-[10px] text-slate-500 mt-1">
+                  {loadingCfg.stacking === 'NONE'
+                    ? 'Tous les colis sont posés au sol, rien n’est gerbé.'
+                    : 'Un colis peut recevoir d’autres colis s’il est coché « Empilable » dans la liste des marchandises. La hauteur du camion fixe la limite.'}
+                </div>
+                {loadingCfg.mode === 'WALLS' && (
+                  <>
+                    <button onClick={() => setRulesOpen((o) => !o)} className="mt-2 w-full flex items-center justify-between gap-2 text-left font-jetbrains text-[10px] text-slate-500 hover:text-slate-800">
+                      <span>Profondeur d'un mur · {Number(loadingCfg.wallDepthCm) > 0 ? `${loadingCfg.wallDepthCm} cm` : 'automatique'}</span>
+                      <ChevronDown size={12} className={`shrink-0 transition-transform ${rulesOpen ? 'rotate-180' : ''}`} />
+                    </button>
+                    {rulesOpen && (
+                      <div className="mt-2 pt-2 border-t border-slate-100 space-y-2">
+                        <RuleField label="Profondeur d'un mur" unit="cm" value={loadingCfg.wallDepthCm} placeholder="auto"
+                          hint="Vide = automatique (plus grande dimension au sol des colis)."
+                          onChange={(v) => updateLoading({ wallDepthCm: v })} />
+                        <button onClick={() => updateLoading(defaultLoadingCfg)} className="font-jetbrains text-[10px] text-slate-400 hover:text-slate-700 underline underline-offset-2">
+                          Revenir aux réglages recommandés
+                        </button>
                       </div>
                     )}
-                    <button onClick={() => updateLoading(defaultLoadingCfg)} className="font-jetbrains text-[10px] text-slate-400 hover:text-slate-700 underline underline-offset-2">
-                      Revenir aux réglages recommandés
-                    </button>
-                  </div>
+                  </>
                 )}
               </div>
               {multiStop && (
@@ -1051,13 +1035,13 @@ export default function LoadOptimizer({ onBack }) {
                   </div>
                   <div className="p-2 sm:p-4 relative">
                     {view3d ? (
-                      <ThreeErrorBoundary fallback={<Schematic2D container={container} placed={visiblePlaced} colorOf={colorOf} isDimmed={isDimmed} blockedIds={blockedIds} manualLine={result.loadingMode && loadingCfg.limitHeights ? loadingCfg.manualMaxCm * 10 : 0} />}>
+                      <ThreeErrorBoundary fallback={<Schematic2D container={container} placed={visiblePlaced} colorOf={colorOf} isDimmed={isDimmed} blockedIds={blockedIds} />}>
                         <Suspense fallback={<div className="flex items-center justify-center text-slate-400 font-jetbrains text-xs h-[340px] sm:h-[420px] lg:h-[460px]"><Loader2 size={18} className="animate-spin mr-2" /> Chargement de la vue 3D…</div>}>
                           <LoadView3D container={container} placed={visiblePlaced} colorOf={colorOf} isDimmed={isDimmed} blockedIds={blockedIds} onHover={setHovered} />
                         </Suspense>
                       </ThreeErrorBoundary>
                     ) : (
-                      <Schematic2D container={container} placed={visiblePlaced} colorOf={colorOf} isDimmed={isDimmed} blockedIds={blockedIds} manualLine={loadingCfg.limitHeights ? loadingCfg.manualMaxCm * 10 : 0} />
+                      <Schematic2D container={container} placed={visiblePlaced} colorOf={colorOf} isDimmed={isDimmed} blockedIds={blockedIds} />
                     )}
                     {hovered && (
                       <div className="absolute bottom-3 left-3 bg-white/95 border border-slate-200 rounded-lg px-3 py-2 font-jetbrains text-[11px] shadow-sm pointer-events-none">
@@ -1153,15 +1137,6 @@ export default function LoadOptimizer({ onBack }) {
                   ) : (
                     <div className="px-4 py-2.5 text-[11px] flex items-center gap-1.5" style={{ color: '#15803D', background: '#F0FDF4' }}>
                       <Check size={13} /> Chaque colis est accessible depuis les portes au moment de le charger.
-                    </div>
-                  )}
-                  {result.heightLimitCost && (
-                    <div className="px-4 py-2.5 border-t border-slate-100 text-[11px] text-slate-600 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                      <span>
-                        Limite de hauteur manuelle ({loadingCfg.manualMaxCm} cm) : <strong style={{ color: '#B45309' }}>{result.heightLimitCost.packedItems - result.packedItems} colis</strong> de moins chargés
-                        ({formatPct(result.volumeUtilization)} % de remplissage au lieu de {formatPct(result.heightLimitCost.volumeUtilization)} %).
-                      </span>
-                      <button onClick={openRules} className="shrink-0 font-jetbrains text-[10px] underline underline-offset-2" style={{ color: BLUE }}>Ajuster les règles</button>
                     </div>
                   )}
                 </div>
