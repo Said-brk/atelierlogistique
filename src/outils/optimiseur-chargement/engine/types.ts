@@ -76,6 +76,10 @@ export interface PlacedItem {
   stackable: boolean;
   stop: number;
   destination: string;
+  /** Rang dans la séquence de chargement (1 = chargé en premier). */
+  sequence: number;
+  /** Mur (tranche) de chargement, 1 = côté cabine. 0 en chargement libre. */
+  wall: number;
 }
 
 /** Contenant cible (camion ou conteneur). */
@@ -111,6 +115,46 @@ export interface OptimizationResult {
   /** Colis placés dont l'accès est bloqué par un arrêt ultérieur (mode souple). */
   blockedItemIds: string[];
   deliveryMode: DeliveryMode;
+
+  loadingMode: LoadingMode;
+  /** Synthèse par mur (vide en chargement libre). */
+  walls: WallSummary[];
+  /** Colis à atteindre en passant par-dessus d'autres en suivant la séquence (vide en mode par murs). */
+  loadingViolationIds: string[];
+  /** Résultat qu'on obtiendrait sans limite de hauteur manuelle (null = limite sans effet). */
+  heightLimitCost?: { packedItems: number; volumeUtilization: number } | null;
+}
+
+/**
+ * WALLS : chargement par murs successifs, de la cabine vers les portes.
+ *         Un colis n'est placé que si rien de déjà chargé ne se trouve entre
+ *         lui et les portes (règle de chargeabilité).
+ * FREE  : meilleur emplacement disponible n'importe où (remplissage maximal) ;
+ *         les colis difficiles d'accès sont seulement signalés.
+ */
+export type LoadingMode = 'WALLS' | 'FREE';
+
+export interface WallSummary {
+  wall: number;
+  xStart: number; // mm
+  xEnd: number;   // mm
+  items: number;
+  weight: number; // kg
+}
+
+/** Règles de chargement physique (manutention). */
+export interface LoadingOptions {
+  mode?: LoadingMode;
+  /** Profondeur d'un mur en mm ; null/absent = automatique (plus grande dimension au sol). */
+  wallDepth?: number | null;
+  /** Hauteur maxi (dessus du colis, mm) pour un colis posé à la main ; null = sans limite. */
+  manualMaxHeight?: number | null;
+  /** Hauteur maxi (mm) pour un colis manuel lourd ; null = sans limite. */
+  heavyMaxHeight?: number | null;
+  /** Au-delà de ce poids (kg), un colis manuel est « lourd ». */
+  heavyThresholdKg?: number;
+  /** Au-delà de ce poids (kg), le colis est manutentionné à l'engin (pas de limite de hauteur manuelle). */
+  mechanizedAboveKg?: number;
 }
 
 /**
@@ -134,4 +178,5 @@ export interface OptimizeOptions {
   iterations?: number;
   seed?: number;
   deliveryMode?: DeliveryMode;
+  loading?: LoadingOptions;
 }

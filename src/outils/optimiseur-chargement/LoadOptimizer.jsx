@@ -4,7 +4,7 @@ import * as XLSX from 'xlsx';
 import {
   ArrowLeft, Plus, Trash2, Truck, Box, Loader2, AlertCircle,
   RotateCcw, Check, ArrowRight, Boxes, Upload, Copy, Download,
-  MapPin, Undo2, Printer,
+  MapPin, Undo2, Printer, Layers, ChevronDown,
 } from 'lucide-react';
 
 const LoadView3D = lazy(() => import('./LoadView3D.jsx'));
@@ -17,6 +17,7 @@ class ThreeErrorBoundary extends Component {
   render() { return this.state.failed ? this.props.fallback : this.props.children; }
 }
 import { CONTAINER_PRESETS } from './constants/containers';
+import { LOADING_DEFAULTS } from './constants/engine-config';
 import { useOptimizer } from './useOptimizer';
 import {
   emptyRow, exampleRows, validateRow, rowsAreValid, coerceField,
@@ -58,6 +59,22 @@ function Th({ children, className = '', title }) {
   return <th title={title} className={`font-normal text-slate-400 px-1 py-2 text-[10px] tracking-wider ${className}`}>{children}</th>;
 }
 
+// Champ de réglage (règles de manutention)
+function RuleField({ label, unit, value, onChange, hint, placeholder }) {
+  return (
+    <label className="block">
+      <span className="block font-jetbrains text-[10px] text-slate-500 mb-0.5">{label}</span>
+      <span className="flex items-center gap-1.5">
+        <input type="number" inputMode="numeric" min="0" value={value} placeholder={placeholder}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-24 px-2 py-1.5 bg-white border border-slate-200 rounded-md outline-none font-jetbrains text-base sm:text-xs text-slate-800 focus:border-slate-400" />
+        <span className="font-jetbrains text-[10px] text-slate-400">{unit}</span>
+      </span>
+      {hint && <span className="block text-[10px] text-slate-400 mt-0.5">{hint}</span>}
+    </label>
+  );
+}
+
 // Champ numérique libellé, version mobile (police 16 px : évite le zoom iOS).
 function MobileNum({ label, value, onChange, error, step = '1' }) {
   return (
@@ -87,7 +104,7 @@ function NumCell({ value, onChange, error, width = 'w-14', step = '1' }) {
 }
 
 // ---- Schéma 2D (vue de dessus + vue de côté) — étape intermédiaire avant la 3D ----
-function Schematic2D({ container, placed, colorOf, isDimmed, blockedIds }) {
+function Schematic2D({ container, placed, colorOf, isDimmed, blockedIds, manualLine }) {
   const target = 520;
   const scale = target / container.length;
   const topH = container.width * scale;
@@ -123,6 +140,10 @@ function Schematic2D({ container, placed, colorOf, isDimmed, blockedIds }) {
           <rect x="0" y="0" width={W} height={sideH} fill="#F8FAFC" stroke="#CBD5E1" strokeWidth="1" />
           {rects((p) => ({ x: p.x * scale, y: (container.height - (p.z + p.height)) * scale, w: p.length * scale, h: p.height * scale }))}
           {doors(sideH)}
+          {manualLine > 0 && manualLine < container.height && (
+            <line x1={0} x2={W} y1={(container.height - manualLine) * scale} y2={(container.height - manualLine) * scale}
+              stroke="#F59E0B" strokeWidth="1" strokeDasharray="4 3" />
+          )}
         </svg>
       </div>
     </div>
@@ -205,7 +226,8 @@ function PrintSheet({ container, result, rows, colorIndex, multiStopResult, left
           <div style={{ fontSize: 20, fontWeight: 700 }}>Fiche de chargement</div>
           <div style={{ fontSize: 11, color: '#475569', marginTop: 2 }}>
             {container.label} · {m(container.length)}×{m(container.width)}×{m(container.height)} m
-            {result.deliveryMode ? ` · mode ${result.deliveryMode === 'SOFT' ? 'souple' : 'strict'}` : ''}
+            {result.loadingMode === 'WALLS' ? ' · chargement par murs' : ''}
+            {multiStopResult && result.deliveryMode ? ` · tournée ${result.deliveryMode === 'SOFT' ? 'souple' : 'stricte'}` : ''}
           </div>
         </div>
         <div style={{ textAlign: 'right', fontSize: 11, color: '#475569' }}>
@@ -224,6 +246,39 @@ function PrintSheet({ container, result, rows, colorIndex, multiStopResult, left
       {multiStopResult && (
         <div style={{ background: '#FFFBEB', border: '1px solid #FDE68A', color: '#B45309', borderRadius: 6, padding: '8px 10px', fontSize: 11, marginBottom: 16 }}>
           <strong>Ordre de chargement :</strong> chargez du fond vers les portes — commencez par l'arrêt {ordered.find((s) => s.packedItems > 0)?.stop} (livré en dernier), terminez par l'arrêt 1 (livré en premier, côté portes, repère ▮).
+        </div>
+      )}
+
+      {result.loadingMode === 'WALLS' && result.walls?.length > 0 && (
+        <div className="lo-stop" style={{ marginBottom: 18 }}>
+          <strong style={{ fontSize: 14 }}>Séquence de chargement par murs</strong>
+          <div style={{ fontSize: 10, color: '#64748B', margin: '2px 0 6px' }}>
+            Remplir chaque mur sur toute la largeur et la hauteur avant de passer au suivant. Mur 1 = côté cabine.
+          </div>
+          <table style={{ borderCollapse: 'collapse', width: '100%' }}>
+            <thead><tr>
+              <th style={th}>Mur</th>
+              <th style={th}>Depuis la cabine</th>
+              <th style={th}>Contenu</th>
+              <th style={{ ...th, textAlign: 'right' }}>Colis</th>
+              <th style={{ ...th, textAlign: 'right' }}>Poids</th>
+            </tr></thead>
+            <tbody>
+              {result.walls.map((w) => {
+                const content = groupByReference(result.placedItems.filter((p) => p.wall === w.wall))
+                  .map((g) => `${g.reference || 'réf.'} ×${g.count}`).join(', ');
+                return (
+                  <tr key={w.wall} style={{ breakInside: 'avoid' }}>
+                    <td style={{ ...td, fontWeight: 700 }}>{w.wall}</td>
+                    <td style={td}>{m(w.xStart)} → {m(w.xEnd)} m</td>
+                    <td style={td}>{content}</td>
+                    <td style={{ ...td, textAlign: 'right' }}>{w.items}</td>
+                    <td style={{ ...td, textAlign: 'right' }}>{formatKg(w.weight)} kg</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       )}
 
@@ -377,6 +432,32 @@ export default function LoadOptimizer({ onBack }) {
   }, []);
   const { run, reset, result, status } = useOptimizer();
 
+  // Règles de chargement physique (persistées dans le navigateur)
+  const LOADING_KEY = 'al_loading_rules_v1';
+  const defaultLoadingCfg = {
+    mode: LOADING_DEFAULTS.mode,
+    wallDepthCm: '',
+    limitHeights: true,
+    manualMaxCm: LOADING_DEFAULTS.manualMaxHeight / 10,
+    heavyMaxCm: LOADING_DEFAULTS.heavyMaxHeight / 10,
+    heavyKg: LOADING_DEFAULTS.heavyThresholdKg,
+    mechKg: LOADING_DEFAULTS.mechanizedAboveKg,
+  };
+  const [loadingCfg, setLoadingCfg] = useState(() => {
+    try { return { ...defaultLoadingCfg, ...JSON.parse(localStorage.getItem(LOADING_KEY) || '{}') }; } catch { return defaultLoadingCfg; }
+  });
+  useEffect(() => { try { localStorage.setItem(LOADING_KEY, JSON.stringify(loadingCfg)); } catch { /* stockage indisponible */ } }, [loadingCfg]);
+  const [rulesOpen, setRulesOpen] = useState(false);
+  const [loadedUpToWall, setLoadedUpToWall] = useState(null); // null = chargement complet
+  const toLoadingOptions = (c) => ({
+    mode: c.mode,
+    wallDepth: Number(c.wallDepthCm) > 0 ? Number(c.wallDepthCm) * 10 : null,
+    manualMaxHeight: c.limitHeights && Number(c.manualMaxCm) > 0 ? Number(c.manualMaxCm) * 10 : null,
+    heavyMaxHeight: c.limitHeights && Number(c.heavyMaxCm) > 0 ? Number(c.heavyMaxCm) * 10 : null,
+    heavyThresholdKg: Number(c.heavyKg) || 0,
+    mechanizedAboveKg: Number(c.mechKg) || 0,
+  });
+
   // Tournée multi-arrêts
   const [deliveryMode, setDeliveryMode] = useState('STRICT');
   const [colorBy, setColorBy] = useState('auto'); // 'auto' | 'ref' | 'stop' | 'both'
@@ -416,8 +497,10 @@ export default function LoadOptimizer({ onBack }) {
   }, [highlight]);
   const blockedIds = useMemo(() => new Set(result?.blockedItemIds ?? []), [result]);
   const visiblePlaced = useMemo(
-    () => (result ? result.placedItems.filter((p) => (p.stop ?? 1) > unloadedUpTo) : []),
-    [result, unloadedUpTo],
+    () => (result
+      ? result.placedItems.filter((p) => (p.stop ?? 1) > unloadedUpTo && (loadedUpToWall === null || p.wall <= loadedUpToWall))
+      : []),
+    [result, unloadedUpTo, loadedUpToWall],
   );
 
   const container = useMemo(() => {
@@ -535,13 +618,26 @@ export default function LoadOptimizer({ onBack }) {
     XLSX.writeFile(wb, 'atelier-chargement-modele.xlsx');
   };
 
-  const runWith = (excluded, mode = deliveryMode) => {
+  const runWith = (excluded, mode = deliveryMode, cfg = loadingCfg) => {
     const defs = rowsToDefinitions(rows.filter((r) => !excluded.includes(r.stop ?? 1)));
     setHighlight(null);
     setUnloadedUpTo(0);
+    setLoadedUpToWall(null);
     setDeferredExcess([]);
     if (defs.length === 0) { reset(); return; }
-    run(container, defs, { deliveryMode: mode });
+    run(container, defs, { deliveryMode: mode, loading: toLoadingOptions(cfg) });
+  };
+
+  const updateLoading = (patch) => { setLoadingCfg((c) => ({ ...c, ...patch })); if (status !== 'idle') reset(); };
+  const switchToWalls = () => {
+    const next = { ...loadingCfg, mode: 'WALLS' };
+    setLoadingCfg(next);
+    track('load_optimizer_walls_switch');
+    runWith(excludedStops, deliveryMode, next);
+  };
+  const openRules = () => {
+    setRulesOpen(true);
+    document.getElementById('lo-loading-rules')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   };
 
   const optimize = () => {
@@ -551,7 +647,7 @@ export default function LoadOptimizer({ onBack }) {
   };
 
   const changeDeliveryMode = (mode) => { setDeliveryMode(mode); if (status !== 'idle') reset(); };
-  const trySoft = () => { setDeliveryMode('SOFT'); runWith(excludedStops, 'SOFT'); };
+  const trySoft = () => { setDeliveryMode('SOFT'); runWith(excludedStops, 'SOFT', loadingCfg); };
 
   // Dépassement : retirer un arrêt entier (re-calcul) ou reporter seulement l'excédent.
   const excludeStop = (stop) => {
@@ -832,6 +928,58 @@ export default function LoadOptimizer({ onBack }) {
                 <div><div className="font-jetbrains text-[10px] text-slate-500">Poids total</div><div className="font-bricolage font-bold text-xl text-slate-800">{formatKg(totals.weight)} kg</div></div>
                 <div><div className="font-jetbrains text-[10px] text-slate-500">Contenant</div><div className="font-bricolage font-bold text-xl text-slate-800">{formatM3(containerVolume)} m³</div></div>
               </div>
+              <div id="lo-loading-rules" className="mb-3 px-3 py-2.5 rounded-md bg-white border border-slate-200">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="font-jetbrains text-[11px] text-slate-700 flex items-center gap-1.5">
+                    <Layers size={12} style={{ color: BLUE }} /> Méthode de chargement
+                  </div>
+                  <div className="flex items-center gap-0.5 p-0.5 rounded-md" style={{ background: '#F1F5F9' }}>
+                    {[{ v: 'WALLS', l: 'Par murs' }, { v: 'FREE', l: 'Libre' }].map((o) => (
+                      <button key={o.v} onClick={() => updateLoading({ mode: o.v })} className="px-2 py-1.5 sm:py-1 rounded text-[10px] font-jetbrains"
+                        style={loadingCfg.mode === o.v ? { background: '#fff', color: BLUE, fontWeight: 600 } : { color: '#64748B' }}>{o.l}</button>
+                    ))}
+                  </div>
+                </div>
+                <div className="text-[10px] text-slate-500 mt-1">
+                  {loadingCfg.mode === 'WALLS'
+                    ? 'Recommandé : chargement de la cabine vers les portes, mur par mur. Aucun colis n’est posé en passant par-dessus un autre.'
+                    : 'Remplissage maximal, mais certains colis devront être posés en passant par-dessus d’autres (ils seront signalés).'}
+                </div>
+                <button onClick={() => setRulesOpen((o) => !o)} className="mt-2 w-full flex items-center justify-between gap-2 text-left font-jetbrains text-[10px] text-slate-500 hover:text-slate-800">
+                  <span>
+                    Règles de manutention · {loadingCfg.mode === 'WALLS' ? `murs ${Number(loadingCfg.wallDepthCm) > 0 ? `${loadingCfg.wallDepthCm} cm` : 'auto'} · ` : ''}
+                    {loadingCfg.limitHeights ? `manuel ≤ ${loadingCfg.manualMaxCm} cm (≤ ${loadingCfg.heavyMaxCm} cm > ${loadingCfg.heavyKg} kg)` : 'hauteur libre'} · engin &gt; {loadingCfg.mechKg} kg
+                  </span>
+                  <ChevronDown size={12} className={`shrink-0 transition-transform ${rulesOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {rulesOpen && (
+                  <div className="mt-2 pt-2 border-t border-slate-100 space-y-2.5">
+                    {loadingCfg.mode === 'WALLS' && (
+                      <RuleField label="Profondeur d'un mur" unit="cm" value={loadingCfg.wallDepthCm} placeholder="auto"
+                        hint="Vide = automatique (plus grande dimension au sol des colis)."
+                        onChange={(v) => updateLoading({ wallDepthCm: v })} />
+                    )}
+                    <label className="flex items-center gap-2 text-[11px] text-slate-700 cursor-pointer">
+                      <input type="checkbox" checked={loadingCfg.limitHeights} onChange={(e) => updateLoading({ limitHeights: e.target.checked })} />
+                      Limiter la hauteur de pose des colis manipulés à la main
+                    </label>
+                    {loadingCfg.limitHeights && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <RuleField label="Hauteur maxi colis manuels" unit="cm" value={loadingCfg.manualMaxCm} onChange={(v) => updateLoading({ manualMaxCm: v })}
+                          hint="Portée bras tendus (repère : 180 cm)." />
+                        <RuleField label="Hauteur maxi colis lourds" unit="cm" value={loadingCfg.heavyMaxCm} onChange={(v) => updateLoading({ heavyMaxCm: v })}
+                          hint="Hauteur d'épaule (repère : 150 cm)." />
+                        <RuleField label="Colis « lourd » au-delà de" unit="kg" value={loadingCfg.heavyKg} onChange={(v) => updateLoading({ heavyKg: v })} />
+                        <RuleField label="Manutention à l'engin au-delà de" unit="kg" value={loadingCfg.mechKg} onChange={(v) => updateLoading({ mechKg: v })}
+                          hint="Palettes, colis lourds : pas de limite de hauteur manuelle." />
+                      </div>
+                    )}
+                    <button onClick={() => updateLoading(defaultLoadingCfg)} className="font-jetbrains text-[10px] text-slate-400 hover:text-slate-700 underline underline-offset-2">
+                      Revenir aux réglages recommandés
+                    </button>
+                  </div>
+                )}
+              </div>
               {multiStop && (
                 <div className="mb-3 px-3 py-2.5 rounded-md bg-white border border-slate-200">
                   <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -903,13 +1051,13 @@ export default function LoadOptimizer({ onBack }) {
                   </div>
                   <div className="p-2 sm:p-4 relative">
                     {view3d ? (
-                      <ThreeErrorBoundary fallback={<Schematic2D container={container} placed={visiblePlaced} colorOf={colorOf} isDimmed={isDimmed} blockedIds={blockedIds} />}>
+                      <ThreeErrorBoundary fallback={<Schematic2D container={container} placed={visiblePlaced} colorOf={colorOf} isDimmed={isDimmed} blockedIds={blockedIds} manualLine={result.loadingMode && loadingCfg.limitHeights ? loadingCfg.manualMaxCm * 10 : 0} />}>
                         <Suspense fallback={<div className="flex items-center justify-center text-slate-400 font-jetbrains text-xs h-[340px] sm:h-[420px] lg:h-[460px]"><Loader2 size={18} className="animate-spin mr-2" /> Chargement de la vue 3D…</div>}>
                           <LoadView3D container={container} placed={visiblePlaced} colorOf={colorOf} isDimmed={isDimmed} blockedIds={blockedIds} onHover={setHovered} />
                         </Suspense>
                       </ThreeErrorBoundary>
                     ) : (
-                      <Schematic2D container={container} placed={visiblePlaced} colorOf={colorOf} isDimmed={isDimmed} blockedIds={blockedIds} />
+                      <Schematic2D container={container} placed={visiblePlaced} colorOf={colorOf} isDimmed={isDimmed} blockedIds={blockedIds} manualLine={loadingCfg.limitHeights ? loadingCfg.manualMaxCm * 10 : 0} />
                     )}
                     {hovered && (
                       <div className="absolute bottom-3 left-3 bg-white/95 border border-slate-200 rounded-lg px-3 py-2 font-jetbrains text-[11px] shadow-sm pointer-events-none">
@@ -921,6 +1069,18 @@ export default function LoadOptimizer({ onBack }) {
                     )}
                   </div>
                   {/* Légende */}
+                  {result.loadingMode === 'WALLS' && result.walls?.length > 1 && (
+                    <div className="px-4 py-2.5 border-t border-slate-100 flex items-center gap-2 flex-wrap">
+                      <span className="font-jetbrains text-[10px] text-slate-500">CHARGEMENT</span>
+                      <input type="range" min={1} max={result.walls.length + 1} step={1}
+                        value={loadedUpToWall === null ? result.walls.length + 1 : loadedUpToWall}
+                        onChange={(e) => { const v = Number(e.target.value); setLoadedUpToWall(v > result.walls.length ? null : v); }}
+                        className="flex-1 min-w-[140px] accent-blue-600" aria-label="Progression du chargement par mur" />
+                      <span className="font-jetbrains text-[10px] text-slate-700 w-24 text-right">
+                        {loadedUpToWall === null ? `${result.walls.length} murs` : `Mur ${loadedUpToWall} / ${result.walls.length}`}
+                      </span>
+                    </div>
+                  )}
                   {multiStopResult && (
                     <div className="px-4 py-2.5 border-t border-slate-100 flex items-center gap-1.5 flex-wrap">
                       <span className="font-jetbrains text-[10px] text-slate-500 mr-1">DÉCHARGEMENT</span>
@@ -972,6 +1132,36 @@ export default function LoadOptimizer({ onBack }) {
                           </button>
                         );
                       })}
+                    </div>
+                  )}
+                </div>
+
+                <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+                  <div className="px-4 py-2.5 border-b border-slate-100 font-jetbrains text-[10px] tracking-wider text-slate-500 flex items-center gap-1.5">
+                    <Layers size={12} /> CHARGEMENT {result.loadingMode === 'WALLS' ? `PAR MURS · ${result.walls.length} MURS` : 'LIBRE'}
+                  </div>
+                  {result.loadingViolationIds.length > 0 ? (
+                    <div className="px-4 py-3 text-[11px] flex flex-col sm:flex-row sm:items-center justify-between gap-2" style={{ color: '#B91C1C', background: '#FEF2F2' }}>
+                      <span className="flex items-start gap-1.5">
+                        <AlertCircle size={13} className="mt-0.5 shrink-0" />
+                        {result.loadingViolationIds.length} colis devront être posés en passant par-dessus d'autres colis.
+                      </span>
+                      <button onClick={switchToWalls} className="shrink-0 px-3 py-1.5 rounded-md font-jetbrains text-[10px] font-semibold text-white" style={{ background: BLUE }}>
+                        Charger par murs
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="px-4 py-2.5 text-[11px] flex items-center gap-1.5" style={{ color: '#15803D', background: '#F0FDF4' }}>
+                      <Check size={13} /> Chaque colis est accessible depuis les portes au moment de le charger.
+                    </div>
+                  )}
+                  {result.heightLimitCost && (
+                    <div className="px-4 py-2.5 border-t border-slate-100 text-[11px] text-slate-600 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <span>
+                        Limite de hauteur manuelle ({loadingCfg.manualMaxCm} cm) : <strong style={{ color: '#B45309' }}>{result.heightLimitCost.packedItems - result.packedItems} colis</strong> de moins chargés
+                        ({formatPct(result.volumeUtilization)} % de remplissage au lieu de {formatPct(result.heightLimitCost.volumeUtilization)} %).
+                      </span>
+                      <button onClick={openRules} className="shrink-0 font-jetbrains text-[10px] underline underline-offset-2" style={{ color: BLUE }}>Ajuster les règles</button>
                     </div>
                   )}
                 </div>

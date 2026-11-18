@@ -4,6 +4,7 @@ import type {
   DeliveryMode,
   ItemDefinition,
   ItemInstance,
+  LoadingMode,
   OptimizationResult,
   OptimizeOptions,
   PlacedItem,
@@ -15,6 +16,7 @@ import { supportRatio, hasNonStackableBelow } from './support';
 import { getOrientations, rotationAngles } from './rotations';
 import { scorePlacement } from './scoring';
 import { STRATEGIES } from './strategies';
+import { findLoadingViolations, heightCap, isInFront, resolveLoading, summarizeWalls, type ResolvedLoading } from './loading';
 
 interface Point { x: number; y: number; z: number; }
 
@@ -75,6 +77,18 @@ class SpatialIndex {
     }
   }
 
+  /** Existe-t-il un colis déjà chargé entre `box` et les portes ? (sortie dès le premier trouvé) */
+  anyInFront(box: Box, containerLength: number): boolean {
+    const a = Math.floor((box.x + box.length) / this.cell) - 1;
+    const b = Math.floor(containerLength / this.cell) + 1;
+    for (let i = a; i <= b; i++) {
+      const arr = this.map.get(i);
+      if (!arr) continue;
+      for (const it of arr) if (isInFront(it, box)) return true;
+    }
+    return false;
+  }
+
   query(box: Box): PlacedItem[] {
     const [a, b] = this.range(box);
     const seen = new Set<PlacedItem>();
@@ -104,18 +118,26 @@ function findBestPlacement(
   candidates: readonly Point[],
   currentWeight: number,
   delivery: DeliveryContext,
+  load: LoadState,
 ): { placed: PlacedItem; point: Point } | null {
   if (container.maxWeight !== null && currentWeight + item.weight > container.maxWeight + EPS) {
     return null;
   }
 
   const orientations = getOrientations(item.dimensions, item.rotationMode);
+  const cap = heightCap(item, load.cfg, container);
   let best: { placed: PlacedItem; point: Point; score: number } | null = null;
 
   for (const pt of candidates) {
     for (const o of orientations) {
       const box: Box = { x: pt.x, y: pt.y, z: pt.z, length: o.length, width: o.width, height: o.height };
       if (!isWithinContainer(box, container)) continue;
+      if (box.z + box.height > cap + EPS) continue; // hauteur de manutention
+      if (load.cfg.mode === 'WALLS' && box.x + box.length > load.wallEnd + EPS) {
+        // Hors du mur en cours, sauf colis plus long que le mur lui-même.
+        const oversize = box.length > load.cfg.wallDepth + EPS && box.x >= load.wallStart - EPS;
+        if (!oversize) continue;
+      }
       const nearby = index.query(box);
       if (collidesWithAny(box, nearby)) continue;
       const sr = supportRatio(box, nearby);
@@ -123,6 +145,10 @@ function findBestPlacement(
         if (hasNonStackableBelow(box, nearby)) continue;
         if (sr < MIN_SUPPORT_RATIO - EPS) continue;
       }
+
+      // Chargeabilité (mode par murs) : rien de déjà chargé entre ce colis et les portes.
+      // En mode libre, on la mesure seulement a posteriori (loadingViolationIds).
+      if (load.cfg.mode === 'WALLS' && box.x + box.length < load.maxX - EPS && index.anyInFront(box, container.length)) continue;
 
       let score = scorePlacement(box, container, nearby, sr);
       const blockers = countBlockers(box, delivery.later, delivery.laterMaxX);
@@ -148,6 +174,8 @@ function findBestPlacement(
             stackable: item.stackable,
             stop: item.stop,
             destination: item.destination,
+            sequence: 0,
+            wall: 0,
           },
         };
       }
@@ -163,15 +191,30 @@ interface DeliveryContext {
   laterMaxX: number;
 }
 
+/** État du chargement physique pendant une passe. */
+interface LoadState {
+  cfg: ResolvedLoading;
+  wallIndex: number;
+  wallStart: number;
+  wallEnd: number;
+  /** Fin X maximale des colis déjà chargés (rejet rapide de la chargeabilité). */
+  maxX: number;
+}
+
 /**
  * Une passe de placement sur un ordre d'unités donné (heuristique extreme points).
  * Les unités arrivent triées par arrêt décroissant : le dernier arrêt est chargé
  * en premier, au fond ; le premier arrêt en dernier, côté portes.
+ *
+ * Chargement LIBRE : chaque unité prend le meilleur emplacement disponible.
+ * Chargement PAR MURS : on remplit le mur courant avec toutes les unités qui y
+ * entrent (dans l'ordre de la stratégie), puis on avance d'un mur vers les portes.
  */
 function packOnce(
   container: ContainerDefinition,
   ordered: readonly ItemInstance[],
   mode: DeliveryMode,
+  cfg: ResolvedLoading,
 ): OptimizationResult {
   const placed: PlacedItem[] = [];
   const index = new SpatialIndex(container);
@@ -179,22 +222,24 @@ function packOnce(
   let weight = 0;
   let candidates: Point[] = [{ x: 0, y: 0, z: 0 }];
   const delivery: DeliveryContext = { mode, later: [], laterMaxX: 0 };
-  let currentStop: number | null = null;
+  const load: LoadState = {
+    cfg,
+    wallIndex: cfg.mode === 'WALLS' ? 1 : 0,
+    wallStart: 0,
+    wallEnd: cfg.mode === 'WALLS' ? Math.min(container.length, cfg.wallDepth) : container.length,
+    maxX: 0,
+  };
 
-  for (const item of ordered) {
-    if (item.stop !== currentStop) {
-      // Changement d'arrêt : tout ce qui est déjà chargé est livré plus tard.
-      currentStop = item.stop;
-      delivery.later = placed.filter((p) => p.stop > item.stop);
-      delivery.laterMaxX = delivery.later.reduce((m, p) => Math.max(m, p.x + p.length), 0);
-    }
-    const found = findBestPlacement(item, container, index, candidates, weight, delivery);
-    if (!found) { unpacked.push(item); continue; }
-
+  const tryPlace = (item: ItemInstance): boolean => {
+    const found = findBestPlacement(item, container, index, candidates, weight, delivery, load);
+    if (!found) return false;
     const p = found.placed;
+    p.sequence = placed.length + 1;
+    p.wall = load.wallIndex;
     placed.push(p);
     index.insert(p);
     weight += item.weight;
+    load.maxX = Math.max(load.maxX, p.x + p.length);
 
     candidates = candidates.filter((c) => pointKey(c) !== pointKey(found.point) && !coveredBy(c, p));
     const generated: Point[] = [
@@ -208,9 +253,51 @@ function packOnce(
       }
     }
     candidates = dedupe(candidates);
+    return true;
+  };
+
+  // Regroupe par arrêt (l'ordre reçu est déjà par arrêt décroissant).
+  const groups: ItemInstance[][] = [];
+  for (const it of ordered) {
+    const g = groups[groups.length - 1];
+    if (g && g[0].stop === it.stop) g.push(it); else groups.push([it]);
   }
 
-  return buildResult(container, placed, unpacked, weight, mode);
+  for (const group of groups) {
+    // Changement d'arrêt : tout ce qui est déjà chargé est livré plus tard.
+    delivery.later = placed.filter((p) => p.stop > group[0].stop);
+    delivery.laterMaxX = delivery.later.reduce((m, p) => Math.max(m, p.x + p.length), 0);
+
+    if (cfg.mode === 'FREE') {
+      for (const item of group) if (!tryPlace(item)) unpacked.push(item);
+      continue;
+    }
+
+    let remaining = group;
+    while (remaining.length > 0) {
+      let placedAny = false;
+      const failed = new Set<string>(); // une définition qui n'entre pas : inutile de réessayer ses copies
+      const next: ItemInstance[] = [];
+      for (const item of remaining) {
+        if (failed.has(item.definitionId) || !tryPlace(item)) {
+          failed.add(item.definitionId);
+          next.push(item);
+        } else {
+          placedAny = true;
+        }
+      }
+      remaining = next;
+      if (!placedAny) {
+        if (load.wallEnd >= container.length - EPS) break; // plus de mur disponible
+        load.wallIndex++;
+        load.wallStart = load.wallEnd;
+        load.wallEnd = Math.min(container.length, load.wallStart + cfg.wallDepth);
+      }
+    }
+    unpacked.push(...remaining);
+  }
+
+  return buildResult(container, placed, unpacked, weight, mode, cfg.mode);
 }
 
 function buildResult(
@@ -219,6 +306,7 @@ function buildResult(
   unpacked: ItemInstance[],
   weight: number,
   mode: DeliveryMode,
+  loadingMode: LoadingMode,
 ): OptimizationResult {
   const usedVolume = placed.reduce((s, p) => s + p.length * p.width * p.height, 0);
   const containerVolume = container.length * container.width * container.height;
@@ -240,6 +328,9 @@ function buildResult(
     stops: summarizeStops(placed, unpacked),
     blockedItemIds: findBlockedItems(placed),
     deliveryMode: mode,
+    loadingMode,
+    walls: summarizeWalls(placed),
+    loadingViolationIds: findLoadingViolations(placed),
   };
 }
 
@@ -277,6 +368,7 @@ export function optimize(
   const start = now();
   const instances = expandInstances(definitions);
   const mode: DeliveryMode = options.deliveryMode === 'SOFT' ? 'SOFT' : 'STRICT';
+  const cfg = resolveLoading(options.loading, instances);
 
   // Au-delà d'un gros volume, on limite le nombre de stratégies, et un budget
   // de temps garantit qu'on ne bloque jamais plusieurs dizaines de secondes (§55).
@@ -287,12 +379,36 @@ export function optimize(
   for (const strategy of strategies) {
     // Dernier arrêt d'abord (chargé au fond), puis la stratégie à l'intérieur d'un arrêt.
     const ordered = [...instances].sort((a, b) => (b.stop - a.stop) || strategy.compare(a, b));
-    const result = packOnce(container, ordered, mode);
+    const result = packOnce(container, ordered, mode, cfg);
     if (best === null || compareOptimizationResults(result, best) < 0) best = result;
     if (now() - start > budgetMs) break;
   }
-  if (best === null) best = buildResult(container, [], [], 0, mode);
+  if (best === null) best = buildResult(container, [], [], 0, mode, cfg.mode);
 
   best.computationTimeMs = Math.round(now() - start);
   return best;
+}
+
+/**
+ * Optimisation + indicateurs pour l'interface. Si des limites de hauteur
+ * manuelle sont actives et que tout ne rentre pas, on recalcule sans ces
+ * limites pour chiffrer leur coût (colis et remplissage perdus).
+ */
+export function optimizeWithInsights(
+  container: ContainerDefinition,
+  definitions: readonly ItemDefinition[],
+  options: OptimizeOptions = {},
+): OptimizationResult {
+  const r = optimize(container, definitions, options);
+  const l = options.loading;
+  const limited = !!l && ((Number(l.manualMaxHeight) || 0) > 0 || (Number(l.heavyMaxHeight) || 0) > 0);
+  r.heightLimitCost = null;
+  if (limited && r.unpackedCount > 0) {
+    const unlimited = optimize(container, definitions, { ...options, loading: { ...l, manualMaxHeight: null, heavyMaxHeight: null } });
+    if (unlimited.packedItems > r.packedItems) {
+      r.heightLimitCost = { packedItems: unlimited.packedItems, volumeUtilization: unlimited.volumeUtilization };
+    }
+    r.computationTimeMs += unlimited.computationTimeMs;
+  }
+  return r;
 }

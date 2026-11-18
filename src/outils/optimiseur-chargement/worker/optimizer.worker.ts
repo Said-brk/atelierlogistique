@@ -1,4 +1,4 @@
-import { optimize } from '../engine/optimizer';
+import { optimizeWithInsights } from '../engine/optimizer';
 import type { ContainerDefinition, ItemDefinition, OptimizeOptions } from '../engine/types';
 
 interface RequestMessage {
@@ -11,7 +11,7 @@ interface RequestMessage {
 self.onmessage = (e: MessageEvent<RequestMessage>) => {
   try {
     const { container, definitions, options } = e.data;
-    const result = optimize(container, definitions, options);
+    const result = optimizeWithInsights(container, definitions, options);
     (self as unknown as Worker).postMessage({ ok: true, result });
   } catch (err) {
     (self as unknown as Worker).postMessage({
