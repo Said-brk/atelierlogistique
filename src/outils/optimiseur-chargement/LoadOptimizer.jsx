@@ -797,704 +797,703 @@ export default function LoadOptimizer({ onBack }) {
       </div>
 
       <div className={`max-w-[1600px] mx-auto px-4 sm:px-6 py-4 ${status !== 'done' ? 'pb-24 xl:pb-4' : ''}`}>
-        <div className="grid grid-cols-1 xl:grid-cols-5 gap-4 sm:gap-5">
+        <div className="space-y-4 sm:space-y-5">
 
-          {/* GAUCHE : saisie */}
-          <div className="xl:col-span-3 space-y-4">
-
-            {/* 1. Marchandises */}
-            <div className="rounded-xl border border-slate-200 overflow-hidden bg-white">
-              <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <div className="font-jetbrains text-xs text-slate-600 flex items-center gap-2"><Boxes size={13} /> 1 · QUE SOUHAITEZ-VOUS CHARGER ?</div>
-                <div className="grid grid-cols-4 sm:flex sm:items-center gap-1.5">
-                  <button onClick={() => fileRef.current?.click()} className="flex items-center justify-center gap-1 font-jetbrains text-[11px] px-2.5 py-2 sm:py-1.5 rounded-md" style={{ background: BLUE, color: '#fff' }}><Upload size={11} /> Importer</button>
-                  <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" onChange={importFile} className="hidden" />
-                  <button onClick={() => setBulkOpen((o) => !o)} className="flex items-center justify-center gap-1 font-jetbrains text-[11px] px-2.5 py-2 sm:py-1.5 rounded-md" style={{ background: '#F1F5F9', color: '#475569' }}><Copy size={11} /> Coller</button>
-                  <button onClick={downloadTemplate} className="flex items-center justify-center gap-1 font-jetbrains text-[11px] px-2.5 py-2 sm:py-1.5 rounded-md" style={{ background: '#F1F5F9', color: '#475569' }}><Download size={11} /> Modèle</button>
-                  <button onClick={loadExample} className="flex items-center justify-center font-jetbrains text-[11px] px-2.5 py-2 sm:py-1.5 rounded-md" style={{ background: BLUE_LIGHT, color: BLUE }}>Exemple</button>
-                </div>
-              </div>
-              {bulkOpen && (
-                <div className="px-4 py-3 border-b border-slate-100 space-y-2">
-                  <textarea value={bulkText} onChange={(e) => setBulkText(e.target.value)} rows={5}
-                    placeholder={'Collez depuis Excel (avec ou sans en-têtes). Ex :\nRéférence\tQté\tLongueur\tLargeur\tHauteur\tPoids\tRotation\tEmpilage\nCARTON-A\t40\t60\t40\t40\t12\tLibre\tLibre'}
-                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-md outline-none font-jetbrains text-base sm:text-[11px] text-slate-800 focus:border-slate-400" />
-                  <div className="flex gap-2">
-                    <button onClick={applyBulk} className="px-3 py-1.5 rounded-md text-xs font-jetbrains" style={{ background: BLUE, color: '#fff' }}>Analyser</button>
-                    <button onClick={() => { setBulkOpen(false); setBulkText(''); }} className="px-3 py-1.5 rounded-md text-xs font-jetbrains" style={{ background: '#F1F5F9', color: '#475569' }}>Annuler</button>
-                  </div>
-                </div>
-              )}
-              {importMsg && (
-                <div className="mx-4 mt-3 text-[11px] font-jetbrains px-3 py-2 rounded-md" style={importMsg.type === 'error'
-                  ? { background: '#FEF2F2', color: '#B91C1C', border: '1px solid #FECACA' }
-                  : { background: '#F0FDF4', color: '#15803D', border: '1px solid #BBF7D0' }}>
-                  {importMsg.text}
-                </div>
-              )}
-              {/* Mobile : une carte par référence */}
-              <div className="md:hidden divide-y divide-slate-100">
-                {rows.map((r, i) => {
-                  const err = validateRow(r);
-                  return (
-                    <div key={r.id} className="px-4 py-3 space-y-2.5">
-                      <div className="flex items-center gap-2">
-                        <span className="w-3 h-3 rounded-sm shrink-0" style={{ background: refColor(i).solid }} />
-                        <input value={r.reference} onChange={(e) => updateRow(r.id, 'reference', e.target.value)}
-                          placeholder="Référence" aria-label="Référence"
-                          className="flex-1 min-w-0 px-2.5 py-2 bg-white border rounded-md outline-none font-jetbrains text-base text-slate-800 focus:border-slate-400"
-                          style={{ borderColor: err.reference ? '#FCA5A5' : '#E2E8F0' }} />
-                        <button onClick={() => removeRow(r.id)} aria-label="Supprimer la référence"
-                          className="w-10 h-10 shrink-0 rounded-md flex items-center justify-center text-slate-400 hover:text-red-500 bg-slate-50"><Trash2 size={15} /></button>
-                      </div>
-                      <div className="grid grid-cols-5 gap-1.5">
-                        <MobileNum label="Qté" value={r.quantity} onChange={(v) => updateRow(r.id, 'quantity', v)} error={err.quantity} />
-                        <MobileNum label="L cm" value={r.length} onChange={(v) => updateRow(r.id, 'length', v)} error={err.length} />
-                        <MobileNum label="l cm" value={r.width} onChange={(v) => updateRow(r.id, 'width', v)} error={err.width} />
-                        <MobileNum label="H cm" value={r.height} onChange={(v) => updateRow(r.id, 'height', v)} error={err.height} />
-                        <MobileNum label="kg" value={r.weight} onChange={(v) => updateRow(r.id, 'weight', v)} error={err.weight} step="0.1" />
-                      </div>
-                      <div className="grid grid-cols-2 gap-1.5 items-end">
-                        <label className="block min-w-0">
-                          <span className="block font-jetbrains text-[10px] text-slate-400 mb-0.5">Rotation</span>
-                          <select value={r.rotationMode} onChange={(e) => updateRow(r.id, 'rotationMode', e.target.value)}
-                            className="w-full px-2 py-2 bg-white border border-slate-200 rounded-md outline-none font-jetbrains text-base text-slate-700">
-                            {ROTATION_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                          </select>
-                        </label>
-                        <label className="block min-w-0">
-                          <span className="block font-jetbrains text-[10px] text-slate-400 mb-0.5">Empilage</span>
-                          <select value={stackingOf(r)} onChange={(e) => updateStacking(r.id, e.target.value)}
-                            className="w-full px-2 py-2 bg-white border border-slate-200 rounded-md outline-none font-jetbrains text-base text-slate-700">
-                            {STACKING_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                          </select>
-                        </label>
-                      </div>
-                      <div className="grid grid-cols-[4.5rem_1fr] gap-1.5 items-end">
-                        <MobileNum label="Arrêt" value={r.stop ?? 1} onChange={(v) => updateRow(r.id, 'stop', v)} error={err.stop} />
-                        <label className="block min-w-0">
-                          <span className="block font-jetbrains text-[10px] text-slate-400 mb-0.5">Destination (facultatif)</span>
-                          <input value={r.destination ?? ''} onChange={(e) => updateRow(r.id, 'destination', e.target.value)}
-                            placeholder="Client, ville…"
-                            className="w-full px-2.5 py-2 bg-white border border-slate-200 rounded-md outline-none font-jetbrains text-base text-slate-800 focus:border-slate-400" />
-                        </label>
-                      </div>
-                    </div>
-                  );
-                })}
-                {rows.length === 0 && (
-                  <div className="text-center text-slate-400 py-6 text-sm px-4">Aucune marchandise — ajoutez une référence ou chargez l'exemple.</div>
-                )}
-              </div>
-
-              <div className="hidden md:block overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-slate-100">
-                      <Th className="text-left">Référence</Th>
-                      <Th>Qté</Th><Th>L</Th><Th>l</Th><Th>H</Th><Th>Poids</Th>
-                      <Th>Rotation</Th><Th title="Libre · Dessus uniquement (rien dessus) · Au sol · Au sol, rien dessus">Empilage</Th>
-                      <Th title="1 = livré en premier">Arrêt</Th><Th className="text-left">Destination</Th><Th></Th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rows.map((r, i) => {
-                      const err = validateRow(r);
-                      return (
-                        <tr key={r.id} className="border-b border-slate-50 align-top">
-                          <td className="pl-2 pr-0.5 py-1.5">
-                            <div className="flex items-center gap-1.5">
-                              <span className="w-2.5 h-2.5 rounded-sm shrink-0 mt-1" style={{ background: refColor(i).solid }} />
-                              <div className="flex-1 min-w-[64px]">
-                                <input value={r.reference} onChange={(e) => updateRow(r.id, 'reference', e.target.value)}
-                                  placeholder="Réf."
-                                  className="w-full px-2 py-1.5 bg-white border rounded-md outline-none font-jetbrains text-xs text-slate-800 focus:border-slate-400"
-                                  style={{ borderColor: err.reference ? '#FCA5A5' : '#E2E8F0' }} />
-                                {err.reference && <div className="text-[9px] text-red-500 mt-0.5">{err.reference}</div>}
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-0.5 py-1.5"><NumCell value={r.quantity} onChange={(v) => updateRow(r.id, 'quantity', v)} error={err.quantity} width="w-12" /></td>
-                          <td className="px-0.5 py-1.5"><NumCell value={r.length} onChange={(v) => updateRow(r.id, 'length', v)} error={err.length} width="w-12" /></td>
-                          <td className="px-0.5 py-1.5"><NumCell value={r.width} onChange={(v) => updateRow(r.id, 'width', v)} error={err.width} width="w-12" /></td>
-                          <td className="px-0.5 py-1.5"><NumCell value={r.height} onChange={(v) => updateRow(r.id, 'height', v)} error={err.height} width="w-12" /></td>
-                          <td className="px-0.5 py-1.5"><NumCell value={r.weight} onChange={(v) => updateRow(r.id, 'weight', v)} error={err.weight} step="0.1" width="w-12" /></td>
-                          <td className="px-0.5 py-1.5">
-                            <select value={r.rotationMode} onChange={(e) => updateRow(r.id, 'rotationMode', e.target.value)}
-                              className="px-1.5 py-1.5 bg-white border border-slate-200 rounded-md outline-none font-jetbrains text-[11px] text-slate-700">
-                              {ROTATION_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                            </select>
-                          </td>
-                          <td className="px-0.5 py-1.5">
-                            <select value={stackingOf(r)} onChange={(e) => updateStacking(r.id, e.target.value)}
-                              title={STACKING_OPTIONS.find((o) => o.value === stackingOf(r))?.hint}
-                              className="w-[7.5rem] px-1 py-1.5 bg-white border border-slate-200 rounded-md outline-none font-jetbrains text-[11px] text-slate-700">
-                              {STACKING_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                            </select>
-                          </td>
-                          <td className="px-0.5 py-1.5"><NumCell value={r.stop ?? 1} onChange={(v) => updateRow(r.id, 'stop', v)} error={err.stop} width="w-10" /></td>
-                          <td className="px-0.5 py-1.5">
-                            <input value={r.destination ?? ''} onChange={(e) => updateRow(r.id, 'destination', e.target.value)}
-                              placeholder="Client…"
-                              className="w-16 px-2 py-1.5 bg-white border border-slate-200 rounded-md outline-none font-jetbrains text-xs text-slate-800 focus:border-slate-400" />
-                          </td>
-                          <td className="px-0.5 py-1.5 text-center">
-                            <button onClick={() => removeRow(r.id)} className="text-slate-300 hover:text-red-500"><Trash2 size={13} /></button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                    {rows.length === 0 && (
-                      <tr><td colSpan={11} className="text-center text-slate-400 py-6 text-sm">Aucune marchandise — ajoutez une référence ou chargez l'exemple.</td></tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-              <div className="px-4 py-3 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <button onClick={addRow} className="flex items-center justify-center gap-1.5 font-jetbrains text-xs px-3 py-2.5 sm:py-2 rounded-md" style={{ background: '#F1F5F9', color: '#475569' }}>
-                  <Plus size={13} /> Ajouter une référence
-                </button>
-                <span className="font-jetbrains text-[10px] text-slate-400 text-center sm:text-right">dimensions en cm · poids en kg · arrêt 1 = livré en premier</span>
+          {/* 1. Marchandises : pleine largeur */}
+          <div className="rounded-xl border border-slate-200 overflow-hidden bg-white">
+            <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="font-jetbrains text-xs text-slate-600 flex items-center gap-2"><Boxes size={13} /> 1 · QUE SOUHAITEZ-VOUS CHARGER ?</div>
+              <div className="grid grid-cols-4 sm:flex sm:items-center gap-1.5">
+                <button onClick={() => fileRef.current?.click()} className="flex items-center justify-center gap-1 font-jetbrains text-[11px] px-2.5 py-2 sm:py-1.5 rounded-md" style={{ background: BLUE, color: '#fff' }}><Upload size={11} /> Importer</button>
+                <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" onChange={importFile} className="hidden" />
+                <button onClick={() => setBulkOpen((o) => !o)} className="flex items-center justify-center gap-1 font-jetbrains text-[11px] px-2.5 py-2 sm:py-1.5 rounded-md" style={{ background: '#F1F5F9', color: '#475569' }}><Copy size={11} /> Coller</button>
+                <button onClick={downloadTemplate} className="flex items-center justify-center gap-1 font-jetbrains text-[11px] px-2.5 py-2 sm:py-1.5 rounded-md" style={{ background: '#F1F5F9', color: '#475569' }}><Download size={11} /> Modèle</button>
+                <button onClick={loadExample} className="flex items-center justify-center font-jetbrains text-[11px] px-2.5 py-2 sm:py-1.5 rounded-md" style={{ background: BLUE_LIGHT, color: BLUE }}>Exemple</button>
               </div>
             </div>
-
-            {/* 2. Contenant */}
-            <div className="rounded-xl border border-slate-200 overflow-hidden bg-white">
-              <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 font-jetbrains text-xs text-slate-600 flex items-center gap-2"><Truck size={13} /> 2 · CHOISISSEZ VOTRE VÉHICULE OU CONTENANT</div>
-              <div className="p-4 grid grid-cols-2 md:grid-cols-3 gap-2">
-                {CONTAINER_PRESETS.map((c) => (
-                  <button key={c.id} onClick={() => { setContainerId(c.id); reset(); }}
-                    className="text-left px-3 py-2.5 rounded-lg font-jetbrains transition-all"
-                    style={containerId === c.id ? { background: BLUE, color: '#fff' } : { background: '#F8FAFC', color: '#475569', border: '1px solid #E2E8F0' }}>
-                    <div className="text-[11px] font-semibold leading-tight">{c.label}</div>
-                    <div className="text-[10px] opacity-80 mt-1">{(c.length / 1000).toFixed(2)}×{(c.width / 1000).toFixed(2)}×{(c.height / 1000).toFixed(2)} m</div>
-                    <div className="text-[9px] opacity-80">{formatKg(c.maxWeight)} kg</div>
-                  </button>
-                ))}
-                <button onClick={() => { setContainerId('custom'); reset(); }}
-                  className="text-left px-3 py-2.5 rounded-lg font-jetbrains transition-all"
-                  style={containerId === 'custom' ? { background: BLUE, color: '#fff' } : { background: '#F8FAFC', color: '#475569', border: '1px solid #E2E8F0' }}>
-                  <div className="text-[11px] font-semibold leading-tight">Dimensions personnalisées</div>
-                  <div className="text-[9px] opacity-80 mt-1">sur mesure (cm)</div>
-                </button>
-              </div>
-              {containerId === 'custom' && (
-                <div className="px-4 pb-4 grid grid-cols-2 md:grid-cols-5 gap-2">
-                  <div className="col-span-2 md:col-span-1">
-                    <label className="font-jetbrains text-[10px] text-slate-500 block mb-1">Nom</label>
-                    <input value={custom.label} onChange={(e) => setCustom((c) => ({ ...c, label: e.target.value }))} className="w-full px-2 py-1.5 border border-slate-200 rounded-md outline-none font-jetbrains text-xs" />
-                  </div>
-                  {[['length', 'Long. (cm)'], ['width', 'Larg. (cm)'], ['height', 'Haut. (cm)'], ['maxWeight', 'Poids max (kg)']].map(([k, lbl]) => (
-                    <div key={k}>
-                      <label className="font-jetbrains text-[10px] text-slate-500 block mb-1">{lbl}</label>
-                      <input type="number" min="0" value={custom[k]} onChange={(e) => { setCustom((c) => ({ ...c, [k]: e.target.value })); reset(); }}
-                        className="w-full px-2 py-1.5 border border-slate-200 rounded-md outline-none font-jetbrains text-xs" />
-                    </div>
-                  ))}
-                </div>
-              )}
-              <div className="border-t border-slate-100">
-                <button onClick={() => setBalanceOpen((o) => !o)} className="w-full px-4 py-2.5 flex items-center justify-between gap-2 text-left font-jetbrains text-[11px] text-slate-600 hover:text-slate-900">
-                  <span className="flex items-center gap-1.5 min-w-0">
-                    <Scale size={12} className="shrink-0" />
-                    <span className="truncate">
-                      Essieux et arrimage · {axleProfile.kind === 'TWO_SUPPORTS'
-                        ? `sellette ≤ ${formatKg(axleProfile.frontMax)} kg · essieux ≤ ${formatKg(axleProfile.rearMax)} kg`
-                        : 'centre de gravité ±5 %'} · µ {String(lashingParams.mu).replace('.', ',')} · {lashingParams.stfDaN} daN
-                    </span>
-                  </span>
-                  <ChevronDown size={12} className={`shrink-0 transition-transform ${balanceOpen ? 'rotate-180' : ''}`} />
-                </button>
-                {balanceOpen && (
-                  <div className="px-4 pb-4 space-y-3">
-                    {axleProfile.kind === 'TWO_SUPPORTS' ? (
-                      <>
-                        <div className="grid grid-cols-2 gap-2.5">
-                          <BalanceField label="Position sellette (depuis l'avant)" unit="m" step="0.1" value={axleProfile.frontPos / 1000} onChange={(v) => setAxle('frontPos', Number(v) * 1000)} />
-                          <BalanceField label="Position essieux (centre du groupe)" unit="m" step="0.1" value={axleProfile.rearPos / 1000} onChange={(v) => setAxle('rearPos', Number(v) * 1000)} />
-                          <BalanceField label="Charge utile max sellette" unit="kg" value={axleProfile.frontMax} onChange={(v) => setAxle('frontMax', Number(v))} />
-                          <BalanceField label="Charge utile max essieux" unit="kg" value={axleProfile.rearMax} onChange={(v) => setAxle('rearMax', Number(v))} />
-                        </div>
-                        <div className="text-[10px] text-slate-400">Valeurs indicatives : reportez celles du plan de répartition de charge ou de la notice de votre véhicule.</div>
-                      </>
-                    ) : (
-                      <div className="text-[10px] text-slate-500">Conteneur : contrôle du centre de gravité, tolérance de ±5 % de la longueur (CTU Code).</div>
-                    )}
-                    <div className="grid grid-cols-2 gap-2.5 items-end">
-                      <label className="block min-w-0">
-                        <span className="block font-jetbrains text-[10px] text-slate-500 mb-0.5">Plancher / frottement µ</span>
-                        <select value={[0.3, 0.6].includes(Number(lashingParams.mu)) ? String(lashingParams.mu) : 'other'}
-                          onChange={(e) => e.target.value !== 'other' && setLashing('mu', Number(e.target.value))}
-                          className="w-full px-2 py-1.5 bg-white border border-slate-200 rounded-md outline-none font-jetbrains text-base sm:text-xs text-slate-700">
-                          <option value="0.3">Bois / contreplaqué (0,30)</option>
-                          <option value="0.6">Tapis antiglisse (0,60)</option>
-                          <option value="other">Autre valeur…</option>
-                        </select>
-                      </label>
-                      <BalanceField label="Tension des sangles (STF)" unit="daN" value={lashingParams.stfDaN} onChange={(v) => setLashing('stfDaN', Number(v))} />
-                      {![0.3, 0.6].includes(Number(lashingParams.mu)) && (
-                        <BalanceField label="µ (autre)" unit="" step="0.05" value={lashingParams.mu} onChange={(v) => setLashing('mu', Number(v))} />
-                      )}
-                    </div>
-                    <label className="flex items-center gap-2 text-[11px] text-slate-700 cursor-pointer">
-                      <input type="checkbox" checked={lashingParams.forwardBlocked} onChange={(e) => setLashing('forwardBlocked', e.target.checked)} />
-                      Chargement bloqué vers l'avant (contre la face avant)
-                    </label>
-                    <button onClick={resetBalance} className="font-jetbrains text-[10px] text-slate-400 hover:text-slate-700 underline underline-offset-2">Revenir aux valeurs par défaut</button>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Récap + CTA */}
-            <div className="rounded-xl border p-4 bg-white" style={{ borderColor: BLUE, background: BLUE_LIGHT }}>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-                <div><div className="font-jetbrains text-[10px] text-slate-500">Unités</div><div className="font-bricolage font-bold text-xl" style={{ color: BLUE }}>{totals.units}</div></div>
-                <div><div className="font-jetbrains text-[10px] text-slate-500">Volume march.</div><div className="font-bricolage font-bold text-xl text-slate-800">{formatM3(totals.volume)} m³</div></div>
-                <div><div className="font-jetbrains text-[10px] text-slate-500">Poids total</div><div className="font-bricolage font-bold text-xl text-slate-800">{formatKg(totals.weight)} kg</div></div>
-                <div><div className="font-jetbrains text-[10px] text-slate-500">Contenant</div><div className="font-bricolage font-bold text-xl text-slate-800">{formatM3(containerVolume)} m³</div></div>
-              </div>
-              {multiStop && (
-                <div className="mb-3 px-3 py-2.5 rounded-md bg-white border border-slate-200">
-                  <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <div className="font-jetbrains text-[11px] text-slate-700 flex items-center gap-1.5">
-                      <MapPin size={12} style={{ color: BLUE }} /> Tournée : {stops.length} arrêts · arrêt 1 chargé côté portes
-                    </div>
-                    <div className="flex items-center gap-0.5 p-0.5 rounded-md" style={{ background: '#F1F5F9' }}>
-                      {DELIVERY_MODES.map((m) => (
-                        <button key={m.value} onClick={() => changeDeliveryMode(m.value)} className="px-2 py-1 rounded text-[10px] font-jetbrains"
-                          style={deliveryMode === m.value ? { background: '#fff', color: BLUE, fontWeight: 600 } : { color: '#64748B' }}>{m.label}</button>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="text-[10px] text-slate-500 mt-1">{DELIVERY_MODES.find((m) => m.value === deliveryMode)?.hint}</div>
-                  {excludedStops.length > 0 && (
-                    <div className="text-[10px] mt-1" style={{ color: '#B45309' }}>
-                      Retiré(s) du camion : {excludedStops.map((s) => stopLabel(s, rows)).join(', ')}
-                    </div>
-                  )}
-                </div>
-              )}
-              {overweight && (
-                <div className="flex items-start gap-2 text-[11px] mb-3 px-3 py-2 rounded-md" style={{ background: '#FFFBEB', color: '#B45309', border: '1px solid #FDE68A' }}>
-                  <AlertCircle size={13} className="mt-0.5 shrink-0" />
-                  Le poids total ({formatKg(totals.weight)} kg) dépasse le poids utile du contenant ({formatKg(container.maxWeight)} kg). Le moteur chargera ce qui est admissible.
-                </div>
-              )}
-              <button ref={ctaRef} onClick={optimize} disabled={!valid || status === 'running'}
-                className="w-full flex items-center justify-center gap-2 py-3.5 sm:py-3 rounded-lg font-bricolage font-semibold text-white transition-all disabled:opacity-50"
-                style={{ background: BLUE }}>
-                {status === 'running' ? <><Loader2 size={16} className="animate-spin" /> Optimisation du chargement…</> : <>Optimiser le chargement <ArrowRight size={16} /></>}
-              </button>
-              {!valid && <div className="text-[11px] text-slate-500 mt-2 text-center">Complétez les références (dimensions et quantités valides) pour lancer le calcul.</div>}
-            </div>
-
-            {/* Résultat express (ordinateur) : l'essentiel du calcul et les actions, à côté de la saisie */}
-            {status === 'done' && result && (
-              <div className="hidden xl:block rounded-xl border border-slate-200 bg-white p-4">
-                <div className="font-jetbrains text-[10px] tracking-wider text-slate-500 mb-3">RÉSULTAT</div>
-                <div className="grid grid-cols-3 gap-3 mb-3">
-                  <div><div className="font-jetbrains text-[10px] text-slate-500">Colis chargés</div><div className="font-bricolage font-bold text-xl" style={{ color: result.unpackedCount > 0 ? '#B91C1C' : BLUE }}>{result.packedItems} / {result.totalItems}</div></div>
-                  <div><div className="font-jetbrains text-[10px] text-slate-500">Remplissage</div><div className="font-bricolage font-bold text-xl text-slate-800">{formatPct(result.volumeUtilization)} %</div></div>
-                  <div><div className="font-jetbrains text-[10px] text-slate-500">Poids</div><div className="font-bricolage font-bold text-xl text-slate-800">{formatKg(result.usedWeight)} kg</div></div>
-                </div>
-                <div className="flex flex-wrap gap-1.5 mb-3">
-                  {analysisTabs.map((t) => (
-                    <button key={t.id} onClick={() => openTab(t.id)} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md font-jetbrains text-[11px]"
-                      style={{ background: BAL_BG[t.status], color: BAL_COLORS[t.status] }}>
-                      {t.status === 'ok' ? <Check size={12} /> : <AlertCircle size={12} />}
-                      {t.id === 'synth' ? 'Accès' : t.label}{t.count ? ` · ${t.count}` : ''}
-                    </button>
-                  ))}
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <button onClick={printSheet} className="flex items-center justify-center gap-1.5 py-2 rounded-lg font-jetbrains text-xs" style={{ background: BLUE_LIGHT, color: BLUE }}>
-                    <Printer size={13} /> Fiche PDF
-                  </button>
-                  <button onClick={optimize} className="flex items-center justify-center gap-1.5 py-2 rounded-lg font-jetbrains text-xs text-slate-600 border border-slate-200 bg-white hover:text-slate-900">
-                    <RotateCcw size={13} /> Relancer
-                  </button>
+            {bulkOpen && (
+              <div className="px-4 py-3 border-b border-slate-100 space-y-2">
+                <textarea value={bulkText} onChange={(e) => setBulkText(e.target.value)} rows={5}
+                  placeholder={'Collez depuis Excel (avec ou sans en-têtes). Ex :\nRéférence\tQté\tLongueur\tLargeur\tHauteur\tPoids\tRotation\tEmpilage\nCARTON-A\t40\t60\t40\t40\t12\tLibre\tLibre'}
+                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-md outline-none font-jetbrains text-base sm:text-[11px] text-slate-800 focus:border-slate-400" />
+                <div className="flex gap-2">
+                  <button onClick={applyBulk} className="px-3 py-1.5 rounded-md text-xs font-jetbrains" style={{ background: BLUE, color: '#fff' }}>Analyser</button>
+                  <button onClick={() => { setBulkOpen(false); setBulkText(''); }} className="px-3 py-1.5 rounded-md text-xs font-jetbrains" style={{ background: '#F1F5F9', color: '#475569' }}>Annuler</button>
                 </div>
               </div>
             )}
+            {importMsg && (
+              <div className="mx-4 mt-3 text-[11px] font-jetbrains px-3 py-2 rounded-md" style={importMsg.type === 'error'
+                ? { background: '#FEF2F2', color: '#B91C1C', border: '1px solid #FECACA' }
+                : { background: '#F0FDF4', color: '#15803D', border: '1px solid #BBF7D0' }}>
+                {importMsg.text}
+              </div>
+            )}
+            {/* Mobile : une carte par référence */}
+            <div className="md:hidden divide-y divide-slate-100">
+              {rows.map((r, i) => {
+                const err = validateRow(r);
+                return (
+                  <div key={r.id} className="px-4 py-3 space-y-2.5">
+                    <div className="flex items-center gap-2">
+                      <span className="w-3 h-3 rounded-sm shrink-0" style={{ background: refColor(i).solid }} />
+                      <input value={r.reference} onChange={(e) => updateRow(r.id, 'reference', e.target.value)}
+                        placeholder="Référence" aria-label="Référence"
+                        className="flex-1 min-w-0 px-2.5 py-2 bg-white border rounded-md outline-none font-jetbrains text-base text-slate-800 focus:border-slate-400"
+                        style={{ borderColor: err.reference ? '#FCA5A5' : '#E2E8F0' }} />
+                      <button onClick={() => removeRow(r.id)} aria-label="Supprimer la référence"
+                        className="w-10 h-10 shrink-0 rounded-md flex items-center justify-center text-slate-400 hover:text-red-500 bg-slate-50"><Trash2 size={15} /></button>
+                    </div>
+                    <div className="grid grid-cols-5 gap-1.5">
+                      <MobileNum label="Qté" value={r.quantity} onChange={(v) => updateRow(r.id, 'quantity', v)} error={err.quantity} />
+                      <MobileNum label="L cm" value={r.length} onChange={(v) => updateRow(r.id, 'length', v)} error={err.length} />
+                      <MobileNum label="l cm" value={r.width} onChange={(v) => updateRow(r.id, 'width', v)} error={err.width} />
+                      <MobileNum label="H cm" value={r.height} onChange={(v) => updateRow(r.id, 'height', v)} error={err.height} />
+                      <MobileNum label="kg" value={r.weight} onChange={(v) => updateRow(r.id, 'weight', v)} error={err.weight} step="0.1" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-1.5 items-end">
+                      <label className="block min-w-0">
+                        <span className="block font-jetbrains text-[10px] text-slate-400 mb-0.5">Rotation</span>
+                        <select value={r.rotationMode} onChange={(e) => updateRow(r.id, 'rotationMode', e.target.value)}
+                          className="w-full px-2 py-2 bg-white border border-slate-200 rounded-md outline-none font-jetbrains text-base text-slate-700">
+                          {ROTATION_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                        </select>
+                      </label>
+                      <label className="block min-w-0">
+                        <span className="block font-jetbrains text-[10px] text-slate-400 mb-0.5">Empilage</span>
+                        <select value={stackingOf(r)} onChange={(e) => updateStacking(r.id, e.target.value)}
+                          className="w-full px-2 py-2 bg-white border border-slate-200 rounded-md outline-none font-jetbrains text-base text-slate-700">
+                          {STACKING_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                        </select>
+                      </label>
+                    </div>
+                    <div className="grid grid-cols-[4.5rem_1fr] gap-1.5 items-end">
+                      <MobileNum label="Arrêt" value={r.stop ?? 1} onChange={(v) => updateRow(r.id, 'stop', v)} error={err.stop} />
+                      <label className="block min-w-0">
+                        <span className="block font-jetbrains text-[10px] text-slate-400 mb-0.5">Destination (facultatif)</span>
+                        <input value={r.destination ?? ''} onChange={(e) => updateRow(r.id, 'destination', e.target.value)}
+                          placeholder="Client, ville…"
+                          className="w-full px-2.5 py-2 bg-white border border-slate-200 rounded-md outline-none font-jetbrains text-base text-slate-800 focus:border-slate-400" />
+                      </label>
+                    </div>
+                  </div>
+                );
+              })}
+              {rows.length === 0 && (
+                <div className="text-center text-slate-400 py-6 text-sm px-4">Aucune marchandise — ajoutez une référence ou chargez l'exemple.</div>
+              )}
+            </div>
+
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-slate-100">
+                    <Th className="text-left">Référence</Th>
+                    <Th>Qté</Th><Th>L</Th><Th>l</Th><Th>H</Th><Th>Poids</Th>
+                    <Th>Rotation</Th><Th title="Libre · Dessus uniquement (rien dessus) · Au sol · Au sol, rien dessus">Empilage</Th>
+                    <Th title="1 = livré en premier">Arrêt</Th><Th className="text-left">Destination</Th><Th></Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((r, i) => {
+                    const err = validateRow(r);
+                    return (
+                      <tr key={r.id} className="border-b border-slate-50 align-top">
+                        <td className="pl-2 pr-0.5 py-1.5">
+                          <div className="flex items-center gap-1.5">
+                            <span className="w-2.5 h-2.5 rounded-sm shrink-0 mt-1" style={{ background: refColor(i).solid }} />
+                            <div className="flex-1 min-w-[64px]">
+                              <input value={r.reference} onChange={(e) => updateRow(r.id, 'reference', e.target.value)}
+                                placeholder="Réf."
+                                className="w-full px-2 py-1.5 bg-white border rounded-md outline-none font-jetbrains text-xs text-slate-800 focus:border-slate-400"
+                                style={{ borderColor: err.reference ? '#FCA5A5' : '#E2E8F0' }} />
+                              {err.reference && <div className="text-[9px] text-red-500 mt-0.5">{err.reference}</div>}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-0.5 py-1.5"><NumCell value={r.quantity} onChange={(v) => updateRow(r.id, 'quantity', v)} error={err.quantity} width="w-12" /></td>
+                        <td className="px-0.5 py-1.5"><NumCell value={r.length} onChange={(v) => updateRow(r.id, 'length', v)} error={err.length} width="w-12" /></td>
+                        <td className="px-0.5 py-1.5"><NumCell value={r.width} onChange={(v) => updateRow(r.id, 'width', v)} error={err.width} width="w-12" /></td>
+                        <td className="px-0.5 py-1.5"><NumCell value={r.height} onChange={(v) => updateRow(r.id, 'height', v)} error={err.height} width="w-12" /></td>
+                        <td className="px-0.5 py-1.5"><NumCell value={r.weight} onChange={(v) => updateRow(r.id, 'weight', v)} error={err.weight} step="0.1" width="w-12" /></td>
+                        <td className="px-0.5 py-1.5">
+                          <select value={r.rotationMode} onChange={(e) => updateRow(r.id, 'rotationMode', e.target.value)}
+                            className="px-1.5 py-1.5 bg-white border border-slate-200 rounded-md outline-none font-jetbrains text-[11px] text-slate-700">
+                            {ROTATION_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                          </select>
+                        </td>
+                        <td className="px-0.5 py-1.5">
+                          <select value={stackingOf(r)} onChange={(e) => updateStacking(r.id, e.target.value)}
+                            title={STACKING_OPTIONS.find((o) => o.value === stackingOf(r))?.hint}
+                            className="w-[7.5rem] px-1 py-1.5 bg-white border border-slate-200 rounded-md outline-none font-jetbrains text-[11px] text-slate-700">
+                            {STACKING_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                          </select>
+                        </td>
+                        <td className="px-0.5 py-1.5"><NumCell value={r.stop ?? 1} onChange={(v) => updateRow(r.id, 'stop', v)} error={err.stop} width="w-10" /></td>
+                        <td className="px-0.5 py-1.5">
+                          <input value={r.destination ?? ''} onChange={(e) => updateRow(r.id, 'destination', e.target.value)}
+                            placeholder="Client…"
+                            className="w-16 lg:w-32 px-2 py-1.5 bg-white border border-slate-200 rounded-md outline-none font-jetbrains text-xs text-slate-800 focus:border-slate-400" />
+                        </td>
+                        <td className="px-0.5 py-1.5 text-center">
+                          <button onClick={() => removeRow(r.id)} className="text-slate-300 hover:text-red-500"><Trash2 size={13} /></button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {rows.length === 0 && (
+                    <tr><td colSpan={11} className="text-center text-slate-400 py-6 text-sm">Aucune marchandise — ajoutez une référence ou chargez l'exemple.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <div className="px-4 py-3 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <button onClick={addRow} className="flex items-center justify-center gap-1.5 font-jetbrains text-xs px-3 py-2.5 sm:py-2 rounded-md" style={{ background: '#F1F5F9', color: '#475569' }}>
+                <Plus size={13} /> Ajouter une référence
+              </button>
+              <span className="font-jetbrains text-[10px] text-slate-400 text-center sm:text-right">dimensions en cm · poids en kg · arrêt 1 = livré en premier</span>
+            </div>
           </div>
 
-          {/* DROITE : résultat */}
-          <div ref={resultRef} className="xl:col-span-2 flex flex-col gap-4 scroll-mt-20">
-            {status === 'done' && result ? (
-              <>
-                <div className="rounded-xl border border-slate-200 overflow-hidden bg-white">
-                  <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-slate-200 bg-slate-50 font-jetbrains text-xs text-slate-600 flex flex-wrap items-center justify-between gap-2">
-                    <span className="flex items-center gap-2 shrink-0"><Box size={13} /> PLAN<span className="hidden sm:inline"> DE CHARGEMENT</span></span>
-                    <div className="flex flex-wrap items-center justify-end gap-1.5 sm:gap-2">
-                      <button onClick={printSheet} className="flex items-center gap-1 font-jetbrains text-[10px] px-2 py-1 rounded-md" style={{ background: BLUE_LIGHT, color: BLUE }} title="Imprimer ou enregistrer en PDF la fiche de chargement (ordre de chargement, arrêt par arrêt)"><Printer size={11} /> Fiche</button>
-                      {multiStopResult && (
-                        <div className="flex items-center gap-0.5 p-0.5 rounded-md" style={{ background: '#F1F5F9' }} title="Couleur des colis — Réf. : par produit · Arrêt : par destination · Les 2 : remplissage = produit, contour = destination">
-                          <button onClick={() => { setColorBy('ref'); setHighlight(null); }} className="px-2 py-1.5 sm:py-1 rounded text-[10px]" style={effColorBy === 'ref' ? { background: '#fff', color: BLUE, fontWeight: 600 } : { color: '#64748B' }}>Réf.</button>
-                          <button onClick={() => { setColorBy('stop'); setHighlight(null); }} className="px-2 py-1.5 sm:py-1 rounded text-[10px]" style={effColorBy === 'stop' ? { background: '#fff', color: BLUE, fontWeight: 600 } : { color: '#64748B' }}>Arrêt</button>
-                          <button onClick={() => { setColorBy('both'); setHighlight(null); }} className="px-2 py-1.5 sm:py-1 rounded text-[10px]" style={effColorBy === 'both' ? { background: '#fff', color: BLUE, fontWeight: 600 } : { color: '#64748B' }}>Les 2</button>
-                        </div>
-                      )}
-                      <div className="flex items-center gap-0.5 p-0.5 rounded-md" style={{ background: '#F1F5F9' }}>
-                        <button onClick={() => setView3d(true)} className="px-2 py-1.5 sm:py-1 rounded text-[10px]" style={view3d ? { background: '#fff', color: BLUE, fontWeight: 600 } : { color: '#64748B' }}>3D</button>
-                        <button onClick={() => setView3d(false)} className="px-2 py-1.5 sm:py-1 rounded text-[10px]" style={!view3d ? { background: '#fff', color: BLUE, fontWeight: 600 } : { color: '#64748B' }}>Schéma</button>
-                      </div>
-                      <span className="hidden xl:inline text-[10px] text-slate-400">{result.computationTimeMs} ms</span>
+
+          {/* 2. Véhicule + récapitulatif / action */}
+          <div className="grid grid-cols-1 xl:grid-cols-5 gap-4 sm:gap-5 items-start">
+            <div className="xl:col-span-3">
+              <div className="rounded-xl border border-slate-200 overflow-hidden bg-white">
+                <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 font-jetbrains text-xs text-slate-600 flex items-center gap-2"><Truck size={13} /> 2 · CHOISISSEZ VOTRE VÉHICULE OU CONTENANT</div>
+                <div className="p-4 grid grid-cols-2 md:grid-cols-3 gap-2">
+                  {CONTAINER_PRESETS.map((c) => (
+                    <button key={c.id} onClick={() => { setContainerId(c.id); reset(); }}
+                      className="text-left px-3 py-2.5 rounded-lg font-jetbrains transition-all"
+                      style={containerId === c.id ? { background: BLUE, color: '#fff' } : { background: '#F8FAFC', color: '#475569', border: '1px solid #E2E8F0' }}>
+                      <div className="text-[11px] font-semibold leading-tight">{c.label}</div>
+                      <div className="text-[10px] opacity-80 mt-1">{(c.length / 1000).toFixed(2)}×{(c.width / 1000).toFixed(2)}×{(c.height / 1000).toFixed(2)} m</div>
+                      <div className="text-[9px] opacity-80">{formatKg(c.maxWeight)} kg</div>
+                    </button>
+                  ))}
+                  <button onClick={() => { setContainerId('custom'); reset(); }}
+                    className="text-left px-3 py-2.5 rounded-lg font-jetbrains transition-all"
+                    style={containerId === 'custom' ? { background: BLUE, color: '#fff' } : { background: '#F8FAFC', color: '#475569', border: '1px solid #E2E8F0' }}>
+                    <div className="text-[11px] font-semibold leading-tight">Dimensions personnalisées</div>
+                    <div className="text-[9px] opacity-80 mt-1">sur mesure (cm)</div>
+                  </button>
+                </div>
+                {containerId === 'custom' && (
+                  <div className="px-4 pb-4 grid grid-cols-2 md:grid-cols-5 gap-2">
+                    <div className="col-span-2 md:col-span-1">
+                      <label className="font-jetbrains text-[10px] text-slate-500 block mb-1">Nom</label>
+                      <input value={custom.label} onChange={(e) => setCustom((c) => ({ ...c, label: e.target.value }))} className="w-full px-2 py-1.5 border border-slate-200 rounded-md outline-none font-jetbrains text-xs" />
                     </div>
-                  </div>
-                  <div className="p-2 sm:p-4 relative">
-                    {view3d ? (
-                      <ThreeErrorBoundary fallback={<Schematic2D container={container} placed={visiblePlaced} colorOf={colorOf} isDimmed={isDimmed} blockedIds={blockedIds} />}>
-                        <Suspense fallback={<div className="flex items-center justify-center text-slate-400 font-jetbrains text-xs h-[340px] sm:h-[420px] lg:h-[460px]"><Loader2 size={18} className="animate-spin mr-2" /> Chargement de la vue 3D…</div>}>
-                          <LoadView3D container={container} placed={visiblePlaced} colorOf={colorOf} isDimmed={isDimmed} blockedIds={blockedIds} onHover={setHovered} cog={loadedUpToWall === null && unloadedUpTo === 0 ? balance?.cog : null} />
-                        </Suspense>
-                      </ThreeErrorBoundary>
-                    ) : (
-                      <Schematic2D container={container} placed={visiblePlaced} colorOf={colorOf} isDimmed={isDimmed} blockedIds={blockedIds} />
-                    )}
-                    {hovered && (
-                      <div className="absolute bottom-3 left-3 bg-white/95 border border-slate-200 rounded-lg px-3 py-2 font-jetbrains text-[11px] shadow-sm pointer-events-none">
-                        <div className="font-semibold text-slate-800">{hovered.reference}</div>
-                        <div className="text-slate-500">{Math.round(hovered.originalLength / 10)} × {Math.round(hovered.originalWidth / 10)} × {Math.round(hovered.originalHeight / 10)} cm · {hovered.weight} kg</div>
-                        {multiStopResult && <div className="text-slate-500">{stopLabel(hovered.stop ?? 1, rows)}</div>}
-                        {blockedIds.has(hovered.id) && <div style={{ color: '#DC2626' }}>À déplacer pour livrer cet arrêt</div>}
+                    {[['length', 'Long. (cm)'], ['width', 'Larg. (cm)'], ['height', 'Haut. (cm)'], ['maxWeight', 'Poids max (kg)']].map(([k, lbl]) => (
+                      <div key={k}>
+                        <label className="font-jetbrains text-[10px] text-slate-500 block mb-1">{lbl}</label>
+                        <input type="number" min="0" value={custom[k]} onChange={(e) => { setCustom((c) => ({ ...c, [k]: e.target.value })); reset(); }}
+                          className="w-full px-2 py-1.5 border border-slate-200 rounded-md outline-none font-jetbrains text-xs" />
                       </div>
-                    )}
+                    ))}
                   </div>
-                  {/* Légende */}
-                  {result.loadingMode === 'WALLS' && result.walls?.length > 1 && (
-                    <div className="px-4 py-2.5 border-t border-slate-100 flex items-center gap-2 flex-wrap">
-                      <span className="font-jetbrains text-[10px] text-slate-500">CHARGEMENT</span>
-                      <input type="range" min={1} max={result.walls.length + 1} step={1}
-                        value={loadedUpToWall === null ? result.walls.length + 1 : loadedUpToWall}
-                        onChange={(e) => { const v = Number(e.target.value); setLoadedUpToWall(v > result.walls.length ? null : v); }}
-                        className="flex-1 min-w-[140px] accent-blue-600" aria-label="Progression du chargement par mur" />
-                      <span className="font-jetbrains text-[10px] text-slate-700 w-24 text-right">
-                        {loadedUpToWall === null ? `${result.walls.length} murs` : `Mur ${loadedUpToWall} / ${result.walls.length}`}
+                )}
+                <div className="border-t border-slate-100">
+                  <button onClick={() => setBalanceOpen((o) => !o)} className="w-full px-4 py-2.5 flex items-center justify-between gap-2 text-left font-jetbrains text-[11px] text-slate-600 hover:text-slate-900">
+                    <span className="flex items-center gap-1.5 min-w-0">
+                      <Scale size={12} className="shrink-0" />
+                      <span className="truncate">
+                        Essieux et arrimage · {axleProfile.kind === 'TWO_SUPPORTS'
+                          ? `sellette ≤ ${formatKg(axleProfile.frontMax)} kg · essieux ≤ ${formatKg(axleProfile.rearMax)} kg`
+                          : 'centre de gravité ±5 %'} · µ {String(lashingParams.mu).replace('.', ',')} · {lashingParams.stfDaN} daN
                       </span>
+                    </span>
+                    <ChevronDown size={12} className={`shrink-0 transition-transform ${balanceOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                  {balanceOpen && (
+                    <div className="px-4 pb-4 space-y-3">
+                      {axleProfile.kind === 'TWO_SUPPORTS' ? (
+                        <>
+                          <div className="grid grid-cols-2 gap-2.5">
+                            <BalanceField label="Position sellette (depuis l'avant)" unit="m" step="0.1" value={axleProfile.frontPos / 1000} onChange={(v) => setAxle('frontPos', Number(v) * 1000)} />
+                            <BalanceField label="Position essieux (centre du groupe)" unit="m" step="0.1" value={axleProfile.rearPos / 1000} onChange={(v) => setAxle('rearPos', Number(v) * 1000)} />
+                            <BalanceField label="Charge utile max sellette" unit="kg" value={axleProfile.frontMax} onChange={(v) => setAxle('frontMax', Number(v))} />
+                            <BalanceField label="Charge utile max essieux" unit="kg" value={axleProfile.rearMax} onChange={(v) => setAxle('rearMax', Number(v))} />
+                          </div>
+                          <div className="text-[10px] text-slate-400">Valeurs indicatives : reportez celles du plan de répartition de charge ou de la notice de votre véhicule.</div>
+                        </>
+                      ) : (
+                        <div className="text-[10px] text-slate-500">Conteneur : contrôle du centre de gravité, tolérance de ±5 % de la longueur (CTU Code).</div>
+                      )}
+                      <div className="grid grid-cols-2 gap-2.5 items-end">
+                        <label className="block min-w-0">
+                          <span className="block font-jetbrains text-[10px] text-slate-500 mb-0.5">Plancher / frottement µ</span>
+                          <select value={[0.3, 0.6].includes(Number(lashingParams.mu)) ? String(lashingParams.mu) : 'other'}
+                            onChange={(e) => e.target.value !== 'other' && setLashing('mu', Number(e.target.value))}
+                            className="w-full px-2 py-1.5 bg-white border border-slate-200 rounded-md outline-none font-jetbrains text-base sm:text-xs text-slate-700">
+                            <option value="0.3">Bois / contreplaqué (0,30)</option>
+                            <option value="0.6">Tapis antiglisse (0,60)</option>
+                            <option value="other">Autre valeur…</option>
+                          </select>
+                        </label>
+                        <BalanceField label="Tension des sangles (STF)" unit="daN" value={lashingParams.stfDaN} onChange={(v) => setLashing('stfDaN', Number(v))} />
+                        {![0.3, 0.6].includes(Number(lashingParams.mu)) && (
+                          <BalanceField label="µ (autre)" unit="" step="0.05" value={lashingParams.mu} onChange={(v) => setLashing('mu', Number(v))} />
+                        )}
+                      </div>
+                      <label className="flex items-center gap-2 text-[11px] text-slate-700 cursor-pointer">
+                        <input type="checkbox" checked={lashingParams.forwardBlocked} onChange={(e) => setLashing('forwardBlocked', e.target.checked)} />
+                        Chargement bloqué vers l'avant (contre la face avant)
+                      </label>
+                      <button onClick={resetBalance} className="font-jetbrains text-[10px] text-slate-400 hover:text-slate-700 underline underline-offset-2">Revenir aux valeurs par défaut</button>
                     </div>
                   )}
-                  {multiStopResult && (
-                    <div className="px-4 py-2.5 border-t border-slate-100 flex items-center gap-1.5 flex-wrap">
-                      <span className="font-jetbrains text-[10px] text-slate-500 mr-1">DÉCHARGEMENT</span>
-                      <button onClick={() => setUnloadedUpTo(0)} className="px-2 py-1 rounded text-[10px] font-jetbrains"
-                        style={unloadedUpTo === 0 ? { background: BLUE, color: '#fff' } : { background: '#F1F5F9', color: '#475569' }}>Complet</button>
-                      {resultStops.slice(0, -1).map((s) => (
-                        <button key={s.stop} onClick={() => setUnloadedUpTo(s.stop)} className="px-2 py-1 rounded text-[10px] font-jetbrains"
-                          style={unloadedUpTo === s.stop ? { background: BLUE, color: '#fff' } : { background: '#F1F5F9', color: '#475569' }}>
-                          Après arrêt {s.stop}
+                </div>
+              </div>
+
+            </div>
+            <div className="xl:col-span-2">
+              <div className="rounded-xl border p-4 bg-white" style={{ borderColor: BLUE, background: BLUE_LIGHT }}>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                  <div><div className="font-jetbrains text-[10px] text-slate-500">Unités</div><div className="font-bricolage font-bold text-xl" style={{ color: BLUE }}>{totals.units}</div></div>
+                  <div><div className="font-jetbrains text-[10px] text-slate-500">Volume march.</div><div className="font-bricolage font-bold text-xl text-slate-800">{formatM3(totals.volume)} m³</div></div>
+                  <div><div className="font-jetbrains text-[10px] text-slate-500">Poids total</div><div className="font-bricolage font-bold text-xl text-slate-800">{formatKg(totals.weight)} kg</div></div>
+                  <div><div className="font-jetbrains text-[10px] text-slate-500">Contenant</div><div className="font-bricolage font-bold text-xl text-slate-800">{formatM3(containerVolume)} m³</div></div>
+                </div>
+                {multiStop && (
+                  <div className="mb-3 px-3 py-2.5 rounded-md bg-white border border-slate-200">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <div className="font-jetbrains text-[11px] text-slate-700 flex items-center gap-1.5">
+                        <MapPin size={12} style={{ color: BLUE }} /> Tournée : {stops.length} arrêts · arrêt 1 chargé côté portes
+                      </div>
+                      <div className="flex items-center gap-0.5 p-0.5 rounded-md" style={{ background: '#F1F5F9' }}>
+                        {DELIVERY_MODES.map((m) => (
+                          <button key={m.value} onClick={() => changeDeliveryMode(m.value)} className="px-2 py-1 rounded text-[10px] font-jetbrains"
+                            style={deliveryMode === m.value ? { background: '#fff', color: BLUE, fontWeight: 600 } : { color: '#64748B' }}>{m.label}</button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="text-[10px] text-slate-500 mt-1">{DELIVERY_MODES.find((m) => m.value === deliveryMode)?.hint}</div>
+                    {excludedStops.length > 0 && (
+                      <div className="text-[10px] mt-1" style={{ color: '#B45309' }}>
+                        Retiré(s) du camion : {excludedStops.map((s) => stopLabel(s, rows)).join(', ')}
+                      </div>
+                    )}
+                  </div>
+                )}
+                {overweight && (
+                  <div className="flex items-start gap-2 text-[11px] mb-3 px-3 py-2 rounded-md" style={{ background: '#FFFBEB', color: '#B45309', border: '1px solid #FDE68A' }}>
+                    <AlertCircle size={13} className="mt-0.5 shrink-0" />
+                    Le poids total ({formatKg(totals.weight)} kg) dépasse le poids utile du contenant ({formatKg(container.maxWeight)} kg). Le moteur chargera ce qui est admissible.
+                  </div>
+                )}
+                <button ref={ctaRef} onClick={optimize} disabled={!valid || status === 'running'}
+                  className="w-full flex items-center justify-center gap-2 py-3.5 sm:py-3 rounded-lg font-bricolage font-semibold text-white transition-all disabled:opacity-50"
+                  style={{ background: BLUE }}>
+                  {status === 'running' ? <><Loader2 size={16} className="animate-spin" /> Optimisation du chargement…</> : <>Optimiser le chargement <ArrowRight size={16} /></>}
+                </button>
+                {!valid && <div className="text-[11px] text-slate-500 mt-2 text-center">Complétez les références (dimensions et quantités valides) pour lancer le calcul.</div>}
+              </div>
+
+            </div>
+          </div>
+
+          {/* 3. Résultat : plan 3D + analyse */}
+          <div ref={resultRef} className="grid grid-cols-1 xl:grid-cols-5 gap-4 sm:gap-5 items-start scroll-mt-20">
+            {status === 'done' && result ? (
+              <>
+                <div className="xl:col-span-3">
+                  <div className="rounded-xl border border-slate-200 overflow-hidden bg-white">
+                    <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-slate-200 bg-slate-50 font-jetbrains text-xs text-slate-600 flex flex-wrap items-center justify-between gap-2">
+                      <span className="flex items-center gap-2 shrink-0"><Box size={13} /> PLAN<span className="hidden sm:inline"> DE CHARGEMENT</span></span>
+                      <div className="flex flex-wrap items-center justify-end gap-1.5 sm:gap-2">
+                        <button onClick={printSheet} className="flex items-center gap-1 font-jetbrains text-[10px] px-2 py-1 rounded-md" style={{ background: BLUE_LIGHT, color: BLUE }} title="Imprimer ou enregistrer en PDF la fiche de chargement (ordre de chargement, arrêt par arrêt)"><Printer size={11} /> Fiche</button>
+                        {multiStopResult && (
+                          <div className="flex items-center gap-0.5 p-0.5 rounded-md" style={{ background: '#F1F5F9' }} title="Couleur des colis — Réf. : par produit · Arrêt : par destination · Les 2 : remplissage = produit, contour = destination">
+                            <button onClick={() => { setColorBy('ref'); setHighlight(null); }} className="px-2 py-1.5 sm:py-1 rounded text-[10px]" style={effColorBy === 'ref' ? { background: '#fff', color: BLUE, fontWeight: 600 } : { color: '#64748B' }}>Réf.</button>
+                            <button onClick={() => { setColorBy('stop'); setHighlight(null); }} className="px-2 py-1.5 sm:py-1 rounded text-[10px]" style={effColorBy === 'stop' ? { background: '#fff', color: BLUE, fontWeight: 600 } : { color: '#64748B' }}>Arrêt</button>
+                            <button onClick={() => { setColorBy('both'); setHighlight(null); }} className="px-2 py-1.5 sm:py-1 rounded text-[10px]" style={effColorBy === 'both' ? { background: '#fff', color: BLUE, fontWeight: 600 } : { color: '#64748B' }}>Les 2</button>
+                          </div>
+                        )}
+                        <div className="flex items-center gap-0.5 p-0.5 rounded-md" style={{ background: '#F1F5F9' }}>
+                          <button onClick={() => setView3d(true)} className="px-2 py-1.5 sm:py-1 rounded text-[10px]" style={view3d ? { background: '#fff', color: BLUE, fontWeight: 600 } : { color: '#64748B' }}>3D</button>
+                          <button onClick={() => setView3d(false)} className="px-2 py-1.5 sm:py-1 rounded text-[10px]" style={!view3d ? { background: '#fff', color: BLUE, fontWeight: 600 } : { color: '#64748B' }}>Schéma</button>
+                        </div>
+                        <span className="hidden xl:inline text-[10px] text-slate-400">{result.computationTimeMs} ms</span>
+                      </div>
+                    </div>
+                    <div className="p-2 sm:p-4 relative">
+                      {view3d ? (
+                        <ThreeErrorBoundary fallback={<Schematic2D container={container} placed={visiblePlaced} colorOf={colorOf} isDimmed={isDimmed} blockedIds={blockedIds} />}>
+                          <Suspense fallback={<div className="flex items-center justify-center text-slate-400 font-jetbrains text-xs h-[340px] sm:h-[420px] lg:h-[460px]"><Loader2 size={18} className="animate-spin mr-2" /> Chargement de la vue 3D…</div>}>
+                            <LoadView3D container={container} placed={visiblePlaced} colorOf={colorOf} isDimmed={isDimmed} blockedIds={blockedIds} onHover={setHovered} cog={loadedUpToWall === null && unloadedUpTo === 0 ? balance?.cog : null} />
+                          </Suspense>
+                        </ThreeErrorBoundary>
+                      ) : (
+                        <Schematic2D container={container} placed={visiblePlaced} colorOf={colorOf} isDimmed={isDimmed} blockedIds={blockedIds} />
+                      )}
+                      {hovered && (
+                        <div className="absolute bottom-3 left-3 bg-white/95 border border-slate-200 rounded-lg px-3 py-2 font-jetbrains text-[11px] shadow-sm pointer-events-none">
+                          <div className="font-semibold text-slate-800">{hovered.reference}</div>
+                          <div className="text-slate-500">{Math.round(hovered.originalLength / 10)} × {Math.round(hovered.originalWidth / 10)} × {Math.round(hovered.originalHeight / 10)} cm · {hovered.weight} kg</div>
+                          {multiStopResult && <div className="text-slate-500">{stopLabel(hovered.stop ?? 1, rows)}</div>}
+                          {blockedIds.has(hovered.id) && <div style={{ color: '#DC2626' }}>À déplacer pour livrer cet arrêt</div>}
+                        </div>
+                      )}
+                    </div>
+                    {/* Légende */}
+                    {result.loadingMode === 'WALLS' && result.walls?.length > 1 && (
+                      <div className="px-4 py-2.5 border-t border-slate-100 flex items-center gap-2 flex-wrap">
+                        <span className="font-jetbrains text-[10px] text-slate-500">CHARGEMENT</span>
+                        <input type="range" min={1} max={result.walls.length + 1} step={1}
+                          value={loadedUpToWall === null ? result.walls.length + 1 : loadedUpToWall}
+                          onChange={(e) => { const v = Number(e.target.value); setLoadedUpToWall(v > result.walls.length ? null : v); }}
+                          className="flex-1 min-w-[140px] accent-blue-600" aria-label="Progression du chargement par mur" />
+                        <span className="font-jetbrains text-[10px] text-slate-700 w-24 text-right">
+                          {loadedUpToWall === null ? `${result.walls.length} murs` : `Mur ${loadedUpToWall} / ${result.walls.length}`}
+                        </span>
+                      </div>
+                    )}
+                    {multiStopResult && (
+                      <div className="px-4 py-2.5 border-t border-slate-100 flex items-center gap-1.5 flex-wrap">
+                        <span className="font-jetbrains text-[10px] text-slate-500 mr-1">DÉCHARGEMENT</span>
+                        <button onClick={() => setUnloadedUpTo(0)} className="px-2 py-1 rounded text-[10px] font-jetbrains"
+                          style={unloadedUpTo === 0 ? { background: BLUE, color: '#fff' } : { background: '#F1F5F9', color: '#475569' }}>Complet</button>
+                        {resultStops.slice(0, -1).map((s) => (
+                          <button key={s.stop} onClick={() => setUnloadedUpTo(s.stop)} className="px-2 py-1 rounded text-[10px] font-jetbrains"
+                            style={unloadedUpTo === s.stop ? { background: BLUE, color: '#fff' } : { background: '#F1F5F9', color: '#475569' }}>
+                            Après arrêt {s.stop}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {(effColorBy === 'stop' || effColorBy === 'both') && (
+                      <div className="px-4 py-3 border-t border-slate-100 flex flex-wrap items-center gap-x-4 gap-y-1.5">
+                        {effColorBy === 'both' && (
+                          <span className="font-jetbrains text-[9px] tracking-wider text-slate-400 mr-1 w-full sm:w-auto">CONTOUR · ARRÊT</span>
+                        )}
+                        {resultStops.filter((s) => s.packedItems > 0).map((s) => {
+                          const key = `stop:${s.stop}`;
+                          const swatch = effColorBy === 'both'
+                            ? { background: '#fff', border: `2px solid ${stopColor(s.stop).solid}` }
+                            : { background: stopColor(s.stop).solid };
+                          return (
+                            <button key={key} onClick={() => setHighlight((h) => (h === key ? null : key))}
+                              className="flex items-center gap-1.5 text-[11px] font-jetbrains"
+                              style={{ opacity: (highlight && highlight !== key) || s.stop <= unloadedUpTo ? 0.4 : 1 }}>
+                              <span className="w-3 h-3 rounded-sm" style={swatch} />
+                              {stopLabel(s.stop, rows)} <span className="text-slate-400">· {s.packedItems}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                    {(effColorBy === 'ref' || effColorBy === 'both') && (
+                      <div className="px-4 py-3 border-t border-slate-100 flex flex-wrap items-center gap-x-4 gap-y-1.5">
+                        {effColorBy === 'both' && (
+                          <span className="font-jetbrains text-[9px] tracking-wider text-slate-400 mr-1 w-full sm:w-auto">REMPLISSAGE · RÉFÉRENCE</span>
+                        )}
+                        {rows.map((r, i) => {
+                          const count = result.placedItems.filter((p) => p.definitionId === r.id).length;
+                          if (count === 0) return null;
+                          return (
+                            <button key={r.id} onClick={() => setHighlight((h) => (h === r.id ? null : r.id))}
+                              className="flex items-center gap-1.5 text-[11px] font-jetbrains"
+                              style={{ opacity: highlight && highlight !== r.id ? 0.4 : 1 }}>
+                              <span className="w-3 h-3 rounded-sm" style={{ background: refColor(i).solid }} />
+                              {r.reference || 'réf.'} <span className="text-slate-400">· {count}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="xl:col-span-2 flex flex-col gap-4">
+                  {/* Résultat express : l'essentiel du calcul et les actions */}
+                    <div className="rounded-xl border border-slate-200 bg-white p-4">
+                      <div className="font-jetbrains text-[10px] tracking-wider text-slate-500 mb-3">RÉSULTAT</div>
+                      <div className="grid grid-cols-3 gap-3 mb-3">
+                        <div><div className="font-jetbrains text-[10px] text-slate-500">Colis chargés</div><div className="font-bricolage font-bold text-xl" style={{ color: result.unpackedCount > 0 ? '#B91C1C' : BLUE }}>{result.packedItems} / {result.totalItems}</div></div>
+                        <div><div className="font-jetbrains text-[10px] text-slate-500">Remplissage</div><div className="font-bricolage font-bold text-xl text-slate-800">{formatPct(result.volumeUtilization)} %</div></div>
+                        <div><div className="font-jetbrains text-[10px] text-slate-500">Poids</div><div className="font-bricolage font-bold text-xl text-slate-800">{formatKg(result.usedWeight)} kg</div></div>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5 mb-3">
+                        {analysisTabs.map((t) => (
+                          <button key={t.id} onClick={() => openTab(t.id)} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md font-jetbrains text-[11px]"
+                            style={{ background: BAL_BG[t.status], color: BAL_COLORS[t.status] }}>
+                            {t.status === 'ok' ? <Check size={12} /> : <AlertCircle size={12} />}
+                            {t.id === 'synth' ? 'Accès' : t.label}{t.count ? ` · ${t.count}` : ''}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button onClick={printSheet} className="flex items-center justify-center gap-1.5 py-2 rounded-lg font-jetbrains text-xs" style={{ background: BLUE_LIGHT, color: BLUE }}>
+                          <Printer size={13} /> Fiche PDF
+                        </button>
+                        <button onClick={optimize} className="flex items-center justify-center gap-1.5 py-2 rounded-lg font-jetbrains text-xs text-slate-600 border border-slate-200 bg-white hover:text-slate-900">
+                          <RotateCcw size={13} /> Relancer
+                        </button>
+                      </div>
+                    </div>
+                  {/* Analyse : onglets (le premier onglet en alerte s'ouvre automatiquement) */}
+                  <div ref={tabsRef} className="rounded-xl border border-slate-200 bg-white overflow-hidden scroll-mt-20">
+                    <div className="flex overflow-x-auto border-b border-slate-200 bg-slate-50" role="tablist">
+                      {analysisTabs.map((t) => (
+                        <button key={t.id} role="tab" aria-selected={currentTab === t.id} onClick={() => setActiveTab(t.id)}
+                          className="flex items-center gap-1.5 px-4 py-2.5 font-jetbrains text-[11px] whitespace-nowrap border-b-2 -mb-px"
+                          style={currentTab === t.id ? { borderColor: BLUE, color: BLUE, background: '#fff', fontWeight: 600 } : { borderColor: 'transparent', color: '#64748B' }}>
+                          <span className="w-1.5 h-1.5 rounded-full" style={{ background: BAL_COLORS[t.status] }} />
+                          {t.label}{t.count ? <span className="text-[10px] px-1.5 rounded-full" style={{ background: BAL_BG[t.status], color: BAL_COLORS[t.status] }}>{t.count}</span> : null}
                         </button>
                       ))}
                     </div>
-                  )}
-                  {(effColorBy === 'stop' || effColorBy === 'both') && (
-                    <div className="px-4 py-3 border-t border-slate-100 flex flex-wrap items-center gap-x-4 gap-y-1.5">
-                      {effColorBy === 'both' && (
-                        <span className="font-jetbrains text-[9px] tracking-wider text-slate-400 mr-1 w-full sm:w-auto">CONTOUR · ARRÊT</span>
+                    <div className="p-3 sm:p-4 flex flex-col gap-4 bg-slate-50/50">
+                      {currentTab === 'synth' && (
+                        <>
+                          <div className="grid grid-cols-2 gap-3">
+                            <Kpi label="Taux de remplissage" value={`${formatPct(result.volumeUtilization)} %`} sub="volume placé / contenant" />
+                            <Kpi label="Articles chargés" value={`${result.packedItems} / ${result.totalItems}`} sub={result.unpackedCount > 0 ? `${result.unpackedCount} non chargé(s)` : 'tout rentre'} />
+                          </div>
+
+                          <div className="rounded-xl border border-slate-200 p-4 bg-white space-y-4">
+                            <Bar label="Poids utilisé" value={result.usedWeight} max={result.maxWeight ?? result.usedWeight} unit="kg" format={formatKg} />
+                            <Bar label="Volume utilisé" value={mm3ToM3(result.usedVolume)} max={mm3ToM3(result.containerVolume)} unit="m³" format={(v) => v.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} />
+                          </div>
+
+                          {result.loadingViolationIds.length === 0 ? (
+                            <div className="rounded-xl border px-4 py-3 text-[11px] flex items-start gap-1.5" style={{ color: '#15803D', background: '#F0FDF4', borderColor: '#BBF7D0' }}>
+                              <Check size={13} className="mt-0.5 shrink-0" />
+                              Chargement par murs, de la cabine vers les portes : chaque colis est accessible sans monter sur la marchandise.
+                            </div>
+                          ) : (
+                            <div className="rounded-xl border px-4 py-3 text-[11px] flex items-start gap-1.5" style={{ color: '#B91C1C', background: '#FEF2F2', borderColor: '#FECACA' }}>
+                              <AlertCircle size={13} className="mt-0.5 shrink-0" />
+                              {result.loadingViolationIds.length} colis devront être posés en passant par-dessus d'autres colis.
+                            </div>
+                          )}
+
+                        </>
                       )}
-                      {resultStops.filter((s) => s.packedItems > 0).map((s) => {
-                        const key = `stop:${s.stop}`;
-                        const swatch = effColorBy === 'both'
-                          ? { background: '#fff', border: `2px solid ${stopColor(s.stop).solid}` }
-                          : { background: stopColor(s.stop).solid };
-                        return (
-                          <button key={key} onClick={() => setHighlight((h) => (h === key ? null : key))}
-                            className="flex items-center gap-1.5 text-[11px] font-jetbrains"
-                            style={{ opacity: (highlight && highlight !== key) || s.stop <= unloadedUpTo ? 0.4 : 1 }}>
-                            <span className="w-3 h-3 rounded-sm" style={swatch} />
-                            {stopLabel(s.stop, rows)} <span className="text-slate-400">· {s.packedItems}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                  {(effColorBy === 'ref' || effColorBy === 'both') && (
-                    <div className="px-4 py-3 border-t border-slate-100 flex flex-wrap items-center gap-x-4 gap-y-1.5">
-                      {effColorBy === 'both' && (
-                        <span className="font-jetbrains text-[9px] tracking-wider text-slate-400 mr-1 w-full sm:w-auto">REMPLISSAGE · RÉFÉRENCE</span>
+                      {currentTab === 'charges' && (
+                        <>
+                          {balance && balance.cog && (
+                            <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+                              <div className="px-4 py-2.5 border-b border-slate-100 font-jetbrains text-[10px] tracking-wider text-slate-500 flex items-center justify-between gap-2">
+                                <span className="flex items-center gap-1.5"><Scale size={12} /> RÉPARTITION DES CHARGES</span>
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ color: BAL_COLORS[balance.status], background: BAL_BG[balance.status] }}>{BAL_LABEL[balance.status]}</span>
+                              </div>
+                              <div className="px-4 py-3 space-y-3">
+                                <div className="text-[11px] text-slate-600">
+                                  Centre de gravité : <strong className="text-slate-900">{fmtM(balance.cog.x)} m</strong> de la face avant
+                                  {' · '}{Math.abs(balance.lateralPct) < 0.005 ? 'centré en largeur' : `${Math.round(Math.abs(balance.cog.y - container.width / 2) / 10)} cm à ${balance.cog.y > container.width / 2 ? 'droite' : 'gauche'} de l'axe`}
+                                  {' · '}{fmtM(balance.cog.z)} m de haut
+                                </div>
+                                {balance.supports ? (
+                                  <>
+                                    <LoadBar label={axleProfile.frontLabel} value={balance.supports.front} max={axleProfile.frontMax} />
+                                    <LoadBar label={axleProfile.rearLabel} value={balance.supports.rear} max={axleProfile.rearMax} />
+                                    <div className="text-[10px] text-slate-500">
+                                      {balance.supports.zone
+                                        ? <>Zone conseillée du centre de gravité pour {formatKg(balance.weight)} kg : <strong>{fmtM(Math.max(0, balance.supports.zone.from))} – {fmtM(Math.min(container.length, balance.supports.zone.to))} m</strong> de la face avant.</>
+                                        : 'Charge trop lourde pour respecter les deux appuis, quelle que soit la position.'}
+                                      {balance.supports.status === 'over' && (balance.supports.frontPct > 1
+                                        ? ' Trop de poids vers l’avant : reculez les colis lourds vers le milieu de la remorque.'
+                                        : ' Trop de poids vers l’arrière : avancez les colis lourds vers le milieu de la remorque.')}
+                                    </div>
+                                  </>
+                                ) : (
+                                  <div className="text-[11px]" style={{ color: BAL_COLORS[balance.status] }}>
+                                    Excentricité longitudinale : {balance.longitudinalPct >= 0 ? '+' : ''}{formatPct(balance.longitudinalPct)} % (tolérance ±5 %).
+                                  </div>
+                                )}
+                                {Math.abs(balance.lateralPct) > 0.05 && (
+                                  <div className="text-[10px]" style={{ color: BAL_COLORS.warn }}>Charge décentrée en largeur : équilibrez les colis lourds entre les deux côtés.</div>
+                                )}
+                                {balance.afterStops.length > 0 && (
+                                  <div className="pt-2 border-t border-slate-100">
+                                    <div className="font-jetbrains text-[10px] text-slate-500 mb-1">PENDANT LA TOURNÉE</div>
+                                    <div className="space-y-0.5">
+                                      {balance.afterStops.map((a) => (
+                                        <div key={a.stop} className="flex items-center justify-between gap-2 font-jetbrains text-[10px] text-slate-600">
+                                          <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full" style={{ background: BAL_COLORS[a.status] }} />Après l'arrêt {a.stop}</span>
+                                          <span style={{ color: BAL_COLORS[a.status] }}>
+                                            {a.supports ? `${formatKg(Math.max(0, a.supports.front))} / ${formatKg(Math.max(0, a.supports.rear))} kg` : `${a.longitudinalPct >= 0 ? '+' : ''}${formatPct(a.longitudinalPct)} %`} · {BAL_LABEL[a.status]}
+                                          </span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                                {shiftMm > 0 ? (
+                                  <div className="rounded-lg px-3 py-2.5 text-[11px] flex flex-col sm:flex-row sm:items-center justify-between gap-2" style={{ background: BLUE_LIGHT, color: BLUE }}>
+                                    <span>
+                                      <Check size={12} className="inline -mt-0.5 mr-1" />
+                                      Chargement décalé de <strong>{fmtM(shiftMm)} m</strong> vers l'arrière. Laissez cet espace libre contre la face avant et posez une <strong>barre de calage</strong>.
+                                    </span>
+                                    <button onClick={() => setShiftMm(0)} className="shrink-0 flex items-center gap-1 font-jetbrains text-[10px] text-slate-500 hover:text-slate-800"><Undo2 size={11} /> Annuler</button>
+                                  </div>
+                                ) : shiftSuggestion && (
+                                  <div className="rounded-lg px-3 py-2.5 border flex flex-col sm:flex-row sm:items-center justify-between gap-2" style={{ borderColor: '#FDE68A', background: '#FFFBEB' }}>
+                                    <span className="text-[11px] text-slate-700">
+                                      Correction possible sans toucher au plan :{' '}
+                                      {shiftSuggestion.after.supports
+                                        ? <>{axleProfile.frontLabel.toLowerCase()} à <strong style={{ color: BAL_COLORS[shiftSuggestion.after.status] }}>{Math.round(shiftSuggestion.after.supports.frontPct * 100)} %</strong></>
+                                        : <>excentricité à <strong style={{ color: BAL_COLORS[shiftSuggestion.after.status] }}>{shiftSuggestion.after.longitudinalPct >= 0 ? '+' : ''}{formatPct(shiftSuggestion.after.longitudinalPct)} %</strong></>}
+                                      {shiftSuggestion.partial ? ' (amélioration partielle, faute de place côté portes).' : '.'}
+                                    </span>
+                                    <button onClick={() => { setShiftMm(shiftSuggestion.shift); track('load_optimizer_shift_applied'); }}
+                                      className="shrink-0 px-3 py-2 rounded-md font-jetbrains text-[10px] font-semibold text-white" style={{ background: BLUE }}>
+                                      Décaler de {fmtM(shiftSuggestion.shift)} m vers l'arrière
+                                    </button>
+                                  </div>
+                                )}
+                                <div className="pt-2 border-t border-slate-100 text-[11px] text-slate-600">
+                                  Arrimage : <strong className="text-slate-900">{balance.lashing.total} sangle{balance.lashing.total > 1 ? 's' : ''}</strong> par-dessus
+                                  ({balance.lashing.walls.length} mur{balance.lashing.walls.length > 1 ? 's' : ''}, STF {lashingParams.stfDaN} daN, µ {String(lashingParams.mu).replace('.', ',')})
+                                  {balance.lashing.perStrapKg === null ? ' : le frottement suffit, 1 sangle par mur minimum.' : `, soit ${formatKg(Math.floor(balance.lashing.perStrapKg))} kg retenus par sangle.`}
+                                  <span className="text-slate-400"> Détail par mur sur la fiche.</span>
+                                </div>
+                                <div className="text-[9px] text-slate-400 leading-snug">
+                                  Estimation indicative (bras de levier, arrimage par friction EN 12195-1, CTU Code). Ne remplace pas le plan d'arrimage ni les données du constructeur.
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                        </>
                       )}
-                      {rows.map((r, i) => {
-                        const count = result.placedItems.filter((p) => p.definitionId === r.id).length;
-                        if (count === 0) return null;
-                        return (
-                          <button key={r.id} onClick={() => setHighlight((h) => (h === r.id ? null : r.id))}
-                            className="flex items-center gap-1.5 text-[11px] font-jetbrains"
-                            style={{ opacity: highlight && highlight !== r.id ? 0.4 : 1 }}>
-                            <span className="w-3 h-3 rounded-sm" style={{ background: refColor(i).solid }} />
-                            {r.reference || 'réf.'} <span className="text-slate-400">· {count}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-
-
-                {/* Analyse : onglets (le premier onglet en alerte s'ouvre automatiquement) */}
-                <div ref={tabsRef} className="rounded-xl border border-slate-200 bg-white overflow-hidden scroll-mt-20">
-                  <div className="flex overflow-x-auto border-b border-slate-200 bg-slate-50" role="tablist">
-                    {analysisTabs.map((t) => (
-                      <button key={t.id} role="tab" aria-selected={currentTab === t.id} onClick={() => setActiveTab(t.id)}
-                        className="flex items-center gap-1.5 px-4 py-2.5 font-jetbrains text-[11px] whitespace-nowrap border-b-2 -mb-px"
-                        style={currentTab === t.id ? { borderColor: BLUE, color: BLUE, background: '#fff', fontWeight: 600 } : { borderColor: 'transparent', color: '#64748B' }}>
-                        <span className="w-1.5 h-1.5 rounded-full" style={{ background: BAL_COLORS[t.status] }} />
-                        {t.label}{t.count ? <span className="text-[10px] px-1.5 rounded-full" style={{ background: BAL_BG[t.status], color: BAL_COLORS[t.status] }}>{t.count}</span> : null}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="p-3 sm:p-4 flex flex-col gap-4 bg-slate-50/50">
-                    {currentTab === 'synth' && (
-                      <>
-                        <div className="grid grid-cols-2 gap-3">
-                          <Kpi label="Taux de remplissage" value={`${formatPct(result.volumeUtilization)} %`} sub="volume placé / contenant" />
-                          <Kpi label="Articles chargés" value={`${result.packedItems} / ${result.totalItems}`} sub={result.unpackedCount > 0 ? `${result.unpackedCount} non chargé(s)` : 'tout rentre'} />
-                        </div>
-
-                        <div className="rounded-xl border border-slate-200 p-4 bg-white space-y-4">
-                          <Bar label="Poids utilisé" value={result.usedWeight} max={result.maxWeight ?? result.usedWeight} unit="kg" format={formatKg} />
-                          <Bar label="Volume utilisé" value={mm3ToM3(result.usedVolume)} max={mm3ToM3(result.containerVolume)} unit="m³" format={(v) => v.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} />
-                        </div>
-
-                        {result.loadingViolationIds.length === 0 ? (
-                          <div className="rounded-xl border px-4 py-3 text-[11px] flex items-start gap-1.5" style={{ color: '#15803D', background: '#F0FDF4', borderColor: '#BBF7D0' }}>
-                            <Check size={13} className="mt-0.5 shrink-0" />
-                            Chargement par murs, de la cabine vers les portes : chaque colis est accessible sans monter sur la marchandise.
-                          </div>
-                        ) : (
-                          <div className="rounded-xl border px-4 py-3 text-[11px] flex items-start gap-1.5" style={{ color: '#B91C1C', background: '#FEF2F2', borderColor: '#FECACA' }}>
-                            <AlertCircle size={13} className="mt-0.5 shrink-0" />
-                            {result.loadingViolationIds.length} colis devront être posés en passant par-dessus d'autres colis.
-                          </div>
-                        )}
-
-                      </>
-                    )}
-                    {currentTab === 'charges' && (
-                      <>
-                        {balance && balance.cog && (
-                          <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
-                            <div className="px-4 py-2.5 border-b border-slate-100 font-jetbrains text-[10px] tracking-wider text-slate-500 flex items-center justify-between gap-2">
-                              <span className="flex items-center gap-1.5"><Scale size={12} /> RÉPARTITION DES CHARGES</span>
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ color: BAL_COLORS[balance.status], background: BAL_BG[balance.status] }}>{BAL_LABEL[balance.status]}</span>
-                            </div>
-                            <div className="px-4 py-3 space-y-3">
-                              <div className="text-[11px] text-slate-600">
-                                Centre de gravité : <strong className="text-slate-900">{fmtM(balance.cog.x)} m</strong> de la face avant
-                                {' · '}{Math.abs(balance.lateralPct) < 0.005 ? 'centré en largeur' : `${Math.round(Math.abs(balance.cog.y - container.width / 2) / 10)} cm à ${balance.cog.y > container.width / 2 ? 'droite' : 'gauche'} de l'axe`}
-                                {' · '}{fmtM(balance.cog.z)} m de haut
+                      {currentTab === 'tour' && (
+                        <>
+                          {multiStopResult && (
+                            <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+                              <div className="px-4 py-2.5 border-b border-slate-100 font-jetbrains text-[10px] tracking-wider text-slate-500 flex items-center gap-1.5">
+                                <MapPin size={12} /> TOURNÉE · {result.deliveryMode === 'SOFT' ? 'MODE SOUPLE' : 'MODE STRICT'}
                               </div>
-                              {balance.supports ? (
-                                <>
-                                  <LoadBar label={axleProfile.frontLabel} value={balance.supports.front} max={axleProfile.frontMax} />
-                                  <LoadBar label={axleProfile.rearLabel} value={balance.supports.rear} max={axleProfile.rearMax} />
-                                  <div className="text-[10px] text-slate-500">
-                                    {balance.supports.zone
-                                      ? <>Zone conseillée du centre de gravité pour {formatKg(balance.weight)} kg : <strong>{fmtM(Math.max(0, balance.supports.zone.from))} – {fmtM(Math.min(container.length, balance.supports.zone.to))} m</strong> de la face avant.</>
-                                      : 'Charge trop lourde pour respecter les deux appuis, quelle que soit la position.'}
-                                    {balance.supports.status === 'over' && (balance.supports.frontPct > 1
-                                      ? ' Trop de poids vers l’avant : reculez les colis lourds vers le milieu de la remorque.'
-                                      : ' Trop de poids vers l’arrière : avancez les colis lourds vers le milieu de la remorque.')}
-                                  </div>
-                                </>
-                              ) : (
-                                <div className="text-[11px]" style={{ color: BAL_COLORS[balance.status] }}>
-                                  Excentricité longitudinale : {balance.longitudinalPct >= 0 ? '+' : ''}{formatPct(balance.longitudinalPct)} % (tolérance ±5 %).
-                                </div>
-                              )}
-                              {Math.abs(balance.lateralPct) > 0.05 && (
-                                <div className="text-[10px]" style={{ color: BAL_COLORS.warn }}>Charge décentrée en largeur : équilibrez les colis lourds entre les deux côtés.</div>
-                              )}
-                              {balance.afterStops.length > 0 && (
-                                <div className="pt-2 border-t border-slate-100">
-                                  <div className="font-jetbrains text-[10px] text-slate-500 mb-1">PENDANT LA TOURNÉE</div>
-                                  <div className="space-y-0.5">
-                                    {balance.afterStops.map((a) => (
-                                      <div key={a.stop} className="flex items-center justify-between gap-2 font-jetbrains text-[10px] text-slate-600">
-                                        <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full" style={{ background: BAL_COLORS[a.status] }} />Après l'arrêt {a.stop}</span>
-                                        <span style={{ color: BAL_COLORS[a.status] }}>
-                                          {a.supports ? `${formatKg(Math.max(0, a.supports.front))} / ${formatKg(Math.max(0, a.supports.rear))} kg` : `${a.longitudinalPct >= 0 ? '+' : ''}${formatPct(a.longitudinalPct)} %`} · {BAL_LABEL[a.status]}
-                                        </span>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-                              {shiftMm > 0 ? (
-                                <div className="rounded-lg px-3 py-2.5 text-[11px] flex flex-col sm:flex-row sm:items-center justify-between gap-2" style={{ background: BLUE_LIGHT, color: BLUE }}>
-                                  <span>
-                                    <Check size={12} className="inline -mt-0.5 mr-1" />
-                                    Chargement décalé de <strong>{fmtM(shiftMm)} m</strong> vers l'arrière. Laissez cet espace libre contre la face avant et posez une <strong>barre de calage</strong>.
-                                  </span>
-                                  <button onClick={() => setShiftMm(0)} className="shrink-0 flex items-center gap-1 font-jetbrains text-[10px] text-slate-500 hover:text-slate-800"><Undo2 size={11} /> Annuler</button>
-                                </div>
-                              ) : shiftSuggestion && (
-                                <div className="rounded-lg px-3 py-2.5 border flex flex-col sm:flex-row sm:items-center justify-between gap-2" style={{ borderColor: '#FDE68A', background: '#FFFBEB' }}>
-                                  <span className="text-[11px] text-slate-700">
-                                    Correction possible sans toucher au plan :{' '}
-                                    {shiftSuggestion.after.supports
-                                      ? <>{axleProfile.frontLabel.toLowerCase()} à <strong style={{ color: BAL_COLORS[shiftSuggestion.after.status] }}>{Math.round(shiftSuggestion.after.supports.frontPct * 100)} %</strong></>
-                                      : <>excentricité à <strong style={{ color: BAL_COLORS[shiftSuggestion.after.status] }}>{shiftSuggestion.after.longitudinalPct >= 0 ? '+' : ''}{formatPct(shiftSuggestion.after.longitudinalPct)} %</strong></>}
-                                    {shiftSuggestion.partial ? ' (amélioration partielle, faute de place côté portes).' : '.'}
-                                  </span>
-                                  <button onClick={() => { setShiftMm(shiftSuggestion.shift); track('load_optimizer_shift_applied'); }}
-                                    className="shrink-0 px-3 py-2 rounded-md font-jetbrains text-[10px] font-semibold text-white" style={{ background: BLUE }}>
-                                    Décaler de {fmtM(shiftSuggestion.shift)} m vers l'arrière
-                                  </button>
-                                </div>
-                              )}
-                              <div className="pt-2 border-t border-slate-100 text-[11px] text-slate-600">
-                                Arrimage : <strong className="text-slate-900">{balance.lashing.total} sangle{balance.lashing.total > 1 ? 's' : ''}</strong> par-dessus
-                                ({balance.lashing.walls.length} mur{balance.lashing.walls.length > 1 ? 's' : ''}, STF {lashingParams.stfDaN} daN, µ {String(lashingParams.mu).replace('.', ',')})
-                                {balance.lashing.perStrapKg === null ? ' : le frottement suffit, 1 sangle par mur minimum.' : `, soit ${formatKg(Math.floor(balance.lashing.perStrapKg))} kg retenus par sangle.`}
-                                <span className="text-slate-400"> Détail par mur sur la fiche.</span>
-                              </div>
-                              <div className="text-[9px] text-slate-400 leading-snug">
-                                Estimation indicative (bras de levier, arrimage par friction EN 12195-1, CTU Code). Ne remplace pas le plan d'arrimage ni les données du constructeur.
-                              </div>
-                            </div>
-                          </div>
-                        )}
-
-                      </>
-                    )}
-                    {currentTab === 'tour' && (
-                      <>
-                        {multiStopResult && (
-                          <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
-                            <div className="px-4 py-2.5 border-b border-slate-100 font-jetbrains text-[10px] tracking-wider text-slate-500 flex items-center gap-1.5">
-                              <MapPin size={12} /> TOURNÉE · {result.deliveryMode === 'SOFT' ? 'MODE SOUPLE' : 'MODE STRICT'}
-                            </div>
-                            <div className="divide-y divide-slate-50">
-                              {resultStops.map((s) => (
-                                <div key={s.stop} className="px-4 py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-0.5 sm:gap-2 text-[11px] font-jetbrains">
-                                  <span className="flex items-center gap-1.5 text-slate-800 min-w-0">
-                                    <span className="w-2.5 h-2.5 rounded-sm" style={{ background: stopColor(s.stop).solid }} />{stopLabel(s.stop, rows)}
-                                  </span>
-                                  <span className="text-slate-500 pl-4 sm:pl-0 whitespace-nowrap">
-                                    <span style={{ color: s.unpackedItems > 0 ? '#B91C1C' : undefined }}>{s.packedItems}/{s.totalItems}</span> · {formatKg(s.packedWeight)} kg · {formatM3(s.packedVolume)} m³
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                            {result.blockedItemIds.length > 0 ? (
-                              <div className="px-4 py-2.5 border-t border-slate-100 text-[11px] flex items-start gap-1.5" style={{ color: '#B91C1C', background: '#FEF2F2' }}>
-                                <AlertCircle size={13} className="mt-0.5 shrink-0" />
-                                {result.blockedItemIds.length} colis devront être déplacés pour accéder à leur arrêt (bordure rouge sur le plan).
-                              </div>
-                            ) : (
-                              <div className="px-4 py-2.5 border-t border-slate-100 text-[11px] flex items-center gap-1.5" style={{ color: '#15803D', background: '#F0FDF4' }}>
-                                <Check size={13} /> Chaque arrêt est accessible sans déplacer de colis.
-                              </div>
-                            )}
-                          </div>
-                        )}
-
-                      </>
-                    )}
-                    {currentTab === 'reliquats' && (
-                      <>
-                        {result.unpackedCount > 0 && multiStopResult && (
-                          <div className="rounded-xl border p-4 bg-white space-y-3" style={{ borderColor: '#FECACA' }}>
-                            <div className="font-jetbrains text-[10px] tracking-wider flex items-center gap-1.5" style={{ color: '#B91C1C' }}>
-                              <AlertCircle size={12} /> TOUT NE RENTRE PAS — QUE FAIRE ?
-                            </div>
-                            {resultStops.filter((s) => s.unpackedItems > 0).map((s) => {
-                              const refs = Object.entries(result.unpackedItems.filter((u) => u.stop === s.stop)
-                                .reduce((acc, u) => { acc[u.reference] = (acc[u.reference] || 0) + 1; return acc; }, {}));
-                              const deferred = deferredExcess.includes(s.stop);
-                              return (
-                                <div key={s.stop} className="rounded-lg border border-slate-200 p-3">
-                                  <div className="flex items-center justify-between gap-2 flex-wrap">
-                                    <span className="font-jetbrains text-xs font-medium text-slate-800 flex items-center gap-1.5">
+                              <div className="divide-y divide-slate-50">
+                                {resultStops.map((s) => (
+                                  <div key={s.stop} className="px-4 py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-0.5 sm:gap-2 text-[11px] font-jetbrains">
+                                    <span className="flex items-center gap-1.5 text-slate-800 min-w-0">
                                       <span className="w-2.5 h-2.5 rounded-sm" style={{ background: stopColor(s.stop).solid }} />{stopLabel(s.stop, rows)}
                                     </span>
-                                    <span className="font-jetbrains text-[11px]" style={{ color: '#B91C1C' }}>{s.unpackedItems} colis en excès sur {s.totalItems}</span>
+                                    <span className="text-slate-500 pl-4 sm:pl-0 whitespace-nowrap">
+                                      <span style={{ color: s.unpackedItems > 0 ? '#B91C1C' : undefined }}>{s.packedItems}/{s.totalItems}</span> · {formatKg(s.packedWeight)} kg · {formatM3(s.packedVolume)} m³
+                                    </span>
                                   </div>
-                                  <div className="font-jetbrains text-[11px] text-slate-500 mt-1">{refs.map(([ref, q]) => `${ref} ×${q}`).join(' · ')}</div>
-                                  {deferred ? (
-                                    <div className="mt-2 flex items-center justify-between gap-2 text-[11px] font-jetbrains" style={{ color: '#15803D' }}>
-                                      <span className="flex items-center gap-1"><Check size={12} /> Excédent reporté, le reste de l'arrêt est chargé.</span>
-                                      <button onClick={() => undoDefer(s.stop)} className="text-slate-400 hover:text-slate-700 flex items-center gap-1"><Undo2 size={11} /> Annuler</button>
-                                    </div>
-                                  ) : (
-                                    <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                                      <button onClick={() => deferExcess(s.stop)} className="px-2.5 py-2 rounded-md text-[11px] font-jetbrains text-left" style={{ background: BLUE_LIGHT, color: BLUE }}>
-                                        Reporter seulement les {s.unpackedItems} colis en excès
-                                      </button>
-                                      <button onClick={() => excludeStop(s.stop)} className="px-2.5 py-2 rounded-md text-[11px] font-jetbrains text-left" style={{ background: '#FEF2F2', color: '#B91C1C' }}>
-                                        Retirer tout l'arrêt ({s.totalItems} colis) et recalculer
-                                      </button>
-                                    </div>
-                                  )}
-                                </div>
-                              );
-                            })}
-                            {result.deliveryMode === 'STRICT' && (
-                              <button onClick={trySoft} className="w-full text-[11px] font-jetbrains text-slate-500 hover:text-slate-800 underline underline-offset-2">
-                                Ou essayer le mode souple (charge plus, avec des colis à déplacer en livraison)
-                              </button>
-                            )}
-                          </div>
-                        )}
-
-                        {leftovers.length > 0 && (
-                          <div className="rounded-xl border p-4 bg-white" style={{ borderColor: '#FDE68A' }}>
-                            <div className="flex items-center justify-between gap-2 mb-2">
-                              <div className="font-jetbrains text-[10px] tracking-wider" style={{ color: '#B45309' }}>À REPORTER SUR UN AUTRE VÉHICULE</div>
-                              <button onClick={exportLeftovers} className="flex items-center gap-1 font-jetbrains text-[10px] px-2 py-1 rounded-md" style={{ background: '#FFFBEB', color: '#B45309' }}>
-                                <Download size={11} /> Excel
-                              </button>
-                            </div>
-                            <div className="space-y-1">
-                              {leftovers.map((l, i) => (
-                                <div key={i} className="flex items-center gap-2 text-[11px] font-jetbrains text-slate-600">
-                                  <span className="text-slate-800">{stopLabel(l.stop, rows)}</span>
-                                  <span>{l.reference} ×{l.quantity}</span>
-                                  <span className="text-slate-400">· {l.reason}</span>
-                                </div>
-                              ))}
-                            </div>
-                            {excludedStops.length > 0 && (
-                              <div className="mt-2 flex flex-wrap gap-1.5">
-                                {excludedStops.map((s) => (
-                                  <button key={s} onClick={() => restoreStop(s)} className="flex items-center gap-1 font-jetbrains text-[10px] px-2 py-1 rounded-md" style={{ background: '#F1F5F9', color: '#475569' }}>
-                                    <Undo2 size={11} /> Réintégrer l'arrêt {s}
-                                  </button>
                                 ))}
                               </div>
-                            )}
-                          </div>
-                        )}
-
-                        {result.unpackedCount > 0 && !multiStopResult && (
-                          <div className="rounded-xl border p-4 bg-white" style={{ borderColor: '#FECACA' }}>
-                            <div className="font-jetbrains text-[10px] tracking-wider mb-2 flex items-center gap-1.5" style={{ color: '#B91C1C' }}>
-                              <AlertCircle size={12} /> MARCHANDISES NON CHARGÉES
-                            </div>
-                            <div className="space-y-1">
-                              {Object.entries(result.unpackedItems.reduce((acc, u) => { acc[u.reference] = (acc[u.reference] || 0) + 1; return acc; }, {})).map(([ref, qty]) => (
-                                <div key={ref} className="flex items-center gap-2 text-xs font-jetbrains text-slate-600">
-                                  <span className="font-medium text-slate-800">{ref}</span>
-                                  <span className="text-slate-500">{qty} u.</span>
-                                  <span className="text-slate-300">·</span>
-                                  <span style={{ color: '#B91C1C' }}>Aucun emplacement compatible trouvé.</span>
+                              {result.blockedItemIds.length > 0 ? (
+                                <div className="px-4 py-2.5 border-t border-slate-100 text-[11px] flex items-start gap-1.5" style={{ color: '#B91C1C', background: '#FEF2F2' }}>
+                                  <AlertCircle size={13} className="mt-0.5 shrink-0" />
+                                  {result.blockedItemIds.length} colis devront être déplacés pour accéder à leur arrêt (bordure rouge sur le plan).
                                 </div>
-                              ))}
+                              ) : (
+                                <div className="px-4 py-2.5 border-t border-slate-100 text-[11px] flex items-center gap-1.5" style={{ color: '#15803D', background: '#F0FDF4' }}>
+                                  <Check size={13} /> Chaque arrêt est accessible sans déplacer de colis.
+                                </div>
+                              )}
                             </div>
-                          </div>
-                        )}
+                          )}
 
-                      </>
-                    )}
+                        </>
+                      )}
+                      {currentTab === 'reliquats' && (
+                        <>
+                          {result.unpackedCount > 0 && multiStopResult && (
+                            <div className="rounded-xl border p-4 bg-white space-y-3" style={{ borderColor: '#FECACA' }}>
+                              <div className="font-jetbrains text-[10px] tracking-wider flex items-center gap-1.5" style={{ color: '#B91C1C' }}>
+                                <AlertCircle size={12} /> TOUT NE RENTRE PAS — QUE FAIRE ?
+                              </div>
+                              {resultStops.filter((s) => s.unpackedItems > 0).map((s) => {
+                                const refs = Object.entries(result.unpackedItems.filter((u) => u.stop === s.stop)
+                                  .reduce((acc, u) => { acc[u.reference] = (acc[u.reference] || 0) + 1; return acc; }, {}));
+                                const deferred = deferredExcess.includes(s.stop);
+                                return (
+                                  <div key={s.stop} className="rounded-lg border border-slate-200 p-3">
+                                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                                      <span className="font-jetbrains text-xs font-medium text-slate-800 flex items-center gap-1.5">
+                                        <span className="w-2.5 h-2.5 rounded-sm" style={{ background: stopColor(s.stop).solid }} />{stopLabel(s.stop, rows)}
+                                      </span>
+                                      <span className="font-jetbrains text-[11px]" style={{ color: '#B91C1C' }}>{s.unpackedItems} colis en excès sur {s.totalItems}</span>
+                                    </div>
+                                    <div className="font-jetbrains text-[11px] text-slate-500 mt-1">{refs.map(([ref, q]) => `${ref} ×${q}`).join(' · ')}</div>
+                                    {deferred ? (
+                                      <div className="mt-2 flex items-center justify-between gap-2 text-[11px] font-jetbrains" style={{ color: '#15803D' }}>
+                                        <span className="flex items-center gap-1"><Check size={12} /> Excédent reporté, le reste de l'arrêt est chargé.</span>
+                                        <button onClick={() => undoDefer(s.stop)} className="text-slate-400 hover:text-slate-700 flex items-center gap-1"><Undo2 size={11} /> Annuler</button>
+                                      </div>
+                                    ) : (
+                                      <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                                        <button onClick={() => deferExcess(s.stop)} className="px-2.5 py-2 rounded-md text-[11px] font-jetbrains text-left" style={{ background: BLUE_LIGHT, color: BLUE }}>
+                                          Reporter seulement les {s.unpackedItems} colis en excès
+                                        </button>
+                                        <button onClick={() => excludeStop(s.stop)} className="px-2.5 py-2 rounded-md text-[11px] font-jetbrains text-left" style={{ background: '#FEF2F2', color: '#B91C1C' }}>
+                                          Retirer tout l'arrêt ({s.totalItems} colis) et recalculer
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                              {result.deliveryMode === 'STRICT' && (
+                                <button onClick={trySoft} className="w-full text-[11px] font-jetbrains text-slate-500 hover:text-slate-800 underline underline-offset-2">
+                                  Ou essayer le mode souple (charge plus, avec des colis à déplacer en livraison)
+                                </button>
+                              )}
+                            </div>
+                          )}
+
+                          {leftovers.length > 0 && (
+                            <div className="rounded-xl border p-4 bg-white" style={{ borderColor: '#FDE68A' }}>
+                              <div className="flex items-center justify-between gap-2 mb-2">
+                                <div className="font-jetbrains text-[10px] tracking-wider" style={{ color: '#B45309' }}>À REPORTER SUR UN AUTRE VÉHICULE</div>
+                                <button onClick={exportLeftovers} className="flex items-center gap-1 font-jetbrains text-[10px] px-2 py-1 rounded-md" style={{ background: '#FFFBEB', color: '#B45309' }}>
+                                  <Download size={11} /> Excel
+                                </button>
+                              </div>
+                              <div className="space-y-1">
+                                {leftovers.map((l, i) => (
+                                  <div key={i} className="flex items-center gap-2 text-[11px] font-jetbrains text-slate-600">
+                                    <span className="text-slate-800">{stopLabel(l.stop, rows)}</span>
+                                    <span>{l.reference} ×{l.quantity}</span>
+                                    <span className="text-slate-400">· {l.reason}</span>
+                                  </div>
+                                ))}
+                              </div>
+                              {excludedStops.length > 0 && (
+                                <div className="mt-2 flex flex-wrap gap-1.5">
+                                  {excludedStops.map((s) => (
+                                    <button key={s} onClick={() => restoreStop(s)} className="flex items-center gap-1 font-jetbrains text-[10px] px-2 py-1 rounded-md" style={{ background: '#F1F5F9', color: '#475569' }}>
+                                      <Undo2 size={11} /> Réintégrer l'arrêt {s}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {result.unpackedCount > 0 && !multiStopResult && (
+                            <div className="rounded-xl border p-4 bg-white" style={{ borderColor: '#FECACA' }}>
+                              <div className="font-jetbrains text-[10px] tracking-wider mb-2 flex items-center gap-1.5" style={{ color: '#B91C1C' }}>
+                                <AlertCircle size={12} /> MARCHANDISES NON CHARGÉES
+                              </div>
+                              <div className="space-y-1">
+                                {Object.entries(result.unpackedItems.reduce((acc, u) => { acc[u.reference] = (acc[u.reference] || 0) + 1; return acc; }, {})).map(([ref, qty]) => (
+                                  <div key={ref} className="flex items-center gap-2 text-xs font-jetbrains text-slate-600">
+                                    <span className="font-medium text-slate-800">{ref}</span>
+                                    <span className="text-slate-500">{qty} u.</span>
+                                    <span className="text-slate-300">·</span>
+                                    <span style={{ color: '#B91C1C' }}>Aucun emplacement compatible trouvé.</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                        </>
+                      )}
+                    </div>
                   </div>
-                </div>
 
-                <button onClick={optimize} className="xl:hidden w-full flex items-center justify-center gap-2 py-2 rounded-lg font-jetbrains text-xs text-slate-500 hover:text-slate-800 border border-slate-200 bg-white">
-                  <RotateCcw size={13} /> Relancer le calcul
-                </button>
+                </div>
               </>
             ) : (
-              <div className={`rounded-xl border border-slate-200 bg-white p-8 flex-col items-center justify-center text-center xl:min-h-[360px] ${status === 'running' ? 'flex' : 'hidden xl:flex'}`}>
+              <div className={`rounded-xl border border-slate-200 bg-white p-8 flex-col items-center justify-center text-center xl:col-span-5 ${status === 'running' ? 'flex' : 'hidden'}`}>
                 {status === 'running' ? (
                   <><Loader2 size={28} className="animate-spin text-slate-400 mb-3" /><div className="font-jetbrains text-sm text-slate-500">Optimisation du chargement…</div></>
                 ) : (
