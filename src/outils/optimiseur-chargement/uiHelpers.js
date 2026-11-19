@@ -68,10 +68,18 @@ export const DELIVERY_MODES = [
 
 // Données d'exemple (cm / kg) — cf. cahier des charges §9.
 export function exampleRows() {
+  // Tournée de démonstration : 5 arrêts en Île-de-France (arrêt 1 = livré en premier).
   return [
-    { id: newRowId(), reference: 'CARTON-A',     quantity: 40, length: 60,  width: 40, height: 40,  weight: 12,  rotationMode: 'FULL',       stackable: true,  stop: 1, destination: '' },
-    { id: newRowId(), reference: 'CARTON-B',     quantity: 20, length: 80,  width: 60, height: 50,  weight: 18,  rotationMode: 'FULL',       stackable: true,  stop: 1, destination: '' },
-    { id: newRowId(), reference: 'PALETTE-EURO', quantity: 4,  length: 120, width: 80, height: 140, weight: 450, rotationMode: 'HORIZONTAL', stackable: false, floorOnly: true, stop: 1, destination: '' },
+    { id: newRowId(), reference: 'PALETTE-EUR-01', quantity: 2, length: 120, width: 80, height: 145, weight: 520, rotationMode: 'HORIZONTAL', stackable: true, floorOnly: true, stop: 1, destination: 'NANTERRE' },
+    { id: newRowId(), reference: 'COLIS-A-01', quantity: 20, length: 60, width: 40, height: 40, weight: 12, rotationMode: 'FULL', stackable: true, floorOnly: false, stop: 1, destination: 'NANTERRE' },
+    { id: newRowId(), reference: 'PALETTE-EUR-02', quantity: 3, length: 120, width: 80, height: 160, weight: 610, rotationMode: 'HORIZONTAL', stackable: true, floorOnly: true, stop: 2, destination: 'SAINT-DENIS' },
+    { id: newRowId(), reference: 'COLIS-B-02', quantity: 18, length: 80, width: 60, height: 50, weight: 18, rotationMode: 'FULL', stackable: true, floorOnly: false, stop: 2, destination: 'SAINT-DENIS' },
+    { id: newRowId(), reference: 'PALETTE-EUR-03', quantity: 2, length: 120, width: 80, height: 135, weight: 430, rotationMode: 'HORIZONTAL', stackable: true, floorOnly: true, stop: 3, destination: 'BOBIGNY' },
+    { id: newRowId(), reference: 'COLIS-C-03', quantity: 30, length: 50, width: 40, height: 35, weight: 9, rotationMode: 'FULL', stackable: true, floorOnly: false, stop: 3, destination: 'BOBIGNY' },
+    { id: newRowId(), reference: 'PALETTE-EUR-04', quantity: 4, length: 120, width: 80, height: 150, weight: 560, rotationMode: 'HORIZONTAL', stackable: true, floorOnly: true, stop: 4, destination: 'CRETEIL' },
+    { id: newRowId(), reference: 'COLIS-D-04', quantity: 12, length: 100, width: 50, height: 45, weight: 22, rotationMode: 'FULL', stackable: true, floorOnly: false, stop: 4, destination: 'CRETEIL' },
+    { id: newRowId(), reference: 'PALETTE-EUR-05', quantity: 2, length: 120, width: 80, height: 170, weight: 680, rotationMode: 'HORIZONTAL', stackable: true, floorOnly: true, stop: 5, destination: 'MASSY' },
+    { id: newRowId(), reference: 'COLIS-E-05', quantity: 10, length: 70, width: 50, height: 45, weight: 15, rotationMode: 'FULL', stackable: true, floorOnly: false, stop: 5, destination: 'MASSY' },
   ];
 }
 
