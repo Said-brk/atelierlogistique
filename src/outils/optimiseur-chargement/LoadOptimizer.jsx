@@ -4,7 +4,7 @@ import * as XLSX from 'xlsx';
 import {
   ArrowLeft, Plus, Trash2, Truck, Box, Loader2, AlertCircle,
   RotateCcw, Check, ArrowRight, Boxes, Upload, Copy, Download,
-  MapPin, Undo2, Printer,
+  MapPin, Undo2, Printer, Scale, ChevronDown,
 } from 'lucide-react';
 
 const LoadView3D = lazy(() => import('./LoadView3D.jsx'));
@@ -18,6 +18,7 @@ class ThreeErrorBoundary extends Component {
 }
 import { CONTAINER_PRESETS } from './constants/containers';
 import { LOADING_DEFAULTS } from './constants/engine-config';
+import { analyzeBalance, defaultAxleProfile, DEFAULT_LASHING } from './engine/balance';
 import { useOptimizer } from './useOptimizer';
 import {
   emptyRow, exampleRows, validateRow, rowsAreValid, coerceField,
@@ -58,6 +59,41 @@ function useDocumentMeta(title, description) {
 // ---- Petits composants d'interface ----
 function Th({ children, className = '', title }) {
   return <th title={title} className={`font-normal text-slate-400 px-1 py-2 text-[10px] tracking-wider ${className}`}>{children}</th>;
+}
+
+const BAL_COLORS = { ok: '#15803D', warn: '#B45309', over: '#B91C1C' };
+const BAL_BG = { ok: '#F0FDF4', warn: '#FFFBEB', over: '#FEF2F2' };
+const BAL_LABEL = { ok: 'Conforme', warn: 'À surveiller', over: 'Hors limites' };
+const fmtM = (mm) => (mm / 1000).toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
+function BalanceField({ label, unit, value, onChange, step = '1' }) {
+  return (
+    <label className="block min-w-0">
+      <span className="block font-jetbrains text-[10px] text-slate-500 mb-0.5">{label}</span>
+      <span className="flex items-center gap-1.5">
+        <input type="number" inputMode="decimal" min="0" step={step} value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-24 px-2 py-1.5 bg-white border border-slate-200 rounded-md outline-none font-jetbrains text-base sm:text-xs text-slate-800 focus:border-slate-400" />
+        <span className="font-jetbrains text-[10px] text-slate-400">{unit}</span>
+      </span>
+    </label>
+  );
+}
+
+function LoadBar({ label, value, max }) {
+  const pct = max > 0 ? value / max : 0;
+  const st = pct > 1 ? 'over' : pct > 0.9 ? 'warn' : 'ok';
+  return (
+    <div>
+      <div className="flex items-center justify-between font-jetbrains text-[11px] mb-1">
+        <span className="text-slate-600">{label}</span>
+        <span style={{ color: BAL_COLORS[st] }}>{formatKg(Math.max(0, value))} / {formatKg(max)} kg · {Math.round(pct * 100)} %</span>
+      </div>
+      <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+        <div className="h-full rounded-full" style={{ width: `${Math.min(100, Math.max(0, pct * 100))}%`, background: BAL_COLORS[st] }} />
+      </div>
+    </div>
+  );
 }
 
 // Champ numérique libellé, version mobile (police 16 px : évite le zoom iOS).
@@ -186,7 +222,7 @@ function StopMiniPlan({ container, placed, stop, color }) {
   );
 }
 
-function PrintSheet({ container, result, rows, colorIndex, multiStopResult, leftovers }) {
+function PrintSheet({ container, result, rows, colorIndex, multiStopResult, leftovers, balance }) {
   const refColorOf = (defId) => refColor(colorIndex[defId] ?? 0);
   const blocked = new Set(result.blockedItemIds ?? []);
   const canDrawPlan = result.placedItems.length <= 400;
@@ -230,6 +266,20 @@ function PrintSheet({ container, result, rows, colorIndex, multiStopResult, left
         </div>
       )}
 
+      {balance && balance.cog && (
+        <div className="lo-stop" style={{ marginBottom: 14, padding: '8px 10px', border: `1px solid ${BAL_COLORS[balance.status]}`, borderRadius: 6, background: BAL_BG[balance.status] }}>
+          <strong style={{ fontSize: 12 }}>Répartition des charges : {BAL_LABEL[balance.status].toLowerCase()}</strong>
+          <div style={{ fontSize: 11, marginTop: 3 }}>
+            Centre de gravité à {fmtM(balance.cog.x)} m de la face avant, {fmtM(balance.cog.z)} m de haut.
+            {balance.supports
+              ? ` ${balance.profile.frontLabel} : ${formatKg(Math.max(0, balance.supports.front))} / ${formatKg(balance.profile.frontMax)} kg · ${balance.profile.rearLabel} : ${formatKg(Math.max(0, balance.supports.rear))} / ${formatKg(balance.profile.rearMax)} kg.`
+              : ` Excentricité ${balance.longitudinalPct >= 0 ? '+' : ''}${formatPct(balance.longitudinalPct)} % (tolérance ±5 %).`}
+            {' '}Arrimage : {balance.lashing.total} sangle(s) par-dessus (STF {balance.lashing.params.stfDaN} daN, µ {String(balance.lashing.params.mu).replace('.', ',')}).
+          </div>
+          <div style={{ fontSize: 9, color: '#64748B', marginTop: 2 }}>Estimation indicative (EN 12195-1, CTU Code) : ne remplace pas le plan d'arrimage ni les données du constructeur.</div>
+        </div>
+      )}
+
       {result.loadingMode === 'WALLS' && result.walls?.length > 0 && (
         <div className="lo-stop" style={{ marginBottom: 18 }}>
           <strong style={{ fontSize: 14 }}>Séquence de chargement par murs</strong>
@@ -243,6 +293,7 @@ function PrintSheet({ container, result, rows, colorIndex, multiStopResult, left
               <th style={th}>Contenu</th>
               <th style={{ ...th, textAlign: 'right' }}>Colis</th>
               <th style={{ ...th, textAlign: 'right' }}>Poids</th>
+              {balance && <th style={{ ...th, textAlign: 'right' }}>Sangles</th>}
             </tr></thead>
             <tbody>
               {result.walls.map((w) => {
@@ -255,6 +306,7 @@ function PrintSheet({ container, result, rows, colorIndex, multiStopResult, left
                     <td style={td}>{content}</td>
                     <td style={{ ...td, textAlign: 'right' }}>{w.items}</td>
                     <td style={{ ...td, textAlign: 'right' }}>{formatKg(w.weight)} kg</td>
+                    {balance && <td style={{ ...td, textAlign: 'right', fontWeight: 700 }}>{balance.lashing.walls.find((x) => x.wall === w.wall)?.straps ?? 1}</td>}
                   </tr>
                 );
               })}
@@ -462,6 +514,14 @@ export default function LoadOptimizer({ onBack }) {
     [result, unloadedUpTo, loadedUpToWall],
   );
 
+  // Répartition des charges & arrimage : réglages pré-remplis par véhicule, mémorisés.
+  const BAL_KEY = 'al_balance_v1';
+  const [balanceCfg, setBalanceCfg] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(BAL_KEY) || '{}'); } catch { return {}; }
+  });
+  useEffect(() => { try { localStorage.setItem(BAL_KEY, JSON.stringify(balanceCfg)); } catch { /* stockage indisponible */ } }, [balanceCfg]);
+  const [balanceOpen, setBalanceOpen] = useState(false);
+
   const container = useMemo(() => {
     if (containerId === 'custom') {
       return {
@@ -472,6 +532,21 @@ export default function LoadOptimizer({ onBack }) {
     }
     return CONTAINER_PRESETS.find((c) => c.id === containerId);
   }, [containerId, custom]);
+
+  const axleProfile = useMemo(() => ({ ...defaultAxleProfile(container), ...(balanceCfg.axles?.[container.id] ?? {}) }), [container, balanceCfg]);
+  const lashingParams = useMemo(() => ({ ...DEFAULT_LASHING, ...(balanceCfg.lashing ?? {}) }), [balanceCfg]);
+  const setAxle = (key, value) => setBalanceCfg((c) => ({
+    ...c, axles: { ...(c.axles ?? {}), [container.id]: { ...(c.axles?.[container.id] ?? {}), [key]: value } },
+  }));
+  const setLashing = (key, value) => setBalanceCfg((c) => ({ ...c, lashing: { ...(c.lashing ?? {}), [key]: value } }));
+  const resetBalance = () => setBalanceCfg((c) => {
+    const axles = { ...(c.axles ?? {}) }; delete axles[container.id];
+    return { ...c, axles, lashing: {} };
+  });
+  const balance = useMemo(
+    () => (result && result.placedItems.length > 0 ? analyzeBalance(container, result.placedItems, axleProfile, lashingParams) : null),
+    [result, container, axleProfile, lashingParams],
+  );
 
   const valid = rowsAreValid(rows);
 
@@ -870,6 +945,57 @@ export default function LoadOptimizer({ onBack }) {
                   ))}
                 </div>
               )}
+              <div className="border-t border-slate-100">
+                <button onClick={() => setBalanceOpen((o) => !o)} className="w-full px-4 py-2.5 flex items-center justify-between gap-2 text-left font-jetbrains text-[11px] text-slate-600 hover:text-slate-900">
+                  <span className="flex items-center gap-1.5 min-w-0">
+                    <Scale size={12} className="shrink-0" />
+                    <span className="truncate">
+                      Essieux et arrimage · {axleProfile.kind === 'TWO_SUPPORTS'
+                        ? `sellette ≤ ${formatKg(axleProfile.frontMax)} kg · essieux ≤ ${formatKg(axleProfile.rearMax)} kg`
+                        : 'centre de gravité ±5 %'} · µ {String(lashingParams.mu).replace('.', ',')} · {lashingParams.stfDaN} daN
+                    </span>
+                  </span>
+                  <ChevronDown size={12} className={`shrink-0 transition-transform ${balanceOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {balanceOpen && (
+                  <div className="px-4 pb-4 space-y-3">
+                    {axleProfile.kind === 'TWO_SUPPORTS' ? (
+                      <>
+                        <div className="grid grid-cols-2 gap-2.5">
+                          <BalanceField label="Position sellette (depuis l'avant)" unit="m" step="0.1" value={axleProfile.frontPos / 1000} onChange={(v) => setAxle('frontPos', Number(v) * 1000)} />
+                          <BalanceField label="Position essieux (centre du groupe)" unit="m" step="0.1" value={axleProfile.rearPos / 1000} onChange={(v) => setAxle('rearPos', Number(v) * 1000)} />
+                          <BalanceField label="Charge utile max sellette" unit="kg" value={axleProfile.frontMax} onChange={(v) => setAxle('frontMax', Number(v))} />
+                          <BalanceField label="Charge utile max essieux" unit="kg" value={axleProfile.rearMax} onChange={(v) => setAxle('rearMax', Number(v))} />
+                        </div>
+                        <div className="text-[10px] text-slate-400">Valeurs indicatives : reportez celles du plan de répartition de charge ou de la notice de votre véhicule.</div>
+                      </>
+                    ) : (
+                      <div className="text-[10px] text-slate-500">Conteneur : contrôle du centre de gravité, tolérance de ±5 % de la longueur (CTU Code).</div>
+                    )}
+                    <div className="grid grid-cols-2 gap-2.5 items-end">
+                      <label className="block min-w-0">
+                        <span className="block font-jetbrains text-[10px] text-slate-500 mb-0.5">Plancher / frottement µ</span>
+                        <select value={[0.3, 0.6].includes(Number(lashingParams.mu)) ? String(lashingParams.mu) : 'other'}
+                          onChange={(e) => e.target.value !== 'other' && setLashing('mu', Number(e.target.value))}
+                          className="w-full px-2 py-1.5 bg-white border border-slate-200 rounded-md outline-none font-jetbrains text-base sm:text-xs text-slate-700">
+                          <option value="0.3">Bois / contreplaqué (0,30)</option>
+                          <option value="0.6">Tapis antiglisse (0,60)</option>
+                          <option value="other">Autre valeur…</option>
+                        </select>
+                      </label>
+                      <BalanceField label="Tension des sangles (STF)" unit="daN" value={lashingParams.stfDaN} onChange={(v) => setLashing('stfDaN', Number(v))} />
+                      {![0.3, 0.6].includes(Number(lashingParams.mu)) && (
+                        <BalanceField label="µ (autre)" unit="" step="0.05" value={lashingParams.mu} onChange={(v) => setLashing('mu', Number(v))} />
+                      )}
+                    </div>
+                    <label className="flex items-center gap-2 text-[11px] text-slate-700 cursor-pointer">
+                      <input type="checkbox" checked={lashingParams.forwardBlocked} onChange={(e) => setLashing('forwardBlocked', e.target.checked)} />
+                      Chargement bloqué vers l'avant (contre la face avant)
+                    </label>
+                    <button onClick={resetBalance} className="font-jetbrains text-[10px] text-slate-400 hover:text-slate-700 underline underline-offset-2">Revenir aux valeurs par défaut</button>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Récap + CTA */}
@@ -953,7 +1079,7 @@ export default function LoadOptimizer({ onBack }) {
                     {view3d ? (
                       <ThreeErrorBoundary fallback={<Schematic2D container={container} placed={visiblePlaced} colorOf={colorOf} isDimmed={isDimmed} blockedIds={blockedIds} />}>
                         <Suspense fallback={<div className="flex items-center justify-center text-slate-400 font-jetbrains text-xs h-[340px] sm:h-[420px] lg:h-[460px]"><Loader2 size={18} className="animate-spin mr-2" /> Chargement de la vue 3D…</div>}>
-                          <LoadView3D container={container} placed={visiblePlaced} colorOf={colorOf} isDimmed={isDimmed} blockedIds={blockedIds} onHover={setHovered} />
+                          <LoadView3D container={container} placed={visiblePlaced} colorOf={colorOf} isDimmed={isDimmed} blockedIds={blockedIds} onHover={setHovered} cog={loadedUpToWall === null && unloadedUpTo === 0 ? balance?.cog : null} />
                         </Suspense>
                       </ThreeErrorBoundary>
                     ) : (
@@ -1045,6 +1171,67 @@ export default function LoadOptimizer({ onBack }) {
                   <div className="rounded-xl border px-4 py-3 text-[11px] flex items-start gap-1.5" style={{ color: '#B91C1C', background: '#FEF2F2', borderColor: '#FECACA' }}>
                     <AlertCircle size={13} className="mt-0.5 shrink-0" />
                     {result.loadingViolationIds.length} colis devront être posés en passant par-dessus d'autres colis.
+                  </div>
+                )}
+
+                {balance && balance.cog && (
+                  <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+                    <div className="px-4 py-2.5 border-b border-slate-100 font-jetbrains text-[10px] tracking-wider text-slate-500 flex items-center justify-between gap-2">
+                      <span className="flex items-center gap-1.5"><Scale size={12} /> RÉPARTITION DES CHARGES</span>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ color: BAL_COLORS[balance.status], background: BAL_BG[balance.status] }}>{BAL_LABEL[balance.status]}</span>
+                    </div>
+                    <div className="px-4 py-3 space-y-3">
+                      <div className="text-[11px] text-slate-600">
+                        Centre de gravité : <strong className="text-slate-900">{fmtM(balance.cog.x)} m</strong> de la face avant
+                        {' · '}{Math.abs(balance.lateralPct) < 0.005 ? 'centré en largeur' : `${Math.round(Math.abs(balance.cog.y - container.width / 2) / 10)} cm à ${balance.cog.y > container.width / 2 ? 'droite' : 'gauche'} de l'axe`}
+                        {' · '}{fmtM(balance.cog.z)} m de haut
+                      </div>
+                      {balance.supports ? (
+                        <>
+                          <LoadBar label={axleProfile.frontLabel} value={balance.supports.front} max={axleProfile.frontMax} />
+                          <LoadBar label={axleProfile.rearLabel} value={balance.supports.rear} max={axleProfile.rearMax} />
+                          <div className="text-[10px] text-slate-500">
+                            {balance.supports.zone
+                              ? <>Zone conseillée du centre de gravité pour {formatKg(balance.weight)} kg : <strong>{fmtM(Math.max(0, balance.supports.zone.from))} – {fmtM(Math.min(container.length, balance.supports.zone.to))} m</strong> de la face avant.</>
+                              : 'Charge trop lourde pour respecter les deux appuis, quelle que soit la position.'}
+                            {balance.supports.status === 'over' && (balance.supports.frontPct > 1
+                              ? ' Trop de poids vers l’avant : reculez les colis lourds vers le milieu de la remorque.'
+                              : ' Trop de poids vers l’arrière : avancez les colis lourds vers le milieu de la remorque.')}
+                          </div>
+                        </>
+                      ) : (
+                        <div className="text-[11px]" style={{ color: BAL_COLORS[balance.status] }}>
+                          Excentricité longitudinale : {balance.longitudinalPct >= 0 ? '+' : ''}{formatPct(balance.longitudinalPct)} % (tolérance ±5 %).
+                        </div>
+                      )}
+                      {Math.abs(balance.lateralPct) > 0.05 && (
+                        <div className="text-[10px]" style={{ color: BAL_COLORS.warn }}>Charge décentrée en largeur : équilibrez les colis lourds entre les deux côtés.</div>
+                      )}
+                      {balance.afterStops.length > 0 && (
+                        <div className="pt-2 border-t border-slate-100">
+                          <div className="font-jetbrains text-[10px] text-slate-500 mb-1">PENDANT LA TOURNÉE</div>
+                          <div className="space-y-0.5">
+                            {balance.afterStops.map((a) => (
+                              <div key={a.stop} className="flex items-center justify-between gap-2 font-jetbrains text-[10px] text-slate-600">
+                                <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full" style={{ background: BAL_COLORS[a.status] }} />Après l'arrêt {a.stop}</span>
+                                <span style={{ color: BAL_COLORS[a.status] }}>
+                                  {a.supports ? `${formatKg(Math.max(0, a.supports.front))} / ${formatKg(Math.max(0, a.supports.rear))} kg` : `${a.longitudinalPct >= 0 ? '+' : ''}${formatPct(a.longitudinalPct)} %`} · {BAL_LABEL[a.status]}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      <div className="pt-2 border-t border-slate-100 text-[11px] text-slate-600">
+                        Arrimage : <strong className="text-slate-900">{balance.lashing.total} sangle{balance.lashing.total > 1 ? 's' : ''}</strong> par-dessus
+                        ({balance.lashing.walls.length} mur{balance.lashing.walls.length > 1 ? 's' : ''}, STF {lashingParams.stfDaN} daN, µ {String(lashingParams.mu).replace('.', ',')})
+                        {balance.lashing.perStrapKg === null ? ' : le frottement suffit, 1 sangle par mur minimum.' : `, soit ${formatKg(Math.floor(balance.lashing.perStrapKg))} kg retenus par sangle.`}
+                        <span className="text-slate-400"> Détail par mur sur la fiche.</span>
+                      </div>
+                      <div className="text-[9px] text-slate-400 leading-snug">
+                        Estimation indicative (bras de levier, arrimage par friction EN 12195-1, CTU Code). Ne remplace pas le plan d'arrimage ni les données du constructeur.
+                      </div>
+                    </div>
                   </div>
                 )}
 
@@ -1262,7 +1449,7 @@ export default function LoadOptimizer({ onBack }) {
       {result && status === 'done' && (
         createPortal(
           <div className="lo-print-root">
-            <PrintSheet container={container} result={result} rows={rows} colorIndex={colorIndex} multiStopResult={multiStopResult} leftovers={leftovers} />
+            <PrintSheet container={container} result={result} rows={rows} colorIndex={colorIndex} multiStopResult={multiStopResult} leftovers={leftovers} balance={balance} />
           </div>,
           document.body,
         )

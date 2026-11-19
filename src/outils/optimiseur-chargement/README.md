@@ -93,6 +93,17 @@ Chaque référence peut porter un **arrêt** (`stop`, 1 = livré en premier) et 
   (`heightLimitCost`) quand tout ne rentre pas.
 - Chaque `PlacedItem` porte `sequence` (ordre de chargement) et `wall`.
 
+## Répartition des charges et arrimage (engine/balance.ts)
+
+Contrôle a posteriori, sans modifier le placement :
+- centre de gravité de la charge, décalage latéral ;
+- semi-remorque (2 appuis : sellette + essieux) : charge reportée sur chaque appui
+  par bras de levier, zone conseillée du CdG, limites réglables (indicatives) ;
+- conteneur : excentricité longitudinale ≤ ±5 % (CTU Code) ;
+- tournées : état après chaque livraison ;
+- arrimage par friction EN 12195-1 : sangles par mur (µ, STF, angle, blocage avant).
+Réglages pré-remplis par véhicule dans « Essieux et arrimage », mémorisés.
+
 ## Tests
 
 ```bash

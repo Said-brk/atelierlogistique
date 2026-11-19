@@ -29,7 +29,7 @@ function ItemMesh({ item, color, dimmed, blocked, withEdges, onHover }) {
   );
 }
 
-function Scene({ container, placed, colorOf, isDimmed, blockedIds, showWalls, onHover }) {
+function Scene({ container, placed, colorOf, isDimmed, blockedIds, showWalls, onHover, cog }) {
   const CL = container.length * S;
   const CW = container.width * S;
   const CH = container.height * S;
@@ -57,6 +57,24 @@ function Scene({ container, placed, colorOf, isDimmed, blockedIds, showWalls, on
         <Edges color="#F59E0B" />
       </mesh>
 
+      {/* Centre de gravité de la charge (+ projection au sol) */}
+      {cog && (
+        <group>
+          <mesh position={[cog.x * S, cog.z * S, cog.y * S]}>
+            <sphereGeometry args={[0.14, 20, 20]} />
+            <meshStandardMaterial color="#DC2626" depthTest={false} transparent opacity={0.95} />
+          </mesh>
+          <mesh position={[cog.x * S, (cog.z * S) / 2, cog.y * S]}>
+            <cylinderGeometry args={[0.02, 0.02, cog.z * S, 8]} />
+            <meshStandardMaterial color="#DC2626" depthTest={false} transparent opacity={0.8} />
+          </mesh>
+          <mesh position={[cog.x * S, 0.005, cog.y * S]} rotation={[-Math.PI / 2, 0, 0]}>
+            <ringGeometry args={[0.12, 0.2, 24]} />
+            <meshStandardMaterial color="#DC2626" side={2} depthTest={false} transparent opacity={0.8} />
+          </mesh>
+        </group>
+      )}
+
       {placed.map((item) => (
         <ItemMesh
           key={item.id}
@@ -72,7 +90,7 @@ function Scene({ container, placed, colorOf, isDimmed, blockedIds, showWalls, on
   );
 }
 
-export default function LoadView3D({ container, placed, colorOf, isDimmed, blockedIds, onHover }) {
+export default function LoadView3D({ container, placed, colorOf, isDimmed, blockedIds, onHover, cog }) {
   const controls = useRef(null);
   const [showWalls, setShowWalls] = useState(true);
 
@@ -97,7 +115,7 @@ export default function LoadView3D({ container, placed, colorOf, isDimmed, block
       </div>
 
       <div className="absolute bottom-2 right-2 z-10 font-jetbrains text-[10px] px-2 py-1 rounded-md bg-white/90 border border-amber-200 text-amber-700 pointer-events-none">
-        ▮ Portes (arrière)
+        ▮ Portes (arrière){cog ? <span className="text-red-600"> · ● centre de gravité</span> : null}
       </div>
 
       <Canvas camera={camera} dpr={[1, 2]} style={{ background: 'transparent' }}>
@@ -110,6 +128,7 @@ export default function LoadView3D({ container, placed, colorOf, isDimmed, block
           colorOf={colorOf}
           isDimmed={isDimmed}
           blockedIds={blockedIds}
+          cog={cog}
           showWalls={showWalls}
           onHover={onHover}
         />
