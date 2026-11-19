@@ -117,6 +117,15 @@ const ARTICLES = [
     cta: 'optimiseur-chargement',
   },
   {
+    slug: 'arrimage-des-charges',
+    tag: 'Guide',
+    title: 'Arrimage des charges : combien de sangles et qui est responsable',
+    desc: 'Pourquoi la charge bouge, blocage, sangles par-dessus, tapis antiglisse, calcul selon EN 12195-1 et responsabilités expéditeur / transporteur.',
+    icon: Truck,
+    color: '#B45309', light: '#FFFBEB', border: '#FDE68A',
+    cta: 'optimiseur-chargement',
+  },
+  {
     slug: 'ddmrp',
     tag: 'Méthode',
     title: 'DDMRP : méthode complète et calcul des buffers',
