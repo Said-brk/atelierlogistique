@@ -1528,7 +1528,7 @@ export default function LoadOptimizer({ onBack }) {
       {/* Contenu SEO */}
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-12 space-y-8">
         <p className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
-          Guide complet : <a href="/ressources/plan-de-chargement-camion" className="font-medium underline underline-offset-2" style={{ color: BLUE }}>comment faire un plan de chargement de camion ou de conteneur</a> (dimensions utiles, palettes, tournées multi-arrêts).
+          Guide complet : <a href="/ressources/plan-de-chargement-camion" className="font-medium underline underline-offset-2" style={{ color: BLUE }}>comment faire un plan de chargement de camion ou de conteneur</a> (dimensions utiles, palettes, tournées multi-arrêts) et <a href="/ressources/arrimage-des-charges" className="font-medium underline underline-offset-2" style={{ color: BLUE }}>combien de sangles poser pour l'arrimage</a>.
         </p>
         <section>
           <h2 className="font-bricolage font-bold text-xl text-slate-900 mb-2">Comment fonctionne l'optimiseur de chargement ?</h2>

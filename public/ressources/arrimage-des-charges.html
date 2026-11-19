@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Arrimage des charges : méthodes, nombre de sangles et responsabilités · Atelier Logistique</title>
+  <meta name="description" content="Arrimage des charges dans un camion expliqué simplement : forces au freinage, blocage, sangles par-dessus, calcul du nombre de sangles (EN 12195-1), tapis antiglisse, bonnes pratiques et responsabilités expéditeur / transporteur." />
+  <meta name="keywords" content="arrimage des charges, arrimage camion, combien de sangles palette, calcul arrimage EN 12195-1, sangle STF LC, tapis antiglisse, calage chargement, responsabilité arrimage transporteur expéditeur, arrimage par friction" />
+  <link rel="canonical" href="https://atelierlogistique.com/ressources/arrimage-des-charges" />
+
+  <meta property="og:title" content="Arrimage des charges : le guide pratique" />
+  <meta property="og:description" content="Pourquoi la charge bouge, les 3 méthodes, combien de sangles poser et qui est responsable. Avec un exemple chiffré." />
+  <meta property="og:type" content="article" />
+  <meta property="og:url" content="https://atelierlogistique.com/ressources/arrimage-des-charges" />
+  <meta property="og:site_name" content="Atelier Logistique" />
+  <meta property="og:locale" content="fr_FR" />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Arrimage des charges : combien de sangles ?" />
+  <meta name="twitter:description" content="Blocage, friction, tapis antiglisse : le guide simple pour bien arrimer un camion." />
+
+  <link rel="icon" type="image/png" href="/favicon_atelierlogistique.png" />
+  <link rel="apple-touch-icon" href="/favicon_atelierlogistique.png" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=JetBrains+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = { theme: { extend: { fontFamily: {
+      bricolage: ['Bricolage Grotesque', 'sans-serif'],
+      sans: ['DM Sans', 'sans-serif'],
+      jetbrains: ['JetBrains Mono', 'monospace'],
+    } } } };
+  </script>
+
+  <style>
+    body { font-family: 'DM Sans', system-ui, sans-serif; }
+    .font-bricolage { font-family: 'Bricolage Grotesque', sans-serif; letter-spacing: -0.02em; }
+    .font-jetbrains { font-family: 'JetBrains Mono', monospace; }
+    h1, h2, h3, h4 { font-family: 'Bricolage Grotesque', sans-serif; letter-spacing: -0.02em; }
+    .prose-content p { margin-bottom: 1rem; line-height: 1.75; }
+    .prose-content ul, .prose-content ol { padding-left: 1.5rem; margin-bottom: 1rem; }
+    .prose-content ul { list-style: disc; }
+    .prose-content ol { list-style: decimal; }
+    .prose-content li { margin-bottom: 0.5rem; line-height: 1.65; }
+    .prose-content a { color: #2563EB; text-decoration: underline; text-underline-offset: 2px; }
+    @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+    .pulse-dot { animation: pulse-dot 2s ease-in-out infinite; }
+    details summary { list-style: none; }
+    details summary::-webkit-details-marker { display: none; }
+  </style>
+
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "Arrimage des charges : méthodes, nombre de sangles et responsabilités",
+  "description": "Guide pratique de l'arrimage des charges dans un camion : efforts au freinage, méthodes de blocage, d'arrimage par friction et direct, calcul du nombre de sangles selon EN 12195-1, tapis antiglisse, bonnes pratiques et responsabilités.",
+  "author": {
+    "@type": "Person",
+    "name": "Saïd BARKAM",
+    "jobTitle": "Consultant ERP & Supply Chain"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Atelier Logistique"
+  },
+  "datePublished": "2026-11-19",
+  "dateModified": "2026-11-19",
+  "mainEntityOfPage": "https://atelierlogistique.com/ressources/arrimage-des-charges",
+  "inLanguage": "fr-FR",
+  "about": [
+    "Arrimage des charges",
+    "Sécurité du transport routier",
+    "EN 12195-1"
+  ]
+}
+  </script>
+
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Atelier Logistique",
+      "item": "https://atelierlogistique.com/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "Ressources",
+      "item": "https://atelierlogistique.com/ressources"
+    },
+    {
+      "@type": "ListItem",
+      "position": 3,
+      "name": "Arrimage des charges",
+      "item": "https://atelierlogistique.com/ressources/arrimage-des-charges"
+    }
+  ]
+}
+  </script>
+
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "C'est quoi l'arrimage d'une charge ?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "L'arrimage regroupe tout ce qui empêche la marchandise de bouger pendant le transport : blocage contre la structure du véhicule, calage des vides et sanglage. Il protège le conducteur, la marchandise et le véhicule lors des freinages, accélérations et virages."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Combien de sangles pour une palette ?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Cela dépend du poids, du frottement et de la tension des sangles. Pour une palette de 1 000 kg sur un plancher en bois (µ = 0,30) avec des sangles de 400 daN, il en faut environ 3 si rien ne la bloque vers l'avant, mais une seule si elle est bloquée contre la face avant. On pose de toute façon au moins une sangle par rangée."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Quelle est la différence entre LC et STF sur une sangle ?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "La LC (Lashing Capacity) est la force maximale que la sangle peut supporter en arrimage direct. La STF (Standard Tension Force) est la tension réellement obtenue au cliquet. Pour l'arrimage par friction, sangles par-dessus la charge, c'est la STF qui compte."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Le tapis antiglisse remplace-t-il les sangles ?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Il en réduit fortement le nombre : avec un frottement de 0,60, la charge ne glisse plus sur les côtés ni vers l'arrière par le seul frottement. Il faut néanmoins conserver au moins une sangle par rangée et bloquer la charge vers l'avant."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Qui est responsable de l'arrimage, l'expéditeur ou le transporteur ?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "En France, selon le contrat type général (décret 2017-461), pour les envois de 3 tonnes et plus, le chargement, le calage et l'arrimage sont exécutés par l'expéditeur sous sa responsabilité ; le transporteur doit vérifier qu'ils ne compromettent pas la sécurité et émettre des réserves si besoin. Pour les envois de moins de 3 tonnes, ces opérations relèvent en principe du transporteur. Un contrat particulier peut prévoir une autre répartition."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Quelle norme encadre l'arrimage sur route ?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "La norme européenne EN 12195-1 fixe les efforts à retenir (80 % du poids vers l'avant, 50 % sur les côtés et vers l'arrière) et les méthodes de calcul des forces d'arrimage. Les sangles textiles relèvent de la norme EN 12195-2."
+      }
+    }
+  ]
+}
+  </script>
+
+</head>
+
+<body class="bg-white text-slate-900">
+
+  <!-- HEADER -->
+  <nav class="border-b border-slate-200 sticky top-0 z-20 bg-white/90 backdrop-blur-sm">
+    <div class="max-w-7xl mx-auto px-6 md:px-10 py-4 flex items-center justify-between">
+      <a href="/" class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-md flex items-center justify-center relative overflow-hidden" style="background: #2563EB;">
+          <svg viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg" class="w-[78%] h-[78%]">
+            <rect x="5" y="11" width="26" height="2.5" rx="0.5" fill="white" />
+            <rect x="5" y="14.5" width="26" height="2.5" rx="0.5" fill="white" />
+            <rect x="6" y="17.5" width="4.5" height="5" rx="0.3" fill="white" opacity="0.82" />
+            <rect x="15.75" y="17.5" width="4.5" height="5" rx="0.3" fill="white" opacity="0.82" />
+            <rect x="25.5" y="17.5" width="4.5" height="5" rx="0.3" fill="white" opacity="0.82" />
+            <rect x="5" y="23" width="26" height="2.5" rx="0.5" fill="white" />
+          </svg>
+        </div>
+        <div>
+          <div class="font-bricolage font-bold text-lg tracking-tight text-slate-900">ATELIER LOGISTIQUE</div>
+          <div class="font-jetbrains text-[10px] text-slate-500 -mt-1 tracking-wider">LA BOÎTE À OUTILS DES PROS DE LA SUPPLY CHAIN</div>
+        </div>
+      </a>
+      <div class="hidden md:flex items-center gap-5 font-jetbrains text-xs text-slate-500">
+        <a href="/#tools" class="hover:text-slate-900 transition-colors">Outils</a>
+        <a href="/#how" class="hover:text-slate-900 transition-colors">Comment ça marche</a>
+        <a href="/ressources" class="hover:text-slate-900 transition-colors">Ressources</a>
+        <span class="text-slate-300">|</span>
+        <span class="flex items-center gap-2" style="color: #2563EB;">
+          <span class="w-1.5 h-1.5 rounded-full pulse-dot" style="background: #2563EB;"></span>
+          EN LIGNE
+        </span>
+      </div>
+    </div>
+  </nav>
+
+  <!-- BREADCRUMB -->
+  <nav class="max-w-7xl mx-auto px-6 md:px-10 py-3 font-jetbrains text-[11px] text-slate-500" aria-label="Fil d'Ariane">
+    <a href="/" class="hover:text-slate-900 transition-colors">ATELIER</a>
+    <span class="mx-2 text-slate-300">/</span>
+    <a href="/ressources" class="hover:text-slate-900 transition-colors">RESSOURCES</a>
+    <span class="mx-2 text-slate-300">/</span>
+    <span class="text-slate-800">ARRIMAGE DES CHARGES</span>
+  </nav>
+
+  <!-- HERO -->
+  <section class="relative max-w-7xl mx-auto px-6 md:px-10 pt-12 md:pt-16 pb-16 md:pb-20">
+    <div class="font-jetbrains text-xs mb-6 flex items-center gap-2 tracking-wider" style="color: #2563EB;">
+      <span>●</span>
+      <span>TRANSPORT & SÉCURITÉ — GUIDE PRATIQUE</span>
+    </div>
+    <h1 class="font-bricolage font-bold text-4xl md:text-6xl lg:text-7xl leading-[0.95] mb-6 tracking-tight max-w-4xl text-slate-900">
+      L'<em class="italic font-normal text-slate-400">arrimage</em> des charges,
+      <br /><span style="color: #2563EB;">expliqué simplement.</span>
+    </h1>
+    <p class="text-slate-600 text-lg md:text-xl max-w-3xl leading-relaxed">
+      Pourquoi une palette bouge au freinage, les trois façons de la retenir, combien de sangles poser
+      et qui est responsable si la marchandise arrive cassée. Un guide concret, avec un exemple chiffré
+      et un calcul automatique dans l'optimiseur de chargement.
+    </p>
+    <div class="flex flex-wrap items-center gap-3 mt-10 font-jetbrains text-xs">
+      <a href="/outils/optimiseur-chargement" class="px-5 py-3 rounded-md font-medium transition-all hover:translate-y-[-1px] flex items-center gap-2 text-white" style="background: #2563EB;">
+        CALCULER MES SANGLES
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </a>
+      <a href="#combien-de-sangles" class="px-5 py-3 rounded-md font-medium border border-slate-300 text-slate-700 hover:bg-slate-50 transition-all">
+        COMBIEN DE SANGLES ?
+      </a>
+    </div>
+  </section>
+
+  <!-- CONTENU PRINCIPAL -->
+  <main class="max-w-3xl mx-auto px-6 md:px-10 py-12 prose-content text-slate-700 text-base">
+
+    <div class="mb-10 rounded-lg border-l-4 p-5" style="border-color: #2563EB; background: #EFF6FF;">
+      <div class="font-jetbrains text-[10px] tracking-widest mb-2" style="color: #2563EB;">L'ESSENTIEL EN 30 SECONDES</div>
+      <ul class="text-sm mb-0">
+        <li>Au freinage, une charge est poussée vers l'avant avec une force pouvant atteindre <strong>80 % de son poids</strong> ; dans un virage, <strong>50 %</strong> vers le côté.</li>
+        <li>On la retient de trois façons : <strong>blocage</strong> (contre la face avant, les parois, les autres colis), <strong>arrimage par friction</strong> (sangles par-dessus) ou <strong>arrimage direct</strong> (sangles vers les points d'ancrage).</li>
+        <li>Le <strong>tapis antiglisse</strong> et une charge <strong>bloquée contre la face avant</strong> divisent le nombre de sangles nécessaires.</li>
+        <li>En France, pour les envois de <strong>3 tonnes et plus</strong>, le contrat type général confie le chargement, le calage et l'arrimage à l'expéditeur.</li>
+      </ul>
+    </div>
+
+    <nav class="mb-12 rounded-lg border border-slate-200 p-5" style="background: #F8FAFC;" aria-label="Sommaire">
+      <div class="font-jetbrains text-[10px] tracking-widest mb-3 text-slate-500">SOMMAIRE</div>
+      <ol class="text-sm space-y-1 mb-0">
+        <li><a href="#definition">Arrimage, calage, sanglage : de quoi parle-t-on ?</a></li>
+        <li><a href="#forces">Pourquoi la charge bouge</a></li>
+        <li><a href="#methodes">Les 3 méthodes pour retenir une charge</a></li>
+        <li><a href="#combien-de-sangles">Combien de sangles faut-il ?</a></li>
+        <li><a href="#tapis">Le tapis antiglisse, meilleur investissement</a></li>
+        <li><a href="#bonnes-pratiques">Les bonnes pratiques sur le quai</a></li>
+        <li><a href="#responsabilite">Qui est responsable de l'arrimage ?</a></li>
+        <li><a href="#outil">Calculer l'arrimage automatiquement</a></li>
+        <li><a href="#faq">FAQ</a></li>
+      </ol>
+    </nav>
+
+    <section id="definition" class="mb-12">
+      <div class="font-jetbrains text-[10px] tracking-widest mb-2" style="color: #2563EB;">01 · DÉFINITIONS</div>
+      <h2 class="font-bricolage font-bold text-3xl mb-4 text-slate-900">Arrimage, calage, sanglage : de quoi parle-t-on ?</h2>
+      <p>
+        L'<strong>arrimage</strong> regroupe tout ce qui empêche la marchandise de bouger pendant le transport :
+        glisser, basculer, rouler ou tomber. Trois mots reviennent sans cesse sur les quais :
+      </p>
+      <ul>
+        <li><strong>Calage</strong> : combler les vides et bloquer la charge contre la structure du véhicule ou contre les autres colis (cales, coussins gonflables, barres).</li>
+        <li><strong>Sanglage</strong> : poser des sangles à cliquet, par-dessus la charge ou attachées à ses points de levage.</li>
+        <li><strong>Arrimage</strong> : le terme global, qui combine calage et sanglage pour que l'ensemble reste solidaire du véhicule.</li>
+      </ul>
+      <p>
+        Un bon arrimage protège trois choses à la fois : le <strong>conducteur</strong> et les autres usagers,
+        la <strong>marchandise</strong>, et le <strong>véhicule</strong> (une charge qui se déplace peut traverser la
+        face avant, déformer les ridelles ou faire basculer un camion dans un rond-point).
+      </p>
+    </section>
+
+    <section id="forces" class="mb-12">
+      <div class="font-jetbrains text-[10px] tracking-widest mb-2" style="color: #2563EB;">02 · LA PHYSIQUE</div>
+      <h2 class="font-bricolage font-bold text-3xl mb-4 text-slate-900">Pourquoi la charge bouge</h2>
+      <p>
+        Une charge posée sur un plancher n'est retenue que par le <strong>frottement</strong>. Dès que le camion
+        freine, accélère ou tourne, elle continue sur sa lancée. La norme européenne EN 12195-1, qui sert de référence
+        pour calculer l'arrimage sur route, retient les efforts suivants :
+      </p>
+
+      <div class="my-6 rounded-lg border border-slate-200 p-5" style="background: #F8FAFC;">
+        <div class="font-jetbrains text-[10px] text-slate-500 tracking-widest mb-3">EFFORTS À RETENIR · EN % DU POIDS DE LA CHARGE</div>
+        <svg viewBox="0 0 600 220" class="w-full h-auto" role="img" aria-label="Efforts d'arrimage : 80 % vers l'avant, 50 % vers l'arrière et 50 % sur les côtés">
+          <rect x="230" y="70" width="140" height="80" rx="6" fill="#DBEAFE" stroke="#1D4ED8" stroke-width="2"/>
+          <text x="300" y="115" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="13" fill="#1E40AF">CHARGE</text>
+          <line x1="230" y1="110" x2="70" y2="110" stroke="#DC2626" stroke-width="6" marker-end="url(#a)"/>
+          <text x="150" y="98" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="14" fill="#B91C1C" font-weight="700">80 % avant</text>
+          <line x1="370" y1="110" x2="470" y2="110" stroke="#F59E0B" stroke-width="5" marker-end="url(#b)"/>
+          <text x="430" y="92" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="14" fill="#B45309" font-weight="700">50 % arrière</text>
+          <line x1="300" y1="70" x2="300" y2="22" stroke="#F59E0B" stroke-width="5" marker-end="url(#b)"/>
+          <line x1="300" y1="150" x2="300" y2="202" stroke="#F59E0B" stroke-width="5" marker-end="url(#b)"/>
+          <text x="318" y="34" font-family="JetBrains Mono, monospace" font-size="14" fill="#B45309" font-weight="700">50 % côtés</text>
+          <text x="40" y="200" font-family="JetBrains Mono, monospace" font-size="11" fill="#64748B">◀ sens de marche (cabine)</text>
+          <defs>
+            <marker id="a" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#DC2626"/></marker>
+            <marker id="b" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#F59E0B"/></marker>
+          </defs>
+        </svg>
+      </div>
+
+      <p>
+        Concrètement, au freinage d'urgence, <strong>une palette de 1 tonne pousse vers l'avant avec un effort
+        équivalent à environ 800 kg</strong>. Sur un plancher en bois, le frottement n'en retient qu'une partie :
+        sans blocage ni sangles, la palette glisse.
+      </p>
+    </section>
+
+    <section id="methodes" class="mb-12">
+      <div class="font-jetbrains text-[10px] tracking-widest mb-2" style="color: #2563EB;">03 · MÉTHODES</div>
+      <h2 class="font-bricolage font-bold text-3xl mb-4 text-slate-900">Les 3 méthodes pour retenir une charge</h2>
+
+      <div class="my-6 rounded-lg overflow-hidden border border-slate-200 overflow-x-auto">
+        <table class="w-full text-xs min-w-[560px]">
+          <thead style="background: #F8FAFC;">
+            <tr>
+              <th class="text-left p-3 font-jetbrains text-[10px] text-slate-500 tracking-wider">MÉTHODE</th>
+              <th class="text-left p-3 font-jetbrains text-[10px] text-slate-500 tracking-wider">PRINCIPE</th>
+              <th class="text-left p-3 font-jetbrains text-[10px] text-slate-500 tracking-wider">IDÉALE POUR</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="border-t border-slate-200"><td class="p-3 font-semibold">Blocage</td><td class="p-3">La charge est plaquée contre la face avant, les parois ou les colis voisins. Les vides sont comblés.</td><td class="p-3">Palettes jointives, chargement par murs</td></tr>
+            <tr class="border-t border-slate-200" style="background: #FAFAFA;"><td class="p-3 font-semibold">Friction (par-dessus)</td><td class="p-3">Des sangles tendues par-dessus plaquent la charge sur le plancher : plus elle est plaquée, plus elle frotte.</td><td class="p-3">Palettes, colis, charges stables</td></tr>
+            <tr class="border-t border-slate-200"><td class="p-3 font-semibold">Direct</td><td class="p-3">Des sangles ou chaînes relient la charge aux points d'ancrage (en diagonale, en boucle).</td><td class="p-3">Machines, engins, charges lourdes et compactes</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>
+        Dans la pratique, on <strong>combine</strong> : la charge est bloquée vers l'avant (contre la face avant puis contre
+        le mur de colis précédent) et sanglée par-dessus pour tenir sur les côtés et vers l'arrière. C'est exactement
+        la logique du <a href="/ressources/plan-de-chargement-camion">chargement par murs</a>.
+      </p>
+    </section>
+
+    <section id="combien-de-sangles" class="mb-12">
+      <div class="font-jetbrains text-[10px] tracking-widest mb-2" style="color: #2563EB;">04 · LE CALCUL</div>
+      <h2 class="font-bricolage font-bold text-3xl mb-4 text-slate-900">Combien de sangles faut-il ?</h2>
+      <p>
+        Pour l'arrimage par friction, le nombre de sangles dépend de quatre choses : le <strong>poids</strong> de la charge,
+        le <strong>frottement</strong> entre la charge et le plancher (noté µ), la <strong>tension</strong> réelle de chaque
+        sangle (la STF, en daN, inscrite sur l'étiquette) et l'<strong>angle</strong> de la sangle.
+      </p>
+
+      <div class="my-6 rounded-lg border border-slate-200 p-5" style="background: #F8FAFC;">
+        <div class="font-jetbrains text-[10px] text-slate-500 tracking-widest mb-3">MASSE RETENUE PAR UNE SANGLE PAR-DESSUS (EN 12195-1)</div>
+        <p class="font-jetbrains text-sm text-slate-800 mb-2">m = 2 × µ × sin α × STF ÷ ( g × (c − µ) × f<sub>s</sub> )</p>
+        <p class="text-xs text-slate-500 mb-0">c = 0,8 vers l'avant (f<sub>s</sub> = 1,25) · c = 0,5 sur les côtés et vers l'arrière (f<sub>s</sub> = 1,1) · g = 9,81 m/s² · STF en newtons (1 daN = 10 N).</p>
+      </div>
+
+      <h3 class="font-bricolage font-semibold text-xl mt-6 mb-3 text-slate-900">Exemple : une palette de 1 000 kg</h3>
+      <p>Plancher en contreplaqué (µ = 0,30), sangles de STF 400 daN posées à la verticale (90°) :</p>
+
+      <div class="my-6 rounded-lg overflow-hidden border border-slate-200 overflow-x-auto">
+        <table class="w-full text-xs min-w-[520px]">
+          <thead style="background: #F8FAFC;">
+            <tr>
+              <th class="text-left p-3 font-jetbrains text-[10px] text-slate-500 tracking-wider">DIRECTION</th>
+              <th class="text-left p-3 font-jetbrains text-[10px] text-slate-500 tracking-wider">RETENU PAR SANGLE</th>
+              <th class="text-left p-3 font-jetbrains text-[10px] text-slate-500 tracking-wider">SANGLES NÉCESSAIRES</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="border-t border-slate-200"><td class="p-3 font-semibold">Vers l'avant (non bloquée)</td><td class="p-3 font-jetbrains">≈ 391 kg</td><td class="p-3"><strong>3</strong></td></tr>
+            <tr class="border-t border-slate-200" style="background: #FAFAFA;"><td class="p-3 font-semibold">Côtés et arrière</td><td class="p-3 font-jetbrains">≈ 1 112 kg</td><td class="p-3"><strong>1</strong></td></tr>
+            <tr class="border-t border-slate-200"><td class="p-3 font-semibold">Avec blocage contre la face avant</td><td class="p-3 font-jetbrains">l'avant est tenu par le blocage</td><td class="p-3"><strong>1</strong></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>
+        La leçon est simple : <strong>bloquer la charge vers l'avant divise ici le nombre de sangles par trois</strong>.
+        C'est pour cela qu'un chargement jointif, plaqué contre la face avant et organisé en murs, est à la fois plus
+        sûr et plus rapide à arrimer.
+      </p>
+      <p class="text-sm text-slate-500">
+        Ces calculs sont une estimation selon la méthode par friction de la norme EN 12195-1. Ils ne remplacent ni le
+        plan d'arrimage de votre entreprise, ni les consignes du constructeur du véhicule et des sangles.
+      </p>
+    </section>
+
+    <section id="tapis" class="mb-12">
+      <div class="font-jetbrains text-[10px] tracking-widest mb-2" style="color: #2563EB;">05 · ASTUCE</div>
+      <h2 class="font-bricolage font-bold text-3xl mb-4 text-slate-900">Le tapis antiglisse, meilleur investissement</h2>
+      <p>
+        Le tapis antiglisse (bandes de caoutchouc posées sous la charge) fait passer le frottement d'environ
+        <strong>0,30</strong> sur bois à environ <strong>0,60</strong>. Dans la formule, quand µ atteint 0,5, le terme
+        (c − µ) devient nul sur les côtés et vers l'arrière : <strong>le frottement suffit à lui seul dans ces
+        directions</strong>.
+      </p>
+      <ul>
+        <li>Moins de sangles à poser et à retendre en route.</li>
+        <li>Moins de temps de chargement, moins de cornières abîmées.</li>
+        <li>Un coût faible, rapidement amorti sur les tournées répétitives.</li>
+      </ul>
+      <p>
+        On conserve malgré tout au moins <strong>une sangle par rangée de palettes</strong> : elle maintient la cohésion de
+        la pile et évite le basculement des charges hautes.
+      </p>
+    </section>
+
+    <section id="bonnes-pratiques" class="mb-12">
+      <div class="font-jetbrains text-[10px] tracking-widest mb-2" style="color: #2563EB;">06 · SUR LE QUAI</div>
+      <h2 class="font-bricolage font-bold text-3xl mb-4 text-slate-900">Les bonnes pratiques sur le quai</h2>
+      <ol>
+        <li><strong>Charger jointif, contre la face avant</strong>, mur par mur, sans espace entre les rangées.</li>
+        <li><strong>Combler les vides</strong> : cales, coussins gonflables ou palettes vides. Un vide, c'est de l'élan pour la charge.</li>
+        <li><strong>Mettre le lourd en bas et au centre</strong> du véhicule, réparti entre gauche et droite.</li>
+        <li><strong>Vérifier l'étiquette des sangles</strong> : la LC (capacité d'arrimage) n'est pas la STF (tension réelle obtenue au cliquet). C'est la STF qui compte pour l'arrimage par friction.</li>
+        <li><strong>Protéger les arêtes</strong> avec des cornières, et ne jamais laisser une sangle vrillée.</li>
+        <li><strong>Poser au moins une sangle par rangée</strong>, même quand le frottement suffit.</li>
+        <li><strong>Retendre après les premiers kilomètres</strong> et après chaque livraison, quand la charge a changé.</li>
+        <li><strong>Sécuriser l'arrière</strong> : la dernière rangée, côté portes, n'est plus bloquée par rien. Doublez la sangle ou ajoutez une barre.</li>
+      </ol>
+    </section>
+
+    <section id="responsabilite" class="mb-12">
+      <div class="font-jetbrains text-[10px] tracking-widest mb-2" style="color: #2563EB;">07 · RESPONSABILITÉS</div>
+      <h2 class="font-bricolage font-bold text-3xl mb-4 text-slate-900">Qui est responsable de l'arrimage ?</h2>
+      <p>
+        En France, en l'absence de contrat particulier, c'est le <strong>contrat type général</strong> de transport
+        routier (décret n° 2017-461 du 31 mars 2017) qui répartit les rôles, selon le poids de l'envoi :
+      </p>
+
+      <div class="my-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="rounded-lg border border-slate-200 p-4">
+          <div class="font-jetbrains text-[10px] tracking-widest mb-2" style="color: #2563EB;">ENVOI DE MOINS DE 3 T</div>
+          <p class="text-sm mb-0">Les opérations de chargement et d'arrimage relèvent en principe du <strong>transporteur</strong>, sous sa responsabilité.</p>
+        </div>
+        <div class="rounded-lg border border-slate-200 p-4">
+          <div class="font-jetbrains text-[10px] tracking-widest mb-2" style="color: #B45309;">ENVOI DE 3 T ET PLUS</div>
+          <p class="text-sm mb-0">Le chargement, le calage et l'arrimage sont exécutés par l'<strong>expéditeur</strong>, sous sa responsabilité. Le transporteur fournit les sangles commandées et <strong>vérifie</strong> que l'arrimage ne compromet pas la sécurité.</p>
+        </div>
+      </div>
+
+      <p>
+        Attention à ce dernier point : la jurisprudence rappelle que le transporteur qui n'a <strong>pas émis de
+        réserves</strong> sur un chargement fait par l'expéditeur peut rester responsable des dommages, sauf s'il
+        prouve un défaut non apparent. Chacun a donc intérêt à vérifier, et à le tracer sur le document de transport.
+      </p>
+      <p>
+        En cas de contrôle routier, un arrimage insuffisant expose à une amende et à une éventuelle immobilisation du
+        véhicule jusqu'à remise en conformité.
+      </p>
+      <p class="text-sm text-slate-500">
+        Ces repères sont fournis à titre d'information générale. Vos contrats et conditions générales peuvent prévoir
+        une autre répartition : en cas de doute, rapprochez-vous de votre conseil juridique.
+      </p>
+    </section>
+
+    <section id="outil" class="mb-12">
+      <div class="font-jetbrains text-[10px] tracking-widest mb-2" style="color: #2563EB;">08 · OUTIL</div>
+      <h2 class="font-bricolage font-bold text-3xl mb-4 text-slate-900">Calculer l'arrimage automatiquement</h2>
+      <p>
+        L'<a href="/outils/optimiseur-chargement">optimiseur de chargement 3D</a> fait ce travail pour vous, gratuitement
+        et sans compte :
+      </p>
+      <ul>
+        <li>il charge le camion <strong>par murs</strong>, de la cabine vers les portes, avec une charge bloquée vers l'avant ;</li>
+        <li>il calcule le <strong>nombre de sangles par mur</strong> selon votre plancher (bois ou tapis antiglisse) et la tension de vos sangles ;</li>
+        <li>il vérifie la <strong>répartition des charges</strong> sur la sellette et les essieux, et propose de décaler le chargement si l'avant est trop chargé ;</li>
+        <li>il imprime une <strong>fiche de chargement</strong> avec la séquence mur par mur et les sangles à poser.</li>
+      </ul>
+    </section>
+
+    <section id="faq" class="mb-12">
+      <div class="font-jetbrains text-[10px] tracking-widest mb-2" style="color: #2563EB;">09 · FAQ</div>
+      <h2 class="font-bricolage font-bold text-3xl mb-6 text-slate-900">Questions fréquentes</h2>
+      <div class="space-y-3">
+        <details class="rounded-lg border border-slate-200 p-4 group">
+          <summary class="font-bricolage font-semibold text-slate-900 cursor-pointer flex items-center justify-between">
+            <span>C'est quoi l'arrimage d'une charge ?</span>
+            <svg class="w-4 h-4 transition-transform group-open:rotate-180 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </summary>
+          <p class="mt-3 text-sm text-slate-600 leading-relaxed">L'arrimage regroupe tout ce qui empêche la marchandise de bouger pendant le transport : blocage contre la structure du véhicule, calage des vides et sanglage. Il protège le conducteur, la marchandise et le véhicule lors des freinages, accélérations et virages.</p>
+        </details>
+        <details class="rounded-lg border border-slate-200 p-4 group">
+          <summary class="font-bricolage font-semibold text-slate-900 cursor-pointer flex items-center justify-between">
+            <span>Combien de sangles pour une palette ?</span>
+            <svg class="w-4 h-4 transition-transform group-open:rotate-180 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </summary>
+          <p class="mt-3 text-sm text-slate-600 leading-relaxed">Cela dépend du poids, du frottement et de la tension des sangles. Pour une palette de 1 000 kg sur un plancher en bois (µ = 0,30) avec des sangles de 400 daN, il en faut environ 3 si rien ne la bloque vers l'avant, mais une seule si elle est bloquée contre la face avant. On pose de toute façon au moins une sangle par rangée.</p>
+        </details>
+        <details class="rounded-lg border border-slate-200 p-4 group">
+          <summary class="font-bricolage font-semibold text-slate-900 cursor-pointer flex items-center justify-between">
+            <span>Quelle est la différence entre LC et STF sur une sangle ?</span>
+            <svg class="w-4 h-4 transition-transform group-open:rotate-180 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </summary>
+          <p class="mt-3 text-sm text-slate-600 leading-relaxed">La LC (Lashing Capacity) est la force maximale que la sangle peut supporter en arrimage direct. La STF (Standard Tension Force) est la tension réellement obtenue au cliquet. Pour l'arrimage par friction, sangles par-dessus la charge, c'est la STF qui compte.</p>
+        </details>
+        <details class="rounded-lg border border-slate-200 p-4 group">
+          <summary class="font-bricolage font-semibold text-slate-900 cursor-pointer flex items-center justify-between">
+            <span>Le tapis antiglisse remplace-t-il les sangles ?</span>
+            <svg class="w-4 h-4 transition-transform group-open:rotate-180 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </summary>
+          <p class="mt-3 text-sm text-slate-600 leading-relaxed">Il en réduit fortement le nombre : avec un frottement de 0,60, la charge ne glisse plus sur les côtés ni vers l'arrière par le seul frottement. Il faut néanmoins conserver au moins une sangle par rangée et bloquer la charge vers l'avant.</p>
+        </details>
+        <details class="rounded-lg border border-slate-200 p-4 group">
+          <summary class="font-bricolage font-semibold text-slate-900 cursor-pointer flex items-center justify-between">
+            <span>Qui est responsable de l'arrimage, l'expéditeur ou le transporteur ?</span>
+            <svg class="w-4 h-4 transition-transform group-open:rotate-180 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </summary>
+          <p class="mt-3 text-sm text-slate-600 leading-relaxed">En France, selon le contrat type général (décret 2017-461), pour les envois de 3 tonnes et plus, le chargement, le calage et l'arrimage sont exécutés par l'expéditeur sous sa responsabilité ; le transporteur doit vérifier qu'ils ne compromettent pas la sécurité et émettre des réserves si besoin. Pour les envois de moins de 3 tonnes, ces opérations relèvent en principe du transporteur. Un contrat particulier peut prévoir une autre répartition.</p>
+        </details>
+        <details class="rounded-lg border border-slate-200 p-4 group">
+          <summary class="font-bricolage font-semibold text-slate-900 cursor-pointer flex items-center justify-between">
+            <span>Quelle norme encadre l'arrimage sur route ?</span>
+            <svg class="w-4 h-4 transition-transform group-open:rotate-180 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </summary>
+          <p class="mt-3 text-sm text-slate-600 leading-relaxed">La norme européenne EN 12195-1 fixe les efforts à retenir (80 % du poids vers l'avant, 50 % sur les côtés et vers l'arrière) et les méthodes de calcul des forces d'arrimage. Les sangles textiles relèvent de la norme EN 12195-2.</p>
+        </details>
+      </div>
+    </section>
+
+    <section class="mb-4">
+      <div class="font-jetbrains text-[10px] tracking-widest mb-3 text-slate-500">À LIRE AUSSI</div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3 not-prose">
+        <a href="/ressources/plan-de-chargement-camion" class="block rounded-lg border border-slate-200 p-4 hover:bg-slate-50 transition-colors" style="text-decoration: none;">
+          <div class="font-jetbrains text-[10px] tracking-widest mb-1" style="color: #0369A1;">GUIDE</div>
+          <div class="font-bricolage font-semibold text-slate-900">Plan de chargement camion : méthode et tournées multi-arrêts</div>
+        </a>
+        <a href="/ressources/incoterms-2020" class="block rounded-lg border border-slate-200 p-4 hover:bg-slate-50 transition-colors" style="text-decoration: none;">
+          <div class="font-jetbrains text-[10px] tracking-widest mb-1" style="color: #7C3AED;">GUIDE</div>
+          <div class="font-bricolage font-semibold text-slate-900">Incoterms 2020 : qui paie le transport et qui porte le risque</div>
+        </a>
+      </div>
+    </section>
+
+    <!-- À PROPOS DE L'AUTEUR (bloc commun : /ressources/auteur.js) -->
+    <div id="auteur"></div>
+  </main>
+
+  <!-- CTA OUTIL -->
+  <section class="border-t border-slate-200" style="background: #F8FAFC;">
+    <div class="max-w-3xl mx-auto px-6 md:px-10 py-14 text-center">
+      <div class="font-jetbrains text-[10px] tracking-widest mb-3" style="color: #2563EB;">OUTIL EN LIGNE · GRATUIT · NAVIGATEUR</div>
+      <h2 class="font-bricolage font-bold text-3xl md:text-4xl mb-4 text-slate-900 tracking-tight">Combien de sangles pour votre camion ?</h2>
+      <p class="text-slate-600 mb-8 max-w-xl mx-auto leading-relaxed">Saisissez vos colis, choisissez le véhicule : l'optimiseur calcule le plan de chargement par murs, le nombre de sangles par mur et la charge sur les essieux, puis imprime la fiche pour le quai.</p>
+      <a href="/outils/optimiseur-chargement" class="inline-flex items-center gap-2 px-6 py-3.5 rounded-md font-jetbrains text-xs font-medium shadow-lg transition-transform hover:translate-y-[-1px] text-white" style="background: #2563EB;">
+        CALCULER MON ARRIMAGE
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </a>
+    </div>
+  </section>
+
+  <!-- CTA AUDIT FLASH -->
+  <section class="text-white" style="background: linear-gradient(135deg, #0F172A 0%, #1E3A8A 70%, #B45309 100%);">
+    <div class="max-w-3xl mx-auto px-6 md:px-10 py-14">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
+        <div class="md:col-span-2">
+          <div class="font-jetbrains text-[10px] tracking-widest mb-2" style="color: #F59E0B;">AUDIT FLASH SUPPLY CHAIN</div>
+          <div class="font-bricolage font-bold text-2xl md:text-3xl mb-3 leading-tight tracking-tight">Auditez votre supply chain en 5 minutes</div>
+          <div class="text-slate-300 text-sm leading-relaxed">L'Audit Flash analyse vos ventes et votre stock pour identifier les chantiers prioritaires : stock dormant chiffré, OTIF achat et client, déséquilibres inter-magasins, articles à risque. Diagnostic gratuit avec rapport PDF.</div>
+        </div>
+        <div>
+          <a href="/outils/audit" class="inline-flex items-center justify-center gap-2 w-full px-5 py-3 rounded-md font-jetbrains text-xs font-bold shadow-lg" style="background: #F59E0B; color: #0F172A;">
+            LANCER L'AUDIT FLASH
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="border-t border-slate-200 bg-white">
+    <div class="max-w-7xl mx-auto px-6 md:px-10 py-8 flex flex-col md:flex-row md:items-center md:justify-between gap-3 font-jetbrains text-[11px] text-slate-500">
+      <div>ATELIER LOGISTIQUE © 2026 — La boîte à outils des pros de la supply chain</div>
+      <div class="flex items-center gap-5">
+        <a href="/" class="hover:text-slate-900">Tous les outils</a>
+        <a href="/outils/optimiseur-chargement" class="hover:text-slate-900">Optimiseur 3D</a>
+        <a href="/outils/audit" class="hover:text-slate-900">Audit Flash</a>
+        <a href="mailto:contact@atelierlogistique.com" class="hover:text-slate-900">Contact</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="/ressources/auteur.js" defer></script>
+</body>
+</html>
