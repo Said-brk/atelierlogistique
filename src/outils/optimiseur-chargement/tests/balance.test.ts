@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { analyzeBalance, defaultAxleProfile, massPerStrap, snapshot, DEFAULT_LASHING } from '../engine/balance';
+import { analyzeBalance, defaultAxleProfile, massPerStrap, snapshot, shiftPlaced, suggestShift, DEFAULT_LASHING } from '../engine/balance';
 import { optimize } from '../engine/optimizer';
 import type { ContainerDefinition, PlacedItem } from '../engine/types';
 
@@ -86,5 +86,45 @@ describe('Tournée : équilibre après chaque livraison', () => {
     const before = JSON.stringify(res.placedItems);
     analyzeBalance(semi, res.placedItems);
     expect(JSON.stringify(res.placedItems)).toBe(before);
+  });
+});
+
+describe('Décalage du chargement', () => {
+  const profile = defaultAxleProfile(semi);
+  // 12 bobines de 1,6 t contre la face avant (cas de démonstration)
+  const bobines: PlacedItem[] = Array.from({ length: 12 }, (_, i) => ({
+    ...pal(`b${i}`, Math.floor(i / 2) * 1200, 1600, 1, Math.floor(i / 2) + 1, (i % 2) * 1225),
+    width: 1000, length: 1200, height: 1000,
+  }));
+
+  it('propose un décalage qui ramène la sellette sous 90 %', () => {
+    const s = suggestShift(semi, bobines, profile)!;
+    expect(s.before.supports!.frontPct).toBeGreaterThan(1);
+    expect(s.after.supports!.frontPct).toBeLessThanOrEqual(0.9 + 1e-9);
+    expect(s.after.supports!.rearPct).toBeLessThanOrEqual(1);
+    expect(s.shift % 100).toBe(0);
+    expect(s.partial).toBe(false);
+  });
+
+  it('conserve les positions relatives (murs, arrêts, empilage inchangés)', () => {
+    const shifted = shiftPlaced(bobines, 1500);
+    shifted.forEach((p, i) => {
+      expect(p.x - bobines[i].x).toBe(1500);
+      expect([p.y, p.z, p.wall, p.stop, p.sequence]).toEqual([bobines[i].y, bobines[i].z, bobines[i].wall, bobines[i].stop, bobines[i].sequence]);
+    });
+  });
+
+  it('rien à proposer si l\'avant n\'est pas surchargé', () => {
+    expect(suggestShift(semi, [pal('a', 5000, 2000, 1, 1, 825)], profile)).toBeNull();
+  });
+
+  it('rien à proposer si le camion est plein jusqu\'aux portes', () => {
+    const full = [...bobines, pal('z', 13600 - 1200, 10, 1, 7, 0)];
+    expect(suggestShift(semi, full, profile)).toBeNull();
+  });
+
+  it('conteneur trop chargé vers l\'avant : recentre', () => {
+    const s = suggestShift(c20, [pal('a', 0, 5000, 1, 1, 775)], defaultAxleProfile(c20))!;
+    expect(Math.abs(s.after.longitudinalPct)).toBeLessThan(Math.abs(s.before.longitudinalPct));
   });
 });

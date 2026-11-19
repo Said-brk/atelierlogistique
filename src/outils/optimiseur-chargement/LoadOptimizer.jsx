@@ -18,7 +18,7 @@ class ThreeErrorBoundary extends Component {
 }
 import { CONTAINER_PRESETS } from './constants/containers';
 import { LOADING_DEFAULTS } from './constants/engine-config';
-import { analyzeBalance, defaultAxleProfile, DEFAULT_LASHING } from './engine/balance';
+import { analyzeBalance, defaultAxleProfile, DEFAULT_LASHING, shiftPlaced, suggestShift } from './engine/balance';
 import { useOptimizer } from './useOptimizer';
 import {
   emptyRow, exampleRows, validateRow, rowsAreValid, coerceField,
@@ -222,7 +222,7 @@ function StopMiniPlan({ container, placed, stop, color }) {
   );
 }
 
-function PrintSheet({ container, result, rows, colorIndex, multiStopResult, leftovers, balance }) {
+function PrintSheet({ container, result, rows, colorIndex, multiStopResult, leftovers, balance, shiftMm = 0 }) {
   const refColorOf = (defId) => refColor(colorIndex[defId] ?? 0);
   const blocked = new Set(result.blockedItemIds ?? []);
   const canDrawPlan = result.placedItems.length <= 400;
@@ -276,6 +276,11 @@ function PrintSheet({ container, result, rows, colorIndex, multiStopResult, left
               : ` Excentricité ${balance.longitudinalPct >= 0 ? '+' : ''}${formatPct(balance.longitudinalPct)} % (tolérance ±5 %).`}
             {' '}Arrimage : {balance.lashing.total} sangle(s) par-dessus (STF {balance.lashing.params.stfDaN} daN, µ {String(balance.lashing.params.mu).replace('.', ',')}).
           </div>
+          {shiftMm > 0 && (
+            <div style={{ fontSize: 11, marginTop: 4, fontWeight: 700 }}>
+              ⚠ Chargement décalé : laisser {fmtM(shiftMm)} m libres contre la face avant et poser une barre de calage avant le premier mur.
+            </div>
+          )}
           <div style={{ fontSize: 9, color: '#64748B', marginTop: 2 }}>Estimation indicative (EN 12195-1, CTU Code) : ne remplace pas le plan d'arrimage ni les données du constructeur.</div>
         </div>
       )}
@@ -507,11 +512,20 @@ export default function LoadOptimizer({ onBack }) {
     return item.definitionId !== highlight;
   }, [highlight]);
   const blockedIds = useMemo(() => new Set(result?.blockedItemIds ?? []), [result]);
+  // Décalage du chargement vers les portes (translation de tout le bloc : positions relatives inchangées).
+  const [shiftMm, setShiftMm] = useState(0);
+  const planResult = useMemo(() => (result && shiftMm > 0
+    ? {
+      ...result,
+      placedItems: shiftPlaced(result.placedItems, shiftMm),
+      walls: (result.walls ?? []).map((w) => ({ ...w, xStart: w.xStart + shiftMm, xEnd: w.xEnd + shiftMm })),
+    }
+    : result), [result, shiftMm]);
   const visiblePlaced = useMemo(
-    () => (result
-      ? result.placedItems.filter((p) => (p.stop ?? 1) > unloadedUpTo && (loadedUpToWall === null || p.wall <= loadedUpToWall))
+    () => (planResult
+      ? planResult.placedItems.filter((p) => (p.stop ?? 1) > unloadedUpTo && (loadedUpToWall === null || p.wall <= loadedUpToWall))
       : []),
-    [result, unloadedUpTo, loadedUpToWall],
+    [planResult, unloadedUpTo, loadedUpToWall],
   );
 
   // Répartition des charges & arrimage : réglages pré-remplis par véhicule, mémorisés.
@@ -544,8 +558,12 @@ export default function LoadOptimizer({ onBack }) {
     return { ...c, axles, lashing: {} };
   });
   const balance = useMemo(
-    () => (result && result.placedItems.length > 0 ? analyzeBalance(container, result.placedItems, axleProfile, lashingParams) : null),
-    [result, container, axleProfile, lashingParams],
+    () => (planResult && planResult.placedItems.length > 0 ? analyzeBalance(container, planResult.placedItems, axleProfile, lashingParams) : null),
+    [planResult, container, axleProfile, lashingParams],
+  );
+  const shiftSuggestion = useMemo(
+    () => (planResult && shiftMm === 0 && planResult.placedItems.length > 0 ? suggestShift(container, planResult.placedItems, axleProfile) : null),
+    [planResult, shiftMm, container, axleProfile],
   );
 
   const valid = rowsAreValid(rows);
@@ -661,6 +679,7 @@ export default function LoadOptimizer({ onBack }) {
     setHighlight(null);
     setUnloadedUpTo(0);
     setLoadedUpToWall(null);
+    setShiftMm(0);
     setDeferredExcess([]);
     if (defs.length === 0) { reset(); return; }
     run(container, defs, { deliveryMode: mode, loading: { mode: LOADING_DEFAULTS.mode } });
@@ -1222,6 +1241,29 @@ export default function LoadOptimizer({ onBack }) {
                           </div>
                         </div>
                       )}
+                      {shiftMm > 0 ? (
+                        <div className="rounded-lg px-3 py-2.5 text-[11px] flex flex-col sm:flex-row sm:items-center justify-between gap-2" style={{ background: BLUE_LIGHT, color: BLUE }}>
+                          <span>
+                            <Check size={12} className="inline -mt-0.5 mr-1" />
+                            Chargement décalé de <strong>{fmtM(shiftMm)} m</strong> vers l'arrière. Laissez cet espace libre contre la face avant et posez une <strong>barre de calage</strong>.
+                          </span>
+                          <button onClick={() => setShiftMm(0)} className="shrink-0 flex items-center gap-1 font-jetbrains text-[10px] text-slate-500 hover:text-slate-800"><Undo2 size={11} /> Annuler</button>
+                        </div>
+                      ) : shiftSuggestion && (
+                        <div className="rounded-lg px-3 py-2.5 border flex flex-col sm:flex-row sm:items-center justify-between gap-2" style={{ borderColor: '#FDE68A', background: '#FFFBEB' }}>
+                          <span className="text-[11px] text-slate-700">
+                            Correction possible sans toucher au plan :{' '}
+                            {shiftSuggestion.after.supports
+                              ? <>{axleProfile.frontLabel.toLowerCase()} à <strong style={{ color: BAL_COLORS[shiftSuggestion.after.status] }}>{Math.round(shiftSuggestion.after.supports.frontPct * 100)} %</strong></>
+                              : <>excentricité à <strong style={{ color: BAL_COLORS[shiftSuggestion.after.status] }}>{shiftSuggestion.after.longitudinalPct >= 0 ? '+' : ''}{formatPct(shiftSuggestion.after.longitudinalPct)} %</strong></>}
+                            {shiftSuggestion.partial ? ' (amélioration partielle, faute de place côté portes).' : '.'}
+                          </span>
+                          <button onClick={() => { setShiftMm(shiftSuggestion.shift); track('load_optimizer_shift_applied'); }}
+                            className="shrink-0 px-3 py-2 rounded-md font-jetbrains text-[10px] font-semibold text-white" style={{ background: BLUE }}>
+                            Décaler de {fmtM(shiftSuggestion.shift)} m vers l'arrière
+                          </button>
+                        </div>
+                      )}
                       <div className="pt-2 border-t border-slate-100 text-[11px] text-slate-600">
                         Arrimage : <strong className="text-slate-900">{balance.lashing.total} sangle{balance.lashing.total > 1 ? 's' : ''}</strong> par-dessus
                         ({balance.lashing.walls.length} mur{balance.lashing.walls.length > 1 ? 's' : ''}, STF {lashingParams.stfDaN} daN, µ {String(lashingParams.mu).replace('.', ',')})
@@ -1449,7 +1491,7 @@ export default function LoadOptimizer({ onBack }) {
       {result && status === 'done' && (
         createPortal(
           <div className="lo-print-root">
-            <PrintSheet container={container} result={result} rows={rows} colorIndex={colorIndex} multiStopResult={multiStopResult} leftovers={leftovers} balance={balance} />
+            <PrintSheet container={container} result={planResult} shiftMm={shiftMm} rows={rows} colorIndex={colorIndex} multiStopResult={multiStopResult} leftovers={leftovers} balance={balance} />
           </div>,
           document.body,
         )
