@@ -177,3 +177,66 @@ export function analyzeBalance(
     : [];
   return { ...base, profile, afterStops, lashing: lashingPlan(placed, lashing) };
 }
+
+// ---------------------------------------------------------------------------
+// Décalage du chargement : translation de tout le bloc vers les portes.
+// Les positions relatives des colis sont conservées : murs, ordre des arrêts,
+// empilage, colis au sol et accessibilité restent identiques.
+// ---------------------------------------------------------------------------
+
+export interface ShiftSuggestion {
+  /** Décalage proposé vers l'arrière (mm, arrondi au décimètre supérieur). */
+  shift: number;
+  before: BalanceSnapshot;
+  after: BalanceSnapshot;
+  /** Le décalage disponible ne suffit pas à revenir dans la zone verte. */
+  partial: boolean;
+}
+
+/** Translate le bloc de chargement de `shift` mm vers les portes. */
+export function shiftPlaced<T extends PlacedItem>(placed: readonly T[], shift: number): T[] {
+  if (!shift) return placed as T[];
+  return placed.map((p) => ({ ...p, x: p.x + shift }));
+}
+
+/**
+ * Propose un décalage vers l'arrière quand l'avant est trop chargé (sellette au-delà
+ * de 90 %, ou conteneur trop chargé vers l'avant) et qu'il reste de la place côté portes.
+ * null si inutile ou impossible.
+ */
+export function suggestShift(
+  container: ContainerDefinition,
+  placed: readonly PlacedItem[],
+  profile: AxleProfile = defaultAxleProfile(container),
+): ShiftSuggestion | null {
+  const before = snapshot(container, placed, profile);
+  if (!before.cog || placed.length === 0) return null;
+  const freeAtRear = container.length - Math.max(...placed.map((p) => p.x + p.length));
+  if (freeAtRear < 100) return null;
+
+  let target: number;
+  if (before.supports && profile.kind === 'TWO_SUPPORTS') {
+    if (before.supports.frontPct <= 0.9) return null;
+    const span = profile.rearPos - profile.frontPos;
+    const w = before.weight;
+    // Sellette ramenée à 90 % de sa limite, sans dépasser la limite des essieux.
+    const needed = profile.frontPos + (span * Math.max(0, w - 0.9 * profile.frontMax)) / w;
+    const rearLimit = profile.frontPos + (span * profile.rearMax) / w;
+    target = Math.min(needed, rearLimit);
+  } else {
+    if (before.longitudinalPct >= -0.04) return null;
+    target = container.length / 2 - 0.02 * container.length;
+  }
+
+  const wanted = target - before.cog.x;
+  if (wanted <= 0) return null;
+  const shift = Math.min(Math.ceil(wanted / 100) * 100, Math.floor(freeAtRear / 100) * 100);
+  if (shift <= 0) return null;
+
+  const after = snapshot(container, shiftPlaced(placed, shift), profile);
+  const improves = after.supports
+    ? after.supports.frontPct < before.supports!.frontPct - 0.01
+    : Math.abs(after.longitudinalPct) < Math.abs(before.longitudinalPct) - 0.005;
+  if (!improves) return null;
+  return { shift, before, after, partial: shift < Math.ceil(wanted / 100) * 100 };
+}
