@@ -566,6 +566,7 @@ export default function LoadOptimizer({ onBack }) {
     [planResult, shiftMm, container, axleProfile],
   );
 
+
   const valid = rowsAreValid(rows);
 
   const activeRows = useMemo(() => rows.filter((r) => !excludedStops.includes(r.stop ?? 1)), [rows, excludedStops]);
@@ -729,6 +730,34 @@ export default function LoadOptimizer({ onBack }) {
     }
     return out.sort((a, b) => a.stop - b.stop);
   }, [excludedStops, deferredExcess, rows, result]);
+
+  // Onglets d'analyse : statut par onglet ; le premier onglet en alerte s'ouvre à chaque nouveau calcul.
+  const tabsRef = useRef(null);
+  const [activeTab, setActiveTab] = useState('synth');
+  const analysisTabs = useMemo(() => {
+    if (!result) return [];
+    const t = [{ id: 'synth', label: 'Synthèse', status: result.loadingViolationIds.length > 0 ? 'over' : 'ok' }];
+    if (balance && balance.cog) t.push({ id: 'charges', label: 'Charges', status: shiftMm > 0 && balance.status !== 'over' ? balance.status : balance.status });
+    if (multiStopResult) t.push({ id: 'tour', label: 'Tournée', status: result.blockedItemIds.length > 0 ? 'warn' : 'ok' });
+    const leftQty = leftovers.reduce((n, l) => n + (Number(l.quantity) || 0), 0);
+    if (result.unpackedCount > 0 || leftovers.length > 0) {
+      t.push({ id: 'reliquats', label: 'Reliquats', status: result.unpackedCount > 0 && deferredExcess.length === 0 ? 'over' : 'warn', count: Math.max(result.unpackedCount, leftQty) });
+    }
+    return t;
+  }, [result, balance, multiStopResult, leftovers, deferredExcess, shiftMm]);
+  const currentTab = analysisTabs.some((t) => t.id === activeTab) ? activeTab : 'synth';
+  useEffect(() => {
+    if (!result) return;
+    const tabs = analysisTabs;
+    const pick = tabs.find((t) => t.status === 'over') ?? tabs.find((t) => t.status === 'warn') ?? tabs[0];
+    if (pick) setActiveTab(pick.id);
+    // uniquement à chaque nouveau résultat
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [result]);
+  const openTab = (id) => {
+    setActiveTab(id);
+    tabsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   const exportLeftovers = () => {
     const ws = XLSX.utils.json_to_sheet(leftovers.map((l) => ({
@@ -1059,23 +1088,42 @@ export default function LoadOptimizer({ onBack }) {
               </button>
               {!valid && <div className="text-[11px] text-slate-500 mt-2 text-center">Complétez les références (dimensions et quantités valides) pour lancer le calcul.</div>}
             </div>
+
+            {/* Résultat express (ordinateur) : l'essentiel du calcul et les actions, à côté de la saisie */}
+            {status === 'done' && result && (
+              <div className="hidden xl:block rounded-xl border border-slate-200 bg-white p-4">
+                <div className="font-jetbrains text-[10px] tracking-wider text-slate-500 mb-3">RÉSULTAT</div>
+                <div className="grid grid-cols-3 gap-3 mb-3">
+                  <div><div className="font-jetbrains text-[10px] text-slate-500">Colis chargés</div><div className="font-bricolage font-bold text-xl" style={{ color: result.unpackedCount > 0 ? '#B91C1C' : BLUE }}>{result.packedItems} / {result.totalItems}</div></div>
+                  <div><div className="font-jetbrains text-[10px] text-slate-500">Remplissage</div><div className="font-bricolage font-bold text-xl text-slate-800">{formatPct(result.volumeUtilization)} %</div></div>
+                  <div><div className="font-jetbrains text-[10px] text-slate-500">Poids</div><div className="font-bricolage font-bold text-xl text-slate-800">{formatKg(result.usedWeight)} kg</div></div>
+                </div>
+                <div className="flex flex-wrap gap-1.5 mb-3">
+                  {analysisTabs.map((t) => (
+                    <button key={t.id} onClick={() => openTab(t.id)} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md font-jetbrains text-[11px]"
+                      style={{ background: BAL_BG[t.status], color: BAL_COLORS[t.status] }}>
+                      {t.status === 'ok' ? <Check size={12} /> : <AlertCircle size={12} />}
+                      {t.id === 'synth' ? 'Accès' : t.label}{t.count ? ` · ${t.count}` : ''}
+                    </button>
+                  ))}
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <button onClick={printSheet} className="flex items-center justify-center gap-1.5 py-2 rounded-lg font-jetbrains text-xs" style={{ background: BLUE_LIGHT, color: BLUE }}>
+                    <Printer size={13} /> Fiche PDF
+                  </button>
+                  <button onClick={optimize} className="flex items-center justify-center gap-1.5 py-2 rounded-lg font-jetbrains text-xs text-slate-600 border border-slate-200 bg-white hover:text-slate-900">
+                    <RotateCcw size={13} /> Relancer
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* DROITE : résultat */}
           <div ref={resultRef} className="xl:col-span-2 flex flex-col gap-4 scroll-mt-20">
             {status === 'done' && result ? (
               <>
-                <div className="grid grid-cols-2 gap-3">
-                  <Kpi label="Taux de remplissage" value={`${formatPct(result.volumeUtilization)} %`} sub="volume placé / contenant" />
-                  <Kpi label="Articles chargés" value={`${result.packedItems} / ${result.totalItems}`} sub={result.unpackedCount > 0 ? `${result.unpackedCount} non chargé(s)` : 'tout rentre'} />
-                </div>
-
-                <div className="rounded-xl border border-slate-200 p-4 bg-white space-y-4">
-                  <Bar label="Poids utilisé" value={result.usedWeight} max={result.maxWeight ?? result.usedWeight} unit="kg" format={formatKg} />
-                  <Bar label="Volume utilisé" value={mm3ToM3(result.usedVolume)} max={mm3ToM3(result.containerVolume)} unit="m³" format={(v) => v.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} />
-                </div>
-
-                <div className="rounded-xl border border-slate-200 overflow-hidden bg-white order-first">
+                <div className="rounded-xl border border-slate-200 overflow-hidden bg-white">
                   <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-slate-200 bg-slate-50 font-jetbrains text-xs text-slate-600 flex flex-wrap items-center justify-between gap-2">
                     <span className="flex items-center gap-2 shrink-0"><Box size={13} /> PLAN<span className="hidden sm:inline"> DE CHARGEMENT</span></span>
                     <div className="flex flex-wrap items-center justify-end gap-1.5 sm:gap-2">
@@ -1181,224 +1229,267 @@ export default function LoadOptimizer({ onBack }) {
                   )}
                 </div>
 
-                {result.loadingViolationIds.length === 0 ? (
-                  <div className="rounded-xl border px-4 py-3 text-[11px] flex items-start gap-1.5" style={{ color: '#15803D', background: '#F0FDF4', borderColor: '#BBF7D0' }}>
-                    <Check size={13} className="mt-0.5 shrink-0" />
-                    Chargement par murs, de la cabine vers les portes : chaque colis est accessible sans monter sur la marchandise.
-                  </div>
-                ) : (
-                  <div className="rounded-xl border px-4 py-3 text-[11px] flex items-start gap-1.5" style={{ color: '#B91C1C', background: '#FEF2F2', borderColor: '#FECACA' }}>
-                    <AlertCircle size={13} className="mt-0.5 shrink-0" />
-                    {result.loadingViolationIds.length} colis devront être posés en passant par-dessus d'autres colis.
-                  </div>
-                )}
 
-                {balance && balance.cog && (
-                  <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
-                    <div className="px-4 py-2.5 border-b border-slate-100 font-jetbrains text-[10px] tracking-wider text-slate-500 flex items-center justify-between gap-2">
-                      <span className="flex items-center gap-1.5"><Scale size={12} /> RÉPARTITION DES CHARGES</span>
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ color: BAL_COLORS[balance.status], background: BAL_BG[balance.status] }}>{BAL_LABEL[balance.status]}</span>
-                    </div>
-                    <div className="px-4 py-3 space-y-3">
-                      <div className="text-[11px] text-slate-600">
-                        Centre de gravité : <strong className="text-slate-900">{fmtM(balance.cog.x)} m</strong> de la face avant
-                        {' · '}{Math.abs(balance.lateralPct) < 0.005 ? 'centré en largeur' : `${Math.round(Math.abs(balance.cog.y - container.width / 2) / 10)} cm à ${balance.cog.y > container.width / 2 ? 'droite' : 'gauche'} de l'axe`}
-                        {' · '}{fmtM(balance.cog.z)} m de haut
-                      </div>
-                      {balance.supports ? (
-                        <>
-                          <LoadBar label={axleProfile.frontLabel} value={balance.supports.front} max={axleProfile.frontMax} />
-                          <LoadBar label={axleProfile.rearLabel} value={balance.supports.rear} max={axleProfile.rearMax} />
-                          <div className="text-[10px] text-slate-500">
-                            {balance.supports.zone
-                              ? <>Zone conseillée du centre de gravité pour {formatKg(balance.weight)} kg : <strong>{fmtM(Math.max(0, balance.supports.zone.from))} – {fmtM(Math.min(container.length, balance.supports.zone.to))} m</strong> de la face avant.</>
-                              : 'Charge trop lourde pour respecter les deux appuis, quelle que soit la position.'}
-                            {balance.supports.status === 'over' && (balance.supports.frontPct > 1
-                              ? ' Trop de poids vers l’avant : reculez les colis lourds vers le milieu de la remorque.'
-                              : ' Trop de poids vers l’arrière : avancez les colis lourds vers le milieu de la remorque.')}
-                          </div>
-                        </>
-                      ) : (
-                        <div className="text-[11px]" style={{ color: BAL_COLORS[balance.status] }}>
-                          Excentricité longitudinale : {balance.longitudinalPct >= 0 ? '+' : ''}{formatPct(balance.longitudinalPct)} % (tolérance ±5 %).
+                {/* Analyse : onglets (le premier onglet en alerte s'ouvre automatiquement) */}
+                <div ref={tabsRef} className="rounded-xl border border-slate-200 bg-white overflow-hidden scroll-mt-20">
+                  <div className="flex overflow-x-auto border-b border-slate-200 bg-slate-50" role="tablist">
+                    {analysisTabs.map((t) => (
+                      <button key={t.id} role="tab" aria-selected={currentTab === t.id} onClick={() => setActiveTab(t.id)}
+                        className="flex items-center gap-1.5 px-4 py-2.5 font-jetbrains text-[11px] whitespace-nowrap border-b-2 -mb-px"
+                        style={currentTab === t.id ? { borderColor: BLUE, color: BLUE, background: '#fff', fontWeight: 600 } : { borderColor: 'transparent', color: '#64748B' }}>
+                        <span className="w-1.5 h-1.5 rounded-full" style={{ background: BAL_COLORS[t.status] }} />
+                        {t.label}{t.count ? <span className="text-[10px] px-1.5 rounded-full" style={{ background: BAL_BG[t.status], color: BAL_COLORS[t.status] }}>{t.count}</span> : null}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="p-3 sm:p-4 flex flex-col gap-4 bg-slate-50/50">
+                    {currentTab === 'synth' && (
+                      <>
+                        <div className="grid grid-cols-2 gap-3">
+                          <Kpi label="Taux de remplissage" value={`${formatPct(result.volumeUtilization)} %`} sub="volume placé / contenant" />
+                          <Kpi label="Articles chargés" value={`${result.packedItems} / ${result.totalItems}`} sub={result.unpackedCount > 0 ? `${result.unpackedCount} non chargé(s)` : 'tout rentre'} />
                         </div>
-                      )}
-                      {Math.abs(balance.lateralPct) > 0.05 && (
-                        <div className="text-[10px]" style={{ color: BAL_COLORS.warn }}>Charge décentrée en largeur : équilibrez les colis lourds entre les deux côtés.</div>
-                      )}
-                      {balance.afterStops.length > 0 && (
-                        <div className="pt-2 border-t border-slate-100">
-                          <div className="font-jetbrains text-[10px] text-slate-500 mb-1">PENDANT LA TOURNÉE</div>
-                          <div className="space-y-0.5">
-                            {balance.afterStops.map((a) => (
-                              <div key={a.stop} className="flex items-center justify-between gap-2 font-jetbrains text-[10px] text-slate-600">
-                                <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full" style={{ background: BAL_COLORS[a.status] }} />Après l'arrêt {a.stop}</span>
-                                <span style={{ color: BAL_COLORS[a.status] }}>
-                                  {a.supports ? `${formatKg(Math.max(0, a.supports.front))} / ${formatKg(Math.max(0, a.supports.rear))} kg` : `${a.longitudinalPct >= 0 ? '+' : ''}${formatPct(a.longitudinalPct)} %`} · {BAL_LABEL[a.status]}
-                                </span>
+
+                        <div className="rounded-xl border border-slate-200 p-4 bg-white space-y-4">
+                          <Bar label="Poids utilisé" value={result.usedWeight} max={result.maxWeight ?? result.usedWeight} unit="kg" format={formatKg} />
+                          <Bar label="Volume utilisé" value={mm3ToM3(result.usedVolume)} max={mm3ToM3(result.containerVolume)} unit="m³" format={(v) => v.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} />
+                        </div>
+
+                        {result.loadingViolationIds.length === 0 ? (
+                          <div className="rounded-xl border px-4 py-3 text-[11px] flex items-start gap-1.5" style={{ color: '#15803D', background: '#F0FDF4', borderColor: '#BBF7D0' }}>
+                            <Check size={13} className="mt-0.5 shrink-0" />
+                            Chargement par murs, de la cabine vers les portes : chaque colis est accessible sans monter sur la marchandise.
+                          </div>
+                        ) : (
+                          <div className="rounded-xl border px-4 py-3 text-[11px] flex items-start gap-1.5" style={{ color: '#B91C1C', background: '#FEF2F2', borderColor: '#FECACA' }}>
+                            <AlertCircle size={13} className="mt-0.5 shrink-0" />
+                            {result.loadingViolationIds.length} colis devront être posés en passant par-dessus d'autres colis.
+                          </div>
+                        )}
+
+                      </>
+                    )}
+                    {currentTab === 'charges' && (
+                      <>
+                        {balance && balance.cog && (
+                          <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+                            <div className="px-4 py-2.5 border-b border-slate-100 font-jetbrains text-[10px] tracking-wider text-slate-500 flex items-center justify-between gap-2">
+                              <span className="flex items-center gap-1.5"><Scale size={12} /> RÉPARTITION DES CHARGES</span>
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ color: BAL_COLORS[balance.status], background: BAL_BG[balance.status] }}>{BAL_LABEL[balance.status]}</span>
+                            </div>
+                            <div className="px-4 py-3 space-y-3">
+                              <div className="text-[11px] text-slate-600">
+                                Centre de gravité : <strong className="text-slate-900">{fmtM(balance.cog.x)} m</strong> de la face avant
+                                {' · '}{Math.abs(balance.lateralPct) < 0.005 ? 'centré en largeur' : `${Math.round(Math.abs(balance.cog.y - container.width / 2) / 10)} cm à ${balance.cog.y > container.width / 2 ? 'droite' : 'gauche'} de l'axe`}
+                                {' · '}{fmtM(balance.cog.z)} m de haut
                               </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                      {shiftMm > 0 ? (
-                        <div className="rounded-lg px-3 py-2.5 text-[11px] flex flex-col sm:flex-row sm:items-center justify-between gap-2" style={{ background: BLUE_LIGHT, color: BLUE }}>
-                          <span>
-                            <Check size={12} className="inline -mt-0.5 mr-1" />
-                            Chargement décalé de <strong>{fmtM(shiftMm)} m</strong> vers l'arrière. Laissez cet espace libre contre la face avant et posez une <strong>barre de calage</strong>.
-                          </span>
-                          <button onClick={() => setShiftMm(0)} className="shrink-0 flex items-center gap-1 font-jetbrains text-[10px] text-slate-500 hover:text-slate-800"><Undo2 size={11} /> Annuler</button>
-                        </div>
-                      ) : shiftSuggestion && (
-                        <div className="rounded-lg px-3 py-2.5 border flex flex-col sm:flex-row sm:items-center justify-between gap-2" style={{ borderColor: '#FDE68A', background: '#FFFBEB' }}>
-                          <span className="text-[11px] text-slate-700">
-                            Correction possible sans toucher au plan :{' '}
-                            {shiftSuggestion.after.supports
-                              ? <>{axleProfile.frontLabel.toLowerCase()} à <strong style={{ color: BAL_COLORS[shiftSuggestion.after.status] }}>{Math.round(shiftSuggestion.after.supports.frontPct * 100)} %</strong></>
-                              : <>excentricité à <strong style={{ color: BAL_COLORS[shiftSuggestion.after.status] }}>{shiftSuggestion.after.longitudinalPct >= 0 ? '+' : ''}{formatPct(shiftSuggestion.after.longitudinalPct)} %</strong></>}
-                            {shiftSuggestion.partial ? ' (amélioration partielle, faute de place côté portes).' : '.'}
-                          </span>
-                          <button onClick={() => { setShiftMm(shiftSuggestion.shift); track('load_optimizer_shift_applied'); }}
-                            className="shrink-0 px-3 py-2 rounded-md font-jetbrains text-[10px] font-semibold text-white" style={{ background: BLUE }}>
-                            Décaler de {fmtM(shiftSuggestion.shift)} m vers l'arrière
-                          </button>
-                        </div>
-                      )}
-                      <div className="pt-2 border-t border-slate-100 text-[11px] text-slate-600">
-                        Arrimage : <strong className="text-slate-900">{balance.lashing.total} sangle{balance.lashing.total > 1 ? 's' : ''}</strong> par-dessus
-                        ({balance.lashing.walls.length} mur{balance.lashing.walls.length > 1 ? 's' : ''}, STF {lashingParams.stfDaN} daN, µ {String(lashingParams.mu).replace('.', ',')})
-                        {balance.lashing.perStrapKg === null ? ' : le frottement suffit, 1 sangle par mur minimum.' : `, soit ${formatKg(Math.floor(balance.lashing.perStrapKg))} kg retenus par sangle.`}
-                        <span className="text-slate-400"> Détail par mur sur la fiche.</span>
-                      </div>
-                      <div className="text-[9px] text-slate-400 leading-snug">
-                        Estimation indicative (bras de levier, arrimage par friction EN 12195-1, CTU Code). Ne remplace pas le plan d'arrimage ni les données du constructeur.
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {multiStopResult && (
-                  <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
-                    <div className="px-4 py-2.5 border-b border-slate-100 font-jetbrains text-[10px] tracking-wider text-slate-500 flex items-center gap-1.5">
-                      <MapPin size={12} /> TOURNÉE · {result.deliveryMode === 'SOFT' ? 'MODE SOUPLE' : 'MODE STRICT'}
-                    </div>
-                    <div className="divide-y divide-slate-50">
-                      {resultStops.map((s) => (
-                        <div key={s.stop} className="px-4 py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-0.5 sm:gap-2 text-[11px] font-jetbrains">
-                          <span className="flex items-center gap-1.5 text-slate-800 min-w-0">
-                            <span className="w-2.5 h-2.5 rounded-sm" style={{ background: stopColor(s.stop).solid }} />{stopLabel(s.stop, rows)}
-                          </span>
-                          <span className="text-slate-500 pl-4 sm:pl-0 whitespace-nowrap">
-                            <span style={{ color: s.unpackedItems > 0 ? '#B91C1C' : undefined }}>{s.packedItems}/{s.totalItems}</span> · {formatKg(s.packedWeight)} kg · {formatM3(s.packedVolume)} m³
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                    {result.blockedItemIds.length > 0 ? (
-                      <div className="px-4 py-2.5 border-t border-slate-100 text-[11px] flex items-start gap-1.5" style={{ color: '#B91C1C', background: '#FEF2F2' }}>
-                        <AlertCircle size={13} className="mt-0.5 shrink-0" />
-                        {result.blockedItemIds.length} colis devront être déplacés pour accéder à leur arrêt (bordure rouge sur le plan).
-                      </div>
-                    ) : (
-                      <div className="px-4 py-2.5 border-t border-slate-100 text-[11px] flex items-center gap-1.5" style={{ color: '#15803D', background: '#F0FDF4' }}>
-                        <Check size={13} /> Chaque arrêt est accessible sans déplacer de colis.
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {result.unpackedCount > 0 && multiStopResult && (
-                  <div className="rounded-xl border p-4 bg-white space-y-3" style={{ borderColor: '#FECACA' }}>
-                    <div className="font-jetbrains text-[10px] tracking-wider flex items-center gap-1.5" style={{ color: '#B91C1C' }}>
-                      <AlertCircle size={12} /> TOUT NE RENTRE PAS — QUE FAIRE ?
-                    </div>
-                    {resultStops.filter((s) => s.unpackedItems > 0).map((s) => {
-                      const refs = Object.entries(result.unpackedItems.filter((u) => u.stop === s.stop)
-                        .reduce((acc, u) => { acc[u.reference] = (acc[u.reference] || 0) + 1; return acc; }, {}));
-                      const deferred = deferredExcess.includes(s.stop);
-                      return (
-                        <div key={s.stop} className="rounded-lg border border-slate-200 p-3">
-                          <div className="flex items-center justify-between gap-2 flex-wrap">
-                            <span className="font-jetbrains text-xs font-medium text-slate-800 flex items-center gap-1.5">
-                              <span className="w-2.5 h-2.5 rounded-sm" style={{ background: stopColor(s.stop).solid }} />{stopLabel(s.stop, rows)}
-                            </span>
-                            <span className="font-jetbrains text-[11px]" style={{ color: '#B91C1C' }}>{s.unpackedItems} colis en excès sur {s.totalItems}</span>
-                          </div>
-                          <div className="font-jetbrains text-[11px] text-slate-500 mt-1">{refs.map(([ref, q]) => `${ref} ×${q}`).join(' · ')}</div>
-                          {deferred ? (
-                            <div className="mt-2 flex items-center justify-between gap-2 text-[11px] font-jetbrains" style={{ color: '#15803D' }}>
-                              <span className="flex items-center gap-1"><Check size={12} /> Excédent reporté, le reste de l'arrêt est chargé.</span>
-                              <button onClick={() => undoDefer(s.stop)} className="text-slate-400 hover:text-slate-700 flex items-center gap-1"><Undo2 size={11} /> Annuler</button>
+                              {balance.supports ? (
+                                <>
+                                  <LoadBar label={axleProfile.frontLabel} value={balance.supports.front} max={axleProfile.frontMax} />
+                                  <LoadBar label={axleProfile.rearLabel} value={balance.supports.rear} max={axleProfile.rearMax} />
+                                  <div className="text-[10px] text-slate-500">
+                                    {balance.supports.zone
+                                      ? <>Zone conseillée du centre de gravité pour {formatKg(balance.weight)} kg : <strong>{fmtM(Math.max(0, balance.supports.zone.from))} – {fmtM(Math.min(container.length, balance.supports.zone.to))} m</strong> de la face avant.</>
+                                      : 'Charge trop lourde pour respecter les deux appuis, quelle que soit la position.'}
+                                    {balance.supports.status === 'over' && (balance.supports.frontPct > 1
+                                      ? ' Trop de poids vers l’avant : reculez les colis lourds vers le milieu de la remorque.'
+                                      : ' Trop de poids vers l’arrière : avancez les colis lourds vers le milieu de la remorque.')}
+                                  </div>
+                                </>
+                              ) : (
+                                <div className="text-[11px]" style={{ color: BAL_COLORS[balance.status] }}>
+                                  Excentricité longitudinale : {balance.longitudinalPct >= 0 ? '+' : ''}{formatPct(balance.longitudinalPct)} % (tolérance ±5 %).
+                                </div>
+                              )}
+                              {Math.abs(balance.lateralPct) > 0.05 && (
+                                <div className="text-[10px]" style={{ color: BAL_COLORS.warn }}>Charge décentrée en largeur : équilibrez les colis lourds entre les deux côtés.</div>
+                              )}
+                              {balance.afterStops.length > 0 && (
+                                <div className="pt-2 border-t border-slate-100">
+                                  <div className="font-jetbrains text-[10px] text-slate-500 mb-1">PENDANT LA TOURNÉE</div>
+                                  <div className="space-y-0.5">
+                                    {balance.afterStops.map((a) => (
+                                      <div key={a.stop} className="flex items-center justify-between gap-2 font-jetbrains text-[10px] text-slate-600">
+                                        <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full" style={{ background: BAL_COLORS[a.status] }} />Après l'arrêt {a.stop}</span>
+                                        <span style={{ color: BAL_COLORS[a.status] }}>
+                                          {a.supports ? `${formatKg(Math.max(0, a.supports.front))} / ${formatKg(Math.max(0, a.supports.rear))} kg` : `${a.longitudinalPct >= 0 ? '+' : ''}${formatPct(a.longitudinalPct)} %`} · {BAL_LABEL[a.status]}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                              {shiftMm > 0 ? (
+                                <div className="rounded-lg px-3 py-2.5 text-[11px] flex flex-col sm:flex-row sm:items-center justify-between gap-2" style={{ background: BLUE_LIGHT, color: BLUE }}>
+                                  <span>
+                                    <Check size={12} className="inline -mt-0.5 mr-1" />
+                                    Chargement décalé de <strong>{fmtM(shiftMm)} m</strong> vers l'arrière. Laissez cet espace libre contre la face avant et posez une <strong>barre de calage</strong>.
+                                  </span>
+                                  <button onClick={() => setShiftMm(0)} className="shrink-0 flex items-center gap-1 font-jetbrains text-[10px] text-slate-500 hover:text-slate-800"><Undo2 size={11} /> Annuler</button>
+                                </div>
+                              ) : shiftSuggestion && (
+                                <div className="rounded-lg px-3 py-2.5 border flex flex-col sm:flex-row sm:items-center justify-between gap-2" style={{ borderColor: '#FDE68A', background: '#FFFBEB' }}>
+                                  <span className="text-[11px] text-slate-700">
+                                    Correction possible sans toucher au plan :{' '}
+                                    {shiftSuggestion.after.supports
+                                      ? <>{axleProfile.frontLabel.toLowerCase()} à <strong style={{ color: BAL_COLORS[shiftSuggestion.after.status] }}>{Math.round(shiftSuggestion.after.supports.frontPct * 100)} %</strong></>
+                                      : <>excentricité à <strong style={{ color: BAL_COLORS[shiftSuggestion.after.status] }}>{shiftSuggestion.after.longitudinalPct >= 0 ? '+' : ''}{formatPct(shiftSuggestion.after.longitudinalPct)} %</strong></>}
+                                    {shiftSuggestion.partial ? ' (amélioration partielle, faute de place côté portes).' : '.'}
+                                  </span>
+                                  <button onClick={() => { setShiftMm(shiftSuggestion.shift); track('load_optimizer_shift_applied'); }}
+                                    className="shrink-0 px-3 py-2 rounded-md font-jetbrains text-[10px] font-semibold text-white" style={{ background: BLUE }}>
+                                    Décaler de {fmtM(shiftSuggestion.shift)} m vers l'arrière
+                                  </button>
+                                </div>
+                              )}
+                              <div className="pt-2 border-t border-slate-100 text-[11px] text-slate-600">
+                                Arrimage : <strong className="text-slate-900">{balance.lashing.total} sangle{balance.lashing.total > 1 ? 's' : ''}</strong> par-dessus
+                                ({balance.lashing.walls.length} mur{balance.lashing.walls.length > 1 ? 's' : ''}, STF {lashingParams.stfDaN} daN, µ {String(lashingParams.mu).replace('.', ',')})
+                                {balance.lashing.perStrapKg === null ? ' : le frottement suffit, 1 sangle par mur minimum.' : `, soit ${formatKg(Math.floor(balance.lashing.perStrapKg))} kg retenus par sangle.`}
+                                <span className="text-slate-400"> Détail par mur sur la fiche.</span>
+                              </div>
+                              <div className="text-[9px] text-slate-400 leading-snug">
+                                Estimation indicative (bras de levier, arrimage par friction EN 12195-1, CTU Code). Ne remplace pas le plan d'arrimage ni les données du constructeur.
+                              </div>
                             </div>
-                          ) : (
-                            <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                              <button onClick={() => deferExcess(s.stop)} className="px-2.5 py-2 rounded-md text-[11px] font-jetbrains text-left" style={{ background: BLUE_LIGHT, color: BLUE }}>
-                                Reporter seulement les {s.unpackedItems} colis en excès
+                          </div>
+                        )}
+
+                      </>
+                    )}
+                    {currentTab === 'tour' && (
+                      <>
+                        {multiStopResult && (
+                          <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+                            <div className="px-4 py-2.5 border-b border-slate-100 font-jetbrains text-[10px] tracking-wider text-slate-500 flex items-center gap-1.5">
+                              <MapPin size={12} /> TOURNÉE · {result.deliveryMode === 'SOFT' ? 'MODE SOUPLE' : 'MODE STRICT'}
+                            </div>
+                            <div className="divide-y divide-slate-50">
+                              {resultStops.map((s) => (
+                                <div key={s.stop} className="px-4 py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-0.5 sm:gap-2 text-[11px] font-jetbrains">
+                                  <span className="flex items-center gap-1.5 text-slate-800 min-w-0">
+                                    <span className="w-2.5 h-2.5 rounded-sm" style={{ background: stopColor(s.stop).solid }} />{stopLabel(s.stop, rows)}
+                                  </span>
+                                  <span className="text-slate-500 pl-4 sm:pl-0 whitespace-nowrap">
+                                    <span style={{ color: s.unpackedItems > 0 ? '#B91C1C' : undefined }}>{s.packedItems}/{s.totalItems}</span> · {formatKg(s.packedWeight)} kg · {formatM3(s.packedVolume)} m³
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                            {result.blockedItemIds.length > 0 ? (
+                              <div className="px-4 py-2.5 border-t border-slate-100 text-[11px] flex items-start gap-1.5" style={{ color: '#B91C1C', background: '#FEF2F2' }}>
+                                <AlertCircle size={13} className="mt-0.5 shrink-0" />
+                                {result.blockedItemIds.length} colis devront être déplacés pour accéder à leur arrêt (bordure rouge sur le plan).
+                              </div>
+                            ) : (
+                              <div className="px-4 py-2.5 border-t border-slate-100 text-[11px] flex items-center gap-1.5" style={{ color: '#15803D', background: '#F0FDF4' }}>
+                                <Check size={13} /> Chaque arrêt est accessible sans déplacer de colis.
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                      </>
+                    )}
+                    {currentTab === 'reliquats' && (
+                      <>
+                        {result.unpackedCount > 0 && multiStopResult && (
+                          <div className="rounded-xl border p-4 bg-white space-y-3" style={{ borderColor: '#FECACA' }}>
+                            <div className="font-jetbrains text-[10px] tracking-wider flex items-center gap-1.5" style={{ color: '#B91C1C' }}>
+                              <AlertCircle size={12} /> TOUT NE RENTRE PAS — QUE FAIRE ?
+                            </div>
+                            {resultStops.filter((s) => s.unpackedItems > 0).map((s) => {
+                              const refs = Object.entries(result.unpackedItems.filter((u) => u.stop === s.stop)
+                                .reduce((acc, u) => { acc[u.reference] = (acc[u.reference] || 0) + 1; return acc; }, {}));
+                              const deferred = deferredExcess.includes(s.stop);
+                              return (
+                                <div key={s.stop} className="rounded-lg border border-slate-200 p-3">
+                                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                                    <span className="font-jetbrains text-xs font-medium text-slate-800 flex items-center gap-1.5">
+                                      <span className="w-2.5 h-2.5 rounded-sm" style={{ background: stopColor(s.stop).solid }} />{stopLabel(s.stop, rows)}
+                                    </span>
+                                    <span className="font-jetbrains text-[11px]" style={{ color: '#B91C1C' }}>{s.unpackedItems} colis en excès sur {s.totalItems}</span>
+                                  </div>
+                                  <div className="font-jetbrains text-[11px] text-slate-500 mt-1">{refs.map(([ref, q]) => `${ref} ×${q}`).join(' · ')}</div>
+                                  {deferred ? (
+                                    <div className="mt-2 flex items-center justify-between gap-2 text-[11px] font-jetbrains" style={{ color: '#15803D' }}>
+                                      <span className="flex items-center gap-1"><Check size={12} /> Excédent reporté, le reste de l'arrêt est chargé.</span>
+                                      <button onClick={() => undoDefer(s.stop)} className="text-slate-400 hover:text-slate-700 flex items-center gap-1"><Undo2 size={11} /> Annuler</button>
+                                    </div>
+                                  ) : (
+                                    <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                                      <button onClick={() => deferExcess(s.stop)} className="px-2.5 py-2 rounded-md text-[11px] font-jetbrains text-left" style={{ background: BLUE_LIGHT, color: BLUE }}>
+                                        Reporter seulement les {s.unpackedItems} colis en excès
+                                      </button>
+                                      <button onClick={() => excludeStop(s.stop)} className="px-2.5 py-2 rounded-md text-[11px] font-jetbrains text-left" style={{ background: '#FEF2F2', color: '#B91C1C' }}>
+                                        Retirer tout l'arrêt ({s.totalItems} colis) et recalculer
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                            {result.deliveryMode === 'STRICT' && (
+                              <button onClick={trySoft} className="w-full text-[11px] font-jetbrains text-slate-500 hover:text-slate-800 underline underline-offset-2">
+                                Ou essayer le mode souple (charge plus, avec des colis à déplacer en livraison)
                               </button>
-                              <button onClick={() => excludeStop(s.stop)} className="px-2.5 py-2 rounded-md text-[11px] font-jetbrains text-left" style={{ background: '#FEF2F2', color: '#B91C1C' }}>
-                                Retirer tout l'arrêt ({s.totalItems} colis) et recalculer
+                            )}
+                          </div>
+                        )}
+
+                        {leftovers.length > 0 && (
+                          <div className="rounded-xl border p-4 bg-white" style={{ borderColor: '#FDE68A' }}>
+                            <div className="flex items-center justify-between gap-2 mb-2">
+                              <div className="font-jetbrains text-[10px] tracking-wider" style={{ color: '#B45309' }}>À REPORTER SUR UN AUTRE VÉHICULE</div>
+                              <button onClick={exportLeftovers} className="flex items-center gap-1 font-jetbrains text-[10px] px-2 py-1 rounded-md" style={{ background: '#FFFBEB', color: '#B45309' }}>
+                                <Download size={11} /> Excel
                               </button>
                             </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                    {result.deliveryMode === 'STRICT' && (
-                      <button onClick={trySoft} className="w-full text-[11px] font-jetbrains text-slate-500 hover:text-slate-800 underline underline-offset-2">
-                        Ou essayer le mode souple (charge plus, avec des colis à déplacer en livraison)
-                      </button>
+                            <div className="space-y-1">
+                              {leftovers.map((l, i) => (
+                                <div key={i} className="flex items-center gap-2 text-[11px] font-jetbrains text-slate-600">
+                                  <span className="text-slate-800">{stopLabel(l.stop, rows)}</span>
+                                  <span>{l.reference} ×{l.quantity}</span>
+                                  <span className="text-slate-400">· {l.reason}</span>
+                                </div>
+                              ))}
+                            </div>
+                            {excludedStops.length > 0 && (
+                              <div className="mt-2 flex flex-wrap gap-1.5">
+                                {excludedStops.map((s) => (
+                                  <button key={s} onClick={() => restoreStop(s)} className="flex items-center gap-1 font-jetbrains text-[10px] px-2 py-1 rounded-md" style={{ background: '#F1F5F9', color: '#475569' }}>
+                                    <Undo2 size={11} /> Réintégrer l'arrêt {s}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {result.unpackedCount > 0 && !multiStopResult && (
+                          <div className="rounded-xl border p-4 bg-white" style={{ borderColor: '#FECACA' }}>
+                            <div className="font-jetbrains text-[10px] tracking-wider mb-2 flex items-center gap-1.5" style={{ color: '#B91C1C' }}>
+                              <AlertCircle size={12} /> MARCHANDISES NON CHARGÉES
+                            </div>
+                            <div className="space-y-1">
+                              {Object.entries(result.unpackedItems.reduce((acc, u) => { acc[u.reference] = (acc[u.reference] || 0) + 1; return acc; }, {})).map(([ref, qty]) => (
+                                <div key={ref} className="flex items-center gap-2 text-xs font-jetbrains text-slate-600">
+                                  <span className="font-medium text-slate-800">{ref}</span>
+                                  <span className="text-slate-500">{qty} u.</span>
+                                  <span className="text-slate-300">·</span>
+                                  <span style={{ color: '#B91C1C' }}>Aucun emplacement compatible trouvé.</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                      </>
                     )}
                   </div>
-                )}
+                </div>
 
-                {leftovers.length > 0 && (
-                  <div className="rounded-xl border p-4 bg-white" style={{ borderColor: '#FDE68A' }}>
-                    <div className="flex items-center justify-between gap-2 mb-2">
-                      <div className="font-jetbrains text-[10px] tracking-wider" style={{ color: '#B45309' }}>À REPORTER SUR UN AUTRE VÉHICULE</div>
-                      <button onClick={exportLeftovers} className="flex items-center gap-1 font-jetbrains text-[10px] px-2 py-1 rounded-md" style={{ background: '#FFFBEB', color: '#B45309' }}>
-                        <Download size={11} /> Excel
-                      </button>
-                    </div>
-                    <div className="space-y-1">
-                      {leftovers.map((l, i) => (
-                        <div key={i} className="flex items-center gap-2 text-[11px] font-jetbrains text-slate-600">
-                          <span className="text-slate-800">{stopLabel(l.stop, rows)}</span>
-                          <span>{l.reference} ×{l.quantity}</span>
-                          <span className="text-slate-400">· {l.reason}</span>
-                        </div>
-                      ))}
-                    </div>
-                    {excludedStops.length > 0 && (
-                      <div className="mt-2 flex flex-wrap gap-1.5">
-                        {excludedStops.map((s) => (
-                          <button key={s} onClick={() => restoreStop(s)} className="flex items-center gap-1 font-jetbrains text-[10px] px-2 py-1 rounded-md" style={{ background: '#F1F5F9', color: '#475569' }}>
-                            <Undo2 size={11} /> Réintégrer l'arrêt {s}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {result.unpackedCount > 0 && !multiStopResult && (
-                  <div className="rounded-xl border p-4 bg-white" style={{ borderColor: '#FECACA' }}>
-                    <div className="font-jetbrains text-[10px] tracking-wider mb-2 flex items-center gap-1.5" style={{ color: '#B91C1C' }}>
-                      <AlertCircle size={12} /> MARCHANDISES NON CHARGÉES
-                    </div>
-                    <div className="space-y-1">
-                      {Object.entries(result.unpackedItems.reduce((acc, u) => { acc[u.reference] = (acc[u.reference] || 0) + 1; return acc; }, {})).map(([ref, qty]) => (
-                        <div key={ref} className="flex items-center gap-2 text-xs font-jetbrains text-slate-600">
-                          <span className="font-medium text-slate-800">{ref}</span>
-                          <span className="text-slate-500">{qty} u.</span>
-                          <span className="text-slate-300">·</span>
-                          <span style={{ color: '#B91C1C' }}>Aucun emplacement compatible trouvé.</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                <button onClick={optimize} className="w-full flex items-center justify-center gap-2 py-2 rounded-lg font-jetbrains text-xs text-slate-500 hover:text-slate-800 border border-slate-200 bg-white">
+                <button onClick={optimize} className="xl:hidden w-full flex items-center justify-center gap-2 py-2 rounded-lg font-jetbrains text-xs text-slate-500 hover:text-slate-800 border border-slate-200 bg-white">
                   <RotateCcw size={13} /> Relancer le calcul
                 </button>
               </>
