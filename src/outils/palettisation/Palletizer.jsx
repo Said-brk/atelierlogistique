@@ -5,7 +5,7 @@ import { useState, useMemo, useEffect, lazy, Suspense, Component } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import {
-  ArrowLeft, Upload, Download, Boxes, Package, Loader2, Truck, Printer, AlertCircle, Check, ArrowRight, Layers,
+  ArrowLeft, Upload, Download, Boxes, Loader2, Truck, Printer, AlertCircle, Check, ArrowRight, Layers,
 } from 'lucide-react';
 import ColisTable from '../optimiseur-chargement/components/ColisTable';
 import {
@@ -16,8 +16,9 @@ import { track } from '../optimiseur-chargement/analytics';
 import { createLocalProfileStore, toCsv, downloadText } from '../../shared/import';
 import { sendHandoff } from '../../shared/handoff';
 import { COLIS_SCHEMA, STANDARD_HEADERS, STANDARD_SAMPLE, recordsToColisRows } from '../optimiseur-chargement/import/colisSchema';
-import { palletize } from './engine/palletize';
-import { PALLET_PRESETS, DEFAULT_PALLET } from './engine/presets';
+import { palletizeMulti } from './engine/palletize';
+import SupportsPanel from './SupportsPanel';
+import { loadSupports, saveSupports, matchSupport } from './supportsStore';
 import { palletsToLoadRecords, palletLabel, palletStackingLabel, HEAVY_PALLET_KG } from './engine/toLoad';
 
 const LoadView3D = lazy(() => import('../optimiseur-chargement/LoadView3D.jsx'));
@@ -52,26 +53,12 @@ function exampleRows() {
   ];
 }
 
-const cmToMm = (v) => Math.round(Number(v) * 10);
 const mmToCm = (v) => Math.round(v) / 10;
 const fmtCm = (mm) => mmToCm(mm).toLocaleString('fr-FR', { maximumFractionDigits: 1 });
 const pct = (r) => `${Math.round(r * 100)} %`;
 /** Type affiché : complète (couches pleines), mono-référence incomplète, ou mixte. */
 const kindLabel = (p) => (p.kind === 'FULL' ? 'complète' : p.contents.length === 1 ? 'mono-référence' : 'mixte');
 const isMixed = (p) => p.contents.length > 1;
-
-function Field({ label, unit, value, onChange, step = '1' }) {
-  return (
-    <label className="block min-w-0">
-      <span className="block font-jetbrains text-[10px] text-slate-500 mb-0.5">{label}</span>
-      <span className="flex items-center gap-1.5">
-        <input type="number" inputMode="decimal" min="0" step={step} value={value} onChange={(e) => onChange(e.target.value)}
-          className="w-full px-2 py-1.5 bg-white border border-slate-200 rounded-md outline-none font-jetbrains text-base sm:text-xs text-slate-800 focus:border-slate-400" />
-        <span className="font-jetbrains text-[10px] text-slate-400 shrink-0">{unit}</span>
-      </span>
-    </label>
-  );
-}
 
 function Toggle({ checked, onChange, label, help }) {
   return (
@@ -121,14 +108,16 @@ const PRINT_CSS = `
 }
 `;
 
-function PrintSheet({ result, spec, colorOf }) {
+function PrintSheet({ result, colorOf }) {
+  const specOf = (p) => result.specs.find((s) => s.id === p.specId) ?? result.specs[0];
+  const used = [...new Set(result.pallets.map((p) => specOf(p).label))].join(', ');
   const date = new Date().toLocaleDateString('fr-FR');
   return (
     <div className="pz-print-sheet" style={{ fontFamily: "'DM Sans', system-ui, sans-serif", color: '#0F172A' }}>
       <style>{PRINT_CSS}</style>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', borderBottom: '2px solid #0F172A', paddingBottom: 6, marginBottom: 10 }}>
         <div style={{ fontSize: 18, fontWeight: 700 }}>Plan de palettisation</div>
-        <div style={{ fontSize: 10, color: '#475569' }}>{date} · {spec.label} · hauteur maxi {fmtCm(spec.maxTotalHeight)} cm · atelierlogistique.com</div>
+        <div style={{ fontSize: 10, color: '#475569' }}>{date} · {used} · atelierlogistique.com</div>
       </div>
       <div style={{ fontSize: 11, marginBottom: 10 }}>
         {result.pallets.length} palette(s) · {result.palletizedItems} colis · {formatKg(result.pallets.reduce((s, p) => s + p.totalWeight, 0))} kg (tare incluse)
@@ -138,14 +127,14 @@ function PrintSheet({ result, spec, colorOf }) {
         {result.pallets.map((p) => (
           <div key={p.id} className="pz-pallet" style={{ border: '1px solid #CBD5E1', borderRadius: 6, padding: 8 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, fontWeight: 700 }}>
-              <span>{p.id} · {kindLabel(p)}</span>
+              <span>{p.id} · {kindLabel(p)} · {specOf(p).label}</span>
               <span>Arrêt {p.stop}{p.destination ? ` · ${p.destination}` : ''}</span>
             </div>
             <div style={{ fontSize: 10, color: '#475569', margin: '2px 0 6px' }}>
               H {fmtCm(p.totalHeight)} cm · {formatKg(p.totalWeight)} kg{p.kind === 'FULL' ? ` · ${p.layers} couches × ${p.perLayer} (alternées)` : ''} · {p.stackable ? 'gerbable' : 'non gerbable'}
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
-              <TopView pallet={p} spec={spec} colorOf={colorOf} size={130} />
+              <TopView pallet={p} spec={specOf(p)} colorOf={colorOf} size={130} />
               <table style={{ fontSize: 10, borderCollapse: 'collapse', flex: 1 }}>
                 <tbody>
                   {p.contents.map((c) => (
@@ -167,10 +156,11 @@ function PrintSheet({ result, spec, colorOf }) {
 export default function Palletizer({ onBack }) {
   const navigate = useNavigate();
   const [rows, setRows] = useState(exampleRows);
-  const [presetId, setPresetId] = useState(DEFAULT_PALLET.id);
-  const [spec, setSpec] = useState(DEFAULT_PALLET);
+  const [supports, setSupports] = useState(loadSupports);
   const [fullFirst, setFullFirst] = useState(true);
   const [separateStops, setSeparateStops] = useState(true);
+  const [formatMode, setFormatMode] = useState('stop'); // 'stop' | 'shipment' | 'free'
+  const [forcedStops, setForcedStops] = useState({});
   const [stacking, setStacking] = useState('AUTO');
   const [result, setResult] = useState(null);
   const [running, setRunning] = useState(false);
@@ -192,25 +182,38 @@ export default function Palletizer({ onBack }) {
   const removeRow = (id) => { setRows((rs) => rs.filter((r) => r.id !== id)); invalidate(); };
   const addRow = () => setRows((rs) => [...rs, { ...emptyRow(), rotationMode: 'HORIZONTAL' }]);
 
-  const pickPreset = (id) => {
-    setPresetId(id);
-    const p = PALLET_PRESETS.find((x) => x.id === id);
-    if (p) setSpec({ ...p, maxTotalHeight: spec.maxTotalHeight, maxLoad: spec.maxLoad });
-    invalidate();
-  };
-  const setSpecCm = (field, v) => { setSpec((s) => ({ ...s, [field]: cmToMm(v) })); if (['length', 'width', 'deckHeight'].includes(field)) setPresetId('custom'); invalidate(); };
-  const setSpecKg = (field, v) => { setSpec((s) => ({ ...s, [field]: Math.max(0, Number(v) || 0) })); if (field === 'tare') setPresetId('custom'); invalidate(); };
+  const changeSupports = (next) => { setSupports(next); saveSupports(next); invalidate(); };
+  const available = useMemo(() => supports.filter((s) => s.available && s.length > 0 && s.width > 0), [supports]);
+  const stops = useMemo(() => {
+    const m = new Map();
+    for (const r of rows) { const st = r.stop ?? 1; if (!m.has(st)) m.set(st, r.destination || ''); }
+    return [...m.entries()].sort((a, b) => a[0] - b[0]);
+  }, [rows]);
+  const supportSelect = useMemo(() => ({
+    field: 'support', label: 'Support', title: 'Support imposé pour cette ligne (vide = automatique)',
+    options: [{ value: '', label: 'Auto' }, ...available.map((s) => ({ value: s.id, label: s.label.split(' ')[0] }))],
+  }), [available]);
 
   const colorIndex = useMemo(() => Object.fromEntries(rows.map((r, i) => [r.id, i])), [rows]);
   const colorOf = (item) => refColor(colorIndex[item.definitionId] ?? 0);
-  const valid = rowsAreValid(rows);
+  const valid = rowsAreValid(rows) && available.length > 0;
+  const specOf = (p) => result?.specs.find((s) => s.id === p.specId) ?? available[0];
 
   const run = () => {
     if (!valid) return;
     setRunning(true);
     // Laisse le navigateur afficher l'indicateur avant le calcul.
     setTimeout(() => {
-      const r = palletize(rowsToDefinitions(rows), spec, { fullPalletsFirst: fullFirst, separateStops });
+      // Support imposé par ligne : saisi dans le tableau ou importé (EUR, EUR3, 120x100…).
+      const forcedByDefinition = {};
+      for (const row of rows) {
+        const sp = matchSupport(row.support, available);
+        if (sp) forcedByDefinition[row.id] = sp.id;
+      }
+      const forcedByStop = Object.fromEntries(Object.entries(forcedStops).filter(([, v]) => available.some((s) => s.id === v)));
+      const r = palletizeMulti(rowsToDefinitions(rows), available, {
+        fullPalletsFirst: fullFirst, separateStops, oneFormatPerStop: formatMode !== 'free', oneFormatPerShipment: formatMode === 'shipment', forcedByDefinition, forcedByStop,
+      });
       setResult(r);
       setActive(0);
       setRunning(false);
@@ -232,11 +235,11 @@ export default function Palletizer({ onBack }) {
 
   const exportCsv = () => {
     if (!result) return;
-    const headers = ['Palette', 'Type', 'Arrêt', 'Destination', 'Référence', 'Quantité', 'Couches', 'Colis par couche',
+    const headers = ['Palette', 'Type', 'Support', 'Arrêt', 'Destination', 'Référence', 'Quantité', 'Couches', 'Colis par couche',
       'Longueur (cm)', 'Largeur (cm)', 'Hauteur totale (cm)', 'Poids total (kg)', 'Remplissage (%)', 'Gerbage'];
     const lines = result.pallets.flatMap((p) => p.contents.map((c) => [
-      p.id, kindLabel(p), p.stop, p.destination, c.reference, c.quantity,
-      p.layers || '', p.perLayer || '', mmToCm(spec.length), mmToCm(spec.width), mmToCm(p.totalHeight),
+      p.id, kindLabel(p), specOf(p).label, p.stop, p.destination, c.reference, c.quantity,
+      p.layers || '', p.perLayer || '', mmToCm(specOf(p).length), mmToCm(specOf(p).width), mmToCm(p.totalHeight),
       Math.round(p.totalWeight * 10) / 10, Math.round(p.volumeFill * 100), palletStackingLabel(p, stacking),
     ]));
     downloadText(`palettisation-${new Date().toISOString().slice(0, 10)}.csv`, toCsv(headers, lines));
@@ -249,7 +252,7 @@ export default function Palletizer({ onBack }) {
       schemaId: COLIS_SCHEMA.id,
       schemaVersion: COLIS_SCHEMA.version,
       source: { tool: 'pallet', label: 'Palettisation 3D' },
-      records: palletsToLoadRecords(result.pallets, spec, stacking),
+      records: palletsToLoadRecords(result.pallets, result.specs, stacking),
       extra: { unitLabel: 'palette(s)' },
     });
     track('pallet_sent_to_load_optimizer', { pallets: result.pallets.length });
@@ -257,7 +260,8 @@ export default function Palletizer({ onBack }) {
   };
 
   const pallet = result?.pallets[active] ?? null;
-  const palletContainer = useMemo(() => ({ id: 'pal', label: spec.label, length: spec.length, width: spec.width, height: Math.max(1, spec.maxTotalHeight - spec.deckHeight), maxWeight: spec.maxLoad }), [spec]);
+  const spec = pallet ? specOf(pallet) : null;
+  const palletContainer = spec ? { id: 'pal', label: spec.label, length: spec.length, width: spec.width, height: Math.max(1, spec.maxTotalHeight - spec.deckHeight), maxWeight: spec.maxLoad } : null;
   const totals = useMemo(() => {
     if (!result) return null;
     const ps = result.pallets;
@@ -269,6 +273,8 @@ export default function Palletizer({ onBack }) {
       fill: ps.length ? ps.reduce((s, p) => s + p.volumeFill, 0) / ps.length : 0,
       stops: new Set(ps.map((p) => p.stop)).size,
       unplaced: result.unplaced.reduce((s, u) => s + u.quantity, 0),
+      bySupport: Object.entries(ps.reduce((m, p) => { const l = (result.specs.find((x) => x.id === p.specId)?.label ?? p.specId).split(' ')[0]; m[l] = (m[l] ?? 0) + 1; return m; }, {})),
+      cost: ps.reduce((s, p) => s + (result.specs.find((x) => x.id === p.specId)?.cost ?? 0), 0),
     };
   }, [result]);
 
@@ -320,37 +326,14 @@ export default function Palletizer({ onBack }) {
               : { background: '#F0FDF4', color: '#15803D', border: '1px solid #BBF7D0' }}>{msg.text}</div>
           )}
           <ColisTable rows={rows} updateRow={updateRow} updateStacking={updateStacking} removeRow={removeRow} addRow={addRow}
+            extraSelect={available.length > 1 ? supportSelect : null}
             footerHint="dimensions en cm · poids en kg · un arrêt = des palettes séparées" />
         </div>
 
         {/* 2. Palette + options */}
         <div className="grid grid-cols-1 xl:grid-cols-5 gap-4 sm:gap-5 items-start">
-          <div className="xl:col-span-3 rounded-xl border border-slate-200 overflow-hidden bg-white">
-            <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 font-jetbrains text-xs text-slate-600 flex items-center gap-2"><Package size={13} /> 2 · CHOISISSEZ LA PALETTE</div>
-            <div className="p-4 space-y-4">
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                {PALLET_PRESETS.map((p) => (
-                  <button key={p.id} onClick={() => pickPreset(p.id)} className="text-left px-3 py-2 rounded-lg border transition-colors"
-                    style={presetId === p.id ? { borderColor: BLUE, background: BLUE_LIGHT } : { borderColor: '#E2E8F0', background: '#fff' }}>
-                    <div className="text-xs font-medium text-slate-800">{p.label}</div>
-                    <div className="font-jetbrains text-[10px] text-slate-500">tare {p.tare} kg</div>
-                  </button>
-                ))}
-                <div className="px-3 py-2 rounded-lg border text-left" style={presetId === 'custom' ? { borderColor: BLUE, background: BLUE_LIGHT } : { borderColor: '#E2E8F0' }}>
-                  <div className="text-xs font-medium text-slate-800">Personnalisée</div>
-                  <div className="font-jetbrains text-[10px] text-slate-500">modifiez les cotes</div>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-                <Field label="Longueur" unit="cm" value={mmToCm(spec.length)} onChange={(v) => setSpecCm('length', v)} />
-                <Field label="Largeur" unit="cm" value={mmToCm(spec.width)} onChange={(v) => setSpecCm('width', v)} />
-                <Field label="Hauteur plateau" unit="cm" step="0.1" value={mmToCm(spec.deckHeight)} onChange={(v) => setSpecCm('deckHeight', v)} />
-                <Field label="Tare" unit="kg" value={spec.tare} onChange={(v) => setSpecKg('tare', v)} />
-                <Field label="Hauteur totale maxi" unit="cm" value={mmToCm(spec.maxTotalHeight)} onChange={(v) => setSpecCm('maxTotalHeight', v)} />
-                <Field label="Charge maxi" unit="kg" value={spec.maxLoad} onChange={(v) => setSpecKg('maxLoad', v)} />
-              </div>
-              <p className="font-jetbrains text-[10px] text-slate-400">Hauteur maxi : 180 cm en messagerie, jusqu’à 260 cm en lot complet (hauteur utile d’une semi). Vérifiez aussi le cahier des charges de votre client.</p>
-            </div>
+          <div className="xl:col-span-3">
+            <SupportsPanel supports={supports} onChange={changeSupports} />
           </div>
 
           <div className="xl:col-span-2 rounded-xl border border-slate-200 bg-white p-4 space-y-3">
@@ -359,6 +342,33 @@ export default function Palletizer({ onBack }) {
               help="Plan de couche optimisé et couches alternées ; seuls les reliquats partent en palettes mixtes." />
             <Toggle checked={separateStops} onChange={(v) => { setSeparateStops(v); invalidate(); }} label="Une palette = un seul arrêt"
               help="Aucune palette ne mélange deux destinations (déchargement sans dépalettiser)." />
+            {available.length > 1 && (
+              <label className="block text-xs text-slate-700">
+                <span className="block mb-1">Format de palette</span>
+                <select value={formatMode} onChange={(e) => { setFormatMode(e.target.value); invalidate(); }}
+                  className="w-full text-base sm:text-xs border border-slate-200 rounded-md px-2 py-1.5 bg-white">
+                  <option value="stop">Un format par destination (recommandé)</option>
+                  <option value="shipment">Un seul format pour tout l’envoi (même camion)</option>
+                  <option value="free">Libre : le meilleur support par référence</option>
+                </select>
+                <span className="block text-[11px] text-slate-500 mt-0.5">Mélanger 80 et 100 cm de large dans un camion désaligne les rangées et fait perdre de la place.</span>
+              </label>
+            )}
+            {separateStops && available.length > 1 && stops.length > 0 && (
+              <div className="rounded-lg border border-slate-200 px-3 py-2 space-y-1.5">
+                <div className="font-jetbrains text-[10px] text-slate-500">SUPPORT EXIGÉ PAR LE DESTINATAIRE</div>
+                {stops.map(([st, dest]) => (
+                  <label key={st} className="flex items-center gap-2 text-xs text-slate-700">
+                    <span className="flex-1 truncate">Arrêt {st}{dest ? ` · ${dest}` : ''}</span>
+                    <select value={forcedStops[st] ?? ''} onChange={(e) => { setForcedStops((f) => ({ ...f, [st]: e.target.value })); invalidate(); }}
+                      className="text-base sm:text-xs border border-slate-200 rounded-md px-2 py-1 bg-white">
+                      <option value="">Automatique</option>
+                      {available.map((sp) => <option key={sp.id} value={sp.id}>{sp.label}</option>)}
+                    </select>
+                  </label>
+                ))}
+              </div>
+            )}
             <div className="grid grid-cols-3 gap-2 pt-1 text-center">
               <div><div className="font-jetbrains text-[10px] text-slate-500">Colis</div><div className="font-bricolage font-bold text-xl" style={{ color: BLUE }}>{rows.reduce((s, r) => s + (r.quantity || 0), 0)}</div></div>
               <div><div className="font-jetbrains text-[10px] text-slate-500">Références</div><div className="font-bricolage font-bold text-xl text-slate-800">{rows.length}</div></div>
@@ -369,7 +379,7 @@ export default function Palletizer({ onBack }) {
               style={{ background: valid ? BLUE : '#CBD5E1' }}>
               {running ? <><Loader2 size={15} className="animate-spin" /> Calcul…</> : <>Calculer la palettisation <ArrowRight size={15} /></>}
             </button>
-            {!valid && <div className="text-[11px] text-red-600 flex items-center gap-1"><AlertCircle size={12} /> Complétez les lignes du tableau.</div>}
+            {!valid && <div className="text-[11px] text-red-600 flex items-center gap-1"><AlertCircle size={12} /> {available.length === 0 ? 'Cochez au moins un support disponible.' : 'Complétez les lignes du tableau.'}</div>}
           </div>
         </div>
 
@@ -396,7 +406,7 @@ export default function Palletizer({ onBack }) {
                   </ViewBoundary>
                   <div className="px-4 py-3 border-t border-slate-100 grid sm:grid-cols-2 gap-3">
                     <div>
-                      <div className="font-bricolage font-semibold text-slate-900">{pallet.id} · palette {kindLabel(pallet)}</div>
+                      <div className="font-bricolage font-semibold text-slate-900">{pallet.id} · palette {kindLabel(pallet)} · {spec.label}</div>
                       <div className="font-jetbrains text-[11px] text-slate-500">
                         Arrêt {pallet.stop}{pallet.destination ? ` · ${pallet.destination}` : ''} · H {fmtCm(pallet.totalHeight)} cm · {formatKg(pallet.totalWeight)} kg · remplissage {pct(pallet.volumeFill)}
                       </div>
@@ -421,11 +431,21 @@ export default function Palletizer({ onBack }) {
               <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
                 <div className="font-jetbrains text-xs text-slate-600">RÉSULTAT</div>
                 <div className="grid grid-cols-2 gap-2">
-                  <Kpi label="Palettes" value={result.pallets.length} sub={`${totals.full} complète(s) · ${totals.mixed} mixte(s)`} />
+                  <Kpi label="Palettes" value={result.pallets.length} sub={`${totals.bySupport.map(([l, n]) => `${n} ${l}`).join(' · ')}${totals.cost ? ` · ${totals.cost.toLocaleString('fr-FR')} €` : ''}`} />
                   <Kpi label="Colis palettisés" value={`${result.palletizedItems}/${result.totalItems}`} sub={totals.unplaced ? `${totals.unplaced} non palettisé(s)` : 'tout est palettisé'} />
                   <Kpi label="Poids total" value={`${formatKg(totals.weight)} kg`} sub="tare incluse" />
                   <Kpi label="Remplissage moyen" value={pct(totals.fill)} sub={`hauteur maxi ${fmtCm(totals.maxH)} cm`} />
                 </div>
+                {result.choices.length > 0 && result.specs.length > 1 && (
+                  <div className="rounded-md px-3 py-2 space-y-1" style={{ background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+                    <div className="font-jetbrains text-[10px] text-slate-500">CHOIX DES SUPPORTS</div>
+                    {result.choices.map((c) => (
+                      <div key={c.stop} className="text-[11px] text-slate-700">
+                        <span className="font-jetbrains text-slate-500">{separateStops && c.stop > 0 ? `Arrêt ${c.stop}${c.destination ? ` · ${c.destination}` : ''}` : 'Envoi'} → </span>{c.reason}
+                      </div>
+                    ))}
+                  </div>
+                )}
                 {result.unplaced.length > 0 && (
                   <div className="rounded-md px-3 py-2 text-[11px]" style={{ background: '#FEF2F2', color: '#B91C1C', border: '1px solid #FECACA' }}>
                     {result.unplaced.map((u) => <div key={u.definitionId + u.reason}>{u.reference} ×{u.quantity} : {u.reason}</div>)}
@@ -475,7 +495,7 @@ export default function Palletizer({ onBack }) {
       </div>
 
       {result && createPortal(
-        <div className="pz-print-root"><PrintSheet result={result} spec={spec} colorOf={colorOf} /></div>,
+        <div className="pz-print-root"><PrintSheet result={result} colorOf={colorOf} /></div>,
         document.body,
       )}
     </div>

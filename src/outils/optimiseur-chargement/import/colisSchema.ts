@@ -8,7 +8,7 @@ export const COLIS_SCHEMA: DatasetSchema = {
   id: 'atelier-logistique/colis',
   version: 1,
   label: 'Colis à charger',
-  groupKey: ['reference', 'length', 'width', 'height', 'weight', 'rotation', 'stacking', 'stop', 'destination'],
+  groupKey: ['reference', 'length', 'width', 'height', 'weight', 'rotation', 'stacking', 'stop', 'destination', 'support'],
   quantityField: 'quantity',
   unitField: 'unitId',
   fields: [
@@ -39,6 +39,9 @@ export const COLIS_SCHEMA: DatasetSchema = {
     { id: 'unitId', label: 'N° support (SSCC)', type: 'text',
       aliases: ['sscc', 'n support', 'no support', 'numero support', 'id colis', 'numero colis', 'n colis', 'lpn', 'license plate', 'hu', 'n um', 'etiquette'],
       help: 'Identifiant de chaque palette / colis : repris dans l’export de séquence pour votre WMS.' },
+    { id: 'support', label: 'Support imposé', type: 'text',
+      aliases: ['support', 'type de support', 'type palette', 'type de palette', 'format palette'],
+      help: 'Palettisation : palette exigée pour cette ligne (EUR, EUR3, 120x100…). Vide = choix automatique.' },
   ],
 };
 
@@ -97,6 +100,8 @@ export interface ColisRow {
   destination: string;
   /** Identifiants d'unités (SSCC…) dans l'ordre du fichier, repris à l'export. */
   unitIds?: string[];
+  /** Support de palettisation imposé (texte libre : EUR, EUR3, 120x100…). */
+  support?: string;
 }
 
 /**
@@ -136,6 +141,7 @@ export function recordsToColisRows(
         const ids = Array.isArray(r.__units) ? (r.__units as string[]) : r.unitId ? [String(r.unitId)] : [];
         return ids.length ? { unitIds: ids } : {};
       })(),
+      ...(r.support ? { support: String(r.support).trim() } : {}),
     };
   });
 }

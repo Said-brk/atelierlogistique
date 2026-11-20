@@ -40,11 +40,15 @@ export function palletLabel(p: PalletPlan): string {
  * quantité = nombre de palettes, identifiants PAL-xxx conservés (unités).
  */
 export function palletsToLoadRecords(
-  pallets: PalletPlan[], spec: PalletSpec, stacking: PalletStacking = 'AUTO',
+  pallets: PalletPlan[], specs: PalletSpec | readonly PalletSpec[], stacking: PalletStacking = 'AUTO',
 ): CanonicalRecord[] {
+  const list = Array.isArray(specs) ? specs : [specs as PalletSpec];
+  const specOf = (p: PalletPlan) => list.find((s) => s.id === p.specId) ?? list[0];
   const map = new Map<string, CanonicalRecord>();
   for (const p of pallets) {
+    const spec = specOf(p);
     const sig = [
+      p.specId,
       p.contents.map((c) => `${c.definitionId}:${c.quantity}`).join(','),
       Math.round(p.totalHeight), Math.round(p.totalWeight), p.stop, p.destination,
       palletStackingLabel(p, stacking),
@@ -56,7 +60,8 @@ export function palletsToLoadRecords(
       continue;
     }
     map.set(sig, {
-      reference: palletLabel(p),
+      // Plusieurs formats possibles : le format figure dans le libellé (« … · 120×100 »).
+      reference: list.length > 1 ? `${palletLabel(p)} · ${spec.length / 10}×${spec.width / 10}` : palletLabel(p),
       quantity: 1,
       length: spec.length,
       width: spec.width,

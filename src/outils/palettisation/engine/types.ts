@@ -15,6 +15,8 @@ export interface PalletSpec {
   maxTotalHeight: number;
   /** Charge maximale (hors tare), kg. */
   maxLoad: number;
+  /** Coût unitaire facultatif (€) : départage deux supports équivalents. */
+  cost?: number;
 }
 
 export interface PalletizeOptions {
@@ -24,6 +26,28 @@ export interface PalletizeOptions {
   separateStops?: boolean;
   /** Autoriser les palettes mixtes (sinon les reliquats restent non palettisés). */
   allowMixed?: boolean;
+  /**
+   * Un seul format de support par arrêt (défaut : oui). Mélanger EUR (80 cm) et EUR3 (100 cm)
+   * dans un camion casse l'alignement des rangées et fait perdre de la place.
+   */
+  oneFormatPerStop?: boolean;
+  /**
+   * Un seul format pour tout l'envoi (tous arrêts) : à privilégier quand toutes les palettes
+   * partent dans le même camion. Prioritaire sur oneFormatPerStop.
+   */
+  oneFormatPerShipment?: boolean;
+  /** Support imposé par ligne (definitionId → id du support). Prioritaire sur l'arrêt. */
+  forcedByDefinition?: Record<string, string>;
+  /** Support imposé par arrêt (n° d'arrêt → id du support), ex. exigence du client. */
+  forcedByStop?: Record<number, string>;
+}
+
+/** Choix de support pour un groupe (un arrêt) et sa justification. */
+export interface SupportChoice {
+  stop: number;
+  destination: string;
+  specIds: string[];
+  reason: string;
 }
 
 export type PalletKind = 'FULL' | 'MIXED';
@@ -33,6 +57,8 @@ export interface PalletContent { definitionId: string; reference: string; quanti
 export interface PalletPlan {
   index: number;          // 1-based
   id: string;             // PAL-001
+  /** Support utilisé (PalletSpec.id). */
+  specId: string;
   kind: PalletKind;
   stop: number;
   destination: string;
@@ -57,6 +83,9 @@ export interface UnplacedLine { definitionId: string; reference: string; quantit
 
 export interface PalletizeResult {
   pallets: PalletPlan[];
+  /** Supports utilisables pendant le calcul (pour retrouver un PalletSpec par id). */
+  specs: PalletSpec[];
+  choices: SupportChoice[];
   unplaced: UnplacedLine[];
   totalItems: number;
   palletizedItems: number;
