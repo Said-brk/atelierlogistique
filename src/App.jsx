@@ -827,11 +827,13 @@ function ToolCard({ tool, onLaunch }) {
 function Logo({ small }) {
   const size = small ? 'w-7 h-7' : 'w-10 h-10';
   return (
-    <img
-      src="/favicon_atelierlogistique.png"
-      alt="Atelier Logistique"
-      className={`${size} object-contain`}
-    />
+    <svg viewBox="0 0 120 120" role="img" aria-label="Atelier Logistique" className={`${size} shrink-0`}>
+      <path d="M16 104 L60 16 L104 104" fill="none" stroke="#0F172A" strokeWidth="13" strokeLinecap="round" strokeLinejoin="round" />
+      <line x1="38" y1="72" x2="82" y2="72" stroke="#2563EB" strokeWidth="7" strokeLinecap="round" strokeDasharray="2 12" />
+      <circle cx="16" cy="104" r="11" fill="#2563EB" />
+      <circle cx="104" cy="104" r="11" fill="#2563EB" />
+      <circle cx="60" cy="16" r="11" fill="#F59E0B" />
+    </svg>
   );
 }
 
@@ -9514,13 +9516,30 @@ function generateAuditPdf(audit, companyName, currency) {
     setFill(C.amberDk);
     doc.rect(0, PH - 8, PW, 8, 'F');
 
-    // Logo Atelier Logistique (simulé : carré ambre + texte)
-    setFill(C.amber);
-    doc.roundedRect(M.l, M.t, 12, 12, 2, 2, 'F');
-    setText(C.ink);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(11);
-    doc.text('A', M.l + 6, M.t + 8.5, { align: 'center' });
+    // Logo Atelier Logistique (symbole « itinéraire » : A en réseau à 3 nœuds)
+    {
+      const k = 12 / 120; // boîte de 12 mm
+      const px = (v) => M.l + v * k;
+      const py = (v) => M.t + v * k;
+      doc.setLineCap('round');
+      doc.setLineJoin('round');
+      setDraw(C.white);
+      doc.setLineWidth(13 * k);
+      doc.line(px(16), py(104), px(60), py(16));
+      doc.line(px(60), py(16), px(104), py(104));
+      setDraw([147, 197, 253]);
+      doc.setLineWidth(7 * k);
+      doc.setLineDashPattern([0.2, 1.2], 0);
+      doc.line(px(38), py(72), px(82), py(72));
+      doc.setLineDashPattern([], 0);
+      setFill([147, 197, 253]);
+      doc.circle(px(16), py(104), 11 * k, 'F');
+      doc.circle(px(104), py(104), 11 * k, 'F');
+      setFill(C.amber);
+      doc.circle(px(60), py(16), 11 * k, 'F');
+      doc.setLineCap('butt');
+      doc.setLineJoin('miter');
+    }
 
     setText(C.white);
     doc.setFont('helvetica', 'bold');
