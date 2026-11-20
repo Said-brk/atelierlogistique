@@ -41,7 +41,9 @@ export function NumCell({ value, onChange, error, width = 'w-14', step = '1' }) 
  * props : rows, updateRow(id, field, value), updateStacking(id, value), removeRow(id), addRow(),
  *         footerHint (texte à droite du bouton Ajouter)
  */
-export default function ColisTable({ rows, updateRow, updateStacking, removeRow, addRow, footerHint = 'dimensions en cm · poids en kg · arrêt 1 = livré en premier' }) {
+// extraSelect (facultatif) : colonne de choix propre à un outil,
+//   { field, label, title, options: [{ value, label }] } — ex. « Support » en palettisation.
+export default function ColisTable({ rows, updateRow, updateStacking, removeRow, addRow, footerHint = 'dimensions en cm · poids en kg · arrêt 1 = livré en premier', extraSelect = null }) {
   return (
     <>
       {/* Mobile : une carte par référence */}
@@ -91,6 +93,15 @@ export default function ColisTable({ rows, updateRow, updateStacking, removeRow,
                     className="w-full px-2.5 py-2 bg-white border border-slate-200 rounded-md outline-none font-jetbrains text-base text-slate-800 focus:border-slate-400" />
                 </label>
               </div>
+              {extraSelect && (
+                <label className="block min-w-0">
+                  <span className="block font-jetbrains text-[10px] text-slate-400 mb-0.5">{extraSelect.label}</span>
+                  <select value={r[extraSelect.field] ?? ''} onChange={(e) => updateRow(r.id, extraSelect.field, e.target.value)}
+                    className="w-full px-2 py-2 bg-white border border-slate-200 rounded-md outline-none font-jetbrains text-base text-slate-700">
+                    {extraSelect.options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
+                </label>
+              )}
             </div>
           );
         })}
@@ -106,7 +117,7 @@ export default function ColisTable({ rows, updateRow, updateStacking, removeRow,
               <Th className="text-left">Référence</Th>
               <Th>Qté</Th><Th>L</Th><Th>l</Th><Th>H</Th><Th>Poids</Th>
               <Th>Rotation</Th><Th title="Libre · Dessus uniquement (rien dessus) · Au sol · Au sol, rien dessus">Empilage</Th>
-              <Th title="1 = livré en premier">Arrêt</Th><Th className="text-left">Destination</Th><Th></Th>
+              <Th title="1 = livré en premier">Arrêt</Th><Th className="text-left">Destination</Th>{extraSelect && <Th title={extraSelect.title}>{extraSelect.label}</Th>}<Th></Th>
             </tr>
           </thead>
           <tbody>
@@ -150,6 +161,14 @@ export default function ColisTable({ rows, updateRow, updateStacking, removeRow,
                       placeholder="Client…"
                       className="w-16 lg:w-32 px-2 py-1.5 bg-white border border-slate-200 rounded-md outline-none font-jetbrains text-xs text-slate-800 focus:border-slate-400" />
                   </td>
+                  {extraSelect && (
+                    <td className="px-0.5 py-1.5">
+                      <select value={r[extraSelect.field] ?? ''} onChange={(e) => updateRow(r.id, extraSelect.field, e.target.value)}
+                        className="w-24 px-1 py-1.5 bg-white border border-slate-200 rounded-md outline-none font-jetbrains text-[11px] text-slate-700">
+                        {extraSelect.options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                      </select>
+                    </td>
+                  )}
                   <td className="px-0.5 py-1.5 text-center">
                     <button onClick={() => removeRow(r.id)} className="text-slate-300 hover:text-red-500"><Trash2 size={13} /></button>
                   </td>
@@ -157,7 +176,7 @@ export default function ColisTable({ rows, updateRow, updateStacking, removeRow,
               );
             })}
             {rows.length === 0 && (
-              <tr><td colSpan={11} className="text-center text-slate-400 py-6 text-sm">Aucune marchandise — ajoutez une référence ou chargez l'exemple.</td></tr>
+              <tr><td colSpan={extraSelect ? 12 : 11} className="text-center text-slate-400 py-6 text-sm">Aucune marchandise — ajoutez une référence ou chargez l'exemple.</td></tr>
             )}
           </tbody>
         </table>

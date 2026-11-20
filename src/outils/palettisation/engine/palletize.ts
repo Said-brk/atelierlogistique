@@ -12,7 +12,7 @@ import { optimize } from '../../optimiseur-chargement/engine/optimizer';
 import { getOrientations, rotationAngles } from '../../optimiseur-chargement/engine/rotations';
 import type { ContainerDefinition, Dimensions, ItemDefinition, PlacedItem } from '../../optimiseur-chargement/engine/types';
 import { bestLayerPattern, centerPattern, rotatePattern180, type LayerPattern } from './layerPattern';
-import type { PalletContent, PalletizeOptions, PalletizeResult, PalletPlan, PalletSpec, UnplacedLine } from './types';
+import type { PalletContent, PalletizeOptions, PalletizeResult, PalletPlan, PalletSpec, SupportChoice, UnplacedLine } from './types';
 
 /**
  * Pondérations pour une palette mixte : on remplit couche par couche (forte pénalité
@@ -123,6 +123,7 @@ function finalizePallet(
   return {
     index,
     id: `PAL-${String(index).padStart(3, '0')}`,
+    specId: pallet.id,
     kind,
     stop: first?.stop ?? 1,
     destination: first?.destination ?? '',
@@ -173,68 +174,242 @@ function groupByStop(defs: ItemDefinition[], separate: boolean): ItemDefinition[
   return [...map.keys()].sort((a, b) => a - b).map((k) => map.get(k)!);
 }
 
-export function palletize(
-  definitions: readonly ItemDefinition[], pallet: PalletSpec, options: PalletizeOptions = {},
+/** Compteur partagé : identifiants uniques des palettes pendant un calcul. */
+interface Ctx { next: number; fullFirst: boolean; allowMixed: boolean; }
+
+interface Partial { pallets: PalletPlan[]; unplaced: UnplacedLine[]; }
+
+/** Phase 1 : palettes complètes d'une référence sur un support donné ; renvoie le reliquat. */
+function fullPhase(d: ItemDefinition, spec: PalletSpec, ctx: Ctx, out: PalletPlan[]): number {
+  let remaining = d.quantity;
+  if (!ctx.fullFirst) return remaining;
+  const plan = bestFullPallet(d, spec);
+  if (!plan) return remaining;
+  while (remaining >= plan.capacity) {
+    out.push(buildFullPallet(d, plan, spec, ctx.next++));
+    remaining -= plan.capacity;
+  }
+  return remaining;
+}
+
+/** Phase 2 : reliquats en palettes mixtes (moteur 3D), une palette à la fois. */
+function mixedPhase(pool: ItemDefinition[], spec: PalletSpec, ctx: Ctx): Partial {
+  const pallets: PalletPlan[] = [];
+  const unplaced: UnplacedLine[] = [];
+  const left = new Map(pool.filter((d) => d.quantity > 0).map((d) => [d.id, d]));
+  if (!ctx.allowMixed) {
+    for (const d of left.values()) unplaced.push({ definitionId: d.id, reference: d.reference, quantity: d.quantity, reason: 'reliquat (palettes mixtes désactivées)' });
+    return { pallets, unplaced };
+  }
+  const container = palletContainer(spec);
+  let guard = 0;
+  while (left.size > 0 && guard++ < 500) {
+    const r = optimize(container, [...left.values()], { loading: { mode: 'FREE', scoring: MIXED_SCORING }, deliveryMode: 'SOFT' });
+    if (r.packedItems === 0) {
+      for (const d of left.values()) unplaced.push({ definitionId: d.id, reference: d.reference, quantity: d.quantity, reason: 'ne trouve pas de place stable' });
+      break;
+    }
+    const index = ctx.next++;
+    const placed = centerPlaced(r.placedItems, spec).map((p, i) => ({ ...p, id: `${p.definitionId}#P${index}-${i + 1}` }));
+    pallets.push(finalizePallet(spec, index, 'MIXED', placed));
+    const counts = new Map<string, number>();
+    for (const u of r.unpackedItems) counts.set(u.definitionId, (counts.get(u.definitionId) ?? 0) + 1);
+    for (const [id, d] of [...left]) {
+      const q = counts.get(id) ?? 0;
+      if (q === 0) left.delete(id); else left.set(id, { ...d, quantity: q });
+    }
+  }
+  return { pallets, unplaced };
+}
+
+/** Tout un groupe sur un seul support. */
+function onSpec(defs: ItemDefinition[], spec: PalletSpec, ctx: Ctx): Partial {
+  const pallets: PalletPlan[] = [];
+  const unplaced: UnplacedLine[] = [];
+  const pool: ItemDefinition[] = [];
+  for (const d of defs) {
+    const reason = unplaceableReason(d, spec);
+    if (reason) { unplaced.push({ definitionId: d.id, reference: d.reference, quantity: d.quantity, reason: `${reason} (${spec.label})` }); continue; }
+    const rest = fullPhase(d, spec, ctx, pallets);
+    if (rest > 0) pool.push({ ...d, quantity: rest });
+  }
+  const m = mixedPhase(pool, spec, ctx);
+  return { pallets: [...pallets, ...m.pallets], unplaced: [...unplaced, ...m.unplaced] };
+}
+
+/** Indicateurs de comparaison de deux solutions (plus petit = meilleur, ordre lexicographique). */
+function cost(r: Partial, specs: Map<string, PalletSpec>) {
+  const unplaced = r.unplaced.reduce((s, u) => s + u.quantity, 0);
+  const area = r.pallets.reduce((s, p) => { const sp = specs.get(p.specId)!; return s + sp.length * sp.width; }, 0);
+  const money = r.pallets.reduce((s, p) => s + (specs.get(p.specId)!.cost ?? 0), 0);
+  const fill = r.pallets.length ? r.pallets.reduce((s, p) => s + p.volumeFill, 0) / r.pallets.length : 0;
+  return { unplaced, count: r.pallets.length, area, money, fill };
+}
+
+function better(a: ReturnType<typeof cost>, b: ReturnType<typeof cost>): boolean {
+  if (a.unplaced !== b.unplaced) return a.unplaced < b.unplaced;
+  if (a.count !== b.count) return a.count < b.count;
+  if (Math.abs(a.area - b.area) > 1) return a.area < b.area;
+  if (Math.abs(a.money - b.money) > 1e-6) return a.money < b.money;
+  return a.fill > b.fill + 1e-9;
+}
+
+const m2 = (mm2: number) => (mm2 / 1e6).toLocaleString('fr-FR', { maximumFractionDigits: 2 });
+
+function explain(best: { spec: PalletSpec; c: ReturnType<typeof cost> }, alt: { spec: PalletSpec; c: ReturnType<typeof cost> } | null): string {
+  if (!alt) return 'seul support disponible';
+  const b = best.c;
+  const a = alt.c;
+  if (b.unplaced !== a.unplaced) return `${best.spec.label} : tout est palettisé (${a.unplaced} colis restent hors palette en ${alt.spec.label})`;
+  if (b.count !== a.count) return `${best.spec.label} : ${b.count} palette(s) au lieu de ${a.count} en ${alt.spec.label}`;
+  if (Math.abs(b.area - a.area) > 1) return `${best.spec.label} : même nombre de palettes, ${m2(b.area)} m² au sol au lieu de ${m2(a.area)} m²`;
+  if (Math.abs(b.money - a.money) > 1e-6) return `${best.spec.label} : moins cher (${b.money} € au lieu de ${a.money} €)`;
+  return `${best.spec.label} : meilleur remplissage`;
+}
+
+/**
+ * Palettisation avec plusieurs supports disponibles.
+ * - Un format par arrêt (défaut) : chaque support est essayé pour tout l'arrêt, le meilleur est retenu
+ *   (moins de colis hors palette, moins de palettes, moins de surface au sol, moins cher, mieux rempli).
+ * - Mélange autorisé : palettes complètes sur le support qui loge le plus de colis par m² de plancher,
+ *   reliquats sur le support qui donne la meilleure solution.
+ * - Supports imposés (ligne, puis arrêt) : toujours respectés.
+ */
+export function palletizeMulti(
+  definitions: readonly ItemDefinition[], specs: readonly PalletSpec[], options: PalletizeOptions = {},
 ): PalletizeResult {
   const t0 = now();
-  const fullFirst = options.fullPalletsFirst !== false;
+  const available = specs.filter((s) => s.length > 0 && s.width > 0);
+
+  // Un seul format pour tout l'envoi : chaque support est imposé à tous les arrêts, le meilleur gagne.
+  if (options.oneFormatPerShipment && available.length > 1) {
+    const stopsOf = [...new Set(definitions.map((d) => d.stop ?? 1))];
+    const byIdAll = new Map(available.map((s) => [s.id, s]));
+    const trials = available.map((spec) => {
+      const forcedByStop = { ...Object.fromEntries(stopsOf.map((st) => [st, spec.id])), ...(options.forcedByStop ?? {}) };
+      const r = palletizeMulti(definitions, available, { ...options, oneFormatPerShipment: false, oneFormatPerStop: true, forcedByStop });
+      return { spec, r, c: cost(r, byIdAll) };
+    });
+    let best = trials[0];
+    for (const t of trials.slice(1)) if (better(t.c, best.c)) best = t;
+    const alt = trials.filter((t) => t !== best).sort((x, y) => (better(x.c, y.c) ? -1 : 1))[0] ?? null;
+    const reason = `tout l'envoi en ${explain(best, alt)}`;
+    best.r.choices = [{ stop: 0, destination: '', specIds: [...new Set(best.r.pallets.map((p) => p.specId))], reason }];
+    best.r.computationTimeMs = Math.round(now() - t0);
+    return best.r;
+  }
+  const byId = new Map(available.map((s) => [s.id, s]));
+  const ctx: Ctx = { next: 1, fullFirst: options.fullPalletsFirst !== false, allowMixed: options.allowMixed !== false };
   const separate = options.separateStops !== false;
-  const allowMixed = options.allowMixed !== false;
+  const oneFormat = options.oneFormatPerStop !== false;
+  const forcedDef = options.forcedByDefinition ?? {};
+  const forcedStop = options.forcedByStop ?? {};
 
   const pallets: PalletPlan[] = [];
   const unplaced: UnplacedLine[] = [];
-  const valid: ItemDefinition[] = [];
-  for (const d of definitions) {
-    if (d.quantity <= 0) continue;
-    const reason = unplaceableReason(d, pallet);
-    if (reason) unplaced.push({ definitionId: d.id, reference: d.reference, quantity: d.quantity, reason });
-    else valid.push(d);
+  const choices: SupportChoice[] = [];
+
+  if (available.length === 0) {
+    for (const d of definitions) if (d.quantity > 0) unplaced.push({ definitionId: d.id, reference: d.reference, quantity: d.quantity, reason: 'aucun support disponible' });
+    return { pallets, specs: [], choices, unplaced, totalItems: 0, palletizedItems: 0, computationTimeMs: 0 };
   }
 
-  const container = palletContainer(pallet);
-
-  for (const group of groupByStop(valid, separate)) {
-    // 1. Palettes complètes
-    const pool = new Map<string, ItemDefinition>();
+  const active = definitions.filter((d) => d.quantity > 0);
+  for (const group of groupByStop([...active], separate)) {
+    const stop = group[0].stop ?? 1;
+    const destination = group[0].destination ?? '';
+    // Support imposé : ligne, puis arrêt (s'il existe parmi les supports disponibles).
+    const forcedOf = (d: ItemDefinition): PalletSpec | null =>
+      byId.get(forcedDef[d.id] ?? '') ?? (separate ? byId.get(forcedStop[d.stop ?? 1] ?? '') : undefined) ?? null;
+    const forcedGroups = new Map<string, ItemDefinition[]>();
+    const free: ItemDefinition[] = [];
     for (const d of group) {
-      let remaining = d.quantity;
-      if (fullFirst) {
-        const plan = bestFullPallet(d, pallet);
-        if (plan) {
-          while (remaining >= plan.capacity) {
-            pallets.push(buildFullPallet(d, plan, pallet, pallets.length + 1));
-            remaining -= plan.capacity;
-          }
-        }
-      }
-      if (remaining > 0) pool.set(d.id, { ...d, quantity: remaining });
+      const f = forcedOf(d);
+      if (f) { if (!forcedGroups.has(f.id)) forcedGroups.set(f.id, []); forcedGroups.get(f.id)!.push(d); } else free.push(d);
     }
 
-    // 2. Reliquats : palettes mixtes, une à une, jusqu'à épuisement.
-    if (!allowMixed) {
-      for (const d of pool.values()) unplaced.push({ definitionId: d.id, reference: d.reference, quantity: d.quantity, reason: 'reliquat (palettes mixtes désactivées)' });
-      continue;
-    }
-    let guard = 0;
-    while (pool.size > 0 && guard++ < 500) {
-      const r = optimize(container, [...pool.values()], { loading: { mode: 'FREE', scoring: MIXED_SCORING }, deliveryMode: 'SOFT' });
-      if (r.packedItems === 0) {
-        for (const d of pool.values()) unplaced.push({ definitionId: d.id, reference: d.reference, quantity: d.quantity, reason: 'ne trouve pas de place stable' });
-        break;
+    const used = new Set<string>();
+    let reason = '';
+
+    if (free.length > 0 && oneFormat) {
+      // Chaque support candidat palettise tout l'arrêt (avec les lignes imposées sur ce même support).
+      const trials = available.map((spec) => {
+        const trialCtx: Ctx = { ...ctx };
+        const r = onSpec([...free, ...(forcedGroups.get(spec.id) ?? [])], spec, trialCtx);
+        return { spec, r, c: cost(r, byId), next: trialCtx.next };
+      });
+      let best = trials[0];
+      for (const t of trials.slice(1)) if (better(t.c, best.c)) best = t;
+      const alt = trials.filter((t) => t !== best).sort((x, y) => (better(x.c, y.c) ? -1 : 1))[0] ?? null;
+      // On rejoue la solution retenue pour une numérotation continue.
+      const r = onSpec([...free, ...(forcedGroups.get(best.spec.id) ?? [])], best.spec, ctx);
+      pallets.push(...r.pallets); unplaced.push(...r.unplaced);
+      forcedGroups.delete(best.spec.id);
+      used.add(best.spec.id);
+      reason = explain(best, alt);
+    } else if (free.length > 0) {
+      // Mélange autorisé : palettes complètes sur le support le plus dense au sol…
+      const pool: ItemDefinition[] = [];
+      for (const d of free) {
+        let bestSpec: PalletSpec | null = null;
+        let bestDensity = 0;
+        for (const spec of available) {
+          if (unplaceableReason(d, spec)) continue;
+          const plan = bestFullPallet(d, spec);
+          const density = plan ? plan.capacity / (spec.length * spec.width) : 0;
+          if (!bestSpec || density > bestDensity) { bestSpec = spec; bestDensity = density; }
+        }
+        if (!bestSpec) { unplaced.push({ definitionId: d.id, reference: d.reference, quantity: d.quantity, reason: unplaceableReason(d, available[0]) ?? 'ne tient sur aucun support' }); continue; }
+        const before = pallets.length;
+        const rest = fullPhase(d, bestSpec, ctx, pallets);
+        if (pallets.length > before) used.add(bestSpec.id);
+        if (rest > 0) pool.push({ ...d, quantity: rest });
       }
-      const index = pallets.length + 1;
-      const placed = centerPlaced(r.placedItems, pallet).map((p, i) => ({ ...p, id: `${p.definitionId}#P${index}-${i + 1}` }));
-      pallets.push(finalizePallet(pallet, index, 'MIXED', placed));
-      const left = new Map<string, number>();
-      for (const u of r.unpackedItems) left.set(u.definitionId, (left.get(u.definitionId) ?? 0) + 1);
-      for (const [id, d] of [...pool]) {
-        const q = left.get(id) ?? 0;
-        if (q === 0) pool.delete(id); else pool.set(id, { ...d, quantity: q });
+      // …puis reliquats sur le support qui donne la meilleure solution.
+      if (pool.length > 0) {
+        const trials = available.map((spec) => {
+          const trialCtx: Ctx = { ...ctx };
+          const fits = pool.filter((d) => !unplaceableReason(d, spec));
+          const r = mixedPhase(fits, spec, trialCtx);
+          const out = pool.filter((d) => unplaceableReason(d, spec));
+          r.unplaced.push(...out.map((d) => ({ definitionId: d.id, reference: d.reference, quantity: d.quantity, reason: `${unplaceableReason(d, spec)} (${spec.label})` })));
+          return { spec, c: cost(r, byId) };
+        });
+        let best = trials[0];
+        for (const t of trials.slice(1)) if (better(t.c, best.c)) best = t;
+        const fits = pool.filter((d) => !unplaceableReason(d, best.spec));
+        const r = mixedPhase(fits, best.spec, ctx);
+        pallets.push(...r.pallets); unplaced.push(...r.unplaced);
+        for (const d of pool.filter((x) => unplaceableReason(x, best.spec))) {
+          unplaced.push({ definitionId: d.id, reference: d.reference, quantity: d.quantity, reason: `${unplaceableReason(d, best.spec)} (${best.spec.label})` });
+        }
+        if (r.pallets.length) used.add(best.spec.id);
       }
+      reason = 'formats mélangés : support le plus dense par référence';
     }
+
+    // Lignes imposées sur un autre support.
+    for (const [specId, defs] of forcedGroups) {
+      const spec = byId.get(specId)!;
+      const r = onSpec(defs, spec, ctx);
+      pallets.push(...r.pallets); unplaced.push(...r.unplaced);
+      used.add(specId);
+      reason = reason ? `${reason} · ${spec.label} imposé` : `${spec.label} imposé`;
+    }
+    choices.push({ stop, destination, specIds: [...used], reason });
   }
+
+  // Numérotation continue PAL-001… dans l'ordre des arrêts.
+  pallets.forEach((p, i) => { p.index = i + 1; p.id = `PAL-${String(i + 1).padStart(3, '0')}`; });
 
   const totalItems = definitions.reduce((s, d) => s + Math.max(0, d.quantity), 0);
   const palletizedItems = pallets.reduce((s, p) => s + p.placed.length, 0);
-  return { pallets, unplaced, totalItems, palletizedItems, computationTimeMs: Math.round(now() - t0) };
+  return { pallets, specs: available, choices, unplaced, totalItems, palletizedItems, computationTimeMs: Math.round(now() - t0) };
+}
+
+/** Un seul support (compatibilité). */
+export function palletize(
+  definitions: readonly ItemDefinition[], pallet: PalletSpec, options: PalletizeOptions = {},
+): PalletizeResult {
+  return palletizeMulti(definitions, [pallet], options);
 }
