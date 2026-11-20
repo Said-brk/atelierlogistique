@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useCallback, useRef, lazy, Suspense, Comp
 import { createPortal } from 'react-dom';
 import * as XLSX from 'xlsx';
 import {
-  ArrowLeft, Plus, Trash2, Truck, Box, Loader2, AlertCircle,
+  ArrowLeft, Truck, Box, Loader2, AlertCircle,
   RotateCcw, Check, ArrowRight, Boxes, Upload, Download,
   MapPin, Undo2, Printer, Scale, ChevronDown,
 } from 'lucide-react';
@@ -22,15 +22,17 @@ import { LOADING_DEFAULTS } from './constants/engine-config';
 import { analyzeBalance, defaultAxleProfile, DEFAULT_LASHING, shiftPlaced, suggestShift } from './engine/balance';
 import { useOptimizer } from './useOptimizer';
 import {
-  emptyRow, exampleRows, validateRow, rowsAreValid, coerceField,
-  rowsToDefinitions, cmToMm, refColor, ROTATION_OPTIONS,
+  emptyRow, exampleRows, rowsAreValid, coerceField,
+  rowsToDefinitions, cmToMm, refColor,
   formatM3, formatKg, formatPct, mm3ToM3,
   newRowId,
   DELIVERY_MODES, distinctStops, stopLabel, stopColor,
-  STACKING_OPTIONS, stackingOf, stackingFields,
+  stackingFields,
 } from './uiHelpers';
 import { track } from './analytics';
+import ColisTable from './components/ColisTable';
 import { createLocalProfileStore, toCsv, downloadText } from '../../shared/import';
+import { consumeHandoff } from '../../shared/handoff';
 import { COLIS_SCHEMA, STANDARD_HEADERS, STANDARD_SAMPLE, recordsToColisRows } from './import/colisSchema';
 import { SEQUENCE_HEADERS, sequenceRows } from './import/exportSequence';
 
@@ -66,10 +68,6 @@ function useDocumentMeta(title, description) {
 }
 
 // ---- Petits composants d'interface ----
-function Th({ children, className = '', title }) {
-  return <th title={title} className={`font-normal text-slate-400 px-1 py-2 text-[10px] tracking-wider ${className}`}>{children}</th>;
-}
-
 const BAL_COLORS = { ok: '#15803D', warn: '#B45309', over: '#B91C1C' };
 const BAL_BG = { ok: '#F0FDF4', warn: '#FFFBEB', over: '#FEF2F2' };
 const BAL_LABEL = { ok: 'Conforme', warn: 'À surveiller', over: 'Hors limites' };
@@ -105,35 +103,6 @@ function LoadBar({ label, value, max }) {
   );
 }
 
-// Champ numérique libellé, version mobile (police 16 px : évite le zoom iOS).
-function MobileNum({ label, value, onChange, error, step = '1' }) {
-  return (
-    <label className="block min-w-0">
-      <span className="block font-jetbrains text-[10px] text-slate-400 mb-0.5">{label}</span>
-      <input type="number" inputMode="decimal" value={value} min="0" step={step}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full px-2 py-2 bg-white border rounded-md outline-none font-jetbrains text-base text-center text-slate-800 focus:border-slate-400"
-        style={{ borderColor: error ? '#FCA5A5' : '#E2E8F0' }} />
-      {error && <span className="block text-[10px] text-red-500 mt-0.5 leading-tight">{error}</span>}
-    </label>
-  );
-}
-
-function NumCell({ value, onChange, error, width = 'w-14', step = '1' }) {
-  return (
-    <div className={width}>
-      <input
-        type="number" value={value} min="0" step={step}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full px-1 py-1.5 bg-white border rounded-md outline-none font-jetbrains text-xs text-center text-slate-800 focus:border-slate-400 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-        style={{ borderColor: error ? '#FCA5A5' : '#E2E8F0' }}
-      />
-      {error && <div className="text-[9px] text-red-500 mt-0.5 leading-tight">{error}</div>}
-    </div>
-  );
-}
-
-// ---- Schéma 2D (vue de dessus + vue de côté) — étape intermédiaire avant la 3D ----
 function Schematic2D({ container, placed, colorOf, isDimmed, blockedIds }) {
   const target = 520;
   const scale = target / container.length;
@@ -636,7 +605,22 @@ export default function LoadOptimizer({ onBack }) {
   const addRow = () => setRows((rs) => [...rs, emptyRow()]);
   const loadExample = () => { setRows(exampleRows()); setExcludedStops([]); reset(); track('load_optimizer_example_clicked'); };
 
-  const flashImport = (type, text) => { setImportMsg({ type, text }); setTimeout(() => setImportMsg(null), 6000); };
+  const flashImport = (type, text, ms = 6000) => { setImportMsg({ type, text }); setTimeout(() => setImportMsg(null), ms); };
+
+  // Données envoyées par un autre outil (ex. palettes de la palettisation 3D).
+  useEffect(() => {
+    const env = consumeHandoff('optimiseur-chargement', COLIS_SCHEMA.id);
+    if (!env) return;
+    const received = recordsToColisRows(env.records).map((r) => ({ id: newRowId(), ...r }));
+    if (received.length === 0) return;
+    setRows(received);
+    setExcludedStops([]);
+    const units = received.reduce((s, r) => s + r.quantity, 0);
+    const unitLabel = typeof env.extra?.unitLabel === 'string' ? env.extra.unitLabel : 'unité(s)';
+    flashImport('success', `${units} ${unitLabel} reçue(s) de « ${env.source.label} ». Choisissez le véhicule puis lancez l’optimisation.`, 12000);
+    track('load_optimizer_handoff_received', { from: env.source.tool, units });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /** Import via l'assistant (module partagé src/shared/import). */
   const onImported = ({ records, options, mode, source }) => {
@@ -823,130 +807,7 @@ export default function LoadOptimizer({ onBack }) {
                 {importMsg.text}
               </div>
             )}
-            {/* Mobile : une carte par référence */}
-            <div className="md:hidden divide-y divide-slate-100">
-              {rows.map((r, i) => {
-                const err = validateRow(r);
-                return (
-                  <div key={r.id} className="px-4 py-3 space-y-2.5">
-                    <div className="flex items-center gap-2">
-                      <span className="w-3 h-3 rounded-sm shrink-0" style={{ background: refColor(i).solid }} />
-                      <input value={r.reference} onChange={(e) => updateRow(r.id, 'reference', e.target.value)}
-                        placeholder="Référence" aria-label="Référence"
-                        className="flex-1 min-w-0 px-2.5 py-2 bg-white border rounded-md outline-none font-jetbrains text-base text-slate-800 focus:border-slate-400"
-                        style={{ borderColor: err.reference ? '#FCA5A5' : '#E2E8F0' }} />
-                      <button onClick={() => removeRow(r.id)} aria-label="Supprimer la référence"
-                        className="w-10 h-10 shrink-0 rounded-md flex items-center justify-center text-slate-400 hover:text-red-500 bg-slate-50"><Trash2 size={15} /></button>
-                    </div>
-                    <div className="grid grid-cols-5 gap-1.5">
-                      <MobileNum label="Qté" value={r.quantity} onChange={(v) => updateRow(r.id, 'quantity', v)} error={err.quantity} />
-                      <MobileNum label="L cm" value={r.length} onChange={(v) => updateRow(r.id, 'length', v)} error={err.length} />
-                      <MobileNum label="l cm" value={r.width} onChange={(v) => updateRow(r.id, 'width', v)} error={err.width} />
-                      <MobileNum label="H cm" value={r.height} onChange={(v) => updateRow(r.id, 'height', v)} error={err.height} />
-                      <MobileNum label="kg" value={r.weight} onChange={(v) => updateRow(r.id, 'weight', v)} error={err.weight} step="0.1" />
-                    </div>
-                    <div className="grid grid-cols-2 gap-1.5 items-end">
-                      <label className="block min-w-0">
-                        <span className="block font-jetbrains text-[10px] text-slate-400 mb-0.5">Rotation</span>
-                        <select value={r.rotationMode} onChange={(e) => updateRow(r.id, 'rotationMode', e.target.value)}
-                          className="w-full px-2 py-2 bg-white border border-slate-200 rounded-md outline-none font-jetbrains text-base text-slate-700">
-                          {ROTATION_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                        </select>
-                      </label>
-                      <label className="block min-w-0">
-                        <span className="block font-jetbrains text-[10px] text-slate-400 mb-0.5">Empilage</span>
-                        <select value={stackingOf(r)} onChange={(e) => updateStacking(r.id, e.target.value)}
-                          className="w-full px-2 py-2 bg-white border border-slate-200 rounded-md outline-none font-jetbrains text-base text-slate-700">
-                          {STACKING_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                        </select>
-                      </label>
-                    </div>
-                    <div className="grid grid-cols-[4.5rem_1fr] gap-1.5 items-end">
-                      <MobileNum label="Arrêt" value={r.stop ?? 1} onChange={(v) => updateRow(r.id, 'stop', v)} error={err.stop} />
-                      <label className="block min-w-0">
-                        <span className="block font-jetbrains text-[10px] text-slate-400 mb-0.5">Destination (facultatif)</span>
-                        <input value={r.destination ?? ''} onChange={(e) => updateRow(r.id, 'destination', e.target.value)}
-                          placeholder="Client, ville…"
-                          className="w-full px-2.5 py-2 bg-white border border-slate-200 rounded-md outline-none font-jetbrains text-base text-slate-800 focus:border-slate-400" />
-                      </label>
-                    </div>
-                  </div>
-                );
-              })}
-              {rows.length === 0 && (
-                <div className="text-center text-slate-400 py-6 text-sm px-4">Aucune marchandise — ajoutez une référence ou chargez l'exemple.</div>
-              )}
-            </div>
-
-            <div className="hidden md:block overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-slate-100">
-                    <Th className="text-left">Référence</Th>
-                    <Th>Qté</Th><Th>L</Th><Th>l</Th><Th>H</Th><Th>Poids</Th>
-                    <Th>Rotation</Th><Th title="Libre · Dessus uniquement (rien dessus) · Au sol · Au sol, rien dessus">Empilage</Th>
-                    <Th title="1 = livré en premier">Arrêt</Th><Th className="text-left">Destination</Th><Th></Th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((r, i) => {
-                    const err = validateRow(r);
-                    return (
-                      <tr key={r.id} className="border-b border-slate-50 align-top">
-                        <td className="pl-2 pr-0.5 py-1.5">
-                          <div className="flex items-center gap-1.5">
-                            <span className="w-2.5 h-2.5 rounded-sm shrink-0 mt-1" style={{ background: refColor(i).solid }} />
-                            <div className="flex-1 min-w-[64px]">
-                              <input value={r.reference} onChange={(e) => updateRow(r.id, 'reference', e.target.value)}
-                                placeholder="Réf."
-                                className="w-full px-2 py-1.5 bg-white border rounded-md outline-none font-jetbrains text-xs text-slate-800 focus:border-slate-400"
-                                style={{ borderColor: err.reference ? '#FCA5A5' : '#E2E8F0' }} />
-                              {err.reference && <div className="text-[9px] text-red-500 mt-0.5">{err.reference}</div>}
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-0.5 py-1.5"><NumCell value={r.quantity} onChange={(v) => updateRow(r.id, 'quantity', v)} error={err.quantity} width="w-12" /></td>
-                        <td className="px-0.5 py-1.5"><NumCell value={r.length} onChange={(v) => updateRow(r.id, 'length', v)} error={err.length} width="w-12" /></td>
-                        <td className="px-0.5 py-1.5"><NumCell value={r.width} onChange={(v) => updateRow(r.id, 'width', v)} error={err.width} width="w-12" /></td>
-                        <td className="px-0.5 py-1.5"><NumCell value={r.height} onChange={(v) => updateRow(r.id, 'height', v)} error={err.height} width="w-12" /></td>
-                        <td className="px-0.5 py-1.5"><NumCell value={r.weight} onChange={(v) => updateRow(r.id, 'weight', v)} error={err.weight} step="0.1" width="w-12" /></td>
-                        <td className="px-0.5 py-1.5">
-                          <select value={r.rotationMode} onChange={(e) => updateRow(r.id, 'rotationMode', e.target.value)}
-                            className="px-1.5 py-1.5 bg-white border border-slate-200 rounded-md outline-none font-jetbrains text-[11px] text-slate-700">
-                            {ROTATION_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                          </select>
-                        </td>
-                        <td className="px-0.5 py-1.5">
-                          <select value={stackingOf(r)} onChange={(e) => updateStacking(r.id, e.target.value)}
-                            title={STACKING_OPTIONS.find((o) => o.value === stackingOf(r))?.hint}
-                            className="w-[7.5rem] px-1 py-1.5 bg-white border border-slate-200 rounded-md outline-none font-jetbrains text-[11px] text-slate-700">
-                            {STACKING_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                          </select>
-                        </td>
-                        <td className="px-0.5 py-1.5"><NumCell value={r.stop ?? 1} onChange={(v) => updateRow(r.id, 'stop', v)} error={err.stop} width="w-10" /></td>
-                        <td className="px-0.5 py-1.5">
-                          <input value={r.destination ?? ''} onChange={(e) => updateRow(r.id, 'destination', e.target.value)}
-                            placeholder="Client…"
-                            className="w-16 lg:w-32 px-2 py-1.5 bg-white border border-slate-200 rounded-md outline-none font-jetbrains text-xs text-slate-800 focus:border-slate-400" />
-                        </td>
-                        <td className="px-0.5 py-1.5 text-center">
-                          <button onClick={() => removeRow(r.id)} className="text-slate-300 hover:text-red-500"><Trash2 size={13} /></button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                  {rows.length === 0 && (
-                    <tr><td colSpan={11} className="text-center text-slate-400 py-6 text-sm">Aucune marchandise — ajoutez une référence ou chargez l'exemple.</td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-            <div className="px-4 py-3 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <button onClick={addRow} className="flex items-center justify-center gap-1.5 font-jetbrains text-xs px-3 py-2.5 sm:py-2 rounded-md" style={{ background: '#F1F5F9', color: '#475569' }}>
-                <Plus size={13} /> Ajouter une référence
-              </button>
-              <span className="font-jetbrains text-[10px] text-slate-400 text-center sm:text-right">dimensions en cm · poids en kg · arrêt 1 = livré en premier</span>
-            </div>
+            <ColisTable rows={rows} updateRow={updateRow} updateStacking={updateStacking} removeRow={removeRow} addRow={addRow} />
           </div>
 
 

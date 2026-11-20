@@ -1,4 +1,4 @@
-import type { Box, ContainerDefinition, PlacedItem } from './types';
+import type { Box, ContainerDefinition, PlacedItem, ScoringWeights } from './types';
 import { EPS, SCORING } from '../constants/engine-config';
 import { overlapAreaXY } from './support';
 
@@ -45,6 +45,7 @@ export function scorePlacement(
   container: ContainerDefinition,
   placed: readonly PlacedItem[],
   supportRatioValue: number,
+  weights: ScoringWeights = SCORING,
 ): number {
   const zTopNorm = (box.z + box.height) / container.height;
   const posNorm = (box.x + box.y) / (container.length + container.width);
@@ -52,9 +53,9 @@ export function scorePlacement(
   const contactNorm = surface > 0 ? contactArea(box, container, placed) / surface : 0;
 
   return (
-    SCORING.floorPenalty * zTopNorm +
-    SCORING.originDistancePenalty * posNorm +
-    SCORING.wastedSpacePenalty * (1 - supportRatioValue) -
-    SCORING.contactBonus * contactNorm
+    weights.floorPenalty * zTopNorm +
+    weights.originDistancePenalty * posNorm +
+    weights.wastedSpacePenalty * (1 - supportRatioValue) -
+    weights.contactBonus * contactNorm
   );
 }

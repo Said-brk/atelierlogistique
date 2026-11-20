@@ -152,7 +152,7 @@ function findBestPlacement(
       // En mode libre, on la mesure seulement a posteriori (loadingViolationIds).
       if (load.cfg.mode === 'WALLS' && box.x + box.length < load.maxX - EPS && index.anyInFront(box, container.length)) continue;
 
-      let score = scorePlacement(box, container, nearby, sr);
+      let score = scorePlacement(box, container, nearby, sr, load.cfg.scoring);
       const blockers = countBlockers(box, delivery.later, delivery.laterMaxX);
       if (blockers > 0) {
         if (delivery.mode === 'STRICT') continue;
