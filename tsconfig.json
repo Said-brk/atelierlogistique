@@ -13,5 +13,5 @@
     "resolveJsonModule": true,
     "noEmit": true
   },
-  "include": ["src/outils/optimiseur-chargement/**/*.ts", "src/shared/**/*.ts"]
+  "include": ["src/outils/optimiseur-chargement/**/*.ts", "src/shared/**/*.ts", "src/outils/palettisation/**/*.ts"]
 }

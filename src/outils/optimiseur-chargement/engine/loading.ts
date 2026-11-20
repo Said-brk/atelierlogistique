@@ -4,8 +4,8 @@
 // magasinier entre par les portes : pour poser un colis, l'espace entre ce
 // colis et les portes, sur sa section largeur × hauteur (YZ), doit être libre.
 
-import type { Box, ContainerDefinition, ItemInstance, LoadingMode, LoadingOptions, PlacedItem, WallSummary } from './types';
-import { EPS } from '../constants/engine-config';
+import type { Box, ContainerDefinition, ItemInstance, LoadingMode, LoadingOptions, PlacedItem, ScoringWeights, WallSummary } from './types';
+import { EPS, SCORING } from '../constants/engine-config';
 
 export interface ResolvedLoading {
   mode: LoadingMode;
@@ -14,6 +14,7 @@ export interface ResolvedLoading {
   heavyMaxHeight: number | null;
   heavyThresholdKg: number;
   mechanizedAboveKg: number;
+  scoring: ScoringWeights;
 }
 
 const positiveOrNull = (v: unknown): number | null => {
@@ -42,6 +43,7 @@ export function resolveLoading(opts: LoadingOptions | undefined, items: readonly
     heavyMaxHeight: positiveOrNull(o.heavyMaxHeight),
     heavyThresholdKg: Number.isFinite(Number(o.heavyThresholdKg)) ? Number(o.heavyThresholdKg) : Infinity,
     mechanizedAboveKg: Number.isFinite(Number(o.mechanizedAboveKg)) ? Number(o.mechanizedAboveKg) : Infinity,
+    scoring: { ...SCORING, ...(o.scoring ?? {}) },
   };
 }
 

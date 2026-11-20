@@ -158,6 +158,18 @@ export interface LoadingOptions {
   heavyThresholdKg?: number;
   /** Au-delà de ce poids (kg), le colis est manutentionné à l'engin (pas de limite de hauteur manuelle). */
   mechanizedAboveKg?: number;
+  /**
+   * Pondérations du score d'emplacement (voir constants/engine-config SCORING).
+   * Ex. palettisation : floorPenalty élevé → palette basse et compacte plutôt qu'en colonnes.
+   */
+  scoring?: Partial<ScoringWeights>;
+}
+
+export interface ScoringWeights {
+  floorPenalty: number;
+  originDistancePenalty: number;
+  wastedSpacePenalty: number;
+  contactBonus: number;
 }
 
 /**

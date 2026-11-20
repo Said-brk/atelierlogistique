@@ -29,14 +29,25 @@ function ItemMesh({ item, color, dimmed, blocked, withEdges, onHover }) {
   );
 }
 
-function Scene({ container, placed, colorOf, isDimmed, blockedIds, showWalls, onHover, cog }) {
+function Scene({ container, placed, colorOf, isDimmed, blockedIds, showWalls, onHover, cog, variant, deckHeight }) {
   const CL = container.length * S;
   const CW = container.width * S;
   const CH = container.height * S;
   const withEdges = placed.length <= 300;
 
+  const pallet = variant === 'pallet';
+  const DH = (deckHeight || 0) * S;
   return (
-    <group position={[-CL / 2, -CH / 2, -CW / 2]}>
+    <group position={[-CL / 2, -CH / 2 + DH / 2, -CW / 2]}>
+      {/* Plateau de palette (sous la charge) */}
+      {pallet && DH > 0 && (
+        <mesh position={[CL / 2, -DH / 2, CW / 2]}>
+          <boxGeometry args={[CL, DH, CW]} />
+          <meshStandardMaterial color="#C8A26B" roughness={0.9} />
+          <Edges color="#8B6B3E" />
+        </mesh>
+      )}
+
       {/* Sol du contenant */}
       <mesh position={[CL / 2, 0, CW / 2]} rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[CL, CW]} />
@@ -51,11 +62,11 @@ function Scene({ container, placed, colorOf, isDimmed, blockedIds, showWalls, on
       </mesh>
 
       {/* Portes (arrière, X = longueur) : repère pour le déchargement par arrêt */}
-      <mesh position={[CL, CH / 2, CW / 2]} rotation={[0, Math.PI / 2, 0]}>
+      {!pallet && <mesh position={[CL, CH / 2, CW / 2]} rotation={[0, Math.PI / 2, 0]}>
         <planeGeometry args={[CW, CH]} />
         <meshStandardMaterial color="#F59E0B" transparent opacity={0.16} side={2} depthWrite={false} />
         <Edges color="#F59E0B" />
-      </mesh>
+      </mesh>}
 
       {/* Centre de gravité de la charge (+ projection au sol) */}
       {cog && (
@@ -90,14 +101,19 @@ function Scene({ container, placed, colorOf, isDimmed, blockedIds, showWalls, on
   );
 }
 
-export default function LoadView3D({ container, placed, colorOf, isDimmed, blockedIds, onHover, cog }) {
+/**
+ * variant : 'truck' (défaut, repère des portes) | 'pallet' (plateau bois de hauteur deckHeight, mm ;
+ * le volume transparent figure la hauteur maxi de la palette).
+ */
+export default function LoadView3D({ container, placed, colorOf, isDimmed, blockedIds, onHover, cog, variant = 'truck', deckHeight = 0 }) {
   const controls = useRef(null);
   const [showWalls, setShowWalls] = useState(true);
 
   const camera = useMemo(() => {
-    const maxDim = Math.max(container.length, container.width, container.height) * S;
-    return { position: [maxDim * 0.95, maxDim * 0.75, maxDim * 1.15], fov: 42, near: 0.01, far: 1000 };
-  }, [container.length, container.width, container.height]);
+    const maxDim = Math.max(container.length, container.width, container.height + deckHeight) * S;
+    const k = variant === 'pallet' ? 1.25 : 1;
+    return { position: [maxDim * 0.95 * k, maxDim * 0.75 * k, maxDim * 1.15 * k], fov: 42, near: 0.01, far: 1000 };
+  }, [container.length, container.width, container.height, deckHeight, variant]);
 
   return (
     <div className="relative h-[340px] sm:h-[420px] lg:h-[460px]">
@@ -114,9 +130,11 @@ export default function LoadView3D({ container, placed, colorOf, isDimmed, block
         </button>
       </div>
 
-      <div className="absolute bottom-2 right-2 z-10 font-jetbrains text-[10px] px-2 py-1 rounded-md bg-white/90 border border-amber-200 text-amber-700 pointer-events-none">
-        ▮ Portes (arrière){cog ? <span className="text-red-600"> · ● centre de gravité</span> : null}
-      </div>
+      {variant !== 'pallet' && (
+        <div className="absolute bottom-2 right-2 z-10 font-jetbrains text-[10px] px-2 py-1 rounded-md bg-white/90 border border-amber-200 text-amber-700 pointer-events-none">
+          ▮ Portes (arrière){cog ? <span className="text-red-600"> · ● centre de gravité</span> : null}
+        </div>
+      )}
 
       <Canvas camera={camera} dpr={[1, 2]} style={{ background: 'transparent' }}>
         <ambientLight intensity={0.75} />
@@ -131,6 +149,8 @@ export default function LoadView3D({ container, placed, colorOf, isDimmed, block
           cog={cog}
           showWalls={showWalls}
           onHover={onHover}
+          variant={variant}
+          deckHeight={deckHeight}
         />
         <OrbitControls ref={controls} makeDefault enablePan enableZoom target={[0, 0, 0]} />
       </Canvas>
