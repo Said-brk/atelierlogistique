@@ -1,6 +1,9 @@
 // Helpers d'interface : conversions, validation, couleurs, données d'exemple.
 // L'UI travaille en cm / kg ; le moteur reçoit des mm / kg.
 
+import { applyMapping, suggestMapping } from '../../shared/import';
+import { COLIS_SCHEMA, recordsToColisRows } from './import/colisSchema';
+
 let seq = 0;
 export const newRowId = () => `row_${Date.now().toString(36)}_${(seq++).toString(36)}`;
 
@@ -159,106 +162,24 @@ export function refColor(index) {
   };
 }
 
-// ---- Import en masse (coller un tableau ou un fichier Excel/CSV) ----
-const normKey = (s) => String(s).trim().toLowerCase().replace(/\s+/g, ' ');
-const toNum = (v) => {
-  if (typeof v === 'number') return isFinite(v) ? v : 0;
-  const n = parseFloat(String(v).replace(',', '.').replace(/[^0-9.\-]/g, ''));
-  return isNaN(n) ? 0 : n;
-};
-
-const BULK_ALIASES = {
-  reference: ['reference', 'référence', 'ref', 'réf', 'sku', 'code', 'article', 'designation', 'désignation', 'libelle', 'libellé', 'nom'],
-  quantity: ['quantity', 'quantité', 'quantite', 'qte', 'qté', 'qty', 'nb', 'nombre'],
-  length: ['length', 'longueur', 'long'],
-  width: ['width', 'largeur', 'larg'],
-  height: ['height', 'hauteur', 'haut'],
-  weight: ['weight', 'poids', 'masse', 'kg'],
-  rotation: ['rotation', 'rot'],
-  stacking: ['empilage', 'superposition', 'gerbage'],
-  stackable: ['stackable', 'empilable', 'gerbable', 'empil'],
-  stop: ['arrêt', 'arret', 'stop', 'ordre de livraison', 'ordre', 'tournée', 'tournee', 'séquence', 'sequence'],
-  destination: ['destination', 'client', 'destinataire', 'ville'],
-};
-
-const parseRotation = (v) => {
-  const s = normKey(v);
-  if (['none', 'interdite', 'interdit', 'non', 'no', '0', 'false', 'aucune'].includes(s)) return 'NONE';
-  if (['horizontal', 'horizontale', 'h', 'z'].includes(s)) return 'HORIZONTAL';
-  return 'FULL';
-};
-const parseBool = (v) => !['non', 'no', '0', 'false', 'n', ''].includes(normKey(v));
-
-/** Transforme un collage tableur (TSV / CSV / point-virgule) en lignes d'objets. */
-export function parsePastedTable(text) {
-  const lines = text.replace(/\r/g, '').split('\n').filter((l) => l.trim().length > 0);
-  if (lines.length === 0) return [];
-  const delim = lines[0].includes('\t') ? '\t' : (lines[0].includes(';') ? ';' : ',');
-  const first = lines[0].split(delim).map((h) => h.trim());
-  // Ligne d'en-tête seulement si plusieurs cellules correspondent à des noms de colonnes connus.
-  const aliasList = Object.values(BULK_ALIASES).flat();
-  const headerMatches = first.filter((h) => {
-    const k = normKey(h);
-    return aliasList.some((a) => k === a || k.includes(a));
-  }).length;
-  const looksHeader = headerMatches >= 2;
-  const cols = looksHeader ? first : ['reference', 'quantity', 'length', 'width', 'height', 'weight', 'rotation', 'stackable', 'stop', 'destination'];
-  return lines.slice(looksHeader ? 1 : 0).map((line) => {
-    const cells = line.split(delim);
-    const o = {};
-    cols.forEach((h, i) => { o[h] = (cells[i] ?? '').trim(); });
-    return o;
-  });
-}
-
-/** Mappe des lignes d'objets (collage ou Excel) vers des lignes de l'outil (cm). */
+// ---- Import en masse : voir src/shared/import (assistant + schéma ./import/colisSchema.ts) ----
+/**
+ * Mappe des lignes d'objets (collage ou Excel) vers des lignes de l'outil (cm).
+ * Compatibilité : délègue au module d'import partagé (src/shared/import) et au
+ * schéma colis, pour qu'il n'existe qu'une seule logique de reconnaissance.
+ */
 export function bulkToRows(json) {
   if (!json || json.length === 0) return [];
   const headers = Object.keys(json[0]);
-  const map = {};
-  const used = new Set();
-  // Correspondances exactes d'abord (toutes colonnes), puis partielles.
-  for (const field in BULK_ALIASES) {
-    const key = headers.find((h) => !used.has(h) && BULK_ALIASES[field].includes(normKey(h)));
-    if (key) { map[field] = key; used.add(key); }
-  }
-  for (const field in BULK_ALIASES) {
-    if (map[field]) continue;
-    const key = headers.find((h) => !used.has(h) && BULK_ALIASES[field].some((a) => normKey(h).includes(a)));
-    if (key) { map[field] = key; used.add(key); }
-  }
-  // Arrêt saisi en texte (ex. nom du client) : numérotation dans l'ordre d'apparition.
-  const textStops = new Map();
-  const readStop = (r) => {
-    if (!map.stop) return { stop: 1, dest: '' };
-    const raw = String(r[map.stop] ?? '').trim();
-    const n = Math.round(toNum(raw));
-    if (raw && /^\s*\d+([.,]0+)?\s*$/.test(raw) && n >= 1) return { stop: n, dest: '' };
-    if (!raw) return { stop: 1, dest: '' };
-    if (!textStops.has(raw)) textStops.set(raw, textStops.size + 1);
-    return { stop: textStops.get(raw), dest: raw };
+  const table = {
+    headers,
+    rows: json.map((r) => headers.map((h) => String(r[h] ?? '').trim())),
+    meta: { source: 'objets', format: 'paste', headerRow: 0 },
   };
-  return json.map((r) => {
-    const { stop, dest } = readStop(r);
-    return {
-    id: newRowId(),
-    reference: map.reference ? String(r[map.reference] ?? '').trim() : '',
-    quantity: map.quantity ? Math.max(0, Math.round(toNum(r[map.quantity]))) : 1,
-    length: map.length ? toNum(r[map.length]) : 0,
-    width: map.width ? toNum(r[map.width]) : 0,
-    height: map.height ? toNum(r[map.height]) : 0,
-    weight: map.weight ? toNum(r[map.weight]) : 0,
-    rotationMode: map.rotation ? parseRotation(r[map.rotation]) : 'FULL',
-    ...(() => {
-      // Colonne « Empilage » (4 choix) prioritaire ; sinon ancienne colonne Empilable Oui/Non.
-      const st = map.stacking ? parseStacking(r[map.stacking]) : null;
-      if (st) return stackingFields(st);
-      return { stackable: map.stackable ? parseBool(r[map.stackable]) : true, floorOnly: false };
-    })(),
-    stop,
-    destination: map.destination ? String(r[map.destination] ?? '').trim() : dest,
-    };
-  }).filter((r) => r.reference || r.length || r.width || r.height);
+  const { records } = applyMapping(COLIS_SCHEMA, table, suggestMapping(COLIS_SCHEMA, headers));
+  return recordsToColisRows(records)
+    .map((r) => ({ id: newRowId(), ...r }))
+    .filter((r) => r.reference || r.length || r.width || r.height);
 }
 
 export const mm3ToM3 = (mm3) => mm3 / 1e9;

@@ -104,6 +104,33 @@ Contrôle a posteriori, sans modifier le placement :
 - arrimage par friction EN 12195-1 : sangles par mur (µ, STF, angle, blocage avant).
 Réglages pré-remplis par véhicule dans « Essieux et arrimage », mémorisés.
 
+## Échange avec un ERP / WMS (niveau 1 : fichiers)
+
+L'import repose sur le module partagé `src/shared/import` (voir son README). Spécifique à l'outil :
+`import/colisSchema.ts` (schéma = format standard) et `import/exportSequence.ts`.
+
+**Format standard Atelier Logistique v1 — colis à charger** (CSV `;`, UTF-8, virgule décimale) :
+
+| Colonne | Obligatoire | Valeurs |
+|---|---|---|
+| Référence | oui | code article ou libellé |
+| Quantité | non (1) | entier |
+| Longueur / Largeur / Hauteur | oui | cm par défaut ; `mm`, `cm` ou `m` reconnus dans l'en-tête, ex. `Longueur (mm)` |
+| Poids | non | kg par défaut ; `g`, `kg`, `t` reconnus |
+| Rotation | non (Horizontale) | Libre, Horizontale, Interdite |
+| Empilage | non (Libre) | Libre, Dessus uniquement, Au sol, Au sol rien dessus ; ou Oui / Non |
+| Arrêt | non (1) | numéro (1 = livré en premier) ou nom du client |
+| Destination | non | texte |
+| N° support (SSCC) | non | identifiant de l'unité, repris à l'export |
+
+Tout autre format (export Reflex, SAP, D365, Sage…) s'importe via la correspondance de colonnes,
+mémorisée en **profil** et reconnue automatiquement aux imports suivants.
+
+**Export de la séquence de chargement** (bouton CSV du résultat) : une ligne par colis, dans l'ordre
+de chargement — séquence, mur, arrêt, destination, référence, SSCC, position X/Y/Z (cm depuis cabine,
+gauche, plancher), dimensions placées, poids, pivoté ; les colis non chargés suivent avec le statut
+« Non chargé ».
+
 ## Tests
 
 ```bash
