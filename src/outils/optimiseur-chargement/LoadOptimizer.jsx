@@ -3,11 +3,12 @@ import { createPortal } from 'react-dom';
 import * as XLSX from 'xlsx';
 import {
   ArrowLeft, Plus, Trash2, Truck, Box, Loader2, AlertCircle,
-  RotateCcw, Check, ArrowRight, Boxes, Upload, Copy, Download,
+  RotateCcw, Check, ArrowRight, Boxes, Upload, Download,
   MapPin, Undo2, Printer, Scale, ChevronDown,
 } from 'lucide-react';
 
 const LoadView3D = lazy(() => import('./LoadView3D.jsx'));
+const ImportWizard = lazy(() => import('../../shared/import/ImportWizard.jsx'));
 
 // Error boundary : si Three.js échoue, on retombe sur le schéma 2D (CDC §53).
 class ThreeErrorBoundary extends Component {
@@ -24,11 +25,19 @@ import {
   emptyRow, exampleRows, validateRow, rowsAreValid, coerceField,
   rowsToDefinitions, cmToMm, refColor, ROTATION_OPTIONS,
   formatM3, formatKg, formatPct, mm3ToM3,
-  parsePastedTable, bulkToRows,
+  newRowId,
   DELIVERY_MODES, distinctStops, stopLabel, stopColor,
   STACKING_OPTIONS, stackingOf, stackingFields,
 } from './uiHelpers';
 import { track } from './analytics';
+import { createLocalProfileStore, toCsv, downloadText } from '../../shared/import';
+import { COLIS_SCHEMA, STANDARD_HEADERS, STANDARD_SAMPLE, recordsToColisRows } from './import/colisSchema';
+import { SEQUENCE_HEADERS, sequenceRows } from './import/exportSequence';
+
+const importProfiles = createLocalProfileStore();
+const IMPORT_EXTRA_OPTIONS = [
+  { id: 'stopsFromDestination', label: 'Un arrêt par destination', help: 'sans colonne Arrêt, chaque client devient un arrêt, dans l’ordre du fichier.' },
+];
 
 const FAQ = [
   { q: 'L’outil est-il gratuit et sans compte ?', a: 'Oui. L’optimiseur fonctionne entièrement dans votre navigateur, sans inscription. Vos données ne sont ni enregistrées ni transmises à un service externe.' },
@@ -454,10 +463,8 @@ export default function LoadOptimizer({ onBack }) {
   const [highlight, setHighlight] = useState(null);
   const [view3d, setView3d] = useState(true);
   const [hovered, setHovered] = useState(null);
-  const [bulkOpen, setBulkOpen] = useState(false);
-  const [bulkText, setBulkText] = useState('');
+  const [importOpen, setImportOpen] = useState(false);
   const [importMsg, setImportMsg] = useState(null);
-  const fileRef = useRef(null);
   const resultRef = useRef(null);
   const ctaRef = useRef(null);
   const [ctaVisible, setCtaVisible] = useState(true);
@@ -631,37 +638,30 @@ export default function LoadOptimizer({ onBack }) {
 
   const flashImport = (type, text) => { setImportMsg({ type, text }); setTimeout(() => setImportMsg(null), 6000); };
 
-  const applyRows = (parsed, src) => {
-    const mapped = bulkToRows(parsed);
-    if (mapped.length === 0) { flashImport('error', 'Aucune ligne exploitable. Colonnes attendues : Référence, Qté, Longueur, Largeur, Hauteur, Poids, Rotation, Empilage.'); return; }
-    setRows(mapped);
+  /** Import via l'assistant (module partagé src/shared/import). */
+  const onImported = ({ records, options, mode, source }) => {
+    const mapped = recordsToColisRows(records, { stopsFromDestination: !!options.stopsFromDestination })
+      .map((r) => ({ id: newRowId(), ...r }));
+    if (mapped.length === 0) return;
+    setRows((rs) => (mode === 'append' ? [...rs.filter((r) => r.reference || r.length), ...mapped] : mapped));
     setExcludedStops([]);
     reset();
-    flashImport('success', `${mapped.length} ligne(s) importée(s)${src ? ` depuis « ${src} »` : ''}.`);
+    setImportOpen(false);
+    track('load_optimizer_import', { mode, lines: mapped.length });
+    flashImport('success', `${mapped.length} ligne(s) importée(s)${source ? ` depuis « ${source} »` : ''}.`);
   };
 
-  const importFile = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    try {
-      const buf = await file.arrayBuffer();
-      const wb = XLSX.read(buf, { type: 'array' });
-      const sheet = wb.Sheets[wb.SheetNames[0]];
-      if (!sheet) throw new Error('Fichier vide');
-      applyRows(XLSX.utils.sheet_to_json(sheet, { defval: '' }), file.name);
-    } catch (err) {
-      flashImport('error', "Erreur d'import : " + err.message);
-    } finally {
-      if (fileRef.current) fileRef.current.value = '';
-    }
+  const downloadStandardCsv = () => {
+    downloadText('atelier-logistique-colis-format-standard.csv', toCsv(STANDARD_HEADERS, STANDARD_SAMPLE));
+    track('load_optimizer_standard_csv');
   };
 
-  const applyBulk = () => {
-    const json = parsePastedTable(bulkText);
-    if (json.length === 0) { flashImport('error', 'Collez au moins une ligne.'); return; }
-    applyRows(json, 'collage');
-    setBulkOpen(false);
-    setBulkText('');
+  const exportSequence = () => {
+    if (!planResult) return;
+    const stamp = new Date().toISOString().slice(0, 10);
+    const unitIds = Object.fromEntries(rows.filter((r) => r.unitIds?.length).map((r) => [r.id, r.unitIds]));
+    downloadText(`sequence-chargement-${stamp}.csv`, toCsv(SEQUENCE_HEADERS, sequenceRows(planResult, unitIds)));
+    track('load_optimizer_export_sequence');
   };
 
   const downloadTemplate = () => {
@@ -804,23 +804,17 @@ export default function LoadOptimizer({ onBack }) {
             <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div className="font-jetbrains text-xs text-slate-600 flex items-center gap-2"><Boxes size={13} /> 1 · QUE SOUHAITEZ-VOUS CHARGER ?</div>
               <div className="grid grid-cols-4 sm:flex sm:items-center gap-1.5">
-                <button onClick={() => fileRef.current?.click()} className="flex items-center justify-center gap-1 font-jetbrains text-[11px] px-2.5 py-2 sm:py-1.5 rounded-md" style={{ background: BLUE, color: '#fff' }}><Upload size={11} /> Importer</button>
-                <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" onChange={importFile} className="hidden" />
-                <button onClick={() => setBulkOpen((o) => !o)} className="flex items-center justify-center gap-1 font-jetbrains text-[11px] px-2.5 py-2 sm:py-1.5 rounded-md" style={{ background: '#F1F5F9', color: '#475569' }}><Copy size={11} /> Coller</button>
+                <button onClick={() => setImportOpen(true)} className="col-span-2 flex items-center justify-center gap-1 font-jetbrains text-[11px] px-2.5 py-2 sm:py-1.5 rounded-md" style={{ background: BLUE, color: '#fff' }} title="Fichier Excel / CSV (ERP, WMS) ou copier-coller"><Upload size={11} /> Importer / coller</button>
                 <button onClick={downloadTemplate} className="flex items-center justify-center gap-1 font-jetbrains text-[11px] px-2.5 py-2 sm:py-1.5 rounded-md" style={{ background: '#F1F5F9', color: '#475569' }}><Download size={11} /> Modèle</button>
                 <button onClick={loadExample} className="flex items-center justify-center font-jetbrains text-[11px] px-2.5 py-2 sm:py-1.5 rounded-md" style={{ background: BLUE_LIGHT, color: BLUE }}>Exemple</button>
               </div>
             </div>
-            {bulkOpen && (
-              <div className="px-4 py-3 border-b border-slate-100 space-y-2">
-                <textarea value={bulkText} onChange={(e) => setBulkText(e.target.value)} rows={5}
-                  placeholder={'Collez depuis Excel (avec ou sans en-têtes). Ex :\nRéférence\tQté\tLongueur\tLargeur\tHauteur\tPoids\tRotation\tEmpilage\nCARTON-A\t40\t60\t40\t40\t12\tLibre\tLibre'}
-                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-md outline-none font-jetbrains text-base sm:text-[11px] text-slate-800 focus:border-slate-400" />
-                <div className="flex gap-2">
-                  <button onClick={applyBulk} className="px-3 py-1.5 rounded-md text-xs font-jetbrains" style={{ background: BLUE, color: '#fff' }}>Analyser</button>
-                  <button onClick={() => { setBulkOpen(false); setBulkText(''); }} className="px-3 py-1.5 rounded-md text-xs font-jetbrains" style={{ background: '#F1F5F9', color: '#475569' }}>Annuler</button>
-                </div>
-              </div>
+            {importOpen && (
+              <Suspense fallback={null}>
+                <ImportWizard schema={COLIS_SCHEMA} store={importProfiles} onImport={onImported} onClose={() => setImportOpen(false)}
+                  extraOptions={IMPORT_EXTRA_OPTIONS}
+                  footerLinks={[{ label: 'Format standard (CSV)', onClick: downloadStandardCsv }, { label: 'Modèle Excel', onClick: downloadTemplate }]} />
+              </Suspense>
             )}
             {importMsg && (
               <div className="mx-4 mt-3 text-[11px] font-jetbrains px-3 py-2 rounded-md" style={importMsg.type === 'error'
@@ -1222,7 +1216,10 @@ export default function LoadOptimizer({ onBack }) {
                           </button>
                         ))}
                       </div>
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-3 gap-2">
+                        <button onClick={exportSequence} title="Séquence de chargement colis par colis, à réimporter dans votre WMS / ERP" className="flex items-center justify-center gap-1.5 py-2 rounded-lg font-jetbrains text-xs" style={{ background: BLUE_LIGHT, color: BLUE }}>
+                          <Download size={13} /> CSV
+                        </button>
                         <button onClick={printSheet} className="flex items-center justify-center gap-1.5 py-2 rounded-lg font-jetbrains text-xs" style={{ background: BLUE_LIGHT, color: BLUE }}>
                           <Printer size={13} /> Fiche PDF
                         </button>
