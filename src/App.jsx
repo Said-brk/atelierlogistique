@@ -15,6 +15,7 @@ import {
 import LoadOptimizer from './outils/optimiseur-chargement/LoadOptimizer.jsx';
 import Palletizer from './outils/palettisation/Palletizer.jsx';
 import { SITE, toolSeo } from './seo/pages';
+import SiteNav from './components/SiteNav.jsx';
 
 const BLUE = '#2563EB';
 const BLUE_DARK = '#1D4ED8';
@@ -212,17 +213,7 @@ function SiteHeader() {
             <div className="font-jetbrains text-[10px] text-slate-500 -mt-1 tracking-wider"><span className="hidden sm:inline">LA BOÎTE À OUTILS DES PROS DE LA SUPPLY CHAIN</span><span className="sm:hidden">BOÎTE À OUTILS SUPPLY CHAIN</span></div>
           </div>
         </Link>
-        <div className="hidden md:flex items-center gap-5 font-jetbrains text-xs text-slate-500">
-          <a href="/#tools" className="hover:text-slate-900 transition-colors">Outils</a>
-          <a href="/#how" className="hover:text-slate-900 transition-colors">Comment ça marche</a>
-          <Link to="/ressources" className="hover:text-slate-900 transition-colors">Ressources</Link>
-          <a href="mailto:contact@atelierlogistique.com" className="hover:text-slate-900 transition-colors">Contact</a>
-          <span className="text-slate-300">|</span>
-          <span className="flex items-center gap-2" style={{ color: BLUE }}>
-            <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: BLUE }} />
-            EN LIGNE
-          </span>
-        </div>
+        <SiteNav />
       </div>
     </nav>
   );
@@ -251,7 +242,7 @@ function SiteFooter() {
 function ToolTopBar({ id }) {
   const name = TOOL_NAMES[id] || id;
   return (
-    <div className="border-b border-slate-200 bg-white">
+    <div className="border-b border-slate-200 bg-white relative z-30">
       <div className="max-w-7xl mx-auto px-6 md:px-10 py-2.5 flex items-center justify-between font-jetbrains text-xs">
         <div className="flex items-center gap-2 text-slate-500 min-w-0">
           <Link to="/" className="flex items-center gap-2 text-slate-700 hover:text-slate-900 shrink-0">
@@ -266,10 +257,7 @@ function ToolTopBar({ id }) {
             ? <h1 className="text-slate-900 truncate text-xs font-normal">{toolSeo(id).h1}</h1>
             : <span className="text-slate-900 truncate">{name}</span>}
         </div>
-        <div className="hidden sm:flex items-center gap-4 shrink-0">
-          <Link to="/ressources" className="text-slate-500 hover:text-slate-900">Ressources</Link>
-          <a href="/#tools" className="text-white px-3 py-1.5 rounded-md transition-colors" style={{ background: BLUE }}>Tous les outils</a>
-        </div>
+        <div className="shrink-0 ml-3"><SiteNav compact /></div>
       </div>
     </div>
   );

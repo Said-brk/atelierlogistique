@@ -8,12 +8,13 @@
 //
 // Source des textes : src/seo/pages.js (partagée avec les pages React).
 
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   SITE, SITE_NAME, TOOL_PAGES, ARTICLE_PAGES, HOME_PAGE, RESSOURCES_PAGE, toolPath,
 } from '../src/seo/pages.js';
+import { navHtml } from '../src/seo/nav.js';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const dist = join(root, 'dist');
@@ -67,10 +68,13 @@ function write(path, html) {
 const shell = (crumbs, inner) => `
 <div class="min-h-screen bg-white text-slate-900" style="font-family:'DM Sans',system-ui,sans-serif">
   <header class="border-b border-slate-200">
-    <nav class="max-w-5xl mx-auto px-6 py-4 flex flex-wrap items-center gap-2 text-sm text-slate-500" aria-label="Fil d'Ariane">
-      <a href="/" class="font-semibold text-slate-900">${SITE_NAME}</a>
-      ${crumbs.map((c) => `<span>›</span>${c.href ? `<a href="${c.href}">${esc(c.label)}</a>` : `<span class="text-slate-700">${esc(c.label)}</span>`}`).join('')}
-    </nav>
+    <div class="relative max-w-5xl mx-auto px-6 py-4 flex items-center justify-between gap-4">
+      <nav class="flex flex-wrap items-center gap-2 text-sm text-slate-500" aria-label="Fil d'Ariane">
+        <a href="/" class="font-semibold text-slate-900">${SITE_NAME}</a>
+        ${crumbs.map((c) => `<span>›</span>${c.href ? `<a href="${c.href}">${esc(c.label)}</a>` : `<span class="text-slate-700">${esc(c.label)}</span>`}`).join('')}
+      </nav>
+      ${navHtml()}
+    </div>
   </header>
   <main class="max-w-3xl mx-auto px-6 py-10 space-y-8">${inner}</main>
 </div>`;
@@ -151,6 +155,34 @@ for (const t of TOOL_PAGES) {
     <div><h1 class="font-bold text-3xl">${esc(RESSOURCES_PAGE.h1)}</h1><p class="text-slate-600 mt-2">${esc(RESSOURCES_PAGE.intro)}</p></div>
     <section>${links(ARTICLE_PAGES.map((a) => ({ href: `/ressources/${a.slug}`, label: a.title })))}</section>`;
   write(RESSOURCES_PAGE.path, page(head({ path: RESSOURCES_PAGE.path, title: RESSOURCES_PAGE.title, description: RESSOURCES_PAGE.description }), shell([{ label: 'Ressources' }], inner)));
+}
+
+// ---------- Menu des articles statiques (dist/ressources/*.html) ----------
+// Les guides sont écrits à la main ; leur menu d'en-tête est remplacé ici par le menu commun
+// (src/seo/nav.js), pour qu'il n'existe qu'une seule définition du menu.
+{
+  const MARK = '<div class="hidden md:flex items-center gap-5 font-jetbrains text-xs text-slate-500">';
+  const dir = join(dist, 'ressources');
+  let patched = 0;
+  for (const f of readdirSync(dir).filter((n) => n.endsWith('.html') && n !== 'index.html')) {
+    const file = join(dir, f);
+    const html = readFileSync(file, 'utf8');
+    const start = html.indexOf(MARK);
+    if (start < 0) { console.warn(`Menu non remplacé : ${f}`); continue; }
+    // Fin du bloc : on équilibre les <div> ouvrants / fermants.
+    let depth = 0;
+    let i = start;
+    const re = /<div\b|<\/div>/g;
+    re.lastIndex = start;
+    let m;
+    while ((m = re.exec(html))) {
+      depth += m[0] === '</div>' ? -1 : 1;
+      if (depth === 0) { i = m.index + m[0].length; break; }
+    }
+    writeFileSync(file, html.slice(0, start) + navHtml() + html.slice(i));
+    patched++;
+  }
+  console.log(`Menu commun appliqué à ${patched} guide(s)`);
 }
 
 // ---------- Sitemap ----------
