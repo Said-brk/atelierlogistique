@@ -1,0 +1,176 @@
+// Pré-rendu SEO, exécuté après `vite build`.
+//
+// Pour chaque page (accueil, ressources, chaque outil), on écrit un HTML complet :
+// titre, description, URL canonique, Open Graph, données structurées (logiciel gratuit,
+// FAQ, fil d'Ariane) et le contenu texte de la page dans <div id="root">.
+// Google lit ce contenu immédiatement ; au chargement, React remplace ce bloc par l'application
+// (même contenu, version interactive). Génère aussi sitemap.xml.
+//
+// Source des textes : src/seo/pages.js (partagée avec les pages React).
+
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import {
+  SITE, SITE_NAME, TOOL_PAGES, ARTICLE_PAGES, HOME_PAGE, RESSOURCES_PAGE, toolPath,
+} from '../src/seo/pages.js';
+
+const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+const dist = join(root, 'dist');
+const template = readFileSync(join(dist, 'index.html'), 'utf8');
+
+// Page 404 (servie par Vercel pour une URL inconnue) : l'application affiche « Page introuvable ».
+writeFileSync(join(dist, '404.html'), template.replace('<meta name="viewport" content="width=device-width, initial-scale=1.0" />',
+  '<meta name="viewport" content="width=device-width, initial-scale=1.0" />\n    <meta name="robots" content="noindex" />'));
+
+const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const jsonLd = (obj) => `<script type="application/ld+json">${JSON.stringify(obj).replace(/</g, '\\u003c')}</script>`;
+const toolById = Object.fromEntries(TOOL_PAGES.map((t) => [t.id, t]));
+const articleBySlug = Object.fromEntries(ARTICLE_PAGES.map((a) => [a.slug, a]));
+
+function head({ path, title, description, structured = [] }) {
+  const url = SITE + path;
+  return [
+    `<title>${esc(title)}</title>`,
+    `<meta name="description" content="${esc(description)}" />`,
+    `<link rel="canonical" href="${url}" />`,
+    `<meta property="og:title" content="${esc(title)}" />`,
+    `<meta property="og:description" content="${esc(description)}" />`,
+    `<meta property="og:url" content="${url}" />`,
+    `<meta property="og:site_name" content="${SITE_NAME}" />`,
+    `<meta property="og:locale" content="fr_FR" />`,
+    `<meta name="twitter:card" content="summary" />`,
+    ...structured.map(jsonLd),
+  ].join('\n    ');
+}
+
+/** Remplace les balises SEO du gabarit et le contenu de #root. */
+function page(headHtml, bodyHtml) {
+  let html = template
+    .replace(/<title>[\s\S]*?<\/title>/, '')
+    .replace(/<meta name="description"[^>]*>/, '')
+    .replace(/<meta property="og:title"[^>]*>/, '')
+    .replace(/<meta property="og:description"[^>]*>/, '')
+    .replace(/<meta property="og:type"[^>]*>/, '<meta property="og:type" content="website" />');
+  html = html.replace('<meta name="viewport" content="width=device-width, initial-scale=1.0" />',
+    `<meta name="viewport" content="width=device-width, initial-scale=1.0" />\n    ${headHtml}`);
+  if (!html.includes('<div id="root"></div>')) throw new Error('Gabarit : <div id="root"></div> introuvable');
+  return html.replace('<div id="root"></div>', `<div id="root">${bodyHtml}</div>`);
+}
+
+function write(path, html) {
+  const file = path === '/' ? join(dist, 'index.html') : join(dist, path.replace(/^\//, ''), 'index.html');
+  mkdirSync(dirname(file), { recursive: true });
+  writeFileSync(file, html);
+}
+
+const shell = (crumbs, inner) => `
+<div class="min-h-screen bg-white text-slate-900" style="font-family:'DM Sans',system-ui,sans-serif">
+  <header class="border-b border-slate-200">
+    <nav class="max-w-5xl mx-auto px-6 py-4 flex flex-wrap items-center gap-2 text-sm text-slate-500" aria-label="Fil d'Ariane">
+      <a href="/" class="font-semibold text-slate-900">${SITE_NAME}</a>
+      ${crumbs.map((c) => `<span>›</span>${c.href ? `<a href="${c.href}">${esc(c.label)}</a>` : `<span class="text-slate-700">${esc(c.label)}</span>`}`).join('')}
+    </nav>
+  </header>
+  <main class="max-w-3xl mx-auto px-6 py-10 space-y-8">${inner}</main>
+</div>`;
+
+const links = (items) => `<ul class="space-y-1">${items.map((i) => `<li><a class="underline" href="${i.href}">${esc(i.label)}</a>${i.desc ? ` — ${esc(i.desc)}` : ''}</li>`).join('')}</ul>`;
+
+// ---------- Outils ----------
+for (const t of TOOL_PAGES) {
+  const path = toolPath(t.id);
+  const structured = [
+    {
+      '@context': 'https://schema.org',
+      '@type': 'SoftwareApplication',
+      name: t.name,
+      description: t.description,
+      url: SITE + path,
+      applicationCategory: 'BusinessApplication',
+      operatingSystem: 'Web',
+      inLanguage: 'fr',
+      isAccessibleForFree: true,
+      offers: { '@type': 'Offer', price: '0', priceCurrency: 'EUR' },
+      publisher: { '@type': 'Organization', name: SITE_NAME, url: SITE },
+    },
+    {
+      '@context': 'https://schema.org',
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        { '@type': 'ListItem', position: 1, name: SITE_NAME, item: `${SITE}/` },
+        { '@type': 'ListItem', position: 2, name: 'Outils', item: `${SITE}/#tools` },
+        { '@type': 'ListItem', position: 3, name: t.name, item: SITE + path },
+      ],
+    },
+  ];
+  if (t.faq?.length) {
+    structured.push({
+      '@context': 'https://schema.org',
+      '@type': 'FAQPage',
+      mainEntity: t.faq.map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })),
+    });
+  }
+  const related = (t.related ?? []).map((id) => toolById[id]).filter(Boolean)
+    .map((r) => ({ href: toolPath(r.id), label: r.name, desc: r.intro }));
+  const guides = (t.articles ?? []).map((s) => articleBySlug[s]).filter(Boolean)
+    .map((a) => ({ href: `/ressources/${a.slug}`, label: a.title }));
+  const inner = `
+    <div>
+      <h1 class="font-bold text-3xl">${esc(t.h1)}</h1>
+      <p class="text-slate-600 mt-2">${esc(t.intro)}</p>
+      <p class="text-sm text-slate-500 mt-1">Gratuit · sans inscription · calcul dans votre navigateur</p>
+    </div>
+    <section><h2 class="font-bold text-xl mb-2">Fonctionnalités</h2><ul class="list-disc pl-5 space-y-1 text-slate-700">${t.features.map((f) => `<li>${esc(f)}</li>`).join('')}</ul></section>
+    ${t.faq?.length ? `<section><h2 class="font-bold text-xl mb-2">Questions fréquentes</h2>${t.faq.map((f) => `<details class="border border-slate-200 rounded-lg px-4 py-3 mb-2"><summary class="cursor-pointer">${esc(f.q)}</summary><p class="text-slate-600 text-sm mt-2">${esc(f.a)}</p></details>`).join('')}</section>` : ''}
+    ${guides.length ? `<section><h2 class="font-bold text-xl mb-2">Guides</h2>${links(guides)}</section>` : ''}
+    ${related.length ? `<section><h2 class="font-bold text-xl mb-2">Outils associés</h2>${links(related)}</section>` : ''}`;
+  write(path, page(head({ path, title: t.title, description: t.description, structured }), shell([{ label: 'Outils', href: '/#tools' }, { label: t.name }], inner)));
+}
+
+// ---------- Accueil ----------
+{
+  const structured = [{
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: SITE_NAME,
+    url: `${SITE}/`,
+    inLanguage: 'fr',
+    description: HOME_PAGE.description,
+  }];
+  const inner = `
+    <div><h1 class="font-bold text-3xl">${esc(HOME_PAGE.h1)}</h1><p class="text-slate-600 mt-2">${esc(HOME_PAGE.intro)}</p></div>
+    <section id="tools"><h2 class="font-bold text-xl mb-2">Les outils</h2>${links(TOOL_PAGES.map((t) => ({ href: toolPath(t.id), label: t.name, desc: t.intro })))}</section>
+    <section><h2 class="font-bold text-xl mb-2">Guides</h2>${links(ARTICLE_PAGES.map((a) => ({ href: `/ressources/${a.slug}`, label: a.title })))}</section>`;
+  write('/', page(head({ path: '/', title: HOME_PAGE.title, description: HOME_PAGE.description, structured }), shell([], inner)));
+}
+
+// ---------- Ressources ----------
+{
+  const inner = `
+    <div><h1 class="font-bold text-3xl">${esc(RESSOURCES_PAGE.h1)}</h1><p class="text-slate-600 mt-2">${esc(RESSOURCES_PAGE.intro)}</p></div>
+    <section>${links(ARTICLE_PAGES.map((a) => ({ href: `/ressources/${a.slug}`, label: a.title })))}</section>`;
+  write(RESSOURCES_PAGE.path, page(head({ path: RESSOURCES_PAGE.path, title: RESSOURCES_PAGE.title, description: RESSOURCES_PAGE.description }), shell([{ label: 'Ressources' }], inner)));
+}
+
+// ---------- Sitemap ----------
+{
+  const today = new Date().toISOString().slice(0, 10);
+  // On conserve la date de mise à jour des guides déclarée dans public/sitemap.xml.
+  const prev = existsSync(join(root, 'public', 'sitemap.xml')) ? readFileSync(join(root, 'public', 'sitemap.xml'), 'utf8') : '';
+  const lastmodOf = (loc) => new RegExp(`<loc>${loc.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}</loc>\\s*<lastmod>([^<]+)</lastmod>`).exec(prev)?.[1] ?? today;
+  const entries = [
+    { loc: `${SITE}/`, lastmod: today, freq: 'weekly', prio: '1.0' },
+    ...TOOL_PAGES.map((t) => ({ loc: SITE + toolPath(t.id), lastmod: today, freq: 'monthly', prio: ['optimiseur-chargement', 'pallet'].includes(t.id) ? '0.9' : '0.7' })),
+    { loc: `${SITE}/ressources`, lastmod: today, freq: 'weekly', prio: '0.8' },
+    ...ARTICLE_PAGES.map((a) => ({ loc: `${SITE}/ressources/${a.slug}`, lastmod: lastmodOf(`${SITE}/ressources/${a.slug}`), freq: 'monthly', prio: '0.8' })),
+  ];
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${entries.map((e) => `  <url><loc>${e.loc}</loc><lastmod>${e.lastmod}</lastmod><changefreq>${e.freq}</changefreq><priority>${e.prio}</priority></url>`).join('\n')}
+</urlset>
+`;
+  writeFileSync(join(dist, 'sitemap.xml'), xml);
+}
+
+console.log(`Pré-rendu : ${TOOL_PAGES.length + 2} pages + sitemap.xml`);
