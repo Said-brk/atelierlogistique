@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import LoadOptimizer from './outils/optimiseur-chargement/LoadOptimizer.jsx';
 import Palletizer from './outils/palettisation/Palletizer.jsx';
+import { SITE, toolSeo } from './seo/pages';
 
 const BLUE = '#2563EB';
 const BLUE_DARK = '#1D4ED8';
@@ -260,7 +261,10 @@ function ToolTopBar({ id }) {
           <ChevronRight size={12} className="text-slate-300 shrink-0" />
           <a href="/#tools" className="hover:text-slate-900 shrink-0">Outils</a>
           <ChevronRight size={12} className="text-slate-300 shrink-0" />
-          <span className="text-slate-900 truncate">{name}</span>
+          {/* Outils sans titre principal propre : le nom dans le fil d'Ariane sert de <h1> (SEO). */}
+          {toolSeo(id) && !toolSeo(id).ownH1
+            ? <h1 className="text-slate-900 truncate text-xs font-normal">{toolSeo(id).h1}</h1>
+            : <span className="text-slate-900 truncate">{name}</span>}
         </div>
         <div className="hidden sm:flex items-center gap-4 shrink-0">
           <Link to="/ressources" className="text-slate-500 hover:text-slate-900">Ressources</Link>
@@ -271,10 +275,27 @@ function ToolTopBar({ id }) {
   );
 }
 
+// Titre, description et URL canonique lors d'une navigation dans l'application
+// (le HTML pré-rendu les contient déjà au premier chargement). Source : src/seo/pages.js.
+function useSeoMeta(seo, path) {
+  useEffect(() => {
+    if (!seo) return;
+    document.title = seo.title;
+    const set = (selector, create, attr, value) => {
+      let el = document.head.querySelector(selector);
+      if (!el) { el = create(); document.head.appendChild(el); }
+      el.setAttribute(attr, value);
+    };
+    set('meta[name="description"]', () => Object.assign(document.createElement('meta'), { name: 'description' }), 'content', seo.description);
+    set('link[rel="canonical"]', () => Object.assign(document.createElement('link'), { rel: 'canonical' }), 'href', SITE + path);
+  }, [seo, path]);
+}
+
 // Route d'un outil : /outils/:id → composant plein écran + fil d'Ariane
 function ToolRoute() {
   const { id } = useParams();
   const navigate = useNavigate();
+  useSeoMeta(toolSeo(id), `/outils/${id}`);
   const Comp = TOOL_COMPONENTS[id];
   if (!Comp) return <NotFound />;
   return (
@@ -2699,6 +2720,22 @@ function BarcodeGenerator({ onBack }) {
 // Composants d'affichage partagés (anciennement dans l'outil palettisation)
 // La palettisation 3D vit désormais dans src/outils/palettisation/.
 // ============================================================
+function NumberField({ label, value, onChange, step = '1' }) {
+  return (
+    <div>
+      <label className="font-jetbrains text-[10px] text-slate-500 tracking-wider block mb-1.5">{label}</label>
+      <input
+        type="number"
+        value={value}
+        min="0"
+        step={step}
+        onChange={e => onChange(e.target.value)}
+        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-md outline-none font-jetbrains text-sm text-slate-800 focus:border-slate-400 transition-colors"
+      />
+    </div>
+  );
+}
+
 function StatCard({ label, value, sub }) {
   return (
     <div className="rounded-xl border border-slate-200 p-4 bg-white">

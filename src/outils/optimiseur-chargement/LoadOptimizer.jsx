@@ -30,6 +30,7 @@ import {
   stackingFields,
 } from './uiHelpers';
 import { track } from './analytics';
+import { OPTIMIZER_FAQ, toolSeo } from '../../seo/pages';
 import ColisTable from './components/ColisTable';
 import { createLocalProfileStore, toCsv, downloadText } from '../../shared/import';
 import { consumeHandoff } from '../../shared/handoff';
@@ -41,14 +42,8 @@ const IMPORT_EXTRA_OPTIONS = [
   { id: 'stopsFromDestination', label: 'Un arrêt par destination', help: 'sans colonne Arrêt, chaque client devient un arrêt, dans l’ordre du fichier.' },
 ];
 
-const FAQ = [
-  { q: 'L’outil est-il gratuit et sans compte ?', a: 'Oui. L’optimiseur fonctionne entièrement dans votre navigateur, sans inscription. Vos données ne sont ni enregistrées ni transmises à un service externe.' },
-  { q: 'Quelles marchandises puis-je charger ?', a: 'Des cartons, colis ou palettes de forme rectangulaire. Vous indiquez pour chaque référence ses dimensions, son poids, sa quantité, si la rotation est autorisée et son empilage : libre, dessus uniquement (rien par-dessus), au sol, ou au sol sans rien dessus. Le camion est chargé par murs, de la cabine vers les portes, pour que chaque colis reste accessible.' },
-  { q: 'Quels véhicules et conteneurs sont pris en charge ?', a: 'Une semi-remorque standard, les conteneurs maritimes 20 pieds, 40 pieds et 40 pieds High Cube, ainsi que des dimensions personnalisées.' },
-  { q: 'Comment est calculé le plan de chargement ?', a: 'Un moteur de bin packing 3D place les unités une à une en respectant les parois, le poids maximal, les rotations autorisées, l’empilabilité et la stabilité (chaque objet est supporté). Plusieurs ordres de placement sont testés et le meilleur résultat est conservé.' },
-  { q: 'Puis-je préparer un camion pour plusieurs livraisons (tournée) ?', a: 'Oui. Indiquez pour chaque référence son numéro d’arrêt (1 = livré en premier) et, si vous le souhaitez, la destination. Le dernier arrêt est chargé au fond, le premier côté portes, et aucun colis d’un arrêt ultérieur ne bloque l’accès à un arrêt précédent. Si tout ne rentre pas, vous choisissez de retirer un arrêt entier ou seulement les colis en excès.' },
-  { q: 'Le taux de remplissage de 100 % est-il atteignable ?', a: 'Rarement. Un taux volumétrique ne signifie pas que l’espace restant est exploitable d’un seul tenant. L’objectif est un chargement dense, stable et réaliste à préparer.' },
-];
+// FAQ : source unique dans src/seo/pages.js (aussi pré-rendue en HTML et en données structurées).
+const FAQ = OPTIMIZER_FAQ;
 
 const BLUE = '#2563EB';
 const BLUE_LIGHT = '#EFF6FF';
@@ -421,10 +416,8 @@ function Kpi({ label, value, sub }) {
 }
 
 export default function LoadOptimizer({ onBack }) {
-  useDocumentMeta(
-    'Optimiseur de chargement 3D camion et conteneur | Atelier Logistique',
-    'Optimisez gratuitement le chargement de vos cartons et palettes dans un camion ou un conteneur. Visualisez automatiquement votre plan de chargement en 3D.',
-  );
+  const seo = toolSeo('optimiseur-chargement');
+  useDocumentMeta(seo.title, seo.description);
 
   const [rows, setRows] = useState(exampleRows);
   const [containerId, setContainerId] = useState('semi');
@@ -573,18 +566,7 @@ export default function LoadOptimizer({ onBack }) {
     }
   }, [status, result, rows.length, totals.units, containerId]);
 
-  // FAQ structurée (Schema.org) pour le SEO
-  useEffect(() => {
-    const el = document.createElement('script');
-    el.type = 'application/ld+json';
-    el.text = JSON.stringify({
-      '@context': 'https://schema.org',
-      '@type': 'FAQPage',
-      mainEntity: FAQ.map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })),
-    });
-    document.head.appendChild(el);
-    return () => { el.remove(); };
-  }, []);
+  // Données structurées FAQ / logiciel : injectées dans le HTML pré-rendu au build (scripts/prerender.mjs).
 
   // À la fin du calcul, on amène le résultat (camion + KPI) dans la vue.
   useEffect(() => {

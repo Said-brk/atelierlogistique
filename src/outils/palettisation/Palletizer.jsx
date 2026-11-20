@@ -13,6 +13,7 @@ import {
   formatKg,
 } from '../optimiseur-chargement/uiHelpers';
 import { track } from '../optimiseur-chargement/analytics';
+import { PALLET_FAQ, toolSeo } from '../../seo/pages';
 import { createLocalProfileStore, toCsv, downloadText } from '../../shared/import';
 import { sendHandoff } from '../../shared/handoff';
 import { COLIS_SCHEMA, STANDARD_HEADERS, STANDARD_SAMPLE, recordsToColisRows } from '../optimiseur-chargement/import/colisSchema';
@@ -169,8 +170,9 @@ export default function Palletizer({ onBack }) {
   const [msg, setMsg] = useState(null);
 
   useEffect(() => {
+    const seo = toolSeo('pallet');
     const prev = document.title;
-    document.title = 'Palettisation 3D en ligne : plan de palette et palettes mixtes | Atelier Logistique';
+    document.title = seo.title;
     return () => { document.title = prev; };
   }, []);
 
@@ -492,6 +494,33 @@ export default function Palletizer({ onBack }) {
             </div>
           </div>
         )}
+      </div>
+
+      {/* Contenu SEO (aussi pré-rendu en HTML : src/seo/pages.js) */}
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-12 space-y-8 print:hidden">
+        <p className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
+          Une fois les palettes prêtes, calculez le <a href="/outils/optimiseur-chargement" className="font-medium underline underline-offset-2" style={{ color: BLUE }}>plan de chargement du camion ou du conteneur</a>.
+          Méthode complète : <a href="/ressources/plan-de-chargement-camion" className="font-medium underline underline-offset-2" style={{ color: BLUE }}>comment faire un plan de chargement</a>.
+        </p>
+        <section>
+          <h2 className="font-bricolage font-bold text-xl text-slate-900 mb-2">Comment fonctionne le calcul de palettisation ?</h2>
+          <p className="text-slate-600 leading-relaxed">
+            Vous saisissez ou importez vos colis (dimensions, poids, quantité, rotation, empilage, destination) et cochez les palettes dont vous disposez.
+            L’outil prépare d’abord des palettes complètes mono-référence avec le meilleur plan de couche, puis regroupe les reliquats sur des palettes
+            mixtes calculées en 3D. Il choisit le support le plus adapté et respecte la hauteur et la charge maximales de chaque palette.
+          </p>
+        </section>
+        <section>
+          <h2 className="font-bricolage font-bold text-xl text-slate-900 mb-3">Questions fréquentes</h2>
+          <div className="space-y-3">
+            {PALLET_FAQ.map((f) => (
+              <details key={f.q} className="rounded-lg border border-slate-200 bg-white px-4 py-3">
+                <summary className="font-jetbrains text-sm text-slate-800 cursor-pointer">{f.q}</summary>
+                <p className="text-slate-600 text-sm mt-2 leading-relaxed">{f.a}</p>
+              </details>
+            ))}
+          </div>
+        </section>
       </div>
 
       {result && createPortal(
