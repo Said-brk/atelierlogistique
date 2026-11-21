@@ -4,6 +4,7 @@
 
 import type { CanonicalRecord } from '../../../shared/import';
 import type { PalletPlan, PalletSpec } from './types';
+import { t } from '../../../shared/i18n/core';
 
 /**
  * Gerbage des palettes dans le camion.
@@ -32,7 +33,7 @@ export function palletStackingLabel(p: PalletPlan, policy: PalletStacking): stri
 /** Libellé lisible d'une palette : « PAL CARTON-A ×40 » ou « PAL mixte (3 réf.) ». */
 export function palletLabel(p: PalletPlan): string {
   if (p.contents.length === 1) return `PAL ${p.contents[0].reference} ×${p.contents[0].quantity}`;
-  return `PAL mixte (${p.contents.length} réf.)`;
+  return t('PAL mixte ({length} réf.)', { length: p.contents.length });
 }
 
 /**

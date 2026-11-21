@@ -71,6 +71,10 @@
       "destination": "/en/capacity/:slug/index.html"
     },
     {
+      "source": "/en/loading",
+      "destination": "/index.html"
+    },
+    {
       "source": "/en/:page",
       "destination": "/en/:page/index.html"
     },

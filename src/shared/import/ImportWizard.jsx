@@ -18,22 +18,23 @@ import {
   newProfile, readPasted, UNITS, unitFactor, downloadText,
 } from './index';
 import { ACCEPTED_FILES, readFile } from './readFile';
+import { t as tr, tText, numLocale, N_ } from '../i18n/core';
 
 const BLUE = '#2563EB';
 const btn = 'inline-flex items-center gap-1.5 font-jetbrains text-[11px] px-2.5 py-1.5 rounded-md';
 const ghost = { background: '#F1F5F9', color: '#475569' };
 
-const DELIM_LABEL = { ';': 'point-virgule', ',': 'virgule', '\t': 'tabulation', '|': 'barre verticale' };
+const DELIM_LABEL = { ';': N_('point-virgule'), ',': N_('virgule'), '\t': N_('tabulation'), '|': N_('barre verticale') };
 
 function displayValue(field, v) {
   if (v === undefined || v === null || v === '') return '—';
   if (field.unitKind && typeof v === 'number') {
     const u = field.defaultUnit;
     const n = v / unitFactor(field.unitKind, u, u);
-    return `${n.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${u}`;
+    return `${n.toLocaleString(numLocale(), { maximumFractionDigits: 2 })} ${u}`;
   }
-  if (typeof v === 'boolean') return v ? 'Oui' : 'Non';
-  return String(v);
+  if (typeof v === 'boolean') return v ? tr('Oui') : tr('Non');
+  return tText(String(v));
 }
 
 export default function ImportWizard({ schema, store, onImport, onClose, extraOptions = [], footerLinks = [], canAppend = true }) {
@@ -70,11 +71,11 @@ export default function ImportWizard({ schema, store, onImport, onClose, extraOp
       setOptions({ groupIdentical: false, ...fit.options });
       setProfileId(fit.id);
       setProfileName(fit.name);
-      setMsg({ type: 'ok', text: `Profil « ${fit.name} » reconnu et appliqué.` });
+      setMsg({ type: 'ok', text: tr('Profil « {name} » reconnu et appliqué.', { name: fit.name }) });
     } else {
       setMapping(initialMapping(schema, t));
       setProfileId('');
-      if (t.meta.headerRow < 0) setMsg({ type: 'warn', text: 'Aucun en-tête reconnu : colonnes lues dans l’ordre du format standard. Vérifiez la correspondance.' });
+      if (t.meta.headerRow < 0) setMsg({ type: 'warn', text: tr('Aucun en-tête reconnu : colonnes lues dans l’ordre du format standard. Vérifiez la correspondance.') });
     }
   };
 
@@ -86,7 +87,7 @@ export default function ImportWizard({ schema, store, onImport, onClose, extraOp
       setSheets(s);
       loadTable(t);
     } catch (err) {
-      setMsg({ type: 'error', text: `Lecture impossible : ${err.message}` });
+      setMsg({ type: 'error', text: tr('Lecture impossible : {message}', { message: err.message }) });
     }
   };
 
@@ -118,12 +119,12 @@ export default function ImportWizard({ schema, store, onImport, onClose, extraOp
     setMapping(p.mapping);
     setOptions({ groupIdentical: false, ...p.options });
     setProfileName(p.name);
-    if (table && !mappingFits(p.mapping, table)) setMsg({ type: 'warn', text: `Certaines colonnes du profil « ${p.name} » sont absentes de ce fichier.` });
+    if (table && !mappingFits(p.mapping, table)) setMsg({ type: 'warn', text: tr('Certaines colonnes du profil « {name} » sont absentes de ce fichier.', { name: p.name }) });
   };
 
   const saveProfile = () => {
     const name = profileName.trim();
-    if (!name) { setMsg({ type: 'error', text: 'Donnez un nom au profil (ex. « Export Reflex quai 3 »).' }); return; }
+    if (!name) { setMsg({ type: 'error', text: tr('Donnez un nom au profil (ex. « Export Reflex quai 3 »).') }); return; }
     const existing = profileId ? store.get(profileId) : null;
     const p = existing && existing.name === name
       ? { ...existing, mapping, options, updatedAt: new Date().toISOString() }
@@ -131,12 +132,12 @@ export default function ImportWizard({ schema, store, onImport, onClose, extraOp
     store.save(p);
     setProfileId(p.id);
     refreshProfiles();
-    setMsg({ type: 'ok', text: `Profil « ${name} » enregistré dans ce navigateur.` });
+    setMsg({ type: 'ok', text: tr('Profil « {name} » enregistré dans ce navigateur.', { name: name }) });
   };
 
   const deleteProfile = () => {
     const p = store.get(profileId);
-    if (!p || !window.confirm(`Supprimer le profil « ${p.name} » ?`)) return;
+    if (!p || !window.confirm(tr('Supprimer le profil « {name} » ?', { name: p.name }))) return;
     store.remove(p.id);
     setProfileId('');
     setProfileName('');
@@ -145,7 +146,7 @@ export default function ImportWizard({ schema, store, onImport, onClose, extraOp
 
   const shareProfile = () => {
     const p = store.get(profileId);
-    if (p) downloadText(`profil-import-${p.name.replace(/[^\w-]+/g, '-').toLowerCase()}.json`, exportProfile(p), 'application/json');
+    if (p) downloadText(tr('profil-import-{v1}.json', { v1: p.name.replace(/[^\w-]+/g, '-').toLowerCase() }), exportProfile(p), 'application/json');
   };
 
   const loadProfileFile = async (e) => {
@@ -157,9 +158,9 @@ export default function ImportWizard({ schema, store, onImport, onClose, extraOp
       store.save(p);
       refreshProfiles();
       pickProfile(p.id);
-      setMsg({ type: 'ok', text: `Profil « ${p.name} » ajouté.` });
+      setMsg({ type: 'ok', text: tr('Profil « {name} » ajouté.', { name: p.name }) });
     } catch (err) {
-      setMsg({ type: 'error', text: err.message });
+      setMsg({ type: 'error', text: tText(err.message) });
     }
   };
 
@@ -171,13 +172,13 @@ export default function ImportWizard({ schema, store, onImport, onClose, extraOp
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/40 p-0 sm:p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div role="dialog" aria-modal="true" aria-label="Importer des données" className="bg-white w-full sm:max-w-4xl max-h-[92vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl shadow-xl">
+      <div role="dialog" aria-modal="true" aria-label={tr('Importer des données')} className="bg-white w-full sm:max-w-4xl max-h-[92vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl shadow-xl">
         <div className="sticky top-0 bg-white z-10 px-4 sm:px-5 py-3 border-b border-slate-200 flex items-center justify-between">
           <div>
-            <div className="font-jetbrains text-xs text-slate-500">IMPORT · {schema.label.toUpperCase()}</div>
-            <div className="text-sm text-slate-800 font-medium">Fichier Excel / CSV de votre ERP ou WMS, ou copier-coller</div>
+            <div className="font-jetbrains text-xs text-slate-500">{tr('IMPORT · {v1}', { v1: tText(schema.label).toUpperCase() })}</div>
+            <div className="text-sm text-slate-800 font-medium">{tr('Fichier Excel / CSV de votre ERP ou WMS, ou copier-coller')}</div>
           </div>
-          <button onClick={onClose} aria-label="Fermer" className="p-1.5 rounded-md hover:bg-slate-100 text-slate-500"><X size={16} /></button>
+          <button onClick={onClose} aria-label={tr('Fermer')} className="p-1.5 rounded-md hover:bg-slate-100 text-slate-500"><X size={16} /></button>
         </div>
 
         <div className="px-4 sm:px-5 py-4 space-y-4">
@@ -192,15 +193,15 @@ export default function ImportWizard({ schema, store, onImport, onClose, extraOp
               style={{ borderColor: dragging ? BLUE : '#CBD5E1', background: dragging ? '#EFF6FF' : '#F8FAFC' }}
             >
               <Upload size={18} className="mx-auto text-slate-400" />
-              <div className="mt-1.5 text-sm text-slate-700">{file ? file.name : 'Déposez un fichier ou cliquez'}</div>
-              <div className="text-[11px] text-slate-500 mt-0.5">Excel, CSV, TXT · export ERP / WMS · reste dans votre navigateur</div>
+              <div className="mt-1.5 text-sm text-slate-700">{file ? file.name : tr('Déposez un fichier ou cliquez')}</div>
+              <div className="text-[11px] text-slate-500 mt-0.5">{tr('Excel, CSV, TXT · export ERP / WMS · reste dans votre navigateur')}</div>
               <input ref={fileRef} type="file" accept={ACCEPTED_FILES} className="hidden" onChange={(e) => { onFile(e.target.files?.[0]); e.target.value = ''; }} />
             </div>
             <div className="space-y-2">
               <textarea value={paste} onChange={(e) => setPaste(e.target.value)} rows={4}
-                placeholder={'…ou collez des lignes copiées depuis Excel (avec ou sans en-têtes)'}
+                placeholder={tr('…ou collez des lignes copiées depuis Excel (avec ou sans en-têtes)')}
                 className="w-full px-3 py-2 bg-white border border-slate-200 rounded-md outline-none font-jetbrains text-base sm:text-[11px] text-slate-800 focus:border-slate-400" />
-              <button onClick={onPaste} disabled={!paste.trim()} className={btn} style={{ background: paste.trim() ? BLUE : '#CBD5E1', color: '#fff' }}><ClipboardPaste size={11} /> Analyser le collage</button>
+              <button onClick={onPaste} disabled={!paste.trim()} className={btn} style={{ background: paste.trim() ? BLUE : '#CBD5E1', color: '#fff' }}><ClipboardPaste size={11} />{' '}{tr('Analyser le collage')}</button>
             </div>
           </section>
 
@@ -215,32 +216,30 @@ export default function ImportWizard({ schema, store, onImport, onClose, extraOp
 
           {/* Profils */}
           <section className="rounded-xl border border-slate-200 px-3 py-2.5 flex flex-wrap items-center gap-2">
-            <span className="font-jetbrains text-[11px] text-slate-500">PROFIL</span>
+            <span className="font-jetbrains text-[11px] text-slate-500">{tr('PROFIL')}</span>
             <select value={profileId} onChange={(e) => (e.target.value ? pickProfile(e.target.value) : setProfileId(''))}
               className="text-base sm:text-xs border border-slate-200 rounded-md px-2 py-1.5 bg-white min-w-[10rem]">
-              <option value="">{profiles.length ? '— Choisir un profil —' : 'Aucun profil enregistré'}</option>
+              <option value="">{profiles.length ? tr('— Choisir un profil —') : tr('Aucun profil enregistré')}</option>
               {profiles.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
             {profileId && (
               <>
-                <button onClick={shareProfile} className={btn} style={ghost} title="Exporter le profil pour un collègue ou un autre poste"><Download size={11} /> Partager</button>
-                <button onClick={deleteProfile} className={btn} style={{ background: '#FEF2F2', color: '#B91C1C' }}><Trash2 size={11} /> Supprimer</button>
+                <button onClick={shareProfile} className={btn} style={ghost} title={tr('Exporter le profil pour un collègue ou un autre poste')}><Download size={11} />{' '}{tr('Partager')}</button>
+                <button onClick={deleteProfile} className={btn} style={{ background: '#FEF2F2', color: '#B91C1C' }}><Trash2 size={11} />{' '}{tr('Supprimer')}</button>
               </>
             )}
-            <button onClick={() => profileFileRef.current?.click()} className={btn} style={ghost} title="Importer un profil partagé (.json)"><FileUp size={11} /> Charger un profil</button>
+            <button onClick={() => profileFileRef.current?.click()} className={btn} style={ghost} title={tr('Importer un profil partagé (.json)')}><FileUp size={11} />{' '}{tr('Charger un profil')}</button>
             <input ref={profileFileRef} type="file" accept=".json,application/json" className="hidden" onChange={loadProfileFile} />
           </section>
 
           {table && (
             <>
-              <div className="text-[11px] text-slate-500 font-jetbrains">
-                {meta.source} · {table.rows.length} ligne(s)
-                {meta.headerRow >= 0 && ` · en-tête ligne ${meta.headerRow + 1}`}
+              <div className="text-[11px] text-slate-500 font-jetbrains">{meta.source} · {tr('{n} ligne(s)', { n: table.rows.length })}
+                {meta.headerRow >= 0 && tr(' · en-tête ligne {n}', { n: meta.headerRow + 1 })}
                 {meta.encoding && ` · ${meta.encoding === 'windows-1252' ? 'Windows-1252 (Excel / AS400)' : 'UTF-8'}`}
-                {meta.delimiter && ` · séparateur ${DELIM_LABEL[meta.delimiter] ?? meta.delimiter}`}
+                {meta.delimiter && tr(' · séparateur {d}', { d: tText(DELIM_LABEL[meta.delimiter] ?? meta.delimiter) })}
                 {sheets.length > 1 && (
-                  <> · feuille{' '}
-                    <select value={meta.sheet} onChange={(e) => onFile(file, e.target.value)} className="border border-slate-200 rounded px-1 py-0.5 bg-white">
+                  <>{' '}{tr('· feuille')}<select value={meta.sheet} onChange={(e) => onFile(file, e.target.value)} className="border border-slate-200 rounded px-1 py-0.5 bg-white">
                       {sheets.map((s) => <option key={s}>{s}</option>)}
                     </select>
                   </>
@@ -249,26 +248,26 @@ export default function ImportWizard({ schema, store, onImport, onClose, extraOp
 
               {/* 2. Correspondance */}
               <section className="rounded-xl border border-slate-200 overflow-hidden">
-                <div className="px-3 py-2 bg-slate-50 border-b border-slate-200 font-jetbrains text-[11px] text-slate-600">CORRESPONDANCE DES COLONNES</div>
+                <div className="px-3 py-2 bg-slate-50 border-b border-slate-200 font-jetbrains text-[11px] text-slate-600">{tr('CORRESPONDANCE DES COLONNES')}</div>
                 <div className="divide-y divide-slate-100">
                   {schema.fields.map((f) => {
                     const m = mapping[f.id] ?? { column: null };
                     const miss = f.required && !m.column;
                     return (
                       <div key={f.id} className="px-3 py-2 grid grid-cols-12 gap-2 items-center">
-                        <div className="col-span-12 sm:col-span-3 text-xs text-slate-700" title={f.help}>
-                          {f.label}{f.required && <span className="text-red-600"> *</span>}
+                        <div className="col-span-12 sm:col-span-3 text-xs text-slate-700" title={f.help && tText(f.help)}>
+                          {tText(f.label)}{f.required && <span className="text-red-600"> *</span>}
                         </div>
                         <select value={m.column ?? ''} onChange={(e) => setField(f.id, { column: e.target.value || null })}
                           className="col-span-7 sm:col-span-4 text-base sm:text-xs border rounded-md px-2 py-1.5 bg-white"
                           style={{ borderColor: miss ? '#FCA5A5' : '#E2E8F0' }}>
-                          <option value="">— Non importé{f.defaultValue !== undefined ? ` (défaut : ${displayValue(f, f.defaultValue)})` : ''} —</option>
+                          <option value="">{tr('— Non importé{v1} —', { v1: f.defaultValue !== undefined ? tr(' (défaut : {v1})', { v1: displayValue(f, f.defaultValue) }) : '' })}</option>
                           {table.headers.map((h) => <option key={h} value={h}>{h}</option>)}
                         </select>
                         <div className="col-span-5 sm:col-span-2">
                           {f.unitKind && (
                             <select value={m.unit ?? f.defaultUnit} onChange={(e) => setField(f.id, { unit: e.target.value })}
-                              className="w-full text-base sm:text-xs border border-slate-200 rounded-md px-2 py-1.5 bg-white" aria-label={`Unité ${f.label}`}>
+                              className="w-full text-base sm:text-xs border border-slate-200 rounded-md px-2 py-1.5 bg-white" aria-label={tr('Unité {label}', { label: tText(f.label) })}>
                               {UNITS[f.unitKind].map((u) => <option key={u.id} value={u.id}>{u.label}</option>)}
                             </select>
                           )}
@@ -285,13 +284,13 @@ export default function ImportWizard({ schema, store, onImport, onClose, extraOp
                 {schema.groupKey && (
                   <label className="flex items-start gap-2 text-xs text-slate-700">
                     <input type="checkbox" className="mt-0.5" checked={!!options.groupIdentical} onChange={(e) => setOptions((o) => ({ ...o, groupIdentical: e.target.checked }))} />
-                    <span>Regrouper les lignes identiques <span className="text-slate-500">— pour un export « une ligne par colis / SSCC » : les quantités sont additionnées.</span></span>
+                    <span>{tr('Regrouper les lignes identiques')}{' '}<span className="text-slate-500">{tr('— pour un export « une ligne par colis / SSCC » : les quantités sont additionnées.')}</span></span>
                   </label>
                 )}
                 {extraOptions.map((o) => (
                   <label key={o.id} className="flex items-start gap-2 text-xs text-slate-700">
                     <input type="checkbox" className="mt-0.5" checked={!!options[o.id]} onChange={(e) => setOptions((x) => ({ ...x, [o.id]: e.target.checked }))} />
-                    <span>{o.label}{o.help && <span className="text-slate-500"> — {o.help}</span>}</span>
+                    <span>{tText(o.label)}{o.help && <span className="text-slate-500"> — {tText(o.help)}</span>}</span>
                   </label>
                 ))}
               </section>
@@ -299,13 +298,13 @@ export default function ImportWizard({ schema, store, onImport, onClose, extraOp
               {/* 3. Aperçu */}
               <section className="rounded-xl border border-slate-200 overflow-hidden">
                 <div className="px-3 py-2 bg-slate-50 border-b border-slate-200 font-jetbrains text-[11px] text-slate-600 flex flex-wrap gap-x-3">
-                  <span>APERÇU APRÈS CONVERSION</span>
-                  <span className="text-slate-500">{result.stats.read} lue(s) · {importable.length} à importer{result.stats.grouped ? ` · ${result.stats.grouped} regroupée(s)` : ''}{result.stats.skipped ? ` · ${result.stats.skipped} ignorée(s)` : ''}</span>
+                  <span>{tr('APERÇU APRÈS CONVERSION')}</span>
+                  <span className="text-slate-500">{tr('{read} lue(s) · {length} à importer{v1}{v2}', { read: result.stats.read, length: importable.length, v1: result.stats.grouped ? tr(' · {grouped} regroupée(s)', { grouped: result.stats.grouped }) : '', v2: result.stats.skipped ? tr(' · {skipped} ignorée(s)', { skipped: result.stats.skipped }) : '' })}</span>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-[11px]">
                     <thead><tr className="text-left text-slate-500">
-                      {schema.fields.filter((f) => mapping[f.id]?.column || f.defaultValue !== undefined).map((f) => <th key={f.id} className="px-2 py-1.5 font-normal whitespace-nowrap">{f.label}</th>)}
+                      {schema.fields.filter((f) => mapping[f.id]?.column || f.defaultValue !== undefined).map((f) => <th key={f.id} className="px-2 py-1.5 font-normal whitespace-nowrap">{tText(f.label)}</th>)}
                     </tr></thead>
                     <tbody>
                       {result.records.slice(0, 5).map((r, i) => (
@@ -320,19 +319,18 @@ export default function ImportWizard({ schema, store, onImport, onClose, extraOp
                   <div className="px-3 py-2 border-t border-slate-100 space-y-0.5 max-h-28 overflow-y-auto">
                     {[...errors, ...warnings].slice(0, 12).map((x, i) => (
                       <div key={i} className="text-[11px] flex gap-1.5" style={{ color: x.level === 'error' ? '#B91C1C' : '#B45309' }}>
-                        <AlertTriangle size={11} className="mt-0.5 shrink-0" /> Ligne {x.row} · {x.message}{x.level === 'error' ? ' (ligne écartée)' : ''}
-                      </div>
+                        <AlertTriangle size={11} className="mt-0.5 shrink-0" />{' '}{tr('Ligne {row} · {message}{v1}', { row: x.row, message: tText(x.message), v1: x.level === 'error' ? tr(' (ligne écartée)') : '' })}</div>
                     ))}
-                    {errors.length + warnings.length > 12 && <div className="text-[11px] text-slate-500">… et {errors.length + warnings.length - 12} autre(s)</div>}
+                    {errors.length + warnings.length > 12 && <div className="text-[11px] text-slate-500">{tr('… et {v1} autre(s)', { v1: errors.length + warnings.length - 12 })}</div>}
                   </div>
                 )}
               </section>
 
               {/* Enregistrer le profil */}
               <section className="flex flex-wrap items-center gap-2">
-                <input value={profileName} onChange={(e) => setProfileName(e.target.value)} placeholder="Nom du profil (ex. Export Reflex quai 3)"
+                <input value={profileName} onChange={(e) => setProfileName(e.target.value)} placeholder={tr('Nom du profil (ex. Export Reflex quai 3)')}
                   className="flex-1 min-w-[12rem] text-base sm:text-xs border border-slate-200 rounded-md px-2.5 py-1.5 outline-none focus:border-slate-400" />
-                <button onClick={saveProfile} className={btn} style={ghost}><Save size={11} /> Enregistrer la correspondance</button>
+                <button onClick={saveProfile} className={btn} style={ghost}><Save size={11} />{' '}{tr('Enregistrer la correspondance')}</button>
               </section>
             </>
           )}
@@ -347,16 +345,15 @@ export default function ImportWizard({ schema, store, onImport, onClose, extraOp
           <div className="flex items-center gap-2">
             {table && canAppend && (
               <select value={mode} onChange={(e) => setMode(e.target.value)} className="text-base sm:text-xs border border-slate-200 rounded-md px-2 py-1.5 bg-white">
-                <option value="replace">Remplacer les lignes</option>
-                <option value="append">Ajouter aux lignes</option>
+                <option value="replace">{tr('Remplacer les lignes')}</option>
+                <option value="append">{tr('Ajouter aux lignes')}</option>
               </select>
             )}
             <button onClick={confirm} disabled={!table || missing.length > 0 || importable.length === 0}
               className="inline-flex items-center gap-1.5 font-jetbrains text-xs px-3 py-2 rounded-md text-white"
               style={{ background: !table || missing.length > 0 || importable.length === 0 ? '#CBD5E1' : BLUE }}
-              title={missing.length ? `Colonnes obligatoires à associer : ${missing.map((id) => schema.fields.find((f) => f.id === id)?.label).join(', ')}` : undefined}>
-              <CheckCircle2 size={13} /> Importer {table ? `${importable.length} ligne(s)` : ''}
-            </button>
+              title={missing.length ? tr('Colonnes obligatoires à associer : {v1}', { v1: missing.map((id) => tText(schema.fields.find((f) => f.id === id)?.label ?? id)).join(', ') }) : undefined}>
+              <CheckCircle2 size={13} />{' '}{tr('Importer {v1}', { v1: table ? tr('{length} ligne(s)', { length: importable.length }) : '' })}</button>
           </div>
         </div>
       </div>

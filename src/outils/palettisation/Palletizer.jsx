@@ -14,6 +14,8 @@ import {
 } from '../optimiseur-chargement/uiHelpers';
 import { track } from '../optimiseur-chargement/analytics';
 import { PALLET_FAQ, toolSeo } from '../../seo/pages';
+import { PALLET_FAQ_EN, toolSeoEn } from '../../seo/pages-en';
+import { toolHref } from '../../shared/i18n/paths';
 import { createLocalProfileStore, toCsv, downloadText } from '../../shared/import';
 import { sendHandoff } from '../../shared/handoff';
 import { COLIS_SCHEMA, STANDARD_HEADERS, STANDARD_SAMPLE, recordsToColisRows } from '../optimiseur-chargement/import/colisSchema';
@@ -21,6 +23,7 @@ import { palletizeMulti } from './engine/palletize';
 import SupportsPanel from './SupportsPanel';
 import { loadSupports, saveSupports, matchSupport } from './supportsStore';
 import { palletsToLoadRecords, palletLabel, palletStackingLabel, HEAVY_PALLET_KG } from './engine/toLoad';
+import { t, tText, numLocale, getCurrentLang, N_ } from '../../shared/i18n/core';
 
 const LoadView3D = lazy(() => import('../optimiseur-chargement/LoadView3D.jsx'));
 const ImportWizard = lazy(() => import('../../shared/import/ImportWizard.jsx'));
@@ -30,7 +33,7 @@ const BLUE_LIGHT = '#EFF6FF';
 const AMBER = '#F59E0B';
 const importProfiles = createLocalProfileStore();
 const IMPORT_EXTRA_OPTIONS = [
-  { id: 'stopsFromDestination', label: 'Un arrêt par destination', help: 'sans colonne Arrêt, chaque client devient un arrêt, dans l’ordre du fichier.' },
+  { id: 'stopsFromDestination', label: N_('Un arrêt par destination'), help: N_('sans colonne Arrêt, chaque client devient un arrêt, dans l’ordre du fichier.') },
 ];
 
 class ViewBoundary extends Component {
@@ -55,10 +58,10 @@ function exampleRows() {
 }
 
 const mmToCm = (v) => Math.round(v) / 10;
-const fmtCm = (mm) => mmToCm(mm).toLocaleString('fr-FR', { maximumFractionDigits: 1 });
+const fmtCm = (mm) => mmToCm(mm).toLocaleString(numLocale(), { maximumFractionDigits: 1 });
 const pct = (r) => `${Math.round(r * 100)} %`;
 /** Type affiché : complète (couches pleines), mono-référence incomplète, ou mixte. */
-const kindLabel = (p) => (p.kind === 'FULL' ? 'complète' : p.contents.length === 1 ? 'mono-référence' : 'mixte');
+const kindLabel = (p) => (p.kind === 'FULL' ? t('complète') : p.contents.length === 1 ? t('mono-référence') : t('mixte'));
 const isMixed = (p) => p.contents.length > 1;
 
 function Toggle({ checked, onChange, label, help }) {
@@ -111,28 +114,26 @@ const PRINT_CSS = `
 
 function PrintSheet({ result, colorOf }) {
   const specOf = (p) => result.specs.find((s) => s.id === p.specId) ?? result.specs[0];
-  const used = [...new Set(result.pallets.map((p) => specOf(p).label))].join(', ');
-  const date = new Date().toLocaleDateString('fr-FR');
+  const used = [...new Set(result.pallets.map((p) => tText(specOf(p).label)))].join(', ');
+  const date = new Date().toLocaleDateString(numLocale());
   return (
     <div className="pz-print-sheet" style={{ fontFamily: "'DM Sans', system-ui, sans-serif", color: '#0F172A' }}>
       <style>{PRINT_CSS}</style>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', borderBottom: '2px solid #0F172A', paddingBottom: 6, marginBottom: 10 }}>
-        <div style={{ fontSize: 18, fontWeight: 700 }}>Plan de palettisation</div>
-        <div style={{ fontSize: 10, color: '#475569' }}>{date} · {used} · atelierlogistique.com</div>
+        <div style={{ fontSize: 18, fontWeight: 700 }}>{t('Plan de palettisation')}</div>
+        <div style={{ fontSize: 10, color: '#475569' }}>{t('{date} · {used} · atelierlogistique.com', { date: date, used: used })}</div>
       </div>
-      <div style={{ fontSize: 11, marginBottom: 10 }}>
-        {result.pallets.length} palette(s) · {result.palletizedItems} colis · {formatKg(result.pallets.reduce((s, p) => s + p.totalWeight, 0))} kg (tare incluse)
-        {result.unplaced.length > 0 && <span style={{ color: '#B91C1C' }}> · {result.unplaced.reduce((s, u) => s + u.quantity, 0)} colis non palettisés</span>}
+      <div style={{ fontSize: 11, marginBottom: 10 }}>{t('{length} palette(s) · {palletizedItems} colis · {v1} kg (tare incluse)', { length: result.pallets.length, palletizedItems: result.palletizedItems, v1: formatKg(result.pallets.reduce((s, p) => s + p.totalWeight, 0)) })}{result.unplaced.length > 0 && <span style={{ color: '#B91C1C' }}>{' '}{t('· {v1} colis non palettisés', { v1: result.unplaced.reduce((s, u) => s + u.quantity, 0) })}</span>}
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
         {result.pallets.map((p) => (
           <div key={p.id} className="pz-pallet" style={{ border: '1px solid #CBD5E1', borderRadius: 6, padding: 8 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, fontWeight: 700 }}>
-              <span>{p.id} · {kindLabel(p)} · {specOf(p).label}</span>
-              <span>Arrêt {p.stop}{p.destination ? ` · ${p.destination}` : ''}</span>
+              <span>{p.id} · {kindLabel(p)} · {tText(specOf(p).label)}</span>
+              <span>{t('Arrêt {stop}{v1}', { stop: p.stop, v1: p.destination ? ` · ${p.destination}` : '' })}</span>
             </div>
             <div style={{ fontSize: 10, color: '#475569', margin: '2px 0 6px' }}>
-              H {fmtCm(p.totalHeight)} cm · {formatKg(p.totalWeight)} kg{p.kind === 'FULL' ? ` · ${p.layers} couches × ${p.perLayer} (alternées)` : ''} · {p.stackable ? 'gerbable' : 'non gerbable'}
+              H {fmtCm(p.totalHeight)} cm · {formatKg(p.totalWeight)} kg{p.kind === 'FULL' ? t(' · {layers} couches × {perLayer} (alternées)', { layers: p.layers, perLayer: p.perLayer }) : ''} · {p.stackable ? t('gerbable') : t('non gerbable')}
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
               <TopView pallet={p} spec={specOf(p)} colorOf={colorOf} size={130} />
@@ -170,7 +171,7 @@ export default function Palletizer({ onBack }) {
   const [msg, setMsg] = useState(null);
 
   useEffect(() => {
-    const seo = toolSeo('pallet');
+    const seo = getCurrentLang() === 'en' ? toolSeoEn('pallet') : toolSeo('pallet');
     const prev = document.title;
     document.title = seo.title;
     return () => { document.title = prev; };
@@ -192,8 +193,8 @@ export default function Palletizer({ onBack }) {
     return [...m.entries()].sort((a, b) => a[0] - b[0]);
   }, [rows]);
   const supportSelect = useMemo(() => ({
-    field: 'support', label: 'Support', title: 'Support imposé pour cette ligne (vide = automatique)',
-    options: [{ value: '', label: 'Auto' }, ...available.map((s) => ({ value: s.id, label: s.label.split(' ')[0] }))],
+    field: 'support', label: t('Support'), title: t('Support imposé pour cette ligne (vide = automatique)'),
+    options: [{ value: '', label: t('Auto') }, ...available.map((s) => ({ value: s.id, label: s.label.split(' ')[0] }))],
   }), [available]);
 
   const colorIndex = useMemo(() => Object.fromEntries(rows.map((r, i) => [r.id, i])), [rows]);
@@ -230,21 +231,21 @@ export default function Palletizer({ onBack }) {
     setRows((rs) => (mode === 'append' ? [...rs.filter((r) => r.reference || r.length), ...mapped] : mapped));
     setImportOpen(false);
     invalidate();
-    flash('success', `${mapped.length} ligne(s) importée(s)${source ? ` depuis « ${source} »` : ''}.`);
+    flash('success', t('{length} ligne(s) importée(s){v1}.', { length: mapped.length, v1: source ? t(' depuis « {source} »', { source: source }) : '' }));
   };
 
-  const downloadStandardCsv = () => downloadText('atelier-logistique-colis-format-standard.csv', toCsv(STANDARD_HEADERS, STANDARD_SAMPLE));
+  const downloadStandardCsv = () => downloadText(t('atelier-logistique-colis-format-standard.csv'), toCsv(STANDARD_HEADERS.map((h) => t(h)), STANDARD_SAMPLE.map((r) => r.map((v) => (typeof v === 'string' ? tText(v) : v)))));
 
   const exportCsv = () => {
     if (!result) return;
-    const headers = ['Palette', 'Type', 'Support', 'Arrêt', 'Destination', 'Référence', 'Quantité', 'Couches', 'Colis par couche',
-      'Longueur (cm)', 'Largeur (cm)', 'Hauteur totale (cm)', 'Poids total (kg)', 'Remplissage (%)', 'Gerbage'];
+    const headers = [N_('Palette'), N_('Type'), N_('Support'), N_('Arrêt'), N_('Destination'), N_('Référence'), N_('Quantité'), N_('Couches'), N_('Colis par couche'),
+      N_('Longueur (cm)'), N_('Largeur (cm)'), N_('Hauteur totale (cm)'), N_('Poids total (kg)'), N_('Remplissage (%)'), N_('Gerbage')].map((h) => t(h));
     const lines = result.pallets.flatMap((p) => p.contents.map((c) => [
-      p.id, kindLabel(p), specOf(p).label, p.stop, p.destination, c.reference, c.quantity,
+      p.id, kindLabel(p), tText(specOf(p).label), p.stop, p.destination, c.reference, c.quantity,
       p.layers || '', p.perLayer || '', mmToCm(specOf(p).length), mmToCm(specOf(p).width), mmToCm(p.totalHeight),
       Math.round(p.totalWeight * 10) / 10, Math.round(p.volumeFill * 100), palletStackingLabel(p, stacking),
     ]));
-    downloadText(`palettisation-${new Date().toISOString().slice(0, 10)}.csv`, toCsv(headers, lines));
+    downloadText(t('palettisation-{v1}.csv', { v1: new Date().toISOString().slice(0, 10) }), toCsv(headers, lines));
     track('pallet_export_csv');
   };
 
@@ -253,12 +254,12 @@ export default function Palletizer({ onBack }) {
     sendHandoff('optimiseur-chargement', {
       schemaId: COLIS_SCHEMA.id,
       schemaVersion: COLIS_SCHEMA.version,
-      source: { tool: 'pallet', label: 'Palettisation 3D' },
+      source: { tool: 'pallet', label: t('Palettisation 3D') },
       records: palletsToLoadRecords(result.pallets, result.specs, stacking),
-      extra: { unitLabel: 'palette(s)' },
+      extra: { unitLabel: t('palette(s)') },
     });
     track('pallet_sent_to_load_optimizer', { pallets: result.pallets.length });
-    navigate('/outils/optimiseur-chargement');
+    navigate(toolHref('optimiseur-chargement', getCurrentLang()));
   };
 
   const pallet = result?.pallets[active] ?? null;
@@ -286,40 +287,38 @@ export default function Palletizer({ onBack }) {
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-2.5 sm:py-4 flex items-center justify-between">
           <div className="flex items-center gap-3 sm:gap-5 min-w-0">
             <button onClick={onBack} className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors font-jetbrains text-xs">
-              <ArrowLeft size={14} /> RETOUR
-            </button>
+              <ArrowLeft size={14} />{' '}{t('RETOUR')}</button>
             <div className="w-px h-5 bg-slate-200 hidden sm:block" />
             <div className="hidden sm:block">
-              <div className="font-bricolage font-semibold text-sm leading-tight text-slate-900">Palettisation 3D</div>
-              <div className="font-jetbrains text-[10px] text-slate-500">ATELIER / PALETTISATION</div>
+              <div className="font-bricolage font-semibold text-sm leading-tight text-slate-900">{t('Palettisation 3D')}</div>
+              <div className="font-jetbrains text-[10px] text-slate-500">{t('ATELIER / PALETTISATION')}</div>
             </div>
           </div>
           <div className="hidden md:flex items-center gap-2 font-jetbrains text-[10px] text-slate-500 tracking-wider">
-            <span className="w-1.5 h-1.5 rounded-full" style={{ background: '#10B981' }} /> CALCUL DANS LE NAVIGATEUR
-          </div>
+            <span className="w-1.5 h-1.5 rounded-full" style={{ background: '#10B981' }} />{' '}{t('CALCUL DANS LE NAVIGATEUR')}</div>
         </div>
       </nav>
 
       <div className="max-w-[1600px] mx-auto px-4 sm:px-6 pt-5 sm:pt-8 pb-1 sm:pb-2">
-        <h1 className="font-bricolage font-bold text-2xl md:text-3xl text-slate-900">Palettisation 3D</h1>
-        <p className="text-slate-600 mt-1 text-sm sm:text-base">Préparez vos palettes complètes et mixtes, puis chargez-les dans le camion en un clic.</p>
+        <h1 className="font-bricolage font-bold text-2xl md:text-3xl text-slate-900">{t('Palettisation 3D')}</h1>
+        <p className="text-slate-600 mt-1 text-sm sm:text-base">{t('Préparez vos palettes complètes et mixtes, puis chargez-les dans le camion en un clic.')}</p>
       </div>
 
       <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-4 space-y-4 sm:space-y-5">
         {/* 1. Colis */}
         <div className="rounded-xl border border-slate-200 overflow-hidden bg-white">
           <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div className="font-jetbrains text-xs text-slate-600 flex items-center gap-2"><Boxes size={13} /> 1 · QUE SOUHAITEZ-VOUS PALETTISER ?</div>
+            <div className="font-jetbrains text-xs text-slate-600 flex items-center gap-2"><Boxes size={13} />{' '}{t('1 · QUE SOUHAITEZ-VOUS PALETTISER ?')}</div>
             <div className="grid grid-cols-4 sm:flex sm:items-center gap-1.5">
-              <button onClick={() => setImportOpen(true)} className="col-span-2 flex items-center justify-center gap-1 font-jetbrains text-[11px] px-2.5 py-2 sm:py-1.5 rounded-md" style={{ background: BLUE, color: '#fff' }}><Upload size={11} /> Importer / coller</button>
-              <button onClick={downloadStandardCsv} className="flex items-center justify-center gap-1 font-jetbrains text-[11px] px-2.5 py-2 sm:py-1.5 rounded-md" style={{ background: '#F1F5F9', color: '#475569' }}><Download size={11} /> Modèle</button>
-              <button onClick={() => { setRows(exampleRows()); invalidate(); }} className="flex items-center justify-center font-jetbrains text-[11px] px-2.5 py-2 sm:py-1.5 rounded-md" style={{ background: BLUE_LIGHT, color: BLUE }}>Exemple</button>
+              <button onClick={() => setImportOpen(true)} className="col-span-2 flex items-center justify-center gap-1 font-jetbrains text-[11px] px-2.5 py-2 sm:py-1.5 rounded-md" style={{ background: BLUE, color: '#fff' }}><Upload size={11} />{' '}{t('Importer / coller')}</button>
+              <button onClick={downloadStandardCsv} className="flex items-center justify-center gap-1 font-jetbrains text-[11px] px-2.5 py-2 sm:py-1.5 rounded-md" style={{ background: '#F1F5F9', color: '#475569' }}><Download size={11} />{' '}{t('Modèle')}</button>
+              <button onClick={() => { setRows(exampleRows()); invalidate(); }} className="flex items-center justify-center font-jetbrains text-[11px] px-2.5 py-2 sm:py-1.5 rounded-md" style={{ background: BLUE_LIGHT, color: BLUE }}>{t('Exemple')}</button>
             </div>
           </div>
           {importOpen && (
             <Suspense fallback={null}>
               <ImportWizard schema={COLIS_SCHEMA} store={importProfiles} onImport={onImported} onClose={() => setImportOpen(false)}
-                extraOptions={IMPORT_EXTRA_OPTIONS} footerLinks={[{ label: 'Format standard (CSV)', onClick: downloadStandardCsv }]} />
+                extraOptions={IMPORT_EXTRA_OPTIONS} footerLinks={[{ label: t('Format standard (CSV)'), onClick: downloadStandardCsv }]} />
             </Suspense>
           )}
           {msg && (
@@ -329,7 +328,7 @@ export default function Palletizer({ onBack }) {
           )}
           <ColisTable rows={rows} updateRow={updateRow} updateStacking={updateStacking} removeRow={removeRow} addRow={addRow}
             extraSelect={available.length > 1 ? supportSelect : null}
-            footerHint="dimensions en cm · poids en kg · un arrêt = des palettes séparées" />
+            footerHint={t('dimensions en cm · poids en kg · un arrêt = des palettes séparées')} />
         </div>
 
         {/* 2. Palette + options */}
@@ -339,49 +338,49 @@ export default function Palletizer({ onBack }) {
           </div>
 
           <div className="xl:col-span-2 rounded-xl border border-slate-200 bg-white p-4 space-y-3">
-            <div className="font-jetbrains text-xs text-slate-600 flex items-center gap-2"><Layers size={13} /> 3 · RÈGLES DE PALETTISATION</div>
-            <Toggle checked={fullFirst} onChange={(v) => { setFullFirst(v); invalidate(); }} label="Palettes complètes mono-référence d’abord"
-              help="Plan de couche optimisé et couches alternées ; seuls les reliquats partent en palettes mixtes." />
-            <Toggle checked={separateStops} onChange={(v) => { setSeparateStops(v); invalidate(); }} label="Une palette = un seul arrêt"
-              help="Aucune palette ne mélange deux destinations (déchargement sans dépalettiser)." />
+            <div className="font-jetbrains text-xs text-slate-600 flex items-center gap-2"><Layers size={13} />{' '}{t('3 · RÈGLES DE PALETTISATION')}</div>
+            <Toggle checked={fullFirst} onChange={(v) => { setFullFirst(v); invalidate(); }} label={t('Palettes complètes mono-référence d’abord')}
+              help={t('Plan de couche optimisé et couches alternées ; seuls les reliquats partent en palettes mixtes.')} />
+            <Toggle checked={separateStops} onChange={(v) => { setSeparateStops(v); invalidate(); }} label={t('Une palette = un seul arrêt')}
+              help={t('Aucune palette ne mélange deux destinations (déchargement sans dépalettiser).')} />
             {available.length > 1 && (
               <label className="block text-xs text-slate-700">
-                <span className="block mb-1">Format de palette</span>
+                <span className="block mb-1">{t('Format de palette')}</span>
                 <select value={formatMode} onChange={(e) => { setFormatMode(e.target.value); invalidate(); }}
                   className="w-full text-base sm:text-xs border border-slate-200 rounded-md px-2 py-1.5 bg-white">
-                  <option value="stop">Un format par destination (recommandé)</option>
-                  <option value="shipment">Un seul format pour tout l’envoi (même camion)</option>
-                  <option value="free">Libre : le meilleur support par référence</option>
+                  <option value="stop">{t('Un format par destination (recommandé)')}</option>
+                  <option value="shipment">{t('Un seul format pour tout l’envoi (même camion)')}</option>
+                  <option value="free">{t('Libre : le meilleur support par référence')}</option>
                 </select>
-                <span className="block text-[11px] text-slate-500 mt-0.5">Mélanger 80 et 100 cm de large dans un camion désaligne les rangées et fait perdre de la place.</span>
+                <span className="block text-[11px] text-slate-500 mt-0.5">{t('Mélanger 80 et 100 cm de large dans un camion désaligne les rangées et fait perdre de la place.')}</span>
               </label>
             )}
             {separateStops && available.length > 1 && stops.length > 0 && (
               <div className="rounded-lg border border-slate-200 px-3 py-2 space-y-1.5">
-                <div className="font-jetbrains text-[10px] text-slate-500">SUPPORT EXIGÉ PAR LE DESTINATAIRE</div>
+                <div className="font-jetbrains text-[10px] text-slate-500">{t('SUPPORT EXIGÉ PAR LE DESTINATAIRE')}</div>
                 {stops.map(([st, dest]) => (
                   <label key={st} className="flex items-center gap-2 text-xs text-slate-700">
-                    <span className="flex-1 truncate">Arrêt {st}{dest ? ` · ${dest}` : ''}</span>
+                    <span className="flex-1 truncate">{t('Arrêt {st}{v1}', { st: st, v1: dest ? ` · ${dest}` : '' })}</span>
                     <select value={forcedStops[st] ?? ''} onChange={(e) => { setForcedStops((f) => ({ ...f, [st]: e.target.value })); invalidate(); }}
                       className="text-base sm:text-xs border border-slate-200 rounded-md px-2 py-1 bg-white">
-                      <option value="">Automatique</option>
-                      {available.map((sp) => <option key={sp.id} value={sp.id}>{sp.label}</option>)}
+                      <option value="">{t('Automatique')}</option>
+                      {available.map((sp) => <option key={sp.id} value={sp.id}>{tText(sp.label)}</option>)}
                     </select>
                   </label>
                 ))}
               </div>
             )}
             <div className="grid grid-cols-3 gap-2 pt-1 text-center">
-              <div><div className="font-jetbrains text-[10px] text-slate-500">Colis</div><div className="font-bricolage font-bold text-xl" style={{ color: BLUE }}>{rows.reduce((s, r) => s + (r.quantity || 0), 0)}</div></div>
-              <div><div className="font-jetbrains text-[10px] text-slate-500">Références</div><div className="font-bricolage font-bold text-xl text-slate-800">{rows.length}</div></div>
-              <div><div className="font-jetbrains text-[10px] text-slate-500">Arrêts</div><div className="font-bricolage font-bold text-xl text-slate-800">{new Set(rows.map((r) => r.stop ?? 1)).size}</div></div>
+              <div><div className="font-jetbrains text-[10px] text-slate-500">{t('Colis')}</div><div className="font-bricolage font-bold text-xl" style={{ color: BLUE }}>{rows.reduce((s, r) => s + (r.quantity || 0), 0)}</div></div>
+              <div><div className="font-jetbrains text-[10px] text-slate-500">{t('Références')}</div><div className="font-bricolage font-bold text-xl text-slate-800">{rows.length}</div></div>
+              <div><div className="font-jetbrains text-[10px] text-slate-500">{t('Arrêts')}</div><div className="font-bricolage font-bold text-xl text-slate-800">{new Set(rows.map((r) => r.stop ?? 1)).size}</div></div>
             </div>
             <button onClick={run} disabled={!valid || running}
               className="w-full flex items-center justify-center gap-2 py-3 rounded-lg font-jetbrains text-sm font-medium text-white"
               style={{ background: valid ? BLUE : '#CBD5E1' }}>
-              {running ? <><Loader2 size={15} className="animate-spin" /> Calcul…</> : <>Calculer la palettisation <ArrowRight size={15} /></>}
+              {running ? <><Loader2 size={15} className="animate-spin" />{' '}{t('Calcul…')}</> : <>{t('Calculer la palettisation')}{' '}<ArrowRight size={15} /></>}
             </button>
-            {!valid && <div className="text-[11px] text-red-600 flex items-center gap-1"><AlertCircle size={12} /> {available.length === 0 ? 'Cochez au moins un support disponible.' : 'Complétez les lignes du tableau.'}</div>}
+            {!valid && <div className="text-[11px] text-red-600 flex items-center gap-1"><AlertCircle size={12} /> {available.length === 0 ? t('Cochez au moins un support disponible.') : t('Complétez les lignes du tableau.')}</div>}
           </div>
         </div>
 
@@ -408,12 +407,10 @@ export default function Palletizer({ onBack }) {
                   </ViewBoundary>
                   <div className="px-4 py-3 border-t border-slate-100 grid sm:grid-cols-2 gap-3">
                     <div>
-                      <div className="font-bricolage font-semibold text-slate-900">{pallet.id} · palette {kindLabel(pallet)} · {spec.label}</div>
-                      <div className="font-jetbrains text-[11px] text-slate-500">
-                        Arrêt {pallet.stop}{pallet.destination ? ` · ${pallet.destination}` : ''} · H {fmtCm(pallet.totalHeight)} cm · {formatKg(pallet.totalWeight)} kg · remplissage {pct(pallet.volumeFill)}
-                      </div>
-                      {pallet.kind === 'FULL' && <div className="font-jetbrains text-[11px] text-slate-500">{pallet.layers} couche(s) × {pallet.perLayer} colis · couches alternées à 180°</div>}
-                      <div className="font-jetbrains text-[11px]" style={{ color: pallet.stackable ? '#15803D' : '#B45309' }}>{pallet.stackable ? 'Gerbable (tous les colis acceptent une charge)' : 'Non gerbable (colis fragiles)'}{pallet.totalWeight > HEAVY_PALLET_KG ? ` · plus de ${HEAVY_PALLET_KG} kg : reste au sol du camion` : ''}</div>
+                      <div className="font-bricolage font-semibold text-slate-900">{t('{id} · palette {v1} · {label}', { id: pallet.id, v1: kindLabel(pallet), label: tText(spec.label) })}</div>
+                      <div className="font-jetbrains text-[11px] text-slate-500">{t('Arrêt {stop}{v1} · H {v2} cm · {v3} kg · remplissage {v4}', { stop: pallet.stop, v1: pallet.destination ? ` · ${pallet.destination}` : '', v2: fmtCm(pallet.totalHeight), v3: formatKg(pallet.totalWeight), v4: pct(pallet.volumeFill) })}</div>
+                      {pallet.kind === 'FULL' && <div className="font-jetbrains text-[11px] text-slate-500">{t('{layers} couche(s) × {perLayer} colis · couches alternées à 180°', { layers: pallet.layers, perLayer: pallet.perLayer })}</div>}
+                      <div className="font-jetbrains text-[11px]" style={{ color: pallet.stackable ? '#15803D' : '#B45309' }}>{pallet.stackable ? t('Gerbable (tous les colis acceptent une charge)') : t('Non gerbable (colis fragiles)')}{pallet.totalWeight > HEAVY_PALLET_KG ? t(' · plus de {HEAVY_PALLET_KG} kg : reste au sol du camion', { HEAVY_PALLET_KG: HEAVY_PALLET_KG }) : ''}</div>
                     </div>
                     <div className="space-y-1">
                       {pallet.contents.map((c) => (
@@ -426,59 +423,56 @@ export default function Palletizer({ onBack }) {
                     </div>
                   </div>
                 </>
-              ) : <div className="p-6 text-sm text-slate-500">Aucune palette constituée.</div>}
+              ) : <div className="p-6 text-sm text-slate-500">{t('Aucune palette constituée.')}</div>}
             </div>
 
             <div className="xl:col-span-2 space-y-4">
               <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
-                <div className="font-jetbrains text-xs text-slate-600">RÉSULTAT</div>
+                <div className="font-jetbrains text-xs text-slate-600">{t('RÉSULTAT')}</div>
                 <div className="grid grid-cols-2 gap-2">
-                  <Kpi label="Palettes" value={result.pallets.length} sub={`${totals.bySupport.map(([l, n]) => `${n} ${l}`).join(' · ')}${totals.cost ? ` · ${totals.cost.toLocaleString('fr-FR')} €` : ''}`} />
-                  <Kpi label="Colis palettisés" value={`${result.palletizedItems}/${result.totalItems}`} sub={totals.unplaced ? `${totals.unplaced} non palettisé(s)` : 'tout est palettisé'} />
-                  <Kpi label="Poids total" value={`${formatKg(totals.weight)} kg`} sub="tare incluse" />
-                  <Kpi label="Remplissage moyen" value={pct(totals.fill)} sub={`hauteur maxi ${fmtCm(totals.maxH)} cm`} />
+                  <Kpi label={t('Palettes')} value={result.pallets.length} sub={`${totals.bySupport.map(([l, n]) => `${n} ${l}`).join(' · ')}${totals.cost ? ` · ${totals.cost.toLocaleString(numLocale())} €` : ''}`} />
+                  <Kpi label={t('Colis palettisés')} value={`${result.palletizedItems}/${result.totalItems}`} sub={totals.unplaced ? t('{unplaced} non palettisé(s)', { unplaced: totals.unplaced }) : t('tout est palettisé')} />
+                  <Kpi label={t('Poids total')} value={`${formatKg(totals.weight)} kg`} sub={t('tare incluse')} />
+                  <Kpi label={t('Remplissage moyen')} value={pct(totals.fill)} sub={t('hauteur maxi {v1} cm', { v1: fmtCm(totals.maxH) })} />
                 </div>
                 {result.choices.length > 0 && result.specs.length > 1 && (
                   <div className="rounded-md px-3 py-2 space-y-1" style={{ background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
-                    <div className="font-jetbrains text-[10px] text-slate-500">CHOIX DES SUPPORTS</div>
+                    <div className="font-jetbrains text-[10px] text-slate-500">{t('CHOIX DES SUPPORTS')}</div>
                     {result.choices.map((c) => (
                       <div key={c.stop} className="text-[11px] text-slate-700">
-                        <span className="font-jetbrains text-slate-500">{separateStops && c.stop > 0 ? `Arrêt ${c.stop}${c.destination ? ` · ${c.destination}` : ''}` : 'Envoi'} → </span>{c.reason}
+                        <span className="font-jetbrains text-slate-500">{separateStops && c.stop > 0 ? t('Arrêt {stop}{v1}', { stop: c.stop, v1: c.destination ? ` · ${c.destination}` : '' }) : t('Envoi')} → </span>{tText(c.reason)}
                       </div>
                     ))}
                   </div>
                 )}
                 {result.unplaced.length > 0 && (
                   <div className="rounded-md px-3 py-2 text-[11px]" style={{ background: '#FEF2F2', color: '#B91C1C', border: '1px solid #FECACA' }}>
-                    {result.unplaced.map((u) => <div key={u.definitionId + u.reason}>{u.reference} ×{u.quantity} : {u.reason}</div>)}
+                    {result.unplaced.map((u) => <div key={u.definitionId + u.reason}>{u.reference} ×{u.quantity} : {tText(u.reason)}</div>)}
                   </div>
                 )}
                 <div className="rounded-lg p-3 space-y-2" style={{ background: '#FFFBEB', border: '1px solid #FDE68A' }}>
-                  <div className="text-xs text-slate-700 font-medium flex items-center gap-1.5"><Truck size={13} /> Charger ces palettes dans un camion</div>
-                  <label className="flex items-center gap-2 text-[11px] text-slate-600">
-                    Gerbage au camion
-                    <select value={stacking} onChange={(e) => setStacking(e.target.value)} className="flex-1 text-base sm:text-xs border border-slate-200 rounded-md px-2 py-1 bg-white">
-                      <option value="AUTO">Automatique (colis + palettes lourdes au sol)</option>
-                      <option value="FREE">Toutes gerbables</option>
-                      <option value="TOP_ONLY">Rien dessus</option>
-                      <option value="FLOOR_NO_TOP">Au sol, rien dessus</option>
+                  <div className="text-xs text-slate-700 font-medium flex items-center gap-1.5"><Truck size={13} />{' '}{t('Charger ces palettes dans un camion')}</div>
+                  <label className="flex items-center gap-2 text-[11px] text-slate-600">{t('Gerbage au camion')}<select value={stacking} onChange={(e) => setStacking(e.target.value)} className="flex-1 text-base sm:text-xs border border-slate-200 rounded-md px-2 py-1 bg-white">
+                      <option value="AUTO">{t('Automatique (colis + palettes lourdes au sol)')}</option>
+                      <option value="FREE">{t('Toutes gerbables')}</option>
+                      <option value="TOP_ONLY">{t('Rien dessus')}</option>
+                      <option value="FLOOR_NO_TOP">{t('Au sol, rien dessus')}</option>
                     </select>
                   </label>
                   <button onClick={sendToTruck} disabled={result.pallets.length === 0}
                     className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg font-jetbrains text-sm font-semibold"
-                    style={{ background: AMBER, color: '#0F172A' }}>
-                    Charger le camion <ArrowRight size={15} />
+                    style={{ background: AMBER, color: '#0F172A' }}>{t('Charger le camion')}{' '}<ArrowRight size={15} />
                   </button>
-                  <div className="font-jetbrains text-[10px] text-slate-500">Les palettes (dimensions, poids, gerbage, arrêt, n° PAL) sont envoyées à l’optimiseur de chargement.</div>
+                  <div className="font-jetbrains text-[10px] text-slate-500">{t('Les palettes (dimensions, poids, gerbage, arrêt, n° PAL) sont envoyées à l’optimiseur de chargement.')}</div>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
-                  <button onClick={() => { track('pallet_print'); window.print(); }} className="flex items-center justify-center gap-1.5 py-2 rounded-lg font-jetbrains text-xs" style={{ background: BLUE_LIGHT, color: BLUE }}><Printer size={13} /> Fiche PDF</button>
+                  <button onClick={() => { track('pallet_print'); window.print(); }} className="flex items-center justify-center gap-1.5 py-2 rounded-lg font-jetbrains text-xs" style={{ background: BLUE_LIGHT, color: BLUE }}><Printer size={13} />{' '}{t('Fiche PDF')}</button>
                   <button onClick={exportCsv} className="flex items-center justify-center gap-1.5 py-2 rounded-lg font-jetbrains text-xs" style={{ background: BLUE_LIGHT, color: BLUE }}><Download size={13} /> CSV</button>
                 </div>
               </div>
 
               <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
-                <div className="px-4 py-2.5 border-b border-slate-200 bg-slate-50 font-jetbrains text-[11px] text-slate-600">PALETTES</div>
+                <div className="px-4 py-2.5 border-b border-slate-200 bg-slate-50 font-jetbrains text-[11px] text-slate-600">{t('PALETTES')}</div>
                 <div className="max-h-80 overflow-y-auto divide-y divide-slate-100">
                   {result.pallets.map((p, i) => (
                     <button key={p.id} onClick={() => setActive(i)} className="w-full text-left px-4 py-2 hover:bg-slate-50 flex items-center gap-3"
@@ -498,22 +492,16 @@ export default function Palletizer({ onBack }) {
 
       {/* Contenu SEO (aussi pré-rendu en HTML : src/seo/pages.js) */}
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-12 space-y-8 print:hidden">
-        <p className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
-          Une fois les palettes prêtes, calculez le <a href="/outils/optimiseur-chargement" className="font-medium underline underline-offset-2" style={{ color: BLUE }}>plan de chargement du camion ou du conteneur</a>.
-          Méthode complète : <a href="/ressources/plan-de-chargement-camion" className="font-medium underline underline-offset-2" style={{ color: BLUE }}>comment faire un plan de chargement</a>.
+        <p className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">{t('Une fois les palettes prêtes, calculez le')}{' '}<a href={toolHref('optimiseur-chargement', getCurrentLang())} className="font-medium underline underline-offset-2" style={{ color: BLUE }}>{t('plan de chargement du camion ou du conteneur')}</a>{t('. Méthode complète :')}{' '}<a href="/ressources/plan-de-chargement-camion" className="font-medium underline underline-offset-2" style={{ color: BLUE }}>{t('comment faire un plan de chargement')}</a>.
         </p>
         <section>
-          <h2 className="font-bricolage font-bold text-xl text-slate-900 mb-2">Comment fonctionne le calcul de palettisation ?</h2>
-          <p className="text-slate-600 leading-relaxed">
-            Vous saisissez ou importez vos colis (dimensions, poids, quantité, rotation, empilage, destination) et cochez les palettes dont vous disposez.
-            L’outil prépare d’abord des palettes complètes mono-référence avec le meilleur plan de couche, puis regroupe les reliquats sur des palettes
-            mixtes calculées en 3D. Il choisit le support le plus adapté et respecte la hauteur et la charge maximales de chaque palette.
-          </p>
+          <h2 className="font-bricolage font-bold text-xl text-slate-900 mb-2">{t('Comment fonctionne le calcul de palettisation ?')}</h2>
+          <p className="text-slate-600 leading-relaxed">{t('Vous saisissez ou importez vos colis (dimensions, poids, quantité, rotation, empilage, destination) et cochez les palettes dont vous disposez. L’outil prépare d’abord des palettes complètes mono-référence avec le meilleur plan de couche, puis regroupe les reliquats sur des palettes mixtes calculées en 3D. Il choisit le support le plus adapté et respecte la hauteur et la charge maximales de chaque palette.')}</p>
         </section>
         <section>
-          <h2 className="font-bricolage font-bold text-xl text-slate-900 mb-3">Questions fréquentes</h2>
+          <h2 className="font-bricolage font-bold text-xl text-slate-900 mb-3">{t('Questions fréquentes')}</h2>
           <div className="space-y-3">
-            {PALLET_FAQ.map((f) => (
+            {(getCurrentLang() === 'en' ? PALLET_FAQ_EN : PALLET_FAQ).map((f) => (
               <details key={f.q} className="rounded-lg border border-slate-200 bg-white px-4 py-3">
                 <summary className="font-jetbrains text-sm text-slate-800 cursor-pointer">{f.q}</summary>
                 <p className="text-slate-600 text-sm mt-2 leading-relaxed">{f.a}</p>

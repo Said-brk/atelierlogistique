@@ -3,57 +3,58 @@
 // Valeurs canoniques : dimensions en mm, poids en kg.
 
 import type { CanonicalRecord, DatasetSchema } from '../../../shared/import';
+import { N_ } from '../../../shared/i18n/core';
 
 export const COLIS_SCHEMA: DatasetSchema = {
   id: 'atelier-logistique/colis',
   version: 1,
-  label: 'Colis à charger',
+  label: N_('Colis à charger'),
   groupKey: ['reference', 'length', 'width', 'height', 'weight', 'rotation', 'stacking', 'stop', 'destination', 'support'],
   quantityField: 'quantity',
   unitField: 'unitId',
   fields: [
-    { id: 'reference', label: 'Référence', type: 'text', required: true,
-      aliases: ['reference', 'ref', 'sku', 'code article', 'article', 'code', 'item', 'item number', 'produit', 'designation', 'libelle', 'nom'],
-      help: 'Code article, SSCC ou libellé du support.' },
-    { id: 'quantity', label: 'Quantité', type: 'integer', defaultValue: 1,
-      aliases: ['quantite', 'qte', 'qty', 'quantity', 'nb', 'nombre', 'nb colis', 'nb supports', 'nb um'] },
-    { id: 'length', label: 'Longueur', type: 'number', required: true, unitKind: 'length', defaultUnit: 'cm',
+    { id: 'reference', label: N_('Référence'), type: 'text', required: true,
+      aliases: ['reference', 'ref', 'sku', 'code article', 'article', 'code', 'item', 'item number', 'produit', 'designation', 'libelle', 'nom', 'description', 'product'],
+      help: N_('Code article, SSCC ou libellé du support.') },
+    { id: 'quantity', label: N_('Quantité'), type: 'integer', defaultValue: 1,
+      aliases: ['quantite', 'qte', 'qty', 'quantity', 'nb', 'nombre', 'nb colis', 'nb supports', 'nb um', 'qte', 'pieces', 'count'] },
+    { id: 'length', label: N_('Longueur'), type: 'number', required: true, unitKind: 'length', defaultUnit: 'cm',
       aliases: ['longueur', 'long', 'length', 'lg', 'l'] },
-    { id: 'width', label: 'Largeur', type: 'number', required: true, unitKind: 'length', defaultUnit: 'cm',
+    { id: 'width', label: N_('Largeur'), type: 'number', required: true, unitKind: 'length', defaultUnit: 'cm',
       aliases: ['largeur', 'larg', 'width', 'lar', 'w'] },
-    { id: 'height', label: 'Hauteur', type: 'number', required: true, unitKind: 'length', defaultUnit: 'cm',
+    { id: 'height', label: N_('Hauteur'), type: 'number', required: true, unitKind: 'length', defaultUnit: 'cm',
       aliases: ['hauteur', 'haut', 'height', 'ht', 'h'] },
-    { id: 'weight', label: 'Poids', type: 'number', unitKind: 'mass', defaultUnit: 'kg', defaultValue: 0,
+    { id: 'weight', label: N_('Poids'), type: 'number', unitKind: 'mass', defaultUnit: 'kg', defaultValue: 0,
       aliases: ['poids', 'poids brut', 'masse', 'weight', 'gross weight', 'pds', 'kg'] },
     // Sans colonne Rotation, un fichier importé garde les colis debout (« Horizontale ») :
     // une palette couchée sur le plan est inexploitable au quai.
-    { id: 'rotation', label: 'Rotation', type: 'enum', defaultValue: 'Horizontale',
+    { id: 'rotation', label: N_('Rotation'), type: 'enum', defaultValue: 'Horizontale',
       aliases: ['rotation', 'rot', 'orientation', 'sens'],
-      help: 'Libre, Horizontale (reste debout, pivote au sol) ou Interdite.' },
-    { id: 'stacking', label: 'Empilage', type: 'enum',
-      aliases: ['empilage', 'gerbage', 'superposition', 'empilable', 'gerbable', 'stackable'] },
-    { id: 'stop', label: 'Arrêt', type: 'text',
+      help: N_('Libre, Horizontale (reste debout, pivote au sol) ou Interdite.') },
+    { id: 'stacking', label: N_('Empilage'), type: 'enum',
+      aliases: ['empilage', 'gerbage', 'superposition', 'empilable', 'gerbable', 'stackable', 'stacking rule'] },
+    { id: 'stop', label: N_('Arrêt'), type: 'text',
       aliases: ['arret', 'ordre de livraison', 'stop', 'sequence', 'ordre', 'tournee', 'rang', 'drop'] },
-    { id: 'destination', label: 'Destination', type: 'text',
-      aliases: ['destination', 'client', 'destinataire', 'livre a', 'ship to', 'ville', 'adresse'] },
-    { id: 'unitId', label: 'N° support (SSCC)', type: 'text',
-      aliases: ['sscc', 'n support', 'no support', 'numero support', 'id colis', 'numero colis', 'n colis', 'lpn', 'license plate', 'hu', 'n um', 'etiquette'],
-      help: 'Identifiant de chaque palette / colis : repris dans l’export de séquence pour votre WMS.' },
-    { id: 'support', label: 'Support imposé', type: 'text',
-      aliases: ['support', 'type de support', 'type palette', 'type de palette', 'format palette'],
-      help: 'Palettisation : palette exigée pour cette ligne (EUR, EUR3, 120x100…). Vide = choix automatique.' },
+    { id: 'destination', label: N_('Destination'), type: 'text',
+      aliases: ['destination', 'client', 'destinataire', 'livre a', 'ship to', 'ville', 'adresse', 'customer', 'consignee', 'city', 'address'] },
+    { id: 'unitId', label: N_('N° support (SSCC)'), type: 'text',
+      aliases: ['sscc', 'n support', 'no support', 'numero support', 'id colis', 'numero colis', 'n colis', 'lpn', 'license plate', 'hu', 'n um', 'etiquette', 'unit id', 'pallet id', 'pallet no', 'handling unit'],
+      help: N_('Identifiant de chaque palette / colis : repris dans l’export de séquence pour votre WMS.') },
+    { id: 'support', label: N_('Support imposé'), type: 'text',
+      aliases: ['support', 'type de support', 'type palette', 'type de palette', 'format palette', 'pallet type', 'forced pallet'],
+      help: N_('Palettisation : palette exigée pour cette ligne (EUR, EUR3, 120x100…). Vide = choix automatique.') },
   ],
 };
 
 /** En-têtes du fichier standard (ordre et libellés à reprendre tels quels dans l'ERP/WMS). */
 export const STANDARD_HEADERS = [
-  'Référence', 'Quantité', 'Longueur (cm)', 'Largeur (cm)', 'Hauteur (cm)', 'Poids (kg)',
-  'Rotation', 'Empilage', 'Arrêt', 'Destination',
+  N_('Référence'), N_('Quantité'), N_('Longueur (cm)'), N_('Largeur (cm)'), N_('Hauteur (cm)'), N_('Poids (kg)'),
+  N_('Rotation'), N_('Empilage'), N_('Arrêt'), N_('Destination'),
 ];
 
 export const STANDARD_SAMPLE: (string | number)[][] = [
-  ['CARTON-A', 40, 60, 40, 40, 12, 'Libre', 'Libre', 1, 'Client A'],
-  ['PALETTE-EURO', 4, 120, 80, 140, 450, 'Horizontale', 'Au sol, rien dessus', 2, 'Client B'],
+  ['CARTON-A', 40, 60, 40, 40, 12, N_('Libre'), N_('Libre'), 1, N_('Client A')],
+  ['PALETTE-EURO', 4, 120, 80, 140, 450, N_('Horizontale'), N_('Au sol, rien dessus'), 2, N_('Client B')],
 ];
 
 export type RotationMode = 'FULL' | 'HORIZONTAL' | 'NONE';
@@ -63,8 +64,8 @@ const norm = (s: unknown) => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g
 
 export function parseRotationValue(v: unknown): RotationMode {
   const s = norm(v);
-  if (['none', 'interdite', 'interdit', 'non', 'no', '0', 'false', 'aucune', 'fixe'].includes(s)) return 'NONE';
-  if (['horizontal', 'horizontale', 'h', 'z', 'a plat'].includes(s) || s.includes('horiz')) return 'HORIZONTAL';
+  if (['none', 'interdite', 'interdit', 'non', 'no', '0', 'false', 'aucune', 'fixe', 'forbidden', 'fixed', 'not allowed'].includes(s)) return 'NONE';
+  if (['horizontal', 'horizontale', 'h', 'z', 'a plat', 'upright', 'this way up', 'flat'].includes(s) || s.includes('horiz') || s.includes('upright')) return 'HORIZONTAL';
   return 'FULL';
 }
 
@@ -72,9 +73,11 @@ export function parseRotationValue(v: unknown): RotationMode {
 export function parseStackingValue(v: unknown): StackingValue {
   const k = norm(v);
   if (!k) return 'FREE';
-  if (k.includes('sol') && (k.includes('rien') || k.includes('non'))) return 'FLOOR_NO_TOP';
-  if (k.includes('sol')) return 'FLOOR';
-  if (k.includes('dessus') || k.includes('fragile')) return 'TOP_ONLY';
+  // Libellés français et anglais (fichiers exportés depuis l'interface anglaise).
+  const floor = k.includes('sol') || k.includes('floor');
+  if (floor && (k.includes('rien') || k.includes('non') || k.includes('nothing') || k.includes('no top'))) return 'FLOOR_NO_TOP';
+  if (floor) return 'FLOOR';
+  if (k.includes('dessus') || k.includes('fragile') || k.includes('top only') || k.includes('nothing on top') || k.includes('non stackable') || k.includes('not stackable')) return 'TOP_ONLY';
   if (['non', 'no', 'n', '0', 'false', 'faux'].includes(k)) return 'TOP_ONLY';
   return 'FREE';
 }

@@ -3,7 +3,10 @@
     "target": "ES2020",
     "module": "ESNext",
     "moduleResolution": "Bundler",
-    "lib": ["ES2020", "DOM"],
+    "lib": [
+      "ES2020",
+      "DOM"
+    ],
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
@@ -13,5 +16,12 @@
     "resolveJsonModule": true,
     "noEmit": true
   },
-  "include": ["src/outils/optimiseur-chargement/**/*.ts", "src/shared/**/*.ts", "src/outils/palettisation/**/*.ts"]
+  "include": [
+    "src/outils/optimiseur-chargement/**/*.ts",
+    "src/shared/**/*.ts",
+    "src/outils/palettisation/**/*.ts"
+  ],
+  "exclude": [
+    "src/shared/i18n/i18n.test.ts"
+  ]
 }

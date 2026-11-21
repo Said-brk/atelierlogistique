@@ -1,4 +1,5 @@
 import type { ImportOptions, ImportProfile, Mapping, ProfileStore } from './types';
+import { t } from '../i18n/core';
 
 const STORAGE_KEY = 'al.import.profiles.v1';
 
@@ -64,8 +65,8 @@ export function importProfileJson(json: string, schemaId: string): ImportProfile
   const data = JSON.parse(json);
   const p = data?.profile;
   if (data?.format !== 'atelier-logistique/import-profile' || !p?.mapping) {
-    throw new Error("Ce fichier n'est pas un profil d'import Atelier Logistique.");
+    throw new Error(t('Ce fichier n’est pas un profil d’import Atelier Logistique.'));
   }
-  if (p.schemaId !== schemaId) throw new Error("Ce profil concerne un autre type de données.");
+  if (p.schemaId !== schemaId) throw new Error(t('Ce profil concerne un autre type de données.'));
   return { ...newProfile(p.name, p.schemaId, p.schemaVersion ?? 1, p.mapping, p.options ?? {}) };
 }

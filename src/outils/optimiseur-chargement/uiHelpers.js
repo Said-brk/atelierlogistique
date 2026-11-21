@@ -3,6 +3,7 @@
 
 import { applyMapping, suggestMapping } from '../../shared/import';
 import { COLIS_SCHEMA, recordsToColisRows } from './import/colisSchema';
+import { t, numLocale, N_ } from '../../shared/i18n/core';
 
 let seq = 0;
 export const newRowId = () => `row_${Date.now().toString(36)}_${(seq++).toString(36)}`;
@@ -10,19 +11,19 @@ export const newRowId = () => `row_${Date.now().toString(36)}_${(seq++).toString
 export const cmToMm = (cm) => Math.round(Number(cm) * 10);
 
 export const ROTATION_OPTIONS = [
-  { value: 'FULL', label: 'Libre' },
-  { value: 'HORIZONTAL', label: 'Horizontale' },
-  { value: 'NONE', label: 'Interdite' },
+  { value: 'FULL', label: N_('Libre') },
+  { value: 'HORIZONTAL', label: N_('Horizontale') },
+  { value: 'NONE', label: N_('Interdite') },
 ];
 
 // Empilage : deux propriétés indépendantes réunies en 4 choix simples.
 //  - stackable : le colis peut recevoir d'autres colis par-dessus
 //  - floorOnly : le colis doit rester au sol (ne peut pas être posé sur un autre)
 export const STACKING_OPTIONS = [
-  { value: 'FREE',         label: 'Libre',              stackable: true,  floorOnly: false, hint: 'Peut aller sur un autre colis et en recevoir dessus.' },
-  { value: 'TOP_ONLY',     label: 'Dessus uniquement',  stackable: false, floorOnly: false, hint: 'Rien par-dessus (fragile), mais peut être posé sur un autre colis.' },
-  { value: 'FLOOR',        label: 'Au sol',             stackable: true,  floorOnly: true,  hint: 'Reste au sol, peut recevoir des colis dessus.' },
-  { value: 'FLOOR_NO_TOP', label: 'Au sol, rien dessus', stackable: false, floorOnly: true, hint: 'Reste au sol et ne reçoit rien dessus.' },
+  { value: 'FREE',         label: N_('Libre'),              stackable: true,  floorOnly: false, hint: N_('Peut aller sur un autre colis et en recevoir dessus.') },
+  { value: 'TOP_ONLY',     label: N_('Dessus uniquement'),  stackable: false, floorOnly: false, hint: N_('Rien par-dessus (fragile), mais peut être posé sur un autre colis.') },
+  { value: 'FLOOR',        label: N_('Au sol'),             stackable: true,  floorOnly: true,  hint: N_('Reste au sol, peut recevoir des colis dessus.') },
+  { value: 'FLOOR_NO_TOP', label: N_('Au sol, rien dessus'), stackable: false, floorOnly: true, hint: N_('Reste au sol et ne reçoit rien dessus.') },
 ];
 
 export function stackingOf(row) {
@@ -65,8 +66,8 @@ export function emptyRow() {
 }
 
 export const DELIVERY_MODES = [
-  { value: 'STRICT', label: 'Strict', hint: 'Chaque arrêt est accessible sans déplacer un colis d’un arrêt suivant. Ce qui ne respecte pas la règle reste à quai.' },
-  { value: 'SOFT', label: 'Souple', hint: 'Charge au maximum ; les colis qui devront être manipulés à la livraison sont signalés.' },
+  { value: 'STRICT', label: N_('Strict'), hint: N_('Chaque arrêt est accessible sans déplacer un colis d’un arrêt suivant. Ce qui ne respecte pas la règle reste à quai.') },
+  { value: 'SOFT', label: N_('Souple'), hint: N_('Charge au maximum ; les colis qui devront être manipulés à la livraison sont signalés.') },
 ];
 
 // Données d'exemple (cm / kg) — cf. cahier des charges §9.
@@ -91,13 +92,13 @@ const NUMERIC_FIELDS = ['quantity', 'length', 'width', 'height', 'weight', 'stop
 /** Erreurs de validation d'une ligne (clé champ → message). Vide = valide. */
 export function validateRow(row) {
   const errors = {};
-  if (!String(row.reference).trim()) errors.reference = 'Référence obligatoire';
-  if (!Number.isInteger(row.quantity) || row.quantity <= 0) errors.quantity = 'Quantité entière > 0';
-  if (!(row.length > 0)) errors.length = 'Longueur > 0';
-  if (!(row.width > 0)) errors.width = 'Largeur > 0';
-  if (!(row.height > 0)) errors.height = 'Hauteur > 0';
-  if (!(row.weight >= 0)) errors.weight = 'Poids ≥ 0';
-  if (!Number.isInteger(row.stop ?? 1) || (row.stop ?? 1) < 1) errors.stop = 'Arrêt ≥ 1';
+  if (!String(row.reference).trim()) errors.reference = t('Référence obligatoire');
+  if (!Number.isInteger(row.quantity) || row.quantity <= 0) errors.quantity = t('Quantité entière > 0');
+  if (!(row.length > 0)) errors.length = t('Longueur > 0');
+  if (!(row.width > 0)) errors.width = t('Largeur > 0');
+  if (!(row.height > 0)) errors.height = t('Hauteur > 0');
+  if (!(row.weight >= 0)) errors.weight = t('Poids ≥ 0');
+  if (!Number.isInteger(row.stop ?? 1) || (row.stop ?? 1) < 1) errors.stop = t('Arrêt ≥ 1');
   return errors;
 }
 
@@ -138,7 +139,7 @@ export function distinctStops(rows) {
 /** Libellé d'un arrêt : « Arrêt 2 · Client B » (destination = 1re renseignée). */
 export function stopLabel(stop, rows) {
   const dest = rows.find((r) => (r.stop ?? 1) === stop && String(r.destination ?? '').trim())?.destination;
-  return dest ? `Arrêt ${stop} · ${String(dest).trim()}` : `Arrêt ${stop}`;
+  return dest ? t('Arrêt {stop} · {v1}', { stop: stop, v1: String(dest).trim() }) : t('Arrêt {stop}', { stop: stop });
 }
 
 // Palette distincte par arrêt (contrastée, lisible en 3D).
@@ -183,6 +184,6 @@ export function bulkToRows(json) {
 }
 
 export const mm3ToM3 = (mm3) => mm3 / 1e9;
-export const formatM3 = (mm3) => mm3ToM3(mm3).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-export const formatKg = (kg) => Math.round(kg).toLocaleString('fr-FR');
-export const formatPct = (ratio) => (ratio * 100).toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+export const formatM3 = (mm3) => mm3ToM3(mm3).toLocaleString(numLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+export const formatKg = (kg) => Math.round(kg).toLocaleString(numLocale());
+export const formatPct = (ratio) => (ratio * 100).toLocaleString(numLocale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 });

@@ -14,6 +14,7 @@
 import { optimize } from './optimizer';
 import { getOrientations } from './rotations';
 import type { ContainerDefinition, ItemDefinition, OptimizeOptions } from './types';
+import { N_ } from '../../../shared/i18n/core';
 
 export interface FleetVehicle {
   container: ContainerDefinition;
@@ -179,7 +180,7 @@ export function planFleet(
   for (const d of definitions) {
     if (d.quantity <= 0) continue;
     if (usable.some((v) => fitsVehicle(d, v.container))) valid.push(d);
-    else unplaced.push({ definitionId: d.id, reference: d.reference, quantity: d.quantity, reason: 'trop grand ou trop lourd pour les véhicules proposés' });
+    else unplaced.push({ definitionId: d.id, reference: d.reference, quantity: d.quantity, reason: N_('trop grand ou trop lourd pour les véhicules proposés') });
   }
   const byStop = new Map<number, ItemDefinition[]>();
   for (const d of valid) { const s = d.stop ?? 1; if (!byStop.has(s)) byStop.set(s, []); byStop.get(s)!.push(d); }
@@ -187,7 +188,7 @@ export function planFleet(
 
   const main = groups.length ? solve(groups, usable, ctx) : { trucks: [], cost: 0, ok: true };
   if (!main.ok) {
-    for (const d of valid) unplaced.push({ definitionId: d.id, reference: d.reference, quantity: d.quantity, reason: 'aucune combinaison de véhicules ne permet de tout charger' });
+    for (const d of valid) unplaced.push({ definitionId: d.id, reference: d.reference, quantity: d.quantity, reason: N_('aucune combinaison de véhicules ne permet de tout charger') });
   }
 
   // 4. Comparaisons : un seul type de véhicule.

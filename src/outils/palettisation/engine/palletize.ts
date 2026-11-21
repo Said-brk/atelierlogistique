@@ -13,6 +13,7 @@ import { getOrientations, rotationAngles } from '../../optimiseur-chargement/eng
 import type { ContainerDefinition, Dimensions, ItemDefinition, PlacedItem } from '../../optimiseur-chargement/engine/types';
 import { bestLayerPattern, centerPattern, rotatePattern180, type LayerPattern } from './layerPattern';
 import type { PalletContent, PalletizeOptions, PalletizeResult, PalletPlan, PalletSpec, SupportChoice, UnplacedLine } from './types';
+import { t as tr, tText, numLocale } from '../../../shared/i18n/core';
 
 /**
  * Pondérations pour une palette mixte : on remplit couche par couche (forte pénalité
@@ -155,10 +156,10 @@ function centerPlaced(placed: PlacedItem[], pallet: PalletSpec): PlacedItem[] {
 /** Raison pour laquelle un colis ne peut aller sur aucune palette. */
 export function unplaceableReason(def: ItemDefinition, pallet: PalletSpec): string | null {
   const availH = pallet.maxTotalHeight - pallet.deckHeight;
-  if (def.weight > pallet.maxLoad) return 'plus lourd que la charge maxi de la palette';
+  if (def.weight > pallet.maxLoad) return tr('plus lourd que la charge maxi de la palette');
   const fits = getOrientations({ length: def.length, width: def.width, height: def.height }, def.rotationMode)
     .some((o) => o.length <= pallet.length && o.width <= pallet.width && o.height <= availH);
-  if (!fits) return 'plus grand que la palette ou que la hauteur maxi';
+  if (!fits) return tr('plus grand que la palette ou que la hauteur maxi');
   return null;
 }
 
@@ -198,7 +199,7 @@ function mixedPhase(pool: ItemDefinition[], spec: PalletSpec, ctx: Ctx): Partial
   const unplaced: UnplacedLine[] = [];
   const left = new Map(pool.filter((d) => d.quantity > 0).map((d) => [d.id, d]));
   if (!ctx.allowMixed) {
-    for (const d of left.values()) unplaced.push({ definitionId: d.id, reference: d.reference, quantity: d.quantity, reason: 'reliquat (palettes mixtes désactivées)' });
+    for (const d of left.values()) unplaced.push({ definitionId: d.id, reference: d.reference, quantity: d.quantity, reason: tr('reliquat (palettes mixtes désactivées)') });
     return { pallets, unplaced };
   }
   const container = palletContainer(spec);
@@ -206,7 +207,7 @@ function mixedPhase(pool: ItemDefinition[], spec: PalletSpec, ctx: Ctx): Partial
   while (left.size > 0 && guard++ < 500) {
     const r = optimize(container, [...left.values()], { loading: { mode: 'FREE', scoring: MIXED_SCORING }, deliveryMode: 'SOFT' });
     if (r.packedItems === 0) {
-      for (const d of left.values()) unplaced.push({ definitionId: d.id, reference: d.reference, quantity: d.quantity, reason: 'ne trouve pas de place stable' });
+      for (const d of left.values()) unplaced.push({ definitionId: d.id, reference: d.reference, quantity: d.quantity, reason: tr('ne trouve pas de place stable') });
       break;
     }
     const index = ctx.next++;
@@ -229,7 +230,7 @@ function onSpec(defs: ItemDefinition[], spec: PalletSpec, ctx: Ctx): Partial {
   const pool: ItemDefinition[] = [];
   for (const d of defs) {
     const reason = unplaceableReason(d, spec);
-    if (reason) { unplaced.push({ definitionId: d.id, reference: d.reference, quantity: d.quantity, reason: `${reason} (${spec.label})` }); continue; }
+    if (reason) { unplaced.push({ definitionId: d.id, reference: d.reference, quantity: d.quantity, reason: `${reason} (${tText(spec.label)})` }); continue; }
     const rest = fullPhase(d, spec, ctx, pallets);
     if (rest > 0) pool.push({ ...d, quantity: rest });
   }
@@ -254,17 +255,17 @@ function better(a: ReturnType<typeof cost>, b: ReturnType<typeof cost>): boolean
   return a.fill > b.fill + 1e-9;
 }
 
-const m2 = (mm2: number) => (mm2 / 1e6).toLocaleString('fr-FR', { maximumFractionDigits: 2 });
+const m2 = (mm2: number) => (mm2 / 1e6).toLocaleString(numLocale(), { maximumFractionDigits: 2 });
 
 function explain(best: { spec: PalletSpec; c: ReturnType<typeof cost> }, alt: { spec: PalletSpec; c: ReturnType<typeof cost> } | null): string {
-  if (!alt) return 'seul support disponible';
+  if (!alt) return tr('seul support disponible');
   const b = best.c;
   const a = alt.c;
-  if (b.unplaced !== a.unplaced) return `${best.spec.label} : tout est palettisé (${a.unplaced} colis restent hors palette en ${alt.spec.label})`;
-  if (b.count !== a.count) return `${best.spec.label} : ${b.count} palette(s) au lieu de ${a.count} en ${alt.spec.label}`;
-  if (Math.abs(b.area - a.area) > 1) return `${best.spec.label} : même nombre de palettes, ${m2(b.area)} m² au sol au lieu de ${m2(a.area)} m²`;
-  if (Math.abs(b.money - a.money) > 1e-6) return `${best.spec.label} : moins cher (${b.money} € au lieu de ${a.money} €)`;
-  return `${best.spec.label} : meilleur remplissage`;
+  if (b.unplaced !== a.unplaced) return tr('{label} : tout est palettisé ({unplaced} colis restent hors palette en {label1})', { label: tText(best.spec.label), unplaced: a.unplaced, label1: tText(alt.spec.label) });
+  if (b.count !== a.count) return tr('{label} : {count} palette(s) au lieu de {count1} en {label1}', { label: tText(best.spec.label), count: b.count, count1: a.count, label1: tText(alt.spec.label) });
+  if (Math.abs(b.area - a.area) > 1) return tr('{label} : même nombre de palettes, {v1} m² au sol au lieu de {v2} m²', { label: tText(best.spec.label), v1: m2(b.area), v2: m2(a.area) });
+  if (Math.abs(b.money - a.money) > 1e-6) return tr('{label} : moins cher ({money} € au lieu de {money1} €)', { label: tText(best.spec.label), money: b.money, money1: a.money });
+  return tr('{label} : meilleur remplissage', { label: tText(best.spec.label) });
 }
 
 /**
@@ -293,7 +294,7 @@ export function palletizeMulti(
     let best = trials[0];
     for (const t of trials.slice(1)) if (better(t.c, best.c)) best = t;
     const alt = trials.filter((t) => t !== best).sort((x, y) => (better(x.c, y.c) ? -1 : 1))[0] ?? null;
-    const reason = `tout l'envoi en ${explain(best, alt)}`;
+    const reason = tr('tout l\'envoi en {v1}', { v1: explain(best, alt) });
     best.r.choices = [{ stop: 0, destination: '', specIds: [...new Set(best.r.pallets.map((p) => p.specId))], reason }];
     best.r.computationTimeMs = Math.round(now() - t0);
     return best.r;
@@ -310,7 +311,7 @@ export function palletizeMulti(
   const choices: SupportChoice[] = [];
 
   if (available.length === 0) {
-    for (const d of definitions) if (d.quantity > 0) unplaced.push({ definitionId: d.id, reference: d.reference, quantity: d.quantity, reason: 'aucun support disponible' });
+    for (const d of definitions) if (d.quantity > 0) unplaced.push({ definitionId: d.id, reference: d.reference, quantity: d.quantity, reason: tr('aucun support disponible') });
     return { pallets, specs: [], choices, unplaced, totalItems: 0, palletizedItems: 0, computationTimeMs: 0 };
   }
 
@@ -359,7 +360,7 @@ export function palletizeMulti(
           const density = plan ? plan.capacity / (spec.length * spec.width) : 0;
           if (!bestSpec || density > bestDensity) { bestSpec = spec; bestDensity = density; }
         }
-        if (!bestSpec) { unplaced.push({ definitionId: d.id, reference: d.reference, quantity: d.quantity, reason: unplaceableReason(d, available[0]) ?? 'ne tient sur aucun support' }); continue; }
+        if (!bestSpec) { unplaced.push({ definitionId: d.id, reference: d.reference, quantity: d.quantity, reason: unplaceableReason(d, available[0]) ?? tr('ne tient sur aucun support') }); continue; }
         const before = pallets.length;
         const rest = fullPhase(d, bestSpec, ctx, pallets);
         if (pallets.length > before) used.add(bestSpec.id);
@@ -372,7 +373,7 @@ export function palletizeMulti(
           const fits = pool.filter((d) => !unplaceableReason(d, spec));
           const r = mixedPhase(fits, spec, trialCtx);
           const out = pool.filter((d) => unplaceableReason(d, spec));
-          r.unplaced.push(...out.map((d) => ({ definitionId: d.id, reference: d.reference, quantity: d.quantity, reason: `${unplaceableReason(d, spec)} (${spec.label})` })));
+          r.unplaced.push(...out.map((d) => ({ definitionId: d.id, reference: d.reference, quantity: d.quantity, reason: `${unplaceableReason(d, spec)} (${tText(spec.label)})` })));
           return { spec, c: cost(r, byId) };
         });
         let best = trials[0];
@@ -381,11 +382,11 @@ export function palletizeMulti(
         const r = mixedPhase(fits, best.spec, ctx);
         pallets.push(...r.pallets); unplaced.push(...r.unplaced);
         for (const d of pool.filter((x) => unplaceableReason(x, best.spec))) {
-          unplaced.push({ definitionId: d.id, reference: d.reference, quantity: d.quantity, reason: `${unplaceableReason(d, best.spec)} (${best.spec.label})` });
+          unplaced.push({ definitionId: d.id, reference: d.reference, quantity: d.quantity, reason: `${unplaceableReason(d, best.spec)} (${tText(best.spec.label)})` });
         }
         if (r.pallets.length) used.add(best.spec.id);
       }
-      reason = 'formats mélangés : support le plus dense par référence';
+      reason = tr('formats mélangés : support le plus dense par référence');
     }
 
     // Lignes imposées sur un autre support.
@@ -394,7 +395,7 @@ export function palletizeMulti(
       const r = onSpec(defs, spec, ctx);
       pallets.push(...r.pallets); unplaced.push(...r.unplaced);
       used.add(specId);
-      reason = reason ? `${reason} · ${spec.label} imposé` : `${spec.label} imposé`;
+      reason = reason ? tr('{reason} · {label} imposé', { reason: reason, label: tText(spec.label) }) : tr('{label} imposé', { label: tText(spec.label) });
     }
     choices.push({ stop, destination, specIds: [...used], reason });
   }

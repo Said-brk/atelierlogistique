@@ -4,6 +4,7 @@
 import * as XLSX from 'xlsx';
 import type { DatasetSchema, RawTable } from './types';
 import { findHeaderRow, readDelimitedBytes, toRawTable } from './read';
+import { t } from '../i18n/core';
 
 export const ACCEPTED_FILES = '.csv,.txt,.tsv,.xlsx,.xls,.xlsm,.ods';
 
@@ -25,7 +26,7 @@ export async function readFile(
   }
   const wb = XLSX.read(buf, { type: 'array' });
   const sheets = wb.SheetNames;
-  if (sheets.length === 0) throw new Error('Classeur vide');
+  if (sheets.length === 0) throw new Error(t('Classeur vide'));
   let chosen = sheetName && sheets.includes(sheetName) ? sheetName : sheets[0];
   if (!sheetName && sheets.length > 1) {
     let best = -1;

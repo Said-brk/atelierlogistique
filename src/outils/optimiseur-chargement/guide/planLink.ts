@@ -9,6 +9,8 @@
 import type { ContainerDefinition, PlacedItem } from '../engine/types';
 
 export const GUIDE_PATH = '/chargement';
+/** Guide en anglais (même page, interface anglaise). */
+export const GUIDE_PATH_EN = '/en/loading';
 /** Au-delà, le QR code devient trop dense pour être scanné de façon fiable : on propose le lien seul. */
 export const QR_MAX_URL = 2200;
 
@@ -77,6 +79,6 @@ export async function decodePlan(payload: string): Promise<GuidePlan> {
   };
 }
 
-export function guideUrl(origin: string, payload: string): string {
-  return `${origin}${GUIDE_PATH}#${payload}`;
+export function guideUrl(origin: string, payload: string, lang: 'fr' | 'en' = 'fr'): string {
+  return `${origin}${lang === 'en' ? GUIDE_PATH_EN : GUIDE_PATH}#${payload}`;
 }

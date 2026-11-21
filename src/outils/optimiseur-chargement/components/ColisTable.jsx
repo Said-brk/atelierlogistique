@@ -4,6 +4,7 @@
 
 import { Plus, Trash2 } from 'lucide-react';
 import { validateRow, refColor, ROTATION_OPTIONS, STACKING_OPTIONS, stackingOf } from '../uiHelpers';
+import { t, tText } from '../../../shared/i18n/core';
 
 export function Th({ children, className = '', title }) {
   return <th title={title} className={`font-normal text-slate-400 px-1 py-2 text-[10px] tracking-wider ${className}`}>{children}</th>;
@@ -43,7 +44,7 @@ export function NumCell({ value, onChange, error, width = 'w-14', step = '1' }) 
  */
 // extraSelect (facultatif) : colonne de choix propre à un outil,
 //   { field, label, title, options: [{ value, label }] } — ex. « Support » en palettisation.
-export default function ColisTable({ rows, updateRow, updateStacking, removeRow, addRow, footerHint = 'dimensions en cm · poids en kg · arrêt 1 = livré en premier', extraSelect = null }) {
+export default function ColisTable({ rows, updateRow, updateStacking, removeRow, addRow, footerHint = t('dimensions en cm · poids en kg · arrêt 1 = livré en premier'), extraSelect = null }) {
   return (
     <>
       {/* Mobile : une carte par référence */}
@@ -55,14 +56,14 @@ export default function ColisTable({ rows, updateRow, updateStacking, removeRow,
               <div className="flex items-center gap-2">
                 <span className="w-3 h-3 rounded-sm shrink-0" style={{ background: refColor(i).solid }} />
                 <input value={r.reference} onChange={(e) => updateRow(r.id, 'reference', e.target.value)}
-                  placeholder="Référence" aria-label="Référence"
+                  placeholder={t('Référence')} aria-label={t('Référence')}
                   className="flex-1 min-w-0 px-2.5 py-2 bg-white border rounded-md outline-none font-jetbrains text-base text-slate-800 focus:border-slate-400"
                   style={{ borderColor: err.reference ? '#FCA5A5' : '#E2E8F0' }} />
-                <button onClick={() => removeRow(r.id)} aria-label="Supprimer la référence"
+                <button onClick={() => removeRow(r.id)} aria-label={t('Supprimer la référence')}
                   className="w-10 h-10 shrink-0 rounded-md flex items-center justify-center text-slate-400 hover:text-red-500 bg-slate-50"><Trash2 size={15} /></button>
               </div>
               <div className="grid grid-cols-5 gap-1.5">
-                <MobileNum label="Qté" value={r.quantity} onChange={(v) => updateRow(r.id, 'quantity', v)} error={err.quantity} />
+                <MobileNum label={t('Qté')} value={r.quantity} onChange={(v) => updateRow(r.id, 'quantity', v)} error={err.quantity} />
                 <MobileNum label="L cm" value={r.length} onChange={(v) => updateRow(r.id, 'length', v)} error={err.length} />
                 <MobileNum label="l cm" value={r.width} onChange={(v) => updateRow(r.id, 'width', v)} error={err.width} />
                 <MobileNum label="H cm" value={r.height} onChange={(v) => updateRow(r.id, 'height', v)} error={err.height} />
@@ -70,26 +71,26 @@ export default function ColisTable({ rows, updateRow, updateStacking, removeRow,
               </div>
               <div className="grid grid-cols-2 gap-1.5 items-end">
                 <label className="block min-w-0">
-                  <span className="block font-jetbrains text-[10px] text-slate-400 mb-0.5">Rotation</span>
+                  <span className="block font-jetbrains text-[10px] text-slate-400 mb-0.5">{t('Rotation')}</span>
                   <select value={r.rotationMode} onChange={(e) => updateRow(r.id, 'rotationMode', e.target.value)}
                     className="w-full px-2 py-2 bg-white border border-slate-200 rounded-md outline-none font-jetbrains text-base text-slate-700">
-                    {ROTATION_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    {ROTATION_OPTIONS.map((o) => <option key={o.value} value={o.value}>{tText(o.label)}</option>)}
                   </select>
                 </label>
                 <label className="block min-w-0">
-                  <span className="block font-jetbrains text-[10px] text-slate-400 mb-0.5">Empilage</span>
+                  <span className="block font-jetbrains text-[10px] text-slate-400 mb-0.5">{t('Empilage')}</span>
                   <select value={stackingOf(r)} onChange={(e) => updateStacking(r.id, e.target.value)}
                     className="w-full px-2 py-2 bg-white border border-slate-200 rounded-md outline-none font-jetbrains text-base text-slate-700">
-                    {STACKING_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    {STACKING_OPTIONS.map((o) => <option key={o.value} value={o.value}>{tText(o.label)}</option>)}
                   </select>
                 </label>
               </div>
               <div className="grid grid-cols-[4.5rem_1fr] gap-1.5 items-end">
-                <MobileNum label="Arrêt" value={r.stop ?? 1} onChange={(v) => updateRow(r.id, 'stop', v)} error={err.stop} />
+                <MobileNum label={t('Arrêt')} value={r.stop ?? 1} onChange={(v) => updateRow(r.id, 'stop', v)} error={err.stop} />
                 <label className="block min-w-0">
-                  <span className="block font-jetbrains text-[10px] text-slate-400 mb-0.5">Destination (facultatif)</span>
+                  <span className="block font-jetbrains text-[10px] text-slate-400 mb-0.5">{t('Destination (facultatif)')}</span>
                   <input value={r.destination ?? ''} onChange={(e) => updateRow(r.id, 'destination', e.target.value)}
-                    placeholder="Client, ville…"
+                    placeholder={t('Client, ville…')}
                     className="w-full px-2.5 py-2 bg-white border border-slate-200 rounded-md outline-none font-jetbrains text-base text-slate-800 focus:border-slate-400" />
                 </label>
               </div>
@@ -98,7 +99,7 @@ export default function ColisTable({ rows, updateRow, updateStacking, removeRow,
                   <span className="block font-jetbrains text-[10px] text-slate-400 mb-0.5">{extraSelect.label}</span>
                   <select value={r[extraSelect.field] ?? ''} onChange={(e) => updateRow(r.id, extraSelect.field, e.target.value)}
                     className="w-full px-2 py-2 bg-white border border-slate-200 rounded-md outline-none font-jetbrains text-base text-slate-700">
-                    {extraSelect.options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    {extraSelect.options.map((o) => <option key={o.value} value={o.value}>{tText(o.label)}</option>)}
                   </select>
                 </label>
               )}
@@ -106,7 +107,7 @@ export default function ColisTable({ rows, updateRow, updateStacking, removeRow,
           );
         })}
         {rows.length === 0 && (
-          <div className="text-center text-slate-400 py-6 text-sm px-4">Aucune marchandise — ajoutez une référence ou chargez l'exemple.</div>
+          <div className="text-center text-slate-400 py-6 text-sm px-4">{t('Aucune marchandise — ajoutez une référence ou chargez l\'exemple.')}</div>
         )}
       </div>
 
@@ -114,10 +115,10 @@ export default function ColisTable({ rows, updateRow, updateStacking, removeRow,
         <table className="w-full">
           <thead>
             <tr className="border-b border-slate-100">
-              <Th className="text-left">Référence</Th>
-              <Th>Qté</Th><Th>L</Th><Th>l</Th><Th>H</Th><Th>Poids</Th>
-              <Th>Rotation</Th><Th title="Libre · Dessus uniquement (rien dessus) · Au sol · Au sol, rien dessus">Empilage</Th>
-              <Th title="1 = livré en premier">Arrêt</Th><Th className="text-left">Destination</Th>{extraSelect && <Th title={extraSelect.title}>{extraSelect.label}</Th>}<Th></Th>
+              <Th className="text-left">{t('Référence')}</Th>
+              <Th>{t('Qté')}</Th><Th>L</Th><Th>l</Th><Th>H</Th><Th>{t('Poids')}</Th>
+              <Th>{t('Rotation')}</Th><Th title={t('Libre · Dessus uniquement (rien dessus) · Au sol · Au sol, rien dessus')}>{t('Empilage')}</Th>
+              <Th title={t('1 = livré en premier')}>{t('Arrêt')}</Th><Th className="text-left">{t('Destination')}</Th>{extraSelect && <Th title={extraSelect.title}>{extraSelect.label}</Th>}<Th></Th>
             </tr>
           </thead>
           <tbody>
@@ -130,7 +131,7 @@ export default function ColisTable({ rows, updateRow, updateStacking, removeRow,
                       <span className="w-2.5 h-2.5 rounded-sm shrink-0 mt-1" style={{ background: refColor(i).solid }} />
                       <div className="flex-1 min-w-[64px]">
                         <input value={r.reference} onChange={(e) => updateRow(r.id, 'reference', e.target.value)}
-                          placeholder="Réf."
+                          placeholder={t('Réf.')}
                           className="w-full px-2 py-1.5 bg-white border rounded-md outline-none font-jetbrains text-xs text-slate-800 focus:border-slate-400"
                           style={{ borderColor: err.reference ? '#FCA5A5' : '#E2E8F0' }} />
                         {err.reference && <div className="text-[9px] text-red-500 mt-0.5">{err.reference}</div>}
@@ -145,27 +146,27 @@ export default function ColisTable({ rows, updateRow, updateStacking, removeRow,
                   <td className="px-0.5 py-1.5">
                     <select value={r.rotationMode} onChange={(e) => updateRow(r.id, 'rotationMode', e.target.value)}
                       className="px-1.5 py-1.5 bg-white border border-slate-200 rounded-md outline-none font-jetbrains text-[11px] text-slate-700">
-                      {ROTATION_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                      {ROTATION_OPTIONS.map((o) => <option key={o.value} value={o.value}>{tText(o.label)}</option>)}
                     </select>
                   </td>
                   <td className="px-0.5 py-1.5">
                     <select value={stackingOf(r)} onChange={(e) => updateStacking(r.id, e.target.value)}
-                      title={STACKING_OPTIONS.find((o) => o.value === stackingOf(r))?.hint}
+                      title={tText(STACKING_OPTIONS.find((o) => o.value === stackingOf(r))?.hint ?? '')}
                       className="w-[7.5rem] px-1 py-1.5 bg-white border border-slate-200 rounded-md outline-none font-jetbrains text-[11px] text-slate-700">
-                      {STACKING_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                      {STACKING_OPTIONS.map((o) => <option key={o.value} value={o.value}>{tText(o.label)}</option>)}
                     </select>
                   </td>
                   <td className="px-0.5 py-1.5"><NumCell value={r.stop ?? 1} onChange={(v) => updateRow(r.id, 'stop', v)} error={err.stop} width="w-10" /></td>
                   <td className="px-0.5 py-1.5">
                     <input value={r.destination ?? ''} onChange={(e) => updateRow(r.id, 'destination', e.target.value)}
-                      placeholder="Client…"
+                      placeholder={t('Client…')}
                       className="w-16 lg:w-32 px-2 py-1.5 bg-white border border-slate-200 rounded-md outline-none font-jetbrains text-xs text-slate-800 focus:border-slate-400" />
                   </td>
                   {extraSelect && (
                     <td className="px-0.5 py-1.5">
                       <select value={r[extraSelect.field] ?? ''} onChange={(e) => updateRow(r.id, extraSelect.field, e.target.value)}
                         className="w-24 px-1 py-1.5 bg-white border border-slate-200 rounded-md outline-none font-jetbrains text-[11px] text-slate-700">
-                        {extraSelect.options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                        {extraSelect.options.map((o) => <option key={o.value} value={o.value}>{tText(o.label)}</option>)}
                       </select>
                     </td>
                   )}
@@ -176,15 +177,14 @@ export default function ColisTable({ rows, updateRow, updateStacking, removeRow,
               );
             })}
             {rows.length === 0 && (
-              <tr><td colSpan={extraSelect ? 12 : 11} className="text-center text-slate-400 py-6 text-sm">Aucune marchandise — ajoutez une référence ou chargez l'exemple.</td></tr>
+              <tr><td colSpan={extraSelect ? 12 : 11} className="text-center text-slate-400 py-6 text-sm">{t('Aucune marchandise — ajoutez une référence ou chargez l\'exemple.')}</td></tr>
             )}
           </tbody>
         </table>
       </div>
       <div className="px-4 py-3 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <button onClick={addRow} className="flex items-center justify-center gap-1.5 font-jetbrains text-xs px-3 py-2.5 sm:py-2 rounded-md" style={{ background: '#F1F5F9', color: '#475569' }}>
-          <Plus size={13} /> Ajouter une référence
-        </button>
+          <Plus size={13} />{' '}{t('Ajouter une référence')}</button>
         <span className="font-jetbrains text-[10px] text-slate-400 text-center sm:text-right">{footerHint}</span>
       </div>
     </>
