@@ -287,6 +287,16 @@ function useSeoMeta(seo, path) {
 }
 
 // Route d'un outil : /outils/:id → composant plein écran + fil d'Ariane
+// Barre propre à chaque outil dans le site : on masque l'identité (retour, logo, nom), déjà dans la
+// barre du site. Si l'outil y a des commandes (choix de mode, guide…), elles restent, en simple bandeau.
+const TOOL_EMBED_CSS = `
+.tool-embedded .tool-nav:not(.tool-nav-controls){display:none}
+.tool-embedded .tool-nav-controls{position:static;background:transparent;border:0}
+.tool-embedded .tool-nav-controls > div{padding-top:1rem;padding-bottom:0}
+.tool-embedded .tool-nav-id{display:none !important}
+.tool-embedded .tool-nav-controls .w-px{display:none}
+`;
+
 function ToolRoute() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -297,7 +307,7 @@ function ToolRoute() {
   // (classe tool-nav : bouton retour, nom) est masquée ici ; l'outil reste utilisable seul.
   return (
     <div className="tool-embedded">
-      <style>{'.tool-embedded .tool-nav{display:none}'}</style>
+      <style>{TOOL_EMBED_CSS}</style>
       <ToolTopBar id={id} />
       <Comp onBack={() => navigate('/')} />
     </div>
@@ -1154,12 +1164,12 @@ function ZplViewer({ onBack }) {
       <nav className="tool-nav border-b border-slate-200 bg-white sticky top-0 z-20">
         <div className="max-w-[1600px] mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-5">
-            <button onClick={onBack} className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors font-jetbrains text-xs">
+            <button onClick={onBack} className="tool-nav-id flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors font-jetbrains text-xs">
               <ArrowLeft size={14} />
               RETOUR
             </button>
-            <div className="w-px h-5 bg-slate-200" />
-            <div className="flex items-center gap-3">
+            <div className="tool-nav-id w-px h-5 bg-slate-200" />
+            <div className="tool-nav-id flex items-center gap-3">
               <Logo small />
               <div>
                 <div className="font-bricolage font-semibold text-sm leading-tight text-slate-900">ZPL Viewer</div>
@@ -2348,12 +2358,12 @@ function BarcodeGenerator({ onBack }) {
       <nav className="tool-nav border-b border-slate-200 bg-white sticky top-0 z-20">
         <div className="max-w-[1600px] mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-5">
-            <button onClick={onBack} className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors font-jetbrains text-xs">
+            <button onClick={onBack} className="tool-nav-id flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors font-jetbrains text-xs">
               <ArrowLeft size={14} />
               RETOUR
             </button>
-            <div className="w-px h-5 bg-slate-200" />
-            <div className="flex items-center gap-3">
+            <div className="tool-nav-id w-px h-5 bg-slate-200" />
+            <div className="tool-nav-id flex items-center gap-3">
               <Logo small />
               <div>
                 <div className="font-bricolage font-semibold text-sm leading-tight text-slate-900">Générateur de codes-barres</div>
@@ -3373,15 +3383,15 @@ function SafetyStockCalculator({ onBack }) {
     <div className="min-h-screen text-slate-900" style={{ background: '#F8FAFC', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
       <FontsAndStyles />
 
-      <nav className="tool-nav border-b border-slate-200 bg-white sticky top-0 z-20">
+      <nav className="tool-nav tool-nav-controls border-b border-slate-200 bg-white sticky top-0 z-20">
         <div className="max-w-[1600px] mx-auto px-6 py-4 flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-5">
-            <button onClick={onBack} className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors font-jetbrains text-xs">
+            <button onClick={onBack} className="tool-nav-id flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors font-jetbrains text-xs">
               <ArrowLeft size={14} />
               RETOUR
             </button>
-            <div className="w-px h-5 bg-slate-200" />
-            <div className="flex items-center gap-3">
+            <div className="tool-nav-id w-px h-5 bg-slate-200" />
+            <div className="tool-nav-id flex items-center gap-3">
               <Logo small />
               <div>
                 <div className="font-bricolage font-semibold text-sm leading-tight text-slate-900">Calculateur de stock de sécurité</div>
@@ -4142,15 +4152,15 @@ function IncotermsComparator({ onBack }) {
     <div className="min-h-screen text-slate-900" style={{ background: '#F8FAFC', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
       <FontsAndStyles />
 
-      <nav className="tool-nav border-b border-slate-200 bg-white sticky top-0 z-20">
+      <nav className="tool-nav tool-nav-controls border-b border-slate-200 bg-white sticky top-0 z-20">
         <div className="max-w-[1600px] mx-auto px-6 py-4 flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-5">
-            <button onClick={onBack} className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors font-jetbrains text-xs">
+            <button onClick={onBack} className="tool-nav-id flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors font-jetbrains text-xs">
               <ArrowLeft size={14} />
               RETOUR
             </button>
-            <div className="w-px h-5 bg-slate-200" />
-            <div className="flex items-center gap-3">
+            <div className="tool-nav-id w-px h-5 bg-slate-200" />
+            <div className="tool-nav-id flex items-center gap-3">
               <Logo small />
               <div>
                 <div className="font-bricolage font-semibold text-sm leading-tight text-slate-900">Incoterms 2020</div>
@@ -5045,15 +5055,15 @@ function CmrGenerator({ onBack }) {
     <div className="min-h-screen text-slate-900" style={{ background: '#F8FAFC', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
       <FontsAndStyles />
 
-      <nav className="tool-nav border-b border-slate-200 bg-white sticky top-0 z-20">
+      <nav className="tool-nav tool-nav-controls border-b border-slate-200 bg-white sticky top-0 z-20">
         <div className="max-w-[1600px] mx-auto px-6 py-4 flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-5">
-            <button onClick={onBack} className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors font-jetbrains text-xs">
+            <button onClick={onBack} className="tool-nav-id flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors font-jetbrains text-xs">
               <ArrowLeft size={14} />
               RETOUR
             </button>
-            <div className="w-px h-5 bg-slate-200" />
-            <div className="flex items-center gap-3">
+            <div className="tool-nav-id w-px h-5 bg-slate-200" />
+            <div className="tool-nav-id flex items-center gap-3">
               <Logo small />
               <div>
                 <div className="font-bricolage font-semibold text-sm leading-tight text-slate-900">Lettre de voiture CMR / eCMR</div>
@@ -6347,15 +6357,15 @@ function DdmrpBuffers({ onBack }) {
     <div className="min-h-screen text-slate-900" style={{ background: '#F8FAFC', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
       <FontsAndStyles />
 
-      <nav className="tool-nav border-b border-slate-200 bg-white sticky top-0 z-20">
+      <nav className="tool-nav tool-nav-controls border-b border-slate-200 bg-white sticky top-0 z-20">
         <div className="max-w-[1600px] mx-auto px-6 py-4 flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-5">
-            <button onClick={onBack} className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors font-jetbrains text-xs">
+            <button onClick={onBack} className="tool-nav-id flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors font-jetbrains text-xs">
               <ArrowLeft size={14} />
               RETOUR
             </button>
-            <div className="w-px h-5 bg-slate-200" />
-            <div className="flex items-center gap-3">
+            <div className="tool-nav-id w-px h-5 bg-slate-200" />
+            <div className="tool-nav-id flex items-center gap-3">
               <Logo small />
               <div>
                 <div className="font-bricolage font-semibold text-sm leading-tight text-slate-900">Buffers stratégiques DDMRP</div>
@@ -7028,12 +7038,12 @@ function LogisticsConverter({ onBack }) {
       <nav className="tool-nav border-b border-slate-200 bg-white sticky top-0 z-20">
         <div className="max-w-[1600px] mx-auto px-6 py-4 flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-5">
-            <button onClick={onBack} className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors font-jetbrains text-xs">
+            <button onClick={onBack} className="tool-nav-id flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors font-jetbrains text-xs">
               <ArrowLeft size={14} />
               RETOUR
             </button>
-            <div className="w-px h-5 bg-slate-200" />
-            <div className="flex items-center gap-3">
+            <div className="tool-nav-id w-px h-5 bg-slate-200" />
+            <div className="tool-nav-id flex items-center gap-3">
               <Logo small />
               <div>
                 <div className="font-bricolage font-semibold text-sm leading-tight text-slate-900">Convertisseur logistique</div>
@@ -7575,12 +7585,12 @@ function OtifAnalyzer({ onBack }) {
       <nav className="tool-nav border-b border-slate-200 bg-white sticky top-0 z-20">
         <div className="max-w-[1600px] mx-auto px-6 py-4 flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-5">
-            <button onClick={onBack} className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors font-jetbrains text-xs">
+            <button onClick={onBack} className="tool-nav-id flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors font-jetbrains text-xs">
               <ArrowLeft size={14} />
               RETOUR
             </button>
-            <div className="w-px h-5 bg-slate-200" />
-            <div className="flex items-center gap-3">
+            <div className="tool-nav-id w-px h-5 bg-slate-200" />
+            <div className="tool-nav-id flex items-center gap-3">
               <Logo small />
               <div>
                 <div className="font-bricolage font-semibold text-sm leading-tight text-slate-900">Performance livraison · OTIF</div>
@@ -10447,15 +10457,15 @@ function AuditFlash({ onBack }) {
     <div className="min-h-screen text-slate-900" style={{ background: '#F8FAFC', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
       <FontsAndStyles />
 
-      <nav className="tool-nav border-b border-slate-200 bg-white sticky top-0 z-20">
+      <nav className="tool-nav tool-nav-controls border-b border-slate-200 bg-white sticky top-0 z-20">
         <div className="max-w-[1600px] mx-auto px-6 py-4 flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-5">
-            <button onClick={onBack} className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors font-jetbrains text-xs">
+            <button onClick={onBack} className="tool-nav-id flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors font-jetbrains text-xs">
               <ArrowLeft size={14} />
               RETOUR
             </button>
-            <div className="w-px h-5 bg-slate-200" />
-            <div className="flex items-center gap-3">
+            <div className="tool-nav-id w-px h-5 bg-slate-200" />
+            <div className="tool-nav-id flex items-center gap-3">
               <Logo small />
               <div>
                 <div className="font-bricolage font-semibold text-sm leading-tight text-slate-900">Audit Flash Supply Chain</div>
