@@ -5,6 +5,7 @@ import {
   ArrowLeft, Truck, Box, Loader2, AlertCircle,
   RotateCcw, Check, ArrowRight, Boxes, Upload, Download,
   MapPin, Undo2, Printer, Scale, ChevronDown,
+  QrCode as QrCodeIcon,
 } from 'lucide-react';
 
 const LoadView3D = lazy(() => import('./LoadView3D.jsx'));
@@ -34,6 +35,9 @@ import { OPTIMIZER_FAQ, toolSeo } from '../../seo/pages';
 import ColisTable from './components/ColisTable';
 import { FleetVehicles, FleetResult } from './components/FleetPanel';
 import { useFleetPlanner } from './useFleetPlanner';
+import { encodePlan, guideUrl, QR_MAX_URL } from './guide/planLink';
+import QrCode from './guide/QrCode';
+import GuideQrModal from './guide/GuideQrModal';
 import { DEFAULT_FLEET } from './constants/fleet';
 
 // Mode « Flotte automatique » : véhicules proposés, mémorisés (coûts, cases cochées).
@@ -207,7 +211,7 @@ function StopMiniPlan({ container, placed, stop, color }) {
   );
 }
 
-function PrintSheet({ container, result, rows, colorIndex, multiStopResult, leftovers, balance, shiftMm = 0 }) {
+function PrintSheet({ container, result, rows, colorIndex, multiStopResult, leftovers, balance, shiftMm = 0, guideLink = null }) {
   const refColorOf = (defId) => refColor(colorIndex[defId] ?? 0);
   const blocked = new Set(result.blockedItemIds ?? []);
   const canDrawPlan = result.placedItems.length <= 400;
@@ -232,9 +236,13 @@ function PrintSheet({ container, result, rows, colorIndex, multiStopResult, left
             {multiStopResult && result.deliveryMode ? ` · tournée ${result.deliveryMode === 'SOFT' ? 'souple' : 'stricte'}` : ''}
           </div>
         </div>
-        <div style={{ textAlign: 'right', fontSize: 11, color: '#475569' }}>
-          <div>{today}</div>
-          <div style={{ marginTop: 2 }}>atelierlogistique.com</div>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+          <div style={{ textAlign: 'right', fontSize: 11, color: '#475569' }}>
+            <div>{today}</div>
+            <div style={{ marginTop: 2 }}>atelierlogistique.com</div>
+            {guideLink && guideLink.length <= QR_MAX_URL && <div style={{ marginTop: 6, fontSize: 9, maxWidth: 110 }}>Scannez : plan pas à pas sur téléphone</div>}
+          </div>
+          {guideLink && guideLink.length <= QR_MAX_URL && <QrCode text={guideLink} size={140} />}
         </div>
       </div>
 
@@ -518,6 +526,21 @@ export default function LoadOptimizer({ onBack }) {
       walls: (result.walls ?? []).map((w) => ({ ...w, xStart: w.xStart + shiftMm, xEnd: w.xEnd + shiftMm })),
     }
     : result), [result, shiftMm]);
+  // Guide cariste : lien (plan dans l'URL) recalculé à chaque nouveau plan.
+  const [guideLink, setGuideLink] = useState(null);
+  const [guideOpen, setGuideOpen] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    setGuideLink(null);
+    if (!planResult || planResult.placedItems.length === 0) return undefined;
+    const unitIds = Object.fromEntries(rows.filter((r) => r.unitIds?.length).map((r) => [r.id, r.unitIds]));
+    const unitIdOf = (p) => { const k = Number(/#(\d+)$/.exec(p.id)?.[1] ?? -1); return unitIds[p.definitionId]?.[k] ?? null; };
+    encodePlan(container, planResult.placedItems, unitIdOf)
+      .then((payload) => { if (alive) setGuideLink(guideUrl(window.location.origin, payload)); })
+      .catch(() => {});
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [planResult]);
   const visiblePlaced = useMemo(
     () => (planResult
       ? planResult.placedItems.filter((p) => (p.stop ?? 1) > unloadedUpTo && (loadedUpToWall === null || p.wall <= loadedUpToWall))
@@ -1125,6 +1148,12 @@ export default function LoadOptimizer({ onBack }) {
                           </button>
                         ))}
                       </div>
+                      <button onClick={() => { setGuideOpen(true); track('load_optimizer_guide_qr'); }} disabled={!guideLink}
+                        className="w-full mb-2 flex items-center justify-center gap-2 py-2.5 rounded-lg font-jetbrains text-xs font-semibold disabled:opacity-50"
+                        style={{ background: '#F59E0B', color: '#0F172A' }}>
+                        <QrCodeIcon size={14} /> QR code cariste : plan pas à pas sur téléphone
+                      </button>
+                      {guideOpen && guideLink && <GuideQrModal url={guideLink} onClose={() => setGuideOpen(false)} />}
                       <div className="grid grid-cols-3 gap-2">
                         <button onClick={exportSequence} title="Séquence de chargement colis par colis, à réimporter dans votre WMS / ERP" className="flex items-center justify-center gap-1.5 py-2 rounded-lg font-jetbrains text-xs" style={{ background: BLUE_LIGHT, color: BLUE }}>
                           <Download size={13} /> CSV
@@ -1487,7 +1516,7 @@ export default function LoadOptimizer({ onBack }) {
       {result && status === 'done' && (
         createPortal(
           <div className="lo-print-root">
-            <PrintSheet container={container} result={planResult} shiftMm={shiftMm} rows={rows} colorIndex={colorIndex} multiStopResult={multiStopResult} leftovers={leftovers} balance={balance} />
+            <PrintSheet container={container} result={planResult} shiftMm={shiftMm} rows={rows} colorIndex={colorIndex} multiStopResult={multiStopResult} leftovers={leftovers} balance={balance} guideLink={guideLink} />
           </div>,
           document.body,
         )

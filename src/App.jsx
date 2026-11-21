@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Link, useNavigate, useParams, useLocation } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import {
@@ -14,6 +14,8 @@ import {
 } from 'lucide-react';
 import LoadOptimizer from './outils/optimiseur-chargement/LoadOptimizer.jsx';
 import Palletizer from './outils/palettisation/Palletizer.jsx';
+// Guide cariste (plan de chargement pas à pas sur téléphone, ouvert par QR code).
+const LoadingGuide = lazy(() => import('./outils/optimiseur-chargement/guide/LoadingGuide.jsx'));
 import { SITE, toolSeo } from './seo/pages';
 import SiteNav from './components/SiteNav.jsx';
 import { BRAND_COLORS, TAGLINE } from './seo/brand';
@@ -189,6 +191,7 @@ export default function App() {
         <Route path="/outils" element={<Navigate to="/#tools" replace />} />
         <Route path="/outils/:id" element={<ToolRoute />} />
         <Route path="/ressources" element={<Ressources />} />
+        <Route path="/chargement" element={<Suspense fallback={null}><LoadingGuide /></Suspense>} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </BrowserRouter>

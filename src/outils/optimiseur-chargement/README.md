@@ -147,6 +147,15 @@ mémorisés dans le navigateur). `engine/fleet.ts` :
 Calcul dans un Web Worker dédié (`worker/fleet.worker.ts`). Supprimer : retirer le bouton de mode,
 `FleetPanel.jsx`, `useFleetPlanner.js`, `engine/fleet.ts`, `constants/fleet.ts`.
 
+## Guide cariste (QR code)
+
+Bouton « QR code cariste » dans le résultat, et QR code imprimé sur la fiche PDF. Le plan est encodé
+dans l'URL `/chargement#…` (`guide/planLink.ts` : JSON compact, deflate-raw, base64url) : aucune donnée
+envoyée au serveur. Page mobile `guide/LoadingGuide.jsx` : colis par colis ou mur par mur (par défaut
+au-delà de 40 colis), vue 3D avec le colis à poser en orange, position (distance cabine, côté vu des
+portes, sol / hauteur), progression mémorisée sur le téléphone, photo du camion chargé à partager.
+Au-delà de ~2 200 caractères le QR code n'est plus fiable : lien seul.
+
 ## Tests
 
 ```bash
