@@ -16,6 +16,7 @@ import {
 } from '../src/seo/pages.js';
 import { navHtml } from '../src/seo/nav.js';
 import { wordmarkHtml } from '../src/seo/brand.js';
+import { writeCapacityPages, CAPACITY_HUB } from './capacity-pages.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const dist = join(root, 'dist');
@@ -120,6 +121,7 @@ for (const t of TOOL_PAGES) {
     .map((r) => ({ href: toolPath(r.id), label: r.name, desc: r.intro }));
   const guides = (t.articles ?? []).map((s) => articleBySlug[s]).filter(Boolean)
     .map((a) => ({ href: `/ressources/${a.slug}`, label: a.title }));
+  if (['optimiseur-chargement', 'pallet', 'units'].includes(t.id)) guides.push({ href: CAPACITY_HUB.path, label: `${CAPACITY_HUB.title} (tableau)` });
   const inner = `
     <div>
       <h1 class="font-bold text-3xl">${esc(t.h1)}</h1>
@@ -154,7 +156,7 @@ for (const t of TOOL_PAGES) {
 {
   const inner = `
     <div><h1 class="font-bold text-3xl">${esc(RESSOURCES_PAGE.h1)}</h1><p class="text-slate-600 mt-2">${esc(RESSOURCES_PAGE.intro)}</p></div>
-    <section>${links(ARTICLE_PAGES.map((a) => ({ href: `/ressources/${a.slug}`, label: a.title })))}</section>`;
+    <section>${links([...ARTICLE_PAGES.map((a) => ({ href: `/ressources/${a.slug}`, label: a.title })), { href: CAPACITY_HUB.path, label: CAPACITY_HUB.title }])}</section>`;
   write(RESSOURCES_PAGE.path, page(head({ path: RESSOURCES_PAGE.path, title: RESSOURCES_PAGE.title, description: RESSOURCES_PAGE.description }), shell([{ label: 'Ressources' }], inner)));
 }
 
@@ -189,6 +191,10 @@ for (const t of TOOL_PAGES) {
   console.log(`Menu commun appliqué à ${patched} guide(s)`);
 }
 
+// ---------- Pages « Combien de palettes dans un … » ----------
+const capacityPaths = writeCapacityPages(root, dist);
+console.log(`Capacités : ${capacityPaths.length} pages`);
+
 // ---------- Sitemap ----------
 {
   const today = new Date().toISOString().slice(0, 10);
@@ -200,6 +206,7 @@ for (const t of TOOL_PAGES) {
     ...TOOL_PAGES.map((t) => ({ loc: SITE + toolPath(t.id), lastmod: today, freq: 'monthly', prio: ['optimiseur-chargement', 'pallet'].includes(t.id) ? '0.9' : '0.7' })),
     { loc: `${SITE}/ressources`, lastmod: today, freq: 'weekly', prio: '0.8' },
     ...ARTICLE_PAGES.map((a) => ({ loc: `${SITE}/ressources/${a.slug}`, lastmod: lastmodOf(`${SITE}/ressources/${a.slug}`), freq: 'monthly', prio: '0.8' })),
+    ...capacityPaths.map((p) => ({ loc: SITE + p, lastmod: today, freq: 'monthly', prio: p === CAPACITY_HUB.path ? '0.8' : '0.6' })),
   ];
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">

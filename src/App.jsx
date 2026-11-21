@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useMemo, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Link, useNavigate, useParams, useLocation } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import {
-  Package, FileCode2, Download, Upload, ArrowLeft,
+  Package, Boxes, FileCode2, Download, Upload, ArrowLeft,
   Loader2, Box, Barcode, Calculator, TrendingUp,
   FileText, Truck, Shuffle, AlertCircle, Image as ImageIcon,
   Copy, Check, RotateCw, FileDown, ArrowRight, Zap,
@@ -120,6 +120,16 @@ const ARTICLES = [
     desc: 'Dimensions utiles, palettes par semi-remorque ou conteneur, empilage, poids et règle LIFO pour les tournées à plusieurs livraisons. Exemple chiffré.',
     icon: Truck,
     color: '#0369A1', light: '#E0F2FE', border: '#BAE6FD',
+    cta: 'optimiseur-chargement',
+  },
+  {
+    slug: 'capacite',
+    href: '/capacite',
+    tag: 'Tableau',
+    title: 'Combien de palettes par camion et par conteneur ?',
+    desc: 'Palettes Europe, ISO, demi et US dans une semi, un porteur, un fourgon, un conteneur 20 ou 40 pieds : chiffres, plan de chargement et poids maximum.',
+    icon: Boxes,
+    color: '#2563EB', light: '#EFF6FF', border: '#BFDBFE',
     cta: 'optimiseur-chargement',
   },
   {
@@ -368,7 +378,7 @@ function Ressources() {
             return (
               <a
                 key={a.slug}
-                href={`/ressources/${a.slug}`}
+                href={a.href ?? `/ressources/${a.slug}`}
                 className="group flex flex-col p-6 rounded-xl border border-slate-200 bg-white hover:shadow-lg hover:-translate-y-0.5 transition-all"
                 onMouseEnter={e => { e.currentTarget.style.borderColor = a.border; }}
                 onMouseLeave={e => { e.currentTarget.style.borderColor = '#E2E8F0'; }}
@@ -767,7 +777,7 @@ function Landing() {
               return (
                 <a
                   key={a.slug}
-                  href={`/ressources/${a.slug}`}
+                  href={a.href ?? `/ressources/${a.slug}`}
                   className="group flex flex-col p-5 rounded-xl border border-slate-200 bg-white hover:shadow-md hover:-translate-y-0.5 transition-all"
                   onMouseEnter={e => { e.currentTarget.style.borderColor = a.border; }}
                   onMouseLeave={e => { e.currentTarget.style.borderColor = '#E2E8F0'; }}
