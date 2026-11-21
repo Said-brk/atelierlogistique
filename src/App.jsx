@@ -247,8 +247,8 @@ function SiteFooter() {
 function ToolTopBar({ id }) {
   const name = TOOL_NAMES[id] || id;
   return (
-    <div className="border-b border-slate-200 bg-white relative z-30">
-      <div className="max-w-7xl mx-auto px-6 md:px-10 py-2.5 flex items-center justify-between font-jetbrains text-xs">
+    <div className="border-b border-slate-200 bg-white sticky top-0 z-30 print:hidden">
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-2.5 sm:py-3 flex items-center justify-between font-jetbrains text-xs">
         <div className="flex items-center gap-2 text-slate-500 min-w-0">
           <Link to="/" className="flex items-center gap-2 text-slate-700 hover:text-slate-900 shrink-0">
             <Logo small />
@@ -256,13 +256,13 @@ function ToolTopBar({ id }) {
               <span style={{ color: BRAND_COLORS.navy }}>ATELIER</span> <span style={{ color: BRAND_COLORS.blue }}>LOGISTIQUE</span>
             </span>
           </Link>
-          <ChevronRight size={12} className="text-slate-300 shrink-0" />
-          <a href="/#tools" className="hover:text-slate-900 shrink-0">Outils</a>
+          <ChevronRight size={12} className="text-slate-300 shrink-0 hidden sm:block" />
+          <a href="/#tools" className="hover:text-slate-900 shrink-0 hidden sm:inline">Outils</a>
           <ChevronRight size={12} className="text-slate-300 shrink-0" />
           {/* Outils sans titre principal propre : le nom dans le fil d'Ariane sert de <h1> (SEO). */}
           {toolSeo(id) && !toolSeo(id).ownH1
-            ? <h1 className="text-slate-900 truncate text-xs font-normal">{toolSeo(id).h1}</h1>
-            : <span className="text-slate-900 truncate">{name}</span>}
+            ? <h1 className="text-slate-900 truncate text-xs sm:text-sm font-semibold font-bricolage">{toolSeo(id).h1}</h1>
+            : <span className="text-slate-900 truncate text-xs sm:text-sm font-semibold font-bricolage">{name}</span>}
         </div>
         <div className="shrink-0 ml-3"><SiteNav compact /></div>
       </div>
@@ -293,11 +293,14 @@ function ToolRoute() {
   useSeoMeta(toolSeo(id), `/outils/${id}`);
   const Comp = TOOL_COMPONENTS[id];
   if (!Comp) return <NotFound />;
+  // Une seule barre : celle du site (logo, fil d'Ariane, menu). La barre propre à chaque outil
+  // (classe tool-nav : bouton retour, nom) est masquée ici ; l'outil reste utilisable seul.
   return (
-    <>
+    <div className="tool-embedded">
+      <style>{'.tool-embedded .tool-nav{display:none}'}</style>
       <ToolTopBar id={id} />
       <Comp onBack={() => navigate('/')} />
-    </>
+    </div>
   );
 }
 
@@ -1148,7 +1151,7 @@ function ZplViewer({ onBack }) {
     <div className="min-h-screen text-slate-900" style={{ background: '#F8FAFC', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
       <FontsAndStyles />
 
-      <nav className="border-b border-slate-200 bg-white sticky top-0 z-20">
+      <nav className="tool-nav border-b border-slate-200 bg-white sticky top-0 z-20">
         <div className="max-w-[1600px] mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-5">
             <button onClick={onBack} className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors font-jetbrains text-xs">
@@ -2342,7 +2345,7 @@ function BarcodeGenerator({ onBack }) {
     <div className="min-h-screen text-slate-900" style={{ background: '#F8FAFC', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
       <FontsAndStyles />
 
-      <nav className="border-b border-slate-200 bg-white sticky top-0 z-20">
+      <nav className="tool-nav border-b border-slate-200 bg-white sticky top-0 z-20">
         <div className="max-w-[1600px] mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-5">
             <button onClick={onBack} className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors font-jetbrains text-xs">
@@ -3370,7 +3373,7 @@ function SafetyStockCalculator({ onBack }) {
     <div className="min-h-screen text-slate-900" style={{ background: '#F8FAFC', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
       <FontsAndStyles />
 
-      <nav className="border-b border-slate-200 bg-white sticky top-0 z-20">
+      <nav className="tool-nav border-b border-slate-200 bg-white sticky top-0 z-20">
         <div className="max-w-[1600px] mx-auto px-6 py-4 flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-5">
             <button onClick={onBack} className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors font-jetbrains text-xs">
@@ -4139,7 +4142,7 @@ function IncotermsComparator({ onBack }) {
     <div className="min-h-screen text-slate-900" style={{ background: '#F8FAFC', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
       <FontsAndStyles />
 
-      <nav className="border-b border-slate-200 bg-white sticky top-0 z-20">
+      <nav className="tool-nav border-b border-slate-200 bg-white sticky top-0 z-20">
         <div className="max-w-[1600px] mx-auto px-6 py-4 flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-5">
             <button onClick={onBack} className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors font-jetbrains text-xs">
@@ -5042,7 +5045,7 @@ function CmrGenerator({ onBack }) {
     <div className="min-h-screen text-slate-900" style={{ background: '#F8FAFC', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
       <FontsAndStyles />
 
-      <nav className="border-b border-slate-200 bg-white sticky top-0 z-20">
+      <nav className="tool-nav border-b border-slate-200 bg-white sticky top-0 z-20">
         <div className="max-w-[1600px] mx-auto px-6 py-4 flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-5">
             <button onClick={onBack} className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors font-jetbrains text-xs">
@@ -5307,7 +5310,7 @@ function CmrGenerator({ onBack }) {
 
         {/* COLONNE DROITE : APERÇU + ACTIONS (sticky) */}
         <div className="lg:col-span-4 space-y-4">
-          <div className="sticky top-[88px] space-y-4">
+          <div className="sticky top-[64px] space-y-4">
 
             {/* Statut */}
             <div className="rounded-xl border p-4" style={validation.ready
@@ -6344,7 +6347,7 @@ function DdmrpBuffers({ onBack }) {
     <div className="min-h-screen text-slate-900" style={{ background: '#F8FAFC', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
       <FontsAndStyles />
 
-      <nav className="border-b border-slate-200 bg-white sticky top-0 z-20">
+      <nav className="tool-nav border-b border-slate-200 bg-white sticky top-0 z-20">
         <div className="max-w-[1600px] mx-auto px-6 py-4 flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-5">
             <button onClick={onBack} className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors font-jetbrains text-xs">
@@ -7022,7 +7025,7 @@ function LogisticsConverter({ onBack }) {
     <div className="min-h-screen text-slate-900" style={{ background: '#F8FAFC', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
       <FontsAndStyles />
 
-      <nav className="border-b border-slate-200 bg-white sticky top-0 z-20">
+      <nav className="tool-nav border-b border-slate-200 bg-white sticky top-0 z-20">
         <div className="max-w-[1600px] mx-auto px-6 py-4 flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-5">
             <button onClick={onBack} className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors font-jetbrains text-xs">
@@ -7205,7 +7208,7 @@ function LogisticsConverter({ onBack }) {
 
         {/* COLONNE DROITE : SYNTHÈSE (sticky) */}
         <div className="lg:col-span-5 space-y-4">
-          <div className="sticky top-[88px] space-y-4">
+          <div className="sticky top-[64px] space-y-4">
 
             {/* Synthèse cascade */}
             <div className="rounded-xl overflow-hidden shadow-sm" style={{ background: 'linear-gradient(135deg, #1E3A8A 0%, #2563EB 100%)' }}>
@@ -7569,7 +7572,7 @@ function OtifAnalyzer({ onBack }) {
     <div className="min-h-screen text-slate-900" style={{ background: '#F8FAFC', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
       <FontsAndStyles />
 
-      <nav className="border-b border-slate-200 bg-white sticky top-0 z-20">
+      <nav className="tool-nav border-b border-slate-200 bg-white sticky top-0 z-20">
         <div className="max-w-[1600px] mx-auto px-6 py-4 flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-5">
             <button onClick={onBack} className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors font-jetbrains text-xs">
@@ -10444,7 +10447,7 @@ function AuditFlash({ onBack }) {
     <div className="min-h-screen text-slate-900" style={{ background: '#F8FAFC', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
       <FontsAndStyles />
 
-      <nav className="border-b border-slate-200 bg-white sticky top-0 z-20">
+      <nav className="tool-nav border-b border-slate-200 bg-white sticky top-0 z-20">
         <div className="max-w-[1600px] mx-auto px-6 py-4 flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-5">
             <button onClick={onBack} className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors font-jetbrains text-xs">
