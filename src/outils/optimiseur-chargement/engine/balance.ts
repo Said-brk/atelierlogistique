@@ -85,6 +85,15 @@ export function defaultAxleProfile(container: ContainerDefinition): AxleProfile 
       frontMax: 11000, rearMax: 18000,
     };
   }
+  // Porteurs et fourgon (mode Flotte automatique) : essieu avant devant la caisse (position négative),
+  // essieu arrière sous la caisse. Charges utiles par essieu indicatives.
+  const ROAD: Record<string, Pick<AxleProfile, 'frontPos' | 'rearPos' | 'frontMax' | 'rearMax'>> = {
+    porteur19: { frontPos: -1300, rearPos: 4900, frontMax: 3000, rearMax: 7500 },
+    porteur12: { frontPos: -1200, rearPos: 4100, frontMax: 1800, rearMax: 4500 },
+    fourgon20: { frontPos: -1000, rearPos: 2900, frontMax: 450, rearMax: 850 },
+  };
+  const road = ROAD[container.id];
+  if (road) return { kind: 'TWO_SUPPORTS', frontLabel: 'Essieu avant', rearLabel: 'Essieu arrière', ...road };
   return {
     kind: 'CONTAINER',
     frontLabel: 'Avant', rearLabel: 'Arrière',

@@ -32,6 +32,18 @@ import {
 import { track } from './analytics';
 import { OPTIMIZER_FAQ, toolSeo } from '../../seo/pages';
 import ColisTable from './components/ColisTable';
+import { FleetVehicles, FleetResult } from './components/FleetPanel';
+import { useFleetPlanner } from './useFleetPlanner';
+import { DEFAULT_FLEET } from './constants/fleet';
+
+// Mode « Flotte automatique » : véhicules proposés, mémorisés (coûts, cases cochées).
+const FLEET_KEY = 'al_fleet_v1';
+function loadFleet() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(FLEET_KEY) || '{}');
+    return DEFAULT_FLEET.map((v) => ({ ...v, ...(saved[v.container.id] ?? {}) }));
+  } catch { return DEFAULT_FLEET; }
+}
 import { createLocalProfileStore, toCsv, downloadText } from '../../shared/import';
 import { consumeHandoff } from '../../shared/handoff';
 import { COLIS_SCHEMA, STANDARD_HEADERS, STANDARD_SAMPLE, recordsToColisRows } from './import/colisSchema';
@@ -439,6 +451,22 @@ export default function LoadOptimizer({ onBack }) {
   }, []);
   const { run, reset, result, status } = useOptimizer();
 
+  // Mode véhicule : 'single' = standard (l'utilisateur choisit) ; 'fleet' = l'outil propose la flotte.
+  const [vehicleMode, setVehicleMode] = useState('single');
+  const [fleetVehicles, setFleetVehicles] = useState(loadFleet);
+  const [containerOverride, setContainerOverride] = useState(null); // véhicule de la flotte affiché
+  const [viewingTruck, setViewingTruck] = useState(null);
+  const { runFleet, resetFleet, plan: fleetPlan, status: fleetStatus } = useFleetPlanner();
+  const changeFleetVehicles = (next) => {
+    setFleetVehicles(next);
+    resetFleet(); setContainerOverride(null); setViewingTruck(null);
+    try { localStorage.setItem(FLEET_KEY, JSON.stringify(Object.fromEntries(next.map((v) => [v.container.id, { cost: v.cost, enabled: v.enabled }])))); } catch { /* stockage indisponible */ }
+  };
+  const switchVehicleMode = (m) => {
+    if (m === vehicleMode) return;
+    setVehicleMode(m); setContainerOverride(null); setViewingTruck(null); resetFleet(); reset();
+  };
+
   // Chargement physique : toujours par murs, de la cabine vers les portes
   // (aucun colis posé en passant par-dessus un autre). Pas de réglage exposé.
   const [loadedUpToWall, setLoadedUpToWall] = useState(null); // null = chargement complet
@@ -506,6 +534,7 @@ export default function LoadOptimizer({ onBack }) {
   const [balanceOpen, setBalanceOpen] = useState(false);
 
   const container = useMemo(() => {
+    if (containerOverride) return containerOverride;
     if (containerId === 'custom') {
       return {
         id: 'custom', label: custom.label || 'Mon contenant',
@@ -514,7 +543,7 @@ export default function LoadOptimizer({ onBack }) {
       };
     }
     return CONTAINER_PRESETS.find((c) => c.id === containerId);
-  }, [containerId, custom]);
+  }, [containerId, custom, containerOverride]);
 
   const axleProfile = useMemo(() => ({ ...defaultAxleProfile(container), ...(balanceCfg.axles?.[container.id] ?? {}) }), [container, balanceCfg]);
   const lashingParams = useMemo(() => ({ ...DEFAULT_LASHING, ...(balanceCfg.lashing ?? {}) }), [balanceCfg]);
@@ -654,9 +683,27 @@ export default function LoadOptimizer({ onBack }) {
 
   const optimize = () => {
     if (!valid) return;
+    if (vehicleMode === 'fleet') { optimizeFleet(); return; }
     track('load_optimizer_calculation_started', { references: rows.length, units: totals.units, container: containerId, stops: stops.length });
     runWith(excludedStops);
   };
+
+  // Flotte automatique : calcul de la combinaison de véhicules, puis plan 3D de chaque véhicule à la demande.
+  const optimizeFleet = () => {
+    const vehicles = fleetVehicles.filter((v) => v.enabled).map((v) => ({ container: v.container, cost: v.cost }));
+    if (vehicles.length === 0) return;
+    const defs = rowsToDefinitions(rows.filter((r) => !excludedStops.includes(r.stop ?? 1)));
+    reset(); setContainerOverride(null); setViewingTruck(null);
+    track('load_optimizer_fleet_started', { references: rows.length, units: totals.units, vehicles: vehicles.length, stops: stops.length });
+    runFleet(defs, vehicles, { deliveryMode, loading: { mode: LOADING_DEFAULTS.mode } });
+  };
+  const viewTruck = (t) => {
+    setContainerOverride(t.container); setViewingTruck(t.index);
+    setHighlight(null); setUnloadedUpTo(0); setLoadedUpToWall(null); setShiftMm(0); setDeferredExcess([]);
+    run(t.container, t.definitions, { deliveryMode, loading: { mode: LOADING_DEFAULTS.mode } });
+    setTimeout(() => resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
+  };
+  const fleetReady = fleetVehicles.some((v) => v.enabled);
 
   const changeDeliveryMode = (mode) => { setDeliveryMode(mode); if (status !== 'idle') reset(); };
   const trySoft = () => { setDeliveryMode('SOFT'); runWith(excludedStops, 'SOFT'); };
@@ -797,7 +844,17 @@ export default function LoadOptimizer({ onBack }) {
           <div className="grid grid-cols-1 xl:grid-cols-5 gap-4 sm:gap-5 items-start">
             <div className="xl:col-span-3">
               <div className="rounded-xl border border-slate-200 overflow-hidden bg-white">
-                <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 font-jetbrains text-xs text-slate-600 flex items-center gap-2"><Truck size={13} /> 2 · CHOISISSEZ VOTRE VÉHICULE OU CONTENANT</div>
+                <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 font-jetbrains text-xs text-slate-600 flex flex-wrap items-center justify-between gap-2">
+                  <span className="flex items-center gap-2"><Truck size={13} /> 2 · {vehicleMode === 'fleet' ? 'VÉHICULES DISPONIBLES' : 'CHOISISSEZ VOTRE VÉHICULE OU CONTENANT'}</span>
+                  <div className="flex items-center gap-0.5 p-0.5 rounded-md bg-white border border-slate-200">
+                    {[['single', 'Un véhicule'], ['fleet', 'Flotte automatique']].map(([m, l]) => (
+                      <button key={m} onClick={() => switchVehicleMode(m)} className="px-2.5 py-1 rounded text-[11px] font-jetbrains"
+                        style={vehicleMode === m ? { background: BLUE, color: '#fff', fontWeight: 600 } : { color: '#64748B' }}>{l}</button>
+                    ))}
+                  </div>
+                </div>
+                {vehicleMode === 'fleet' && <FleetVehicles vehicles={fleetVehicles} onChange={changeFleetVehicles} />}
+                {vehicleMode === 'single' && (<>
                 <div className="p-4 grid grid-cols-2 md:grid-cols-3 gap-2">
                   {CONTAINER_PRESETS.map((c) => (
                     <button key={c.id} onClick={() => { setContainerId(c.id); reset(); }}
@@ -830,6 +887,7 @@ export default function LoadOptimizer({ onBack }) {
                     ))}
                   </div>
                 )}
+                </>)}
                 <div className="border-t border-slate-100">
                   <button onClick={() => setBalanceOpen((o) => !o)} className="w-full px-4 py-2.5 flex items-center justify-between gap-2 text-left font-jetbrains text-[11px] text-slate-600 hover:text-slate-900">
                     <span className="flex items-center gap-1.5 min-w-0">
@@ -913,22 +971,30 @@ export default function LoadOptimizer({ onBack }) {
                     )}
                   </div>
                 )}
-                {overweight && (
+                {overweight && vehicleMode === 'single' && (
                   <div className="flex items-start gap-2 text-[11px] mb-3 px-3 py-2 rounded-md" style={{ background: '#FFFBEB', color: '#B45309', border: '1px solid #FDE68A' }}>
                     <AlertCircle size={13} className="mt-0.5 shrink-0" />
                     Le poids total ({formatKg(totals.weight)} kg) dépasse le poids utile du contenant ({formatKg(container.maxWeight)} kg). Le moteur chargera ce qui est admissible.
                   </div>
                 )}
-                <button ref={ctaRef} onClick={optimize} disabled={!valid || status === 'running'}
+                <button ref={ctaRef} onClick={optimize} disabled={!valid || status === 'running' || fleetStatus === 'running' || (vehicleMode === 'fleet' && !fleetReady)}
                   className="w-full flex items-center justify-center gap-2 py-3.5 sm:py-3 rounded-lg font-bricolage font-semibold text-white transition-all disabled:opacity-50"
                   style={{ background: BLUE }}>
-                  {status === 'running' ? <><Loader2 size={16} className="animate-spin" /> Optimisation du chargement…</> : <>Optimiser le chargement <ArrowRight size={16} /></>}
+                  {fleetStatus === 'running' ? <><Loader2 size={16} className="animate-spin" /> Recherche de la meilleure flotte…</>
+                    : status === 'running' ? <><Loader2 size={16} className="animate-spin" /> Optimisation du chargement…</>
+                      : vehicleMode === 'fleet' ? <>Proposer la flotte <ArrowRight size={16} /></> : <>Optimiser le chargement <ArrowRight size={16} /></>}
                 </button>
+                {vehicleMode === 'fleet' && !fleetReady && <div className="text-[11px] text-slate-500 mt-2 text-center">Cochez au moins un véhicule.</div>}
                 {!valid && <div className="text-[11px] text-slate-500 mt-2 text-center">Complétez les références (dimensions et quantités valides) pour lancer le calcul.</div>}
               </div>
 
             </div>
           </div>
+
+          {/* Flotte proposée (mode Flotte automatique) */}
+          {vehicleMode === 'fleet' && fleetStatus === 'done' && fleetPlan && (
+            <FleetResult plan={fleetPlan} viewing={viewingTruck} onView={viewTruck} />
+          )}
 
           {/* 3. Résultat : plan 3D + analyse */}
           <div ref={resultRef} className="grid grid-cols-1 xl:grid-cols-5 gap-4 sm:gap-5 items-start scroll-mt-20">
@@ -1359,7 +1425,7 @@ export default function LoadOptimizer({ onBack }) {
             <button onClick={optimize} disabled={!valid || status === 'running'}
               className="flex-1 flex items-center justify-center gap-2 py-3 rounded-lg font-bricolage font-semibold text-white disabled:opacity-50"
               style={{ background: BLUE }}>
-              {status === 'running' ? <><Loader2 size={16} className="animate-spin" /> Calcul…</> : <>Optimiser <ArrowRight size={16} /></>}
+              {status === 'running' || fleetStatus === 'running' ? <><Loader2 size={16} className="animate-spin" /> Calcul…</> : <>{vehicleMode === 'fleet' ? 'Proposer la flotte' : 'Optimiser'} <ArrowRight size={16} /></>}
             </button>
           </div>
         </div>
