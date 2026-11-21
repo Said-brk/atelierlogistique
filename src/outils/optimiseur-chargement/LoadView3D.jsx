@@ -105,15 +105,15 @@ function Scene({ container, placed, colorOf, isDimmed, blockedIds, showWalls, on
  * variant : 'truck' (défaut, repère des portes) | 'pallet' (plateau bois de hauteur deckHeight, mm ;
  * le volume transparent figure la hauteur maxi de la palette).
  */
-export default function LoadView3D({ container, placed, colorOf, isDimmed, blockedIds, onHover, cog, variant = 'truck', deckHeight = 0 }) {
+export default function LoadView3D({ container, placed, colorOf, isDimmed, blockedIds, onHover, cog, variant = 'truck', deckHeight = 0, cameraScale = 1 }) {
   const controls = useRef(null);
   const [showWalls, setShowWalls] = useState(true);
 
   const camera = useMemo(() => {
     const maxDim = Math.max(container.length, container.width, container.height + deckHeight) * S;
-    const k = variant === 'pallet' ? 1.25 : 1;
+    const k = (variant === 'pallet' ? 1.25 : 1) * cameraScale; // cameraScale < 1 : vue plus rapprochée
     return { position: [maxDim * 0.95 * k, maxDim * 0.75 * k, maxDim * 1.15 * k], fov: 42, near: 0.01, far: 1000 };
-  }, [container.length, container.width, container.height, deckHeight, variant]);
+  }, [container.length, container.width, container.height, deckHeight, variant, cameraScale]);
 
   return (
     <div className="relative h-[340px] sm:h-[420px] lg:h-[460px]">
