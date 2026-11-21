@@ -3,6 +3,7 @@ import type {
 } from './types';
 import { parseBoolean, parseNumber } from './text';
 import { unitFactor } from './units';
+import { t, tText } from '../i18n/core';
 
 /** Convertit une cellule selon le type du champ. undefined = vide / non renseigné. */
 export function convertValue(field: FieldDef, raw: string, unit?: string): { value?: unknown; error?: string } {
@@ -14,12 +15,12 @@ export function convertValue(field: FieldDef, raw: string, unit?: string): { val
       return { value: s };
     case 'boolean': {
       const b = parseBoolean(s);
-      return b === null ? { error: `« ${s} » n'est pas oui/non` } : { value: b };
+      return b === null ? { error: t('« {s} » n’est pas oui/non', { s }) } : { value: b };
     }
     case 'integer':
     case 'number': {
       const n = parseNumber(s);
-      if (Number.isNaN(n)) return { error: `« ${s} » n'est pas un nombre` };
+      if (Number.isNaN(n)) return { error: t('« {s} » n’est pas un nombre', { s }) };
       let v = field.unitKind ? n * unitFactor(field.unitKind, unit, field.defaultUnit ?? '') : n;
       if (field.type === 'integer') v = Math.round(v);
       return { value: Math.round(v * 1000) / 1000 };
@@ -60,7 +61,7 @@ export function applyMapping(
       const idx = colIndex[f.id];
       const raw = idx >= 0 ? cells[idx] ?? '' : '';
       const { value, error } = convertValue(f, raw, mapping[f.id]?.unit);
-      if (error) rowIssues.push({ row: line, field: f.id, level: 'warning', message: `${f.label} : ${error}` });
+      if (error) rowIssues.push({ row: line, field: f.id, level: 'warning', message: `${tText(f.label)} : ${error}` });
       if (value !== undefined) {
         rec[f.id] = value;
         if (f.required) filledRequired++;
@@ -71,7 +72,7 @@ export function applyMapping(
     if (filledRequired === 0) { skipped++; return; }
     for (const f of required) {
       if (rec[f.id] === undefined || rec[f.id] === '' || (typeof rec[f.id] === 'number' && (rec[f.id] as number) <= 0)) {
-        rowIssues.push({ row: line, field: f.id, level: 'error', message: `${f.label} manquant ou nul` });
+        rowIssues.push({ row: line, field: f.id, level: 'error', message: t('{label} manquant ou nul', { label: tText(f.label) }) });
       }
     }
     issues.push(...rowIssues);

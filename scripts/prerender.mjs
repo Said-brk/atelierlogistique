@@ -17,7 +17,7 @@ import {
 import { navHtml } from '../src/seo/nav.js';
 import { wordmarkHtml } from '../src/seo/brand.js';
 import { writeCapacityPages, CAPACITY_HUB } from './capacity-pages.mjs';
-import { writeEnPages, EN_TOOL_ALTERNATES } from './en-pages.mjs';
+import { writeEnPages, enToolPages, EN_TOOL_ALTERNATES } from './en-pages.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const dist = join(root, 'dist');
@@ -32,13 +32,15 @@ const jsonLd = (obj) => `<script type="application/ld+json">${JSON.stringify(obj
 const toolById = Object.fromEntries(TOOL_PAGES.map((t) => [t.id, t]));
 const articleBySlug = Object.fromEntries(ARTICLE_PAGES.map((a) => [a.slug, a]));
 
-function head({ path, title, description, structured = [], alternate = null }) {
+function head({ path, title, description, structured = [], alternate = null, lang = 'fr' }) {
   const url = SITE + path;
-  // Version anglaise équivalente : balises hreflang (étape 1 du site bilingue).
+  // Version dans l'autre langue : balises hreflang (x-default = version française).
+  const fr = lang === 'fr' ? url : SITE + alternate;
+  const en = lang === 'en' ? url : SITE + alternate;
   const alt = alternate ? [
-    `<link rel="alternate" hreflang="fr" href="${url}" />`,
-    `<link rel="alternate" hreflang="en" href="${SITE + alternate}" />`,
-    `<link rel="alternate" hreflang="x-default" href="${url}" />`,
+    `<link rel="alternate" hreflang="fr" href="${fr}" />`,
+    `<link rel="alternate" hreflang="en" href="${en}" />`,
+    `<link rel="alternate" hreflang="x-default" href="${fr}" />`,
   ] : [];
   return [
     ...alt,
@@ -49,15 +51,16 @@ function head({ path, title, description, structured = [], alternate = null }) {
     `<meta property="og:description" content="${esc(description)}" />`,
     `<meta property="og:url" content="${url}" />`,
     `<meta property="og:site_name" content="${SITE_NAME}" />`,
-    `<meta property="og:locale" content="fr_FR" />`,
+    `<meta property="og:locale" content="${lang === 'en' ? 'en_GB' : 'fr_FR'}" />`,
     `<meta name="twitter:card" content="summary" />`,
     ...structured.map(jsonLd),
   ].join('\n    ');
 }
 
 /** Remplace les balises SEO du gabarit et le contenu de #root. */
-function page(headHtml, bodyHtml) {
+function page(headHtml, bodyHtml, lang = 'fr') {
   let html = template
+    .replace(/<html lang="[^"]*"/, `<html lang="${lang}"`)
     .replace(/<title>[\s\S]*?<\/title>/, '')
     .replace(/<meta name="description"[^>]*>/, '')
     .replace(/<meta property="og:title"[^>]*>/, '')
@@ -75,15 +78,15 @@ function write(path, html) {
   writeFileSync(file, html);
 }
 
-const shell = (crumbs, inner, alternate = null) => `
+const shell = (crumbs, inner, alternate = null, lang = 'fr') => `
 <div class="min-h-screen bg-white text-slate-900" style="font-family:'DM Sans',system-ui,sans-serif">
   <header class="border-b border-slate-200">
     <div class="relative max-w-5xl mx-auto px-6 py-4 flex items-center justify-between gap-4">
-      <nav class="flex flex-wrap items-center gap-2 text-sm text-slate-500" aria-label="Fil d'Ariane">
-        <a href="/" class="font-semibold text-slate-900">${SITE_NAME}</a>
+      <nav class="flex flex-wrap items-center gap-2 text-sm text-slate-500" aria-label="${lang === 'en' ? 'Breadcrumb' : "Fil d'Ariane"}">
+        <a href="${lang === 'en' ? '/en' : '/'}" class="font-semibold text-slate-900">${SITE_NAME}</a>
         ${crumbs.map((c) => `<span>›</span>${c.href ? `<a href="${c.href}">${esc(c.label)}</a>` : `<span class="text-slate-700">${esc(c.label)}</span>`}`).join('')}
       </nav>
-      ${navHtml('fr', alternate)}
+      ${navHtml(lang, alternate)}
     </div>
   </header>
   <main class="max-w-3xl mx-auto px-6 py-10 space-y-8">${inner}</main>
@@ -142,6 +145,13 @@ for (const t of TOOL_PAGES) {
     ${related.length ? `<section><h2 class="font-bold text-xl mb-2">Outils associés</h2>${links(related)}</section>` : ''}`;
   const alternate = EN_TOOL_ALTERNATES[t.id] ?? null;
   write(path, page(head({ path, title: t.title, description: t.description, structured, alternate }), shell([{ label: 'Outils', href: '/#tools' }, { label: t.name }], inner, alternate)));
+}
+
+// ---------- Outils en anglais (même application, interface anglaise) ----------
+const enTools = enToolPages();
+for (const p of enTools) {
+  write(p.path, page(head({ path: p.path, title: p.title, description: p.description, structured: p.structured, alternate: p.alternate, lang: 'en' }),
+    shell(p.crumbs, p.inner, p.alternate, 'en'), 'en'));
 }
 
 // ---------- Accueil ----------
@@ -204,7 +214,7 @@ for (const t of TOOL_PAGES) {
 const capacityPaths = writeCapacityPages(root, dist);
 console.log(`Capacités : ${capacityPaths.length} pages (FR + EN)`);
 const enPaths = writeEnPages(dist);
-console.log(`Pages anglaises : ${enPaths.length}`);
+console.log(`Pages anglaises : ${enPaths.length + enTools.length}`);
 
 // ---------- Sitemap ----------
 {
@@ -218,7 +228,7 @@ console.log(`Pages anglaises : ${enPaths.length}`);
     { loc: `${SITE}/ressources`, lastmod: today, freq: 'weekly', prio: '0.8' },
     ...ARTICLE_PAGES.map((a) => ({ loc: `${SITE}/ressources/${a.slug}`, lastmod: lastmodOf(`${SITE}/ressources/${a.slug}`), freq: 'monthly', prio: '0.8' })),
     ...capacityPaths.map((p) => ({ loc: SITE + p, lastmod: today, freq: 'monthly', prio: p === CAPACITY_HUB.path || p === '/en/capacity' ? '0.8' : '0.6' })),
-    ...enPaths.map((p) => ({ loc: SITE + p, lastmod: today, freq: 'monthly', prio: '0.8' })),
+    ...[...enPaths, ...enTools.map((p) => p.path)].map((p) => ({ loc: SITE + p, lastmod: today, freq: 'monthly', prio: '0.8' })),
   ];
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">

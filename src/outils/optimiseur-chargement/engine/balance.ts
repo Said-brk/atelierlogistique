@@ -16,6 +16,7 @@
 //    l'avant, cz = 1. Minimum une sangle par mur (rangée).
 
 import type { ContainerDefinition, PlacedItem } from './types';
+import { N_ } from '../../../shared/i18n/core';
 
 const G = 9.81;
 
@@ -80,7 +81,7 @@ export function defaultAxleProfile(container: ContainerDefinition): AxleProfile 
   if (container.id === 'semi') {
     return {
       kind: 'TWO_SUPPORTS',
-      frontLabel: 'Sellette (avant)', rearLabel: 'Essieux remorque',
+      frontLabel: N_('Sellette (avant)'), rearLabel: N_('Essieux remorque'),
       frontPos: 1000, rearPos: 9000,
       frontMax: 11000, rearMax: 18000,
     };
@@ -93,10 +94,10 @@ export function defaultAxleProfile(container: ContainerDefinition): AxleProfile 
     fourgon20: { frontPos: -1000, rearPos: 2900, frontMax: 450, rearMax: 850 },
   };
   const road = ROAD[container.id];
-  if (road) return { kind: 'TWO_SUPPORTS', frontLabel: 'Essieu avant', rearLabel: 'Essieu arrière', ...road };
+  if (road) return { kind: 'TWO_SUPPORTS', frontLabel: N_('Essieu avant'), rearLabel: N_('Essieu arrière'), ...road };
   return {
     kind: 'CONTAINER',
-    frontLabel: 'Avant', rearLabel: 'Arrière',
+    frontLabel: N_('Avant'), rearLabel: N_('Arrière'),
     frontPos: 0, rearPos: container.length,
     frontMax: container.maxWeight ?? 0, rearMax: container.maxWeight ?? 0,
   };

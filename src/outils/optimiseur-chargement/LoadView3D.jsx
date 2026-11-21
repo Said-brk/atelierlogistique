@@ -2,6 +2,7 @@ import { useRef, useState, useMemo } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Edges } from '@react-three/drei';
 import { RotateCcw, Eye, EyeOff } from 'lucide-react';
+import { t } from '../../shared/i18n/core';
 
 const S = 1 / 1000; // mm → unités de scène (mètres)
 
@@ -120,19 +121,16 @@ export default function LoadView3D({ container, placed, colorOf, isDimmed, block
       <div className="absolute top-2 right-2 z-10 flex gap-1.5">
         <button onClick={() => setShowWalls((w) => !w)}
           className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md font-jetbrains text-[11px] bg-white/90 border border-slate-200 text-slate-600 hover:text-slate-900"
-          title={showWalls ? 'Masquer les parois (vue éclatée)' : 'Afficher les parois'}>
-          {showWalls ? <EyeOff size={12} /> : <Eye size={12} />} Parois
-        </button>
+          title={showWalls ? t('Masquer les parois (vue éclatée)') : t('Afficher les parois')}>
+          {showWalls ? <EyeOff size={12} /> : <Eye size={12} />}{' '}{t('Parois')}</button>
         <button onClick={() => controls.current?.reset()}
           className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md font-jetbrains text-[11px] bg-white/90 border border-slate-200 text-slate-600 hover:text-slate-900"
-          title="Réinitialiser la vue">
-          <RotateCcw size={12} /> Vue
-        </button>
+          title={t('Réinitialiser la vue')}>
+          <RotateCcw size={12} />{' '}{t('Vue')}</button>
       </div>
 
       {variant !== 'pallet' && (
-        <div className="absolute bottom-2 right-2 z-10 font-jetbrains text-[10px] px-2 py-1 rounded-md bg-white/90 border border-amber-200 text-amber-700 pointer-events-none">
-          ▮ Portes (arrière){cog ? <span className="text-red-600"> · ● centre de gravité</span> : null}
+        <div className="absolute bottom-2 right-2 z-10 font-jetbrains text-[10px] px-2 py-1 rounded-md bg-white/90 border border-amber-200 text-amber-700 pointer-events-none">{t('▮ Portes (arrière)')}{cog ? <span className="text-red-600">{' '}{t('· ● centre de gravité')}</span> : null}
         </div>
       )}
 

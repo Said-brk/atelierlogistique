@@ -1,5 +1,6 @@
 import type { ContainerDefinition } from '../engine/types';
 import { CONTAINER_PRESETS } from './containers';
+import { N_ } from '../../../shared/i18n/core';
 
 // Véhicules proposés au mode « Flotte automatique ». Dimensions intérieures et charges
 // utiles indicatives (mm, kg), coûts par voyage indicatifs (€) : tout est modifiable
@@ -11,9 +12,9 @@ export interface FleetVehicleOption {
 }
 
 const ROAD: ContainerDefinition[] = [
-  { id: 'fourgon20', label: 'Fourgon 20 m³', length: 4300, width: 2050, height: 2250, maxWeight: 1100 },
-  { id: 'porteur12', label: 'Porteur 12 t', length: 6200, width: 2450, height: 2400, maxWeight: 5500 },
-  { id: 'porteur19', label: 'Porteur 19 t', length: 7300, width: 2450, height: 2500, maxWeight: 9500 },
+  { id: 'fourgon20', label: N_('Fourgon 20 m³'), length: 4300, width: 2050, height: 2250, maxWeight: 1100 },
+  { id: 'porteur12', label: N_('Porteur 12 t'), length: 6200, width: 2450, height: 2400, maxWeight: 5500 },
+  { id: 'porteur19', label: N_('Porteur 19 t'), length: 7300, width: 2450, height: 2500, maxWeight: 9500 },
 ];
 
 const preset = (id: string) => CONTAINER_PRESETS.find((c) => c.id === id)!;

@@ -3,11 +3,12 @@
 // (ordre de préparation, appel des supports au quai, contrôle au chargement).
 
 import type { OptimizationResult } from '../engine/types';
+import { t, N_ } from '../../../shared/i18n/core';
 
 export const SEQUENCE_HEADERS = [
-  'Séquence', 'Statut', 'Mur', 'Arrêt', 'Destination', 'Référence', 'N° support (SSCC)',
-  'X depuis cabine (cm)', 'Y depuis gauche (cm)', 'Z depuis plancher (cm)',
-  'Longueur placée (cm)', 'Largeur placée (cm)', 'Hauteur placée (cm)', 'Poids (kg)', 'Pivoté',
+  N_('Séquence'), N_('Statut'), N_('Mur'), N_('Arrêt'), N_('Destination'), N_('Référence'), N_('N° support (SSCC)'),
+  N_('X depuis cabine (cm)'), N_('Y depuis gauche (cm)'), N_('Z depuis plancher (cm)'),
+  N_('Longueur placée (cm)'), N_('Largeur placée (cm)'), N_('Hauteur placée (cm)'), N_('Poids (kg)'), N_('Pivoté'),
 ];
 
 /** Identifiants d'unités importés, par ligne de colis (definitionId). */
@@ -31,13 +32,13 @@ export function sequenceRows(result: OptimizationResult, unitIds: UnitIdsByDefin
     .map((p) => {
       const rotated = p.length !== p.originalLength || p.width !== p.originalWidth || p.height !== p.originalHeight;
       return [
-        p.sequence, 'Chargé', p.wall || '', p.stop, p.destination || '', p.reference, label(p.definitionId, p.reference, p.id),
+        p.sequence, t('Chargé'), p.wall || '', p.stop, p.destination || '', p.reference, label(p.definitionId, p.reference, p.id),
         cm(p.x), cm(p.y), cm(p.z), cm(p.length), cm(p.width), cm(p.height),
-        Math.round(p.weight * 100) / 100, rotated ? 'Oui' : 'Non',
+        Math.round(p.weight * 100) / 100, rotated ? t('Oui') : t('Non'),
       ];
     });
   const left = result.unpackedItems.map((u) => [
-    '', 'Non chargé', '', u.stop, u.destination || '', u.reference, label(u.definitionId, u.reference, u.id),
+    '', t('Non chargé'), '', u.stop, u.destination || '', u.reference, label(u.definitionId, u.reference, u.id),
     '', '', '', cm(u.dimensions.length), cm(u.dimensions.width), cm(u.dimensions.height),
     Math.round(u.weight * 100) / 100, '',
   ]);

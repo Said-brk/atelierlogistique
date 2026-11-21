@@ -17,6 +17,9 @@ import Palletizer from './outils/palettisation/Palletizer.jsx';
 // Guide cariste (plan de chargement pas à pas sur téléphone, ouvert par QR code).
 const LoadingGuide = lazy(() => import('./outils/optimiseur-chargement/guide/LoadingGuide.jsx'));
 import { SITE, toolSeo } from './seo/pages';
+import { toolSeoEn } from './seo/pages-en';
+import { I18nProvider } from './shared/i18n/I18nProvider.jsx';
+import { TOOL_PATHS, toolFromEnPath } from './shared/i18n/paths';
 import SiteNav from './components/SiteNav.jsx';
 import { BRAND_COLORS, TAGLINE } from './seo/brand';
 
@@ -201,7 +204,10 @@ export default function App() {
         <Route path="/outils" element={<Navigate to="/#tools" replace />} />
         <Route path="/outils/:id" element={<ToolRoute />} />
         <Route path="/ressources" element={<Ressources />} />
-        <Route path="/chargement" element={<Suspense fallback={null}><LoadingGuide /></Suspense>} />
+        <Route path="/chargement" element={<I18nProvider lang="fr"><Suspense fallback={null}><LoadingGuide /></Suspense></I18nProvider>} />
+        {/* Version anglaise des outils traduits (les autres pages /en/… sont statiques). */}
+        <Route path="/en/loading" element={<I18nProvider lang="en"><Suspense fallback={null}><LoadingGuide /></Suspense></I18nProvider>} />
+        <Route path="/en/:page" element={<EnToolRoute />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </BrowserRouter>
@@ -257,27 +263,35 @@ function SiteFooter() {
 }
 
 // Barre fine de fil d'Ariane affichée au-dessus de chaque outil
-function ToolTopBar({ id }) {
-  const name = TOOL_NAMES[id] || id;
+function ToolTopBar({ id, lang = 'fr' }) {
+  const en = lang === 'en';
+  const name = en ? (toolSeoEn(id)?.name ?? id) : (TOOL_NAMES[id] || id);
+  const other = TOOL_PATHS[id]?.[en ? 'fr' : 'en'];
   return (
     <div className="border-b border-slate-200 bg-white sticky top-0 z-30 print:hidden">
       <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-2.5 sm:py-3 flex items-center justify-between font-jetbrains text-xs">
         <div className="flex items-center gap-2 text-slate-500 min-w-0">
-          <Link to="/" className="flex items-center gap-2 text-slate-700 hover:text-slate-900 shrink-0">
+          <a href={en ? '/en' : '/'} className="flex items-center gap-2 text-slate-700 hover:text-slate-900 shrink-0">
             <Logo small />
             <span className="font-bricolage font-bold tracking-tight hidden sm:inline">
               <span style={{ color: BRAND_COLORS.navy }}>ATELIER</span> <span style={{ color: BRAND_COLORS.blue }}>LOGISTIQUE</span>
             </span>
-          </Link>
+          </a>
           <ChevronRight size={12} className="text-slate-300 shrink-0 hidden sm:block" />
-          <a href="/#tools" className="hover:text-slate-900 shrink-0 hidden sm:inline">Outils</a>
+          <a href={en ? '/en' : '/#tools'} className="hover:text-slate-900 shrink-0 hidden sm:inline">{en ? 'Tools' : 'Outils'}</a>
           <ChevronRight size={12} className="text-slate-300 shrink-0" />
           {/* Outils sans titre principal propre : le nom dans le fil d'Ariane sert de <h1> (SEO). */}
-          {toolSeo(id) && !toolSeo(id).ownH1
+          {!en && toolSeo(id) && !toolSeo(id).ownH1
             ? <h1 className="text-slate-900 truncate text-xs sm:text-sm font-semibold font-bricolage">{toolSeo(id).h1}</h1>
             : <span className="text-slate-900 truncate text-xs sm:text-sm font-semibold font-bricolage">{name}</span>}
         </div>
-        <div className="shrink-0 ml-3"><SiteNav compact /></div>
+        <div className="shrink-0 ml-3 flex items-center gap-3">
+          <SiteNav compact lang={lang} />
+          {other && (
+            <a href={other} hrefLang={en ? 'fr' : 'en'} title={en ? 'Version française' : 'English version'}
+              className="font-jetbrains text-[11px] px-2 py-1 rounded-md border border-slate-300 text-slate-600 hover:text-slate-900">{en ? 'FR' : 'EN'}</a>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -310,10 +324,13 @@ const TOOL_EMBED_CSS = `
 .tool-embedded .tool-nav-controls .w-px{display:none}
 `;
 
-function ToolRoute() {
-  const { id } = useParams();
+function ToolRoute({ id: forcedId, lang = 'fr' }) {
+  const params = useParams();
+  const id = forcedId ?? params.id;
   const navigate = useNavigate();
-  useSeoMeta(toolSeo(id), `/outils/${id}`);
+  const en = lang === 'en';
+  useSeoMeta(en ? toolSeoEn(id) : toolSeo(id), en ? TOOL_PATHS[id]?.en : `/outils/${id}`);
+  useEffect(() => { document.documentElement.lang = lang; return () => { document.documentElement.lang = 'fr'; }; }, [lang]);
   const Comp = TOOL_COMPONENTS[id];
   if (!Comp) return <NotFound />;
   // Une seule barre : celle du site (logo, fil d'Ariane, menu). La barre propre à chaque outil
@@ -321,10 +338,21 @@ function ToolRoute() {
   return (
     <div className="tool-embedded">
       <style>{TOOL_EMBED_CSS}</style>
-      <ToolTopBar id={id} />
-      <Comp onBack={() => navigate('/')} />
+      <ToolTopBar id={id} lang={lang} />
+      {/* key : changer de langue remonte l'outil (textes calculés au rendu). */}
+      <I18nProvider lang={lang}>
+        <Comp key={lang} onBack={() => (en ? window.location.assign('/en') : navigate('/'))} />
+      </I18nProvider>
     </div>
   );
+}
+
+// /en/truck-load-planner… : même outil, interface anglaise.
+function EnToolRoute() {
+  const { page } = useParams();
+  const id = toolFromEnPath(page);
+  if (!id) return <NotFound />;
+  return <ToolRoute key={id} id={id} lang="en" />;
 }
 
 // Page 404
