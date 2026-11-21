@@ -131,6 +131,22 @@ de chargement — séquence, mur, arrêt, destination, référence, SSCC, positi
 gauche, plancher), dimensions placées, poids, pivoté ; les colis non chargés suivent avec le statut
 « Non chargé ».
 
+## Flotte automatique (option)
+
+Bouton « Flotte automatique » à côté de « Un véhicule » (mode standard inchangé, par défaut).
+L'utilisateur coche les véhicules dont il dispose et leur coût par voyage (`constants/fleet.ts`,
+mémorisés dans le navigateur). `engine/fleet.ts` :
+
+1. les arrêts restent dans l'ordre de la tournée ; chaque véhicule prend des arrêts consécutifs ;
+2. programmation dynamique : coût total minimal puis moins de véhicules, chaque véhicule étant
+   vérifié par le moteur 3D complet (murs, tournée, empilage, poids) ;
+3. un arrêt trop gros pour un seul véhicule est découpé en véhicules pleins (meilleur volume par €) ;
+4. comparaison avec des flottes d'un seul type (« au lieu de 2 porteurs : … »).
+
+« Voir le plan 3D » affiche chaque véhicule dans la vue standard (essieux, arrimage, fiche PDF, CSV).
+Calcul dans un Web Worker dédié (`worker/fleet.worker.ts`). Supprimer : retirer le bouton de mode,
+`FleetPanel.jsx`, `useFleetPlanner.js`, `engine/fleet.ts`, `constants/fleet.ts`.
+
 ## Tests
 
 ```bash
