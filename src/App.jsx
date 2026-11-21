@@ -16,6 +16,7 @@ import LoadOptimizer from './outils/optimiseur-chargement/LoadOptimizer.jsx';
 import Palletizer from './outils/palettisation/Palletizer.jsx';
 import { SITE, toolSeo } from './seo/pages';
 import SiteNav from './components/SiteNav.jsx';
+import { BRAND_COLORS, TAGLINE } from './seo/brand';
 
 const BLUE = '#2563EB';
 const BLUE_DARK = '#1D4ED8';
@@ -209,8 +210,12 @@ function SiteHeader() {
         <Link to="/" className="flex items-center gap-3">
           <Logo />
           <div>
-            <div className="font-bricolage font-bold text-lg tracking-tight text-slate-900">ATELIER LOGISTIQUE</div>
-            <div className="font-jetbrains text-[10px] text-slate-500 -mt-1 tracking-wider"><span className="hidden sm:inline">LA BOÎTE À OUTILS DES PROS DE LA SUPPLY CHAIN</span><span className="sm:hidden">BOÎTE À OUTILS SUPPLY CHAIN</span></div>
+            <div className="font-bricolage font-bold text-lg tracking-tight">
+              <span style={{ color: BRAND_COLORS.navy }}>ATELIER</span> <span style={{ color: BRAND_COLORS.blue }}>LOGISTIQUE</span>
+            </div>
+            <div className="font-jetbrains text-[10px] -mt-1 tracking-wider">
+              <span style={{ color: BRAND_COLORS.muted }}>{TAGLINE[0]}</span> <span className="font-semibold" style={{ color: BRAND_COLORS.amber }}>{TAGLINE[1]}</span>
+            </div>
           </div>
         </Link>
         <SiteNav />
@@ -247,7 +252,9 @@ function ToolTopBar({ id }) {
         <div className="flex items-center gap-2 text-slate-500 min-w-0">
           <Link to="/" className="flex items-center gap-2 text-slate-700 hover:text-slate-900 shrink-0">
             <Logo small />
-            <span className="font-bricolage font-bold tracking-tight hidden sm:inline">ATELIER LOGISTIQUE</span>
+            <span className="font-bricolage font-bold tracking-tight hidden sm:inline">
+              <span style={{ color: BRAND_COLORS.navy }}>ATELIER</span> <span style={{ color: BRAND_COLORS.blue }}>LOGISTIQUE</span>
+            </span>
           </Link>
           <ChevronRight size={12} className="text-slate-300 shrink-0" />
           <a href="/#tools" className="hover:text-slate-900 shrink-0">Outils</a>

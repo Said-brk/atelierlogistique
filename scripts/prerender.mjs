@@ -15,6 +15,7 @@ import {
   SITE, SITE_NAME, TOOL_PAGES, ARTICLE_PAGES, HOME_PAGE, RESSOURCES_PAGE, toolPath,
 } from '../src/seo/pages.js';
 import { navHtml } from '../src/seo/nav.js';
+import { wordmarkHtml } from '../src/seo/brand.js';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const dist = join(root, 'dist');
@@ -179,7 +180,10 @@ for (const t of TOOL_PAGES) {
       depth += m[0] === '</div>' ? -1 : 1;
       if (depth === 0) { i = m.index + m[0].length; break; }
     }
-    writeFileSync(file, html.slice(0, start) + navHtml() + html.slice(i));
+    let out = html.slice(0, start) + navHtml() + html.slice(i);
+    // Nom du site aux couleurs du logo (source : src/seo/brand.js).
+    out = out.replace(/<div class="font-bricolage font-bold text-lg tracking-tight text-slate-900">ATELIER LOGISTIQUE<\/div>\s*<div class="font-jetbrains text-\[10px\] text-slate-500 -mt-1 tracking-wider">[^<]*<\/div>/, wordmarkHtml());
+    writeFileSync(file, out);
     patched++;
   }
   console.log(`Menu commun appliqué à ${patched} guide(s)`);
