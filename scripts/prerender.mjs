@@ -17,6 +17,7 @@ import {
 import { navHtml } from '../src/seo/nav.js';
 import { wordmarkHtml } from '../src/seo/brand.js';
 import { writeCapacityPages, CAPACITY_HUB } from './capacity-pages.mjs';
+import { writeEnPages, EN_TOOL_ALTERNATES } from './en-pages.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const dist = join(root, 'dist');
@@ -31,9 +32,16 @@ const jsonLd = (obj) => `<script type="application/ld+json">${JSON.stringify(obj
 const toolById = Object.fromEntries(TOOL_PAGES.map((t) => [t.id, t]));
 const articleBySlug = Object.fromEntries(ARTICLE_PAGES.map((a) => [a.slug, a]));
 
-function head({ path, title, description, structured = [] }) {
+function head({ path, title, description, structured = [], alternate = null }) {
   const url = SITE + path;
+  // Version anglaise équivalente : balises hreflang (étape 1 du site bilingue).
+  const alt = alternate ? [
+    `<link rel="alternate" hreflang="fr" href="${url}" />`,
+    `<link rel="alternate" hreflang="en" href="${SITE + alternate}" />`,
+    `<link rel="alternate" hreflang="x-default" href="${url}" />`,
+  ] : [];
   return [
+    ...alt,
     `<title>${esc(title)}</title>`,
     `<meta name="description" content="${esc(description)}" />`,
     `<link rel="canonical" href="${url}" />`,
@@ -67,7 +75,7 @@ function write(path, html) {
   writeFileSync(file, html);
 }
 
-const shell = (crumbs, inner) => `
+const shell = (crumbs, inner, alternate = null) => `
 <div class="min-h-screen bg-white text-slate-900" style="font-family:'DM Sans',system-ui,sans-serif">
   <header class="border-b border-slate-200">
     <div class="relative max-w-5xl mx-auto px-6 py-4 flex items-center justify-between gap-4">
@@ -75,7 +83,7 @@ const shell = (crumbs, inner) => `
         <a href="/" class="font-semibold text-slate-900">${SITE_NAME}</a>
         ${crumbs.map((c) => `<span>›</span>${c.href ? `<a href="${c.href}">${esc(c.label)}</a>` : `<span class="text-slate-700">${esc(c.label)}</span>`}`).join('')}
       </nav>
-      ${navHtml()}
+      ${navHtml('fr', alternate)}
     </div>
   </header>
   <main class="max-w-3xl mx-auto px-6 py-10 space-y-8">${inner}</main>
@@ -132,7 +140,8 @@ for (const t of TOOL_PAGES) {
     ${t.faq?.length ? `<section><h2 class="font-bold text-xl mb-2">Questions fréquentes</h2>${t.faq.map((f) => `<details class="border border-slate-200 rounded-lg px-4 py-3 mb-2"><summary class="cursor-pointer">${esc(f.q)}</summary><p class="text-slate-600 text-sm mt-2">${esc(f.a)}</p></details>`).join('')}</section>` : ''}
     ${guides.length ? `<section><h2 class="font-bold text-xl mb-2">Guides</h2>${links(guides)}</section>` : ''}
     ${related.length ? `<section><h2 class="font-bold text-xl mb-2">Outils associés</h2>${links(related)}</section>` : ''}`;
-  write(path, page(head({ path, title: t.title, description: t.description, structured }), shell([{ label: 'Outils', href: '/#tools' }, { label: t.name }], inner)));
+  const alternate = EN_TOOL_ALTERNATES[t.id] ?? null;
+  write(path, page(head({ path, title: t.title, description: t.description, structured, alternate }), shell([{ label: 'Outils', href: '/#tools' }, { label: t.name }], inner, alternate)));
 }
 
 // ---------- Accueil ----------
@@ -149,7 +158,7 @@ for (const t of TOOL_PAGES) {
     <div><h1 class="font-bold text-3xl">${esc(HOME_PAGE.h1)}</h1><p class="text-slate-600 mt-2">${esc(HOME_PAGE.intro)}</p></div>
     <section id="tools"><h2 class="font-bold text-xl mb-2">Les outils</h2>${links(TOOL_PAGES.map((t) => ({ href: toolPath(t.id), label: t.name, desc: t.intro })))}</section>
     <section><h2 class="font-bold text-xl mb-2">Guides</h2>${links(ARTICLE_PAGES.map((a) => ({ href: `/ressources/${a.slug}`, label: a.title })))}</section>`;
-  write('/', page(head({ path: '/', title: HOME_PAGE.title, description: HOME_PAGE.description, structured }), shell([], inner)));
+  write('/', page(head({ path: '/', title: HOME_PAGE.title, description: HOME_PAGE.description, structured, alternate: '/en' }), shell([], inner, '/en')));
 }
 
 // ---------- Ressources ----------
@@ -193,7 +202,9 @@ for (const t of TOOL_PAGES) {
 
 // ---------- Pages « Combien de palettes dans un … » ----------
 const capacityPaths = writeCapacityPages(root, dist);
-console.log(`Capacités : ${capacityPaths.length} pages`);
+console.log(`Capacités : ${capacityPaths.length} pages (FR + EN)`);
+const enPaths = writeEnPages(dist);
+console.log(`Pages anglaises : ${enPaths.length}`);
 
 // ---------- Sitemap ----------
 {
@@ -206,7 +217,8 @@ console.log(`Capacités : ${capacityPaths.length} pages`);
     ...TOOL_PAGES.map((t) => ({ loc: SITE + toolPath(t.id), lastmod: today, freq: 'monthly', prio: ['optimiseur-chargement', 'pallet'].includes(t.id) ? '0.9' : '0.7' })),
     { loc: `${SITE}/ressources`, lastmod: today, freq: 'weekly', prio: '0.8' },
     ...ARTICLE_PAGES.map((a) => ({ loc: `${SITE}/ressources/${a.slug}`, lastmod: lastmodOf(`${SITE}/ressources/${a.slug}`), freq: 'monthly', prio: '0.8' })),
-    ...capacityPaths.map((p) => ({ loc: SITE + p, lastmod: today, freq: 'monthly', prio: p === CAPACITY_HUB.path ? '0.8' : '0.6' })),
+    ...capacityPaths.map((p) => ({ loc: SITE + p, lastmod: today, freq: 'monthly', prio: p === CAPACITY_HUB.path || p === '/en/capacity' ? '0.8' : '0.6' })),
+    ...enPaths.map((p) => ({ loc: SITE + p, lastmod: today, freq: 'monthly', prio: '0.8' })),
   ];
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">

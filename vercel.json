@@ -59,6 +59,22 @@
       "destination": "/capacite/:slug/index.html"
     },
     {
+      "source": "/en",
+      "destination": "/en/index.html"
+    },
+    {
+      "source": "/en/capacity",
+      "destination": "/en/capacity/index.html"
+    },
+    {
+      "source": "/en/capacity/:slug",
+      "destination": "/en/capacity/:slug/index.html"
+    },
+    {
+      "source": "/en/:page",
+      "destination": "/en/:page/index.html"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
