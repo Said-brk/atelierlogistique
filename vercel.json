@@ -51,6 +51,14 @@
       "destination": "/outils/:id/index.html"
     },
     {
+      "source": "/capacite",
+      "destination": "/capacite/index.html"
+    },
+    {
+      "source": "/capacite/:slug",
+      "destination": "/capacite/:slug/index.html"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
