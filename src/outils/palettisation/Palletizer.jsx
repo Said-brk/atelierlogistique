@@ -282,7 +282,7 @@ export default function Palletizer({ onBack }) {
 
   return (
     <div className="min-h-screen text-slate-900" style={{ background: '#F8FAFC', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
-      <nav className="border-b border-slate-200 bg-white sticky top-0 z-20 print:hidden">
+      <nav className="tool-nav border-b border-slate-200 bg-white sticky top-0 z-20 print:hidden">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-2.5 sm:py-4 flex items-center justify-between">
           <div className="flex items-center gap-3 sm:gap-5 min-w-0">
             <button onClick={onBack} className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors font-jetbrains text-xs">
