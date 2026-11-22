@@ -5,7 +5,7 @@ import {
   ArrowLeft, Truck, Box, Loader2, AlertCircle,
   RotateCcw, Check, ArrowRight, Boxes, Upload, Download,
   MapPin, Undo2, Printer, Scale, ChevronDown,
-  QrCode as QrCodeIcon,
+  QrCode as QrCodeIcon, Pencil,
 } from 'lucide-react';
 
 const LoadView3D = lazy(() => import('./LoadView3D.jsx'));
@@ -54,6 +54,9 @@ import { consumeHandoff } from '../../shared/handoff';
 import { COLIS_SCHEMA, STANDARD_HEADERS, STANDARD_SAMPLE, recordsToColisRows } from './import/colisSchema';
 import { SEQUENCE_HEADERS, sequenceRows } from './import/exportSequence';
 import { t as tr, tText, numLocale, getCurrentLang, N_ } from '../../shared/i18n/core';
+import useManualEdit from './manual/useManualEdit';
+import { applyManualPlan } from './manual/editPlan';
+import EditPanel from './manual/EditPanel';
 import { homeHref } from '../../shared/i18n/paths';
 
 const importProfiles = createLocalProfileStore();
@@ -449,12 +452,40 @@ export default function LoadOptimizer({ onBack }) {
     io.observe(el);
     return () => io.disconnect();
   }, []);
-  const { run, reset, result, status } = useOptimizer();
+  const { run, reset, result: rawResult, status } = useOptimizer();
 
   // Mode véhicule : 'single' = standard (l'utilisateur choisit) ; 'fleet' = l'outil propose la flotte.
   const [vehicleMode, setVehicleMode] = useState('single');
   const [fleetVehicles, setFleetVehicles] = useState(loadFleet);
   const [containerOverride, setContainerOverride] = useState(null); // véhicule de la flotte affiché
+  const container = useMemo(() => {
+    if (containerOverride) return containerOverride;
+    if (containerId === 'custom') {
+      return {
+        id: 'custom', label: custom.label || tr('Mon contenant'),
+        length: cmToMm(custom.length), width: cmToMm(custom.width), height: cmToMm(custom.height),
+        maxWeight: custom.maxWeight === '' ? null : Math.max(0, Number(custom.maxWeight) || 0),
+      };
+    }
+    return CONTAINER_PRESETS.find((c) => c.id === containerId);
+  }, [containerId, custom, containerOverride]);
+
+  // Mode « modifier à la main » : le plan modifié remplace le plan calculé partout (stats, fiche, QR, exports).
+  const [editMode, setEditMode] = useState(false);
+  const rulesOf = useCallback((item) => {
+    const r = rows.find((x) => x.id === item.definitionId);
+    return { canRotate: (r?.rotationMode ?? 'FULL') !== 'NONE', floorOnly: !!r?.floorOnly };
+  }, [rows]);
+  const manual = useManualEdit(container, rawResult?.placedItems, rulesOf);
+  const result = useMemo(
+    () => (rawResult && manual.edited ? applyManualPlan(rawResult, manual.placed, manual.staged, manual.touched) : rawResult),
+    [rawResult, manual.edited, manual.placed, manual.staged, manual.touched],
+  );
+  useEffect(() => { if (!rawResult) setEditMode(false); }, [rawResult]);
+  const startEdit = () => {
+    setEditMode(true); setView3d(true); setShiftMm(0); setLoadedUpToWall(null); setUnloadedUpTo(0); setHighlight(null);
+    track('load_optimizer_manual_edit');
+  };
   const [viewingTruck, setViewingTruck] = useState(null);
   const { runFleet, resetFleet, plan: fleetPlan, status: fleetStatus } = useFleetPlanner();
   const changeFleetVehicles = (next) => {
@@ -548,17 +579,6 @@ export default function LoadOptimizer({ onBack }) {
   useEffect(() => { try { localStorage.setItem(BAL_KEY, JSON.stringify(balanceCfg)); } catch { /* stockage indisponible */ } }, [balanceCfg]);
   const [balanceOpen, setBalanceOpen] = useState(false);
 
-  const container = useMemo(() => {
-    if (containerOverride) return containerOverride;
-    if (containerId === 'custom') {
-      return {
-        id: 'custom', label: custom.label || tr('Mon contenant'),
-        length: cmToMm(custom.length), width: cmToMm(custom.width), height: cmToMm(custom.height),
-        maxWeight: custom.maxWeight === '' ? null : Math.max(0, Number(custom.maxWeight) || 0),
-      };
-    }
-    return CONTAINER_PRESETS.find((c) => c.id === containerId);
-  }, [containerId, custom, containerOverride]);
 
   const axleProfile = useMemo(() => ({ ...defaultAxleProfile(container), ...(balanceCfg.axles?.[container.id] ?? {}) }), [container, balanceCfg]);
   const lashingParams = useMemo(() => ({ ...DEFAULT_LASHING, ...(balanceCfg.lashing ?? {}) }), [balanceCfg]);
@@ -1007,6 +1027,11 @@ export default function LoadOptimizer({ onBack }) {
                     <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-slate-200 bg-slate-50 font-jetbrains text-xs text-slate-600 flex flex-wrap items-center justify-between gap-2">
                       <span className="flex items-center gap-2 shrink-0"><Box size={13} />{' '}{tr('PLAN')}<span className="hidden sm:inline">{' '}{tr('DE CHARGEMENT')}</span></span>
                       <div className="flex flex-wrap items-center justify-end gap-1.5 sm:gap-2">
+                        <button onClick={() => (editMode ? setEditMode(false) : startEdit())}
+                          className="flex items-center gap-1 font-jetbrains text-[10px] px-2 py-1 rounded-md"
+                          style={editMode ? { background: '#F59E0B', color: '#0F172A', fontWeight: 600 } : { background: '#FEF3C7', color: '#92400E' }}
+                          title={tr('Déplacer, pivoter ou retirer des colis à la main')}>
+                          <Pencil size={11} />{' '}{editMode ? tr('Terminer') : manual.edited ? tr('Modifié · reprendre') : tr('Modifier')}</button>
                         <button onClick={printSheet} className="flex items-center gap-1 font-jetbrains text-[10px] px-2 py-1 rounded-md" style={{ background: BLUE_LIGHT, color: BLUE }} title={tr('Imprimer ou enregistrer en PDF la fiche de chargement (ordre de chargement, arrêt par arrêt)')}><Printer size={11} />{' '}{tr('Fiche')}</button>
                         {multiStopResult && (
                           <div className="flex items-center gap-0.5 p-0.5 rounded-md" style={{ background: '#F1F5F9' }} title={tr('Couleur des colis — Réf. : par produit · Arrêt : par destination · Les 2 : remplissage = produit, contour = destination')}>
@@ -1023,7 +1048,14 @@ export default function LoadOptimizer({ onBack }) {
                       </div>
                     </div>
                     <div className="p-2 sm:p-4 relative">
-                      {view3d ? (
+                      {editMode ? (
+                        <ThreeErrorBoundary fallback={<Schematic2D container={container} placed={manual.placed} colorOf={colorOf} isDimmed={() => false} blockedIds={manual.issues.all} />}>
+                          <Suspense fallback={<div className="flex items-center justify-center text-slate-400 font-jetbrains text-xs h-[340px] sm:h-[420px] lg:h-[460px]"><Loader2 size={18} className="animate-spin mr-2" />{' '}{tr('Chargement de la vue 3D…')}</div>}>
+                            <LoadView3D container={container} placed={manual.placed} colorOf={colorOf} isDimmed={() => false} blockedIds={null} onHover={setHovered}
+                              edit={{ selectedId: manual.selectedId, onSelect: manual.select, invalidIds: manual.issues.all, onDragEnd: manual.dropAt }} />
+                          </Suspense>
+                        </ThreeErrorBoundary>
+                      ) : view3d ? (
                         <ThreeErrorBoundary fallback={<Schematic2D container={container} placed={visiblePlaced} colorOf={colorOf} isDimmed={isDimmed} blockedIds={blockedIds} />}>
                           <Suspense fallback={<div className="flex items-center justify-center text-slate-400 font-jetbrains text-xs h-[340px] sm:h-[420px] lg:h-[460px]"><Loader2 size={18} className="animate-spin mr-2" />{' '}{tr('Chargement de la vue 3D…')}</div>}>
                             <LoadView3D container={container} placed={visiblePlaced} colorOf={colorOf} isDimmed={isDimmed} blockedIds={blockedIds} onHover={setHovered} cog={loadedUpToWall === null && unloadedUpTo === 0 ? balance?.cog : null} />
@@ -1041,8 +1073,9 @@ export default function LoadOptimizer({ onBack }) {
                         </div>
                       )}
                     </div>
+                    {editMode && <EditPanel edit={manual} rulesOf={rulesOf} onClose={() => setEditMode(false)} />}
                     {/* Légende */}
-                    {result.loadingMode === 'WALLS' && result.walls?.length > 1 && (
+                    {!editMode && result.loadingMode === 'WALLS' && result.walls?.length > 1 && (
                       <div className="px-4 py-2.5 border-t border-slate-100 flex items-center gap-2 flex-wrap">
                         <span className="font-jetbrains text-[10px] text-slate-500">{tr('CHARGEMENT')}</span>
                         <input type="range" min={1} max={result.walls.length + 1} step={1}
