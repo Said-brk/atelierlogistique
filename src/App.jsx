@@ -208,6 +208,8 @@ export default function App() {
         <Route path="/ressources" element={<Ressources />} />
         <Route path="/chargement" element={<I18nProvider lang="fr"><Suspense fallback={null}><LoadingGuide /></Suspense></I18nProvider>} />
         {/* Version anglaise des outils traduits (les autres pages /en/… sont statiques). */}
+        {/* Lien court des QR codes (v2) : la langue est dans le lien. */}
+        <Route path="/g" element={<QrGuideRoute />} />
         <Route path="/en/loading" element={<I18nProvider lang="en"><Suspense fallback={null}><LoadingGuide /></Suspense></I18nProvider>} />
         <Route path="/en/:page" element={<EnToolRoute />} />
         <Route path="*" element={<NotFound />} />
@@ -347,6 +349,13 @@ function ToolRoute({ id: forcedId, lang = 'fr' }) {
       </I18nProvider>
     </div>
   );
+}
+
+// Guide cariste ouvert depuis un QR code : https://atelierlogistique.com/g#2F… (F = français, E = anglais).
+function QrGuideRoute() {
+  const hash = typeof window !== 'undefined' ? window.location.hash : '';
+  const lang = hash[1] === '2' && hash[2]?.toUpperCase() === 'E' ? 'en' : 'fr';
+  return <I18nProvider lang={lang}><Suspense fallback={null}><LoadingGuide /></Suspense></I18nProvider>;
 }
 
 // /en/truck-load-planner… : même outil, interface anglaise.

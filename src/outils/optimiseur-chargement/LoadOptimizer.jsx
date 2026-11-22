@@ -36,8 +36,8 @@ import { LOAD_FAQ_EN, toolSeoEn } from '../../seo/pages-en';
 import ColisTable from './components/ColisTable';
 import { FleetVehicles, FleetResult } from './components/FleetPanel';
 import { useFleetPlanner } from './useFleetPlanner';
-import { encodePlan, guideUrl, QR_MAX_URL } from './guide/planLink';
-import QrCode from './guide/QrCode';
+import { encodePlan, guideUrl, qrTextOf } from './guide/planLink';
+import QrCode, { qrModules, QR_MAX_MODULES } from './guide/QrCode';
 import GuideQrModal from './guide/GuideQrModal';
 import { DEFAULT_FLEET } from './constants/fleet';
 
@@ -215,6 +215,7 @@ function StopMiniPlan({ container, placed, stop, color }) {
 }
 
 function PrintSheet({ container, result, rows, colorIndex, multiStopResult, leftovers, balance, shiftMm = 0, guideLink = null }) {
+  const guideQrOk = !!guideLink && (qrModules(qrTextOf(guideLink)) ?? 999) <= QR_MAX_MODULES;
   const refColorOf = (defId) => refColor(colorIndex[defId] ?? 0);
   const blocked = new Set(result.blockedItemIds ?? []);
   const canDrawPlan = result.placedItems.length <= 400;
@@ -243,9 +244,9 @@ function PrintSheet({ container, result, rows, colorIndex, multiStopResult, left
           <div style={{ textAlign: 'right', fontSize: 11, color: '#475569' }}>
             <div>{today}</div>
             <div style={{ marginTop: 2 }}>{tr('atelierlogistique.com')}</div>
-            {guideLink && guideLink.length <= QR_MAX_URL && <div style={{ marginTop: 6, fontSize: 9, maxWidth: 110 }}>{tr('Scannez : plan pas à pas sur téléphone')}</div>}
+            {guideQrOk && <div style={{ marginTop: 6, fontSize: 9, maxWidth: 110 }}>{tr('Scannez : plan pas à pas sur téléphone')}</div>}
           </div>
-          {guideLink && guideLink.length <= QR_MAX_URL && <QrCode text={guideLink} size={140} />}
+          {guideQrOk && <QrCode text={qrTextOf(guideLink)} size={190} />}
         </div>
       </div>
 
@@ -526,7 +527,7 @@ export default function LoadOptimizer({ onBack }) {
     if (!planResult || planResult.placedItems.length === 0) return undefined;
     const unitIds = Object.fromEntries(rows.filter((r) => r.unitIds?.length).map((r) => [r.id, r.unitIds]));
     const unitIdOf = (p) => { const k = Number(/#(\d+)$/.exec(p.id)?.[1] ?? -1); return unitIds[p.definitionId]?.[k] ?? null; };
-    encodePlan({ ...container, label: tText(container.label) }, planResult.placedItems, unitIdOf)
+    encodePlan({ ...container, label: tText(container.label) }, planResult.placedItems, unitIdOf, lang)
       .then((payload) => { if (alive) setGuideLink(guideUrl(window.location.origin, payload, lang)); })
       .catch(() => {});
     return () => { alive = false; };
