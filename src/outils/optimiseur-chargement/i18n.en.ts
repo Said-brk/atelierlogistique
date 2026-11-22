@@ -366,6 +366,9 @@ const en: Record<string, string> = {
   "Poids ≥ 0": "Weight ≥ 0",
   "Arrêt ≥ 1": "Stop ≥ 1",
   "Arrêt {stop} · {v1}": "Stop {stop} · {v1}",
+  "Agrandir le QR code": "Enlarge the QR code",
+  "Plein écran (scan plus facile)": "Full screen (easier to scan)",
+  "Montez la luminosité de l’écran · touchez pour fermer": "Turn up screen brightness · tap to close",
 };
 
 export default en;
