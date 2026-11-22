@@ -174,11 +174,11 @@ export function guideUrl(origin: string, payload: string, lang: GuideLang = 'fr'
 }
 
 /**
- * Texte à mettre dans le QR code : pour un lien v2, adresse en MAJUSCULES (https://SITE/G#2F…)
- * pour que tout le QR code soit en mode alphanumérique, donc bien moins dense. Le navigateur remet
- * le domaine en minuscules et la route /g n'est pas sensible à la casse.
+ * Texte à mettre dans le QR code : le lien tel quel, en minuscules. Certains appareils photo ne
+ * reconnaissent pas une adresse en MAJUSCULES comme un lien : on ne la modifie plus.
+ * Le gain de densité vient du découpage en segments (qr.ts) : la charge utile base32 après le #
+ * est codée en mode alphanumérique, l'adresse en octets.
  */
 export function qrTextOf(url: string): string {
-  const i = url.indexOf('#');
-  return i > 0 && url[i + 1] === '2' ? url.slice(0, i).toUpperCase() + url.slice(i) : url;
+  return url;
 }

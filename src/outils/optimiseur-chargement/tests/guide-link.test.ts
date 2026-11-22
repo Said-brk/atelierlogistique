@@ -34,8 +34,9 @@ describe('lien du guide cariste', () => {
     const url = guideUrl('https://atelierlogistique.com', payload);
     expect(url.startsWith('https://atelierlogistique.com/g#2E')).toBe(true);
     const qr = qrTextOf(url);
-    expect(qr.startsWith('HTTPS://ATELIERLOGISTIQUE.COM/G#2E')).toBe(true);
-    expect(segments(qr).filter(([, m]) => m === 'Alphanumeric').map(([p]) => p.length).reduce((a, b) => a + b, 0)).toBeGreaterThan(qr.length - 3);
+    expect(qr).toBe(url); // adresse en minuscules : reconnue comme lien par tous les appareils photo
+    const alnum = segments(qr).filter(([, m]) => m === 'Alphanumeric').map(([p]) => p.length).reduce((a, b) => a + b, 0);
+    expect(alnum).toBeGreaterThan(payload.length - 2); // la charge utile est en mode alphanumérique
   });
 
   it('les anciens liens (v1, déjà imprimés) restent lisibles', async () => {
