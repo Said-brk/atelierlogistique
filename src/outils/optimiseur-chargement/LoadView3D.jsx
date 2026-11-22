@@ -1,12 +1,13 @@
-import { useRef, useState, useMemo } from 'react';
-import { Canvas } from '@react-three/fiber';
+import { useRef, useState, useMemo, useEffect } from 'react';
+import { Canvas, useThree } from '@react-three/fiber';
+import { Plane, Vector3, Vector2 } from 'three';
 import { OrbitControls, Edges } from '@react-three/drei';
 import { RotateCcw, Eye, EyeOff } from 'lucide-react';
 import { t } from '../../shared/i18n/core';
 
 const S = 1 / 1000; // mm → unités de scène (mètres)
 
-function ItemMesh({ item, color, dimmed, blocked, withEdges, onHover }) {
+function ItemMesh({ item, color, dimmed, blocked, withEdges, onHover, editing, selected, invalid, onSelect, onDragStart }) {
   const [hovered, setHovered] = useState(false);
   const size = [item.length * S, item.height * S, item.width * S];
   const position = [
@@ -18,19 +19,24 @@ function ItemMesh({ item, color, dimmed, blocked, withEdges, onHover }) {
   return (
     <mesh
       position={position}
-      onPointerOver={(e) => { e.stopPropagation(); setHovered(true); onHover(item); }}
-      onPointerOut={() => { setHovered(false); onHover(null); }}
+      onPointerOver={(e) => { e.stopPropagation(); setHovered(true); onHover?.(item); }}
+      onPointerOut={() => { setHovered(false); onHover?.(null); }}
+      onClick={editing ? (e) => { e.stopPropagation(); if (e.delta < 6) onSelect?.(item.id); } : undefined}
+      onPointerDown={editing && selected ? (e) => { e.stopPropagation(); onDragStart?.(item, e); } : undefined}
     >
       <boxGeometry args={size} />
-      <meshStandardMaterial color={color.solid} transparent opacity={opacity} roughness={0.75} metalness={0.05} />
-      {blocked
+      <meshStandardMaterial color={invalid ? '#EF4444' : color.solid} emissive={selected ? '#F59E0B' : '#000000'} emissiveIntensity={selected ? 0.35 : 0}
+        transparent opacity={opacity} roughness={0.75} metalness={0.05} />
+      {selected
+        ? <Edges color="#B45309" lineWidth={3} />
+        : blocked
         ? <Edges color="#DC2626" lineWidth={2} />
         : (withEdges || color.combined) && <Edges color={color.edge ?? color.dark} lineWidth={color.combined ? 3 : 1} />}
     </mesh>
   );
 }
 
-function Scene({ container, placed, colorOf, isDimmed, blockedIds, showWalls, onHover, cog, variant, deckHeight }) {
+function Scene({ container, placed, colorOf, isDimmed, blockedIds, showWalls, onHover, cog, variant, deckHeight, edit, drag, onDragStart }) {
   const CL = container.length * S;
   const CW = container.width * S;
   const CH = container.height * S;
@@ -90,25 +96,69 @@ function Scene({ container, placed, colorOf, isDimmed, blockedIds, showWalls, on
       {placed.map((item) => (
         <ItemMesh
           key={item.id}
-          item={item}
+          item={drag && drag.id === item.id ? { ...item, x: drag.x, y: drag.y, z: drag.z } : item}
           color={colorOf(item)}
           dimmed={isDimmed(item)}
           blocked={blockedIds?.has(item.id)}
           withEdges={withEdges}
           onHover={onHover}
+          editing={!!edit}
+          selected={edit?.selectedId === item.id}
+          invalid={edit?.invalidIds?.has(item.id)}
+          onSelect={edit?.onSelect}
+          onDragStart={onDragStart}
         />
       ))}
     </group>
   );
 }
 
+// Glisser-déposer d'un colis sélectionné : le pointeur est projeté sur le plan horizontal à la
+// hauteur de la base du colis ; au lâcher, le colis s'aimante et retombe (dropAt).
+function DragController({ drag, setDrag, container, deckHeight, controls, onDragEnd }) {
+  const { camera, gl, raycaster } = useThree();
+  useEffect(() => {
+    if (!drag) return undefined;
+    if (controls.current) controls.current.enabled = false;
+    const origin = new Vector3(-container.length * S / 2, -container.height * S / 2 + (deckHeight || 0) * S / 2, -container.width * S / 2);
+    const plane = new Plane(new Vector3(0, 1, 0), -(origin.y + drag.z * S));
+    const hit = new Vector3(); const ndc = new Vector2();
+    const project = (ev) => {
+      const r = gl.domElement.getBoundingClientRect();
+      ndc.set(((ev.clientX - r.left) / r.width) * 2 - 1, -((ev.clientY - r.top) / r.height) * 2 + 1);
+      raycaster.setFromCamera(ndc, camera);
+      if (!raycaster.ray.intersectPlane(plane, hit)) return null;
+      return { x: (hit.x - origin.x) / S - drag.grabX, y: (hit.z - origin.z) / S - drag.grabY };
+    };
+    const onMove = (ev) => { const p = project(ev); if (p) setDrag((d) => (d ? { ...d, x: p.x, y: p.y, moved: true } : d)); };
+    const onUp = () => {
+      setDrag((d) => { if (d?.moved) onDragEnd?.(d.id, d.x, d.y); return null; });
+      if (controls.current) controls.current.enabled = true;
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp, { once: true });
+    return () => { window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onUp); };
+  }, [drag?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  return null;
+}
+
 /**
+ * edit (facultatif) : { selectedId, onSelect(id), invalidIds: Set, onDragEnd(id, x, y) } active la
+ * sélection au clic et le glisser-déposer du colis sélectionné.
+ *
  * variant : 'truck' (défaut, repère des portes) | 'pallet' (plateau bois de hauteur deckHeight, mm ;
  * le volume transparent figure la hauteur maxi de la palette).
  */
-export default function LoadView3D({ container, placed, colorOf, isDimmed, blockedIds, onHover, cog, variant = 'truck', deckHeight = 0, cameraScale = 1 }) {
+export default function LoadView3D({ container, placed, colorOf, isDimmed, blockedIds, onHover, cog, variant = 'truck', deckHeight = 0, cameraScale = 1, edit = null }) {
   const controls = useRef(null);
   const [showWalls, setShowWalls] = useState(true);
+  const [drag, setDrag] = useState(null);
+  const onDragStart = (item, e) => {
+    // point saisi, relatif au coin du colis (mm)
+    if (controls.current) controls.current.enabled = false; // pas de rotation de la vue pendant le glisser
+    const local = e.object.worldToLocal(e.point.clone());
+    setDrag({ id: item.id, x: item.x, y: item.y, z: item.z, grabX: local.x / S + item.length / 2, grabY: local.z / S + item.width / 2, moved: false });
+  };
 
   const camera = useMemo(() => {
     const maxDim = Math.max(container.length, container.width, container.height + deckHeight) * S;
@@ -134,7 +184,8 @@ export default function LoadView3D({ container, placed, colorOf, isDimmed, block
         </div>
       )}
 
-      <Canvas camera={camera} dpr={[1, 2]} style={{ background: 'transparent' }}>
+      <Canvas camera={camera} dpr={[1, 2]} style={{ background: 'transparent', touchAction: edit ? 'none' : undefined }}
+        onPointerMissed={edit ? () => edit.onSelect?.(null) : undefined}>
         <ambientLight intensity={0.75} />
         <directionalLight position={[8, 15, 10]} intensity={0.55} />
         <directionalLight position={[-8, 6, -10]} intensity={0.25} />
@@ -149,7 +200,11 @@ export default function LoadView3D({ container, placed, colorOf, isDimmed, block
           onHover={onHover}
           variant={variant}
           deckHeight={deckHeight}
+          edit={edit}
+          drag={drag}
+          onDragStart={edit ? onDragStart : undefined}
         />
+        {edit && <DragController drag={drag} setDrag={setDrag} container={container} deckHeight={deckHeight} controls={controls} onDragEnd={edit.onDragEnd} />}
         <OrbitControls ref={controls} makeDefault enablePan enableZoom target={[0, 0, 0]} />
       </Canvas>
     </div>
