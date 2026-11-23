@@ -406,6 +406,16 @@ const en: Record<string, string> = {
   "(en rouge sur la vue)": "(in red on the view)",
   "ZONE D’ATTENTE · {n} colis retiré(s)": "STAGING AREA · {n} case(s) removed",
   "Replacer dans le camion (première place libre)": "Put back in the truck (first free space)",
+  "Pas à pas, mur par mur": "Step by step, wall by wall",
+  "Vue de face, comme depuis les portes. Chargez les colis dans l’ordre des numéros ({n} au total), du sol vers le haut.": "Front view, as seen from the doors. Load the cases in number order ({n} in total), from the floor up.",
+  "Mur {n}": "Wall {n}",
+  "n° {a} → {b}": "no. {a} → {b}",
+  "{a} → {b} m depuis la cabine": "{a} → {b} m from the cab",
+  "AU SOL · VU DE DESSUS": "ON THE FLOOR · TOP VIEW",
+  "VUE DE FACE · DEPUIS LES PORTES": "FRONT VIEW · FROM THE DOORS",
+  "← Cabine": "← Cab",
+  "Portes →": "Doors →",
+  " · sur le n° {n}": " · on no. {n}",
 };
 
 export default en;
