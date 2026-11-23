@@ -19,7 +19,8 @@
   "include": [
     "src/outils/optimiseur-chargement/**/*.ts",
     "src/shared/**/*.ts",
-    "src/outils/palettisation/**/*.ts"
+    "src/outils/palettisation/**/*.ts",
+    "src/vite-env.d.ts"
   ],
   "exclude": [
     "src/shared/i18n/i18n.test.ts"

@@ -16,6 +16,9 @@ import LoadOptimizer from './outils/optimiseur-chargement/LoadOptimizer.jsx';
 import Palletizer from './outils/palettisation/Palletizer.jsx';
 // Guide cariste (plan de chargement pas à pas sur téléphone, ouvert par QR code).
 const LoadingGuide = lazy(() => import('./outils/optimiseur-chargement/guide/LoadingGuide.jsx'));
+// Comptes (fonctions en plus) : chargés seulement sur ces pages.
+const LoginPage = lazy(() => import('./shared/account/AccountPages.jsx').then((m) => ({ default: m.LoginPage })));
+const AccountPage = lazy(() => import('./shared/account/AccountPages.jsx').then((m) => ({ default: m.AccountPage })));
 import { SITE, toolSeo } from './seo/pages';
 import { toolSeoEn } from './seo/pages-en';
 import { I18nProvider } from './shared/i18n/I18nProvider.jsx';
@@ -212,6 +215,8 @@ export default function App() {
         <Route path="/g" element={<QrGuideRoute />} />
         <Route path="/en/loading" element={<I18nProvider lang="en"><Suspense fallback={null}><LoadingGuide /></Suspense></I18nProvider>} />
         <Route path="/en/:page" element={<EnToolRoute />} />
+        <Route path="/connexion" element={<AccountShell><LoginPage /></AccountShell>} />
+        <Route path="/compte" element={<AccountShell><AccountPage /></AccountShell>} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </BrowserRouter>
@@ -367,6 +372,17 @@ function EnToolRoute() {
 }
 
 // Page 404
+function AccountShell({ children }) {
+  return (
+    <div className="min-h-screen text-slate-900" style={{ background: '#FFFFFF', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+      <FontsAndStyles />
+      <SiteHeader />
+      <Suspense fallback={<div className="min-h-[70vh] bg-slate-50" />}>{children}</Suspense>
+      <SiteFooter />
+    </div>
+  );
+}
+
 function NotFound() {
   return (
     <div className="min-h-screen text-slate-900" style={{ background: '#FFFFFF', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
