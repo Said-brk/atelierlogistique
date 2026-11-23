@@ -33,3 +33,15 @@ export function hasStoredSession(): boolean {
   if (!accountEnabled || typeof localStorage === 'undefined') return false;
   try { return Boolean(localStorage.getItem(storageKey())); } catch { return false; }
 }
+
+/**
+ * Parcours « créer un compte » / « mot de passe oublié » : le lien reçu par e-mail ouvre l'espace,
+ * qui affiche alors d'abord la page « Choisir mon mot de passe ». Mémorisé dans ce navigateur
+ * (le lien doit de toute façon être ouvert dans le navigateur qui l'a demandé).
+ */
+const PASSWORD_STEP_KEY = 'al.auth.passwordStep';
+export const passwordStep = {
+  set: () => { try { localStorage.setItem(PASSWORD_STEP_KEY, '1'); } catch { /* stockage indisponible */ } },
+  pending: (): boolean => { try { return localStorage.getItem(PASSWORD_STEP_KEY) === '1'; } catch { return false; } },
+  clear: () => { try { localStorage.removeItem(PASSWORD_STEP_KEY); } catch { /* stockage indisponible */ } },
+};
