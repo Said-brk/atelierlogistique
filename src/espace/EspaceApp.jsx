@@ -4,7 +4,7 @@
 
 import { useState, useEffect } from 'react';
 import { Routes, Route, NavLink, Navigate, useNavigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Truck, Boxes, KeyRound, Settings, Plus, LogOut, Menu, X, ExternalLink, Loader2, Building2, ArrowRight } from 'lucide-react';
+import { LayoutDashboard, Truck, Boxes, KeyRound, Settings, Plus, LogOut, Menu, X, ExternalLink, Loader2, Building2, ArrowRight, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { EspaceProvider, useEspace } from './useEspace';
 import { I18nProvider } from '../shared/i18n/I18nProvider.jsx';
 import { accountEnabled } from '../shared/account/supabase';
@@ -32,49 +32,69 @@ function Logo() {
   );
 }
 
-function Sidebar({ onNavigate }) {
+// Barre réduite : icônes seules (+ info-bulle), logo réduit au « A ». Choix mémorisé dans ce navigateur.
+const COLLAPSE_KEY = 'al.espace.sidebar.collapsed';
+const readCollapsed = () => { try { return localStorage.getItem(COLLAPSE_KEY) === '1'; } catch { return false; } };
+
+function Sidebar({ onNavigate, collapsed = false, onToggle = null }) {
   const { org, user } = useEspace();
   const navigate = useNavigate();
   const out = async () => { await signOut(); navigate('/', { replace: true }); };
   return (
     <div className="h-full flex flex-col text-slate-300" style={{ background: '#0F172A' }}>
-      <div className="px-5 pt-5 pb-4 flex items-center gap-2.5">
+      <div className={`pt-5 pb-4 flex items-center ${collapsed ? 'justify-center px-2' : 'gap-2.5 px-5'}`} title={collapsed ? org?.name : undefined}>
         <Logo />
-        <div className="min-w-0">
-          <div className="font-bricolage font-bold text-white text-[15px] leading-tight">Atelier <span style={{ color: '#60A5FA' }}>Logistique</span></div>
-          <div className="text-[11px] text-slate-400 truncate">{org?.name ?? '—'}</div>
-        </div>
+        {!collapsed && (
+          <div className="min-w-0">
+            <div className="font-bricolage font-bold text-white text-[15px] leading-tight">Atelier <span style={{ color: '#60A5FA' }}>Logistique</span></div>
+            <div className="text-[11px] text-slate-400 truncate">{org?.name ?? '—'}</div>
+          </div>
+        )}
       </div>
 
-      <div className="px-3 pb-3">
-        <button onClick={() => { navigate('/app/chargements/nouveau'); onNavigate?.(); }}
+      <div className={`pb-3 ${collapsed ? 'px-2' : 'px-3'}`}>
+        <button onClick={() => { navigate('/app/chargements/nouveau'); onNavigate?.(); }} title={collapsed ? 'Nouveau chargement' : undefined}
           className="w-full inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition hover:brightness-105"
           style={{ background: '#F59E0B', color: '#0F172A' }}>
-          <Plus size={16} /> Nouveau chargement
+          <Plus size={16} /> {!collapsed && 'Nouveau chargement'}
         </button>
       </div>
 
-      <nav className="px-3 flex-1 space-y-0.5">
+      <nav className={`flex-1 space-y-0.5 ${collapsed ? 'px-2' : 'px-3'}`}>
         {NAV.map((n) => (n.to ? (
-          <NavLink key={n.label} to={n.to} end={n.end} onClick={onNavigate}
-            className={({ isActive }) => `flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${isActive ? 'bg-white/10 text-white font-medium' : 'hover:bg-white/5 hover:text-white'}`}>
-            <n.icon size={17} /> {n.label}
+          <NavLink key={n.label} to={n.to} end={n.end} onClick={onNavigate} title={collapsed ? n.label : undefined}
+            className={({ isActive }) => `flex items-center gap-3 rounded-lg py-2 text-sm transition ${collapsed ? 'justify-center px-0' : 'px-3'} ${isActive ? 'bg-white/10 text-white font-medium' : 'hover:bg-white/5 hover:text-white'}`}>
+            <n.icon size={17} /> {!collapsed && n.label}
           </NavLink>
         ) : (
-          <div key={n.label} className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-500 cursor-default">
-            <n.icon size={17} /> {n.label}
-            <span className="ml-auto text-[10px] font-jetbrains rounded px-1.5 py-0.5 bg-white/5 text-amber-400">bientôt</span>
+          <div key={n.label} title={collapsed ? `${n.label} (bientôt)` : undefined}
+            className={`flex items-center gap-3 rounded-lg py-2 text-sm text-slate-500 cursor-default ${collapsed ? 'justify-center px-0' : 'px-3'}`}>
+            <n.icon size={17} /> {!collapsed && n.label}
+            {!collapsed && <span className="ml-auto text-[10px] font-jetbrains rounded px-1.5 py-0.5 bg-white/5 text-amber-400">bientôt</span>}
           </div>
         )))}
       </nav>
 
-      <div className="px-3 py-4 border-t border-white/10 space-y-1">
-        <a href="/" className="flex items-center gap-3 rounded-lg px-3 py-2 text-xs hover:bg-white/5 hover:text-white"><ExternalLink size={15} /> Retour au site</a>
-        <div className="flex items-center gap-2 px-3 pt-2">
-          <div className="w-7 h-7 rounded-full bg-blue-500/20 text-blue-300 flex items-center justify-center text-xs font-semibold uppercase">{user?.email?.[0] ?? '?'}</div>
-          <div className="text-[11px] text-slate-400 truncate flex-1" title={user?.email}>{user?.email}</div>
-          <button onClick={out} title="Se déconnecter" className="p-1.5 rounded hover:bg-white/10 hover:text-white"><LogOut size={15} /></button>
-        </div>
+      <div className={`py-4 border-t border-white/10 space-y-1 ${collapsed ? 'px-2' : 'px-3'}`}>
+        {onToggle && (
+          <button onClick={onToggle} title={collapsed ? 'Agrandir la barre' : 'Réduire la barre'}
+            className={`w-full flex items-center gap-3 rounded-lg py-2 text-xs hover:bg-white/5 hover:text-white ${collapsed ? 'justify-center px-0' : 'px-3'}`}>
+            {collapsed ? <PanelLeftOpen size={16} /> : <><PanelLeftClose size={15} /> Réduire</>}
+          </button>
+        )}
+        <a href="/" title={collapsed ? 'Retour au site' : undefined}
+          className={`flex items-center gap-3 rounded-lg py-2 text-xs hover:bg-white/5 hover:text-white ${collapsed ? 'justify-center px-0' : 'px-3'}`}>
+          <ExternalLink size={15} /> {!collapsed && 'Retour au site'}
+        </a>
+        {collapsed ? (
+          <button onClick={out} title={`Se déconnecter (${user?.email ?? ''})`} className="w-full flex justify-center py-2 rounded-lg hover:bg-white/10 hover:text-white"><LogOut size={15} /></button>
+        ) : (
+          <div className="flex items-center gap-2 px-3 pt-2">
+            <div className="w-7 h-7 rounded-full bg-blue-500/20 text-blue-300 flex items-center justify-center text-xs font-semibold uppercase">{user?.email?.[0] ?? '?'}</div>
+            <div className="text-[11px] text-slate-400 truncate flex-1" title={user?.email}>{user?.email}</div>
+            <button onClick={out} title="Se déconnecter" className="p-1.5 rounded hover:bg-white/10 hover:text-white"><LogOut size={15} /></button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -121,6 +141,8 @@ function Gate({ children }) {
 
 function Shell() {
   const [open, setOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(readCollapsed);
+  const toggle = () => setCollapsed((c) => { try { localStorage.setItem(COLLAPSE_KEY, c ? '0' : '1'); } catch { /* stockage indisponible */ } return !c; });
   const { pathname } = useLocation();
   useEffect(() => { setOpen(false); }, [pathname]);
   useEffect(() => {
@@ -130,7 +152,9 @@ function Shell() {
   return (
     <div className="min-h-screen bg-slate-50" style={{ fontFamily: "'DM Sans', system-ui, sans-serif" }}>
       {/* Ordinateur : barre fixe à gauche */}
-      <aside className="hidden lg:block fixed inset-y-0 left-0 w-60 z-30 print:hidden"><Sidebar /></aside>
+      <aside className={`hidden lg:block fixed inset-y-0 left-0 z-30 print:hidden transition-[width] duration-200 ${collapsed ? 'w-16' : 'w-60'}`}>
+        <Sidebar collapsed={collapsed} onToggle={toggle} />
+      </aside>
       {/* Mobile : barre du haut + tiroir */}
       <div className="lg:hidden sticky top-0 z-30 flex items-center justify-between px-4 py-3 print:hidden" style={{ background: '#0F172A' }}>
         <div className="flex items-center gap-2"><Logo /><span className="font-bricolage font-bold text-white">Atelier <span style={{ color: '#60A5FA' }}>Logistique</span></span></div>
@@ -142,7 +166,7 @@ function Shell() {
           <button className="flex-1 bg-black/40" onClick={() => setOpen(false)} aria-label="Fermer le menu"><X className="ml-auto mr-4 text-white" /></button>
         </div>
       )}
-      <main className="lg:pl-60 min-w-0">
+      <main className={`min-w-0 transition-[padding] duration-200 ${collapsed ? 'lg:pl-16' : 'lg:pl-60'}`}>
         <Routes>
           <Route index element={<Dashboard />} />
           <Route path="chargements" element={<Shipments />} />
