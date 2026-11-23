@@ -20,6 +20,7 @@ const LoadingGuide = lazy(() => import('./outils/optimiseur-chargement/guide/Loa
 const LoginPage = lazy(() => import('./shared/account/AccountPages.jsx').then((m) => ({ default: m.LoginPage })));
 // Espace connecté (mini-ERP) : barre latérale, chargements, palettisation, paramètres.
 const EspaceApp = lazy(() => import('./espace/EspaceApp.jsx'));
+const QuaiGuide = lazy(() => import('./espace/QuaiGuide.jsx'));
 import { SITE, toolSeo } from './seo/pages';
 import { toolSeoEn } from './seo/pages-en';
 import { I18nProvider } from './shared/i18n/I18nProvider.jsx';
@@ -214,6 +215,7 @@ export default function App() {
         {/* Version anglaise des outils traduits (les autres pages /en/… sont statiques). */}
         {/* Lien court des QR codes (v2) : la langue est dans le lien. */}
         <Route path="/g" element={<QrGuideRoute />} />
+        <Route path="/q/:token" element={<Suspense fallback={null}><QuaiGuide /></Suspense>} />
         <Route path="/en/loading" element={<I18nProvider lang="en"><Suspense fallback={null}><LoadingGuide /></Suspense></I18nProvider>} />
         <Route path="/en/:page" element={<EnToolRoute />} />
         <Route path="/connexion" element={<AccountShell><LoginPage /></AccountShell>} />

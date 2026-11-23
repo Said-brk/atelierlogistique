@@ -29,8 +29,12 @@ function where(it, W) {
   return t('{v1} m depuis la cabine · {side} · {level}', { v1: m(it.x), side: side, level: level });
 }
 
-export default function LoadingGuide() {
-  const payload = typeof window !== 'undefined' ? window.location.hash.slice(1) : '';
+/**
+ * Sans props : plan lu dans l'adresse (#…), lien du QR code des outils publics.
+ * Avec payload : plan fourni par la page (lien permanent /q/… de l'espace) ; notice = bandeau d'information (warn : en orange).
+ */
+export default function LoadingGuide({ payload: given = null, notice = null, warn = false }) {
+  const payload = given ?? (typeof window !== 'undefined' ? window.location.hash.slice(1) : '');
   const [plan, setPlan] = useState(null);
   const [error, setError] = useState(null);
   const key = `al_guide_${hash(payload)}`;
@@ -111,6 +115,7 @@ export default function LoadingGuide() {
           <button onClick={toggleMode} className="shrink-0 font-jetbrains text-[11px] px-2.5 py-1.5 rounded-md bg-slate-100 text-slate-600">{byWall ? t('Colis par colis') : t('Mur par mur')}</button>
         </div>
         <div className="mt-2 h-2 rounded-full bg-slate-100 overflow-hidden"><div className="h-full rounded-full transition-all" style={{ width: `${(cur / Math.max(1, total)) * 100}%`, background: done ? '#10B981' : BLUE }} /></div>
+        {notice && <div className="mt-2 rounded-md px-2.5 py-1.5 text-[11px]" style={warn ? { background: '#FFFBEB', color: '#B45309', border: '1px solid #FDE68A' } : { background: '#F1F5F9', color: '#475569' }}>{notice}</div>}
         <div className="mt-1 font-jetbrains text-[10px] text-slate-500">{done ? t('Terminé') : (byWall ? t('Mur {n} / {total}', { n: cur + 1, total }) : t('Colis {n} / {total}', { n: cur + 1, total }))}</div>
       </header>
 

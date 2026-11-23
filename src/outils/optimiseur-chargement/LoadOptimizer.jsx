@@ -445,6 +445,8 @@ function Kpi({ label, value, sub }) {
  *   initial  : { rows, containerId, custom, vehicleMode, deliveryMode, excludedStops, plan } — état de départ
  *              (chargement enregistré). plan = { base, manual } : plan 3D calculé + retouches, réaffiché sans recalcul.
  *   onChange : appelé à chaque changement avec l'état, le résumé et le plan, pour l'enregistrement par la page
+ *   shareUrl : lien permanent du plan enregistré (/q/…), utilisé pour le QR code et la fiche à la place
+ *              du lien qui contient le plan ; à ne fournir que si le plan affiché est celui enregistré.
  *   origin   : n° du document qui envoie des palettes (ex. PZ-…) : ses lignes remplacent ses envois précédents
  *              et s'ajoutent aux autres lignes au lieu de tout remplacer.
  * Sans workspace : page publique (barre d'outil, en-tête SEO, FAQ).
@@ -575,7 +577,8 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
     }
     : result), [result, shiftMm]);
   // Guide cariste : lien (plan dans l'URL) recalculé à chaque nouveau plan.
-  const [guideLink, setGuideLink] = useState(null);
+  const [encodedGuideLink, setGuideLink] = useState(null);
+  const guideLink = workspace?.shareUrl ?? encodedGuideLink;
   const [guideOpen, setGuideOpen] = useState(false);
   useEffect(() => {
     let alive = true;
@@ -886,9 +889,11 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
       } : null,
       // Plan 3D (un véhicule) : calcul + retouches, pour le rouvrir à l'identique.
       // (rien tant que le plan enregistré est en cours de réaffichage, pour ne pas le voir comme une modification)
-      plan: done && vehicleMode === 'single' && !containerOverride && !restoring ? { base: rawResult, manual: manual.snapshot } : null,
+      // guide = plan pas à pas du cariste (format compact), servi par le lien permanent /q/…
+      plan: done && vehicleMode === 'single' && !containerOverride && !restoring
+        ? { base: rawResult, manual: manual.snapshot, guide: encodedGuideLink?.split('#')[1] ?? null } : null,
     });
-  }, [rows, containerId, custom, vehicleMode, deliveryMode, excludedStops, result, rawResult, status, container, containerOverride, manual.edited, manual.snapshot, onWorkspaceChange]);
+  }, [rows, containerId, custom, vehicleMode, deliveryMode, excludedStops, result, rawResult, status, container, containerOverride, manual.edited, manual.snapshot, encodedGuideLink, onWorkspaceChange]);
 
   return (
     <div className={`${embedded ? '' : 'min-h-screen'} text-slate-900`} style={{ background: '#F8FAFC', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
@@ -1251,7 +1256,8 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
                         className="w-full mb-2 flex items-center justify-center gap-2 py-2.5 rounded-lg font-jetbrains text-xs font-semibold disabled:opacity-50"
                         style={{ background: '#F59E0B', color: '#0F172A' }}>
                         <QrCodeIcon size={14} />{' '}{tr('QR code cariste : plan pas à pas sur téléphone')}</button>
-                      {guideOpen && guideLink && <GuideQrModal url={guideLink} onClose={() => setGuideOpen(false)} />}
+                      {guideOpen && guideLink && <GuideQrModal url={guideLink} onClose={() => setGuideOpen(false)}
+                        note={workspace?.shareUrl ? tr('Lien permanent : il affiche toujours la dernière version enregistrée du chargement.') : null} />}
                       <div className="grid grid-cols-3 gap-2">
                         <button onClick={exportSequence} title={tr('Séquence de chargement colis par colis, à réimporter dans votre WMS / ERP')} className="flex items-center justify-center gap-1.5 py-2 rounded-lg font-jetbrains text-xs" style={{ background: BLUE_LIGHT, color: BLUE }}>
                           <Download size={13} /> CSV

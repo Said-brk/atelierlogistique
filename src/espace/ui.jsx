@@ -46,7 +46,7 @@ const inputCls = 'rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text
  */
 export function EditorHeader({
   backTo, backTitle, doc, kindColor = '#1D4ED8', kindBg = '#EFF6FF', meta, onMeta, dirty, saving, onSave,
-  canValidate, validateHint, extraFields = null, links = null, summary = null, error = '', sourceLabel = '',
+  canValidate, validateHint, extraFields = null, links = null, summary = null, error = '', sourceLabel = '', actions = null,
 }) {
   const validated = doc.status === 'validated' || doc.status === 'sent';
   return (
@@ -60,6 +60,7 @@ export function EditorHeader({
         <span className="text-xs text-slate-400 hidden md:inline">v{doc.version}{sourceLabel ? ` · ${sourceLabel}` : ''} · {fmtDateTime(doc.updated_at)}</span>
         <div className="ml-auto flex items-center gap-2">
           {dirty && <span className="text-xs text-amber-700 hidden sm:inline">Modifications non enregistrées</span>}
+          {actions}
           <Btn variant="ghost" onClick={() => onSave()} disabled={saving}>{saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />} Enregistrer</Btn>
           {validated
             ? <Btn variant="ghost" onClick={() => onSave('in_progress')} disabled={saving}><RotateCcw size={15} /> Rouvrir</Btn>
