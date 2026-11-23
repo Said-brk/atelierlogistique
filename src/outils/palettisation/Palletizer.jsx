@@ -156,16 +156,20 @@ function PrintSheet({ result, colorOf }) {
 }
 
 /** embedded : intégré à l'espace connecté (pas de barre d'outil ni de contenu SEO) ;
- *  onLoadTruck : où aller après « Charger le camion » (par défaut l'optimiseur public). */
-export default function Palletizer({ onBack, embedded = false, onLoadTruck = null }) {
+ *  onLoadTruck : où aller après « Charger le camion » (par défaut l'optimiseur public) ;
+ *  workspace : { initial, onChange } — palettisation enregistrée dans l'espace (pré-remplissage,
+ *  état courant + résumé renvoyés à chaque changement pour l'enregistrement par la page). */
+export default function Palletizer({ onBack, embedded: embeddedProp = false, onLoadTruck = null, workspace = null }) {
+  const embedded = embeddedProp || !!workspace;
+  const init = workspace?.initial ?? {};
   const navigate = useNavigate();
-  const [rows, setRows] = useState(exampleRows);
-  const [supports, setSupports] = useState(loadSupports);
-  const [fullFirst, setFullFirst] = useState(true);
-  const [separateStops, setSeparateStops] = useState(true);
-  const [formatMode, setFormatMode] = useState('stop'); // 'stop' | 'shipment' | 'free'
-  const [forcedStops, setForcedStops] = useState({});
-  const [stacking, setStacking] = useState('AUTO');
+  const [rows, setRows] = useState(() => (Array.isArray(init.rows) ? init.rows : exampleRows()));
+  const [supports, setSupports] = useState(() => (Array.isArray(init.supports) && init.supports.length ? init.supports : loadSupports()));
+  const [fullFirst, setFullFirst] = useState(init.fullFirst ?? true);
+  const [separateStops, setSeparateStops] = useState(init.separateStops ?? true);
+  const [formatMode, setFormatMode] = useState(init.formatMode ?? 'stop'); // 'stop' | 'shipment' | 'free'
+  const [forcedStops, setForcedStops] = useState(init.forcedStops ?? {});
+  const [stacking, setStacking] = useState(init.stacking ?? 'AUTO');
   const [result, setResult] = useState(null);
   const [running, setRunning] = useState(false);
   const [active, setActive] = useState(0);
@@ -283,6 +287,18 @@ export default function Palletizer({ onBack, embedded = false, onLoadTruck = nul
       cost: ps.reduce((s, p) => s + (result.specs.find((x) => x.id === p.specId)?.cost ?? 0), 0),
     };
   }, [result]);
+
+  // Espace connecté : état courant + résumé du calcul, pour l'enregistrement par la page.
+  const onWorkspaceChange = workspace?.onChange;
+  useEffect(() => {
+    onWorkspaceChange?.({
+      rows, supports, fullFirst, separateStops, formatMode, forcedStops, stacking,
+      summary: result && totals ? {
+        pallets: result.pallets.length, full: totals.full, mixed: totals.mixed, weight: totals.weight,
+        stops: totals.stops, unplaced: totals.unplaced, bySupport: totals.bySupport, fill: totals.fill,
+      } : null,
+    });
+  }, [rows, supports, fullFirst, separateStops, formatMode, forcedStops, stacking, result, totals, onWorkspaceChange]);
 
   return (
     <div className={`${embedded ? '' : 'min-h-screen'} text-slate-900`} style={{ background: '#F8FAFC', fontFamily: "'DM Sans', system-ui, sans-serif" }}>

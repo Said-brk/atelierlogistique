@@ -60,5 +60,21 @@ describe('schéma Supabase', () => {
     ok((await as(B, 'select * from api_keys')).rows.length === 0, 'B ne voit pas les clés de A');
     await db.exec(`update shipments set expires_at = now() - interval '1 day'`);
     ok((await db.query('select purge_expired_shipments() as n')).rows[0].n === 1, 'purge des chargements expirés');
+
+    // Palettisations : numéro PZ, cloisonnement, lien vers un chargement de la même entreprise.
+    const sid = (await as(A, `select id from shipments limit 1`)).rows[0]?.id
+      ?? (await as(A, `insert into shipments(org_id) values ($1) returning id`, [orgA])).rows[0].id;
+    const pz = (await as(A, `insert into palletizations(org_id, input) values ($1, '{"rows":[]}') returning id, code, version`, [orgA])).rows[0];
+    ok(/^PZ-[2-9A-HJ-NP-Z]{6}$/.test(pz.code), 'palettisation : numéro PZ ' + pz.code);
+    await as(A, `update palletizations set shipment_id = $1, result = '{"pallets":8}' where id = $2`, [sid, pz.id]);
+    const pz2 = (await as(A, `select shipment_id, version from palletizations where id = $1`, [pz.id])).rows[0];
+    ok(pz2.shipment_id === sid && pz2.version === 2, 'palettisation rattachée au chargement, version 2');
+    ok((await as(B, 'select * from palletizations')).rows.length === 0, 'B ne voit pas les palettisations de A');
+    const sB = (await as(B, `insert into shipments(org_id) values ($1) returning id`, [orgB])).rows[0].id;
+    err = null; try { await as(A, `update palletizations set shipment_id = $1 where id = $2`, [sB, pz.id]); } catch (e) { err = e; }
+    ok(err, 'impossible de rattacher un chargement d’une autre entreprise');
+    await db.exec(`update palletizations set expires_at = now() - interval '1 day'`);
+    await db.query('select purge_expired_shipments()');
+    ok((await db.query('select count(*)::int as n from palletizations')).rows[0].n === 0, 'purge des palettisations expirées');
   }, 60000);
 });

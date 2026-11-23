@@ -24,7 +24,7 @@ export default function Dashboard() {
   return (
     <>
       <PageHeader title={`Bonjour ${firstName.charAt(0).toUpperCase() + firstName.slice(1)} 👋`} subtitle={org.name}
-        actions={<><Btn variant="ghost" onClick={() => navigate('/app/palettisation')}><Boxes size={15} /> Palettiser</Btn>
+        actions={<><Btn variant="ghost" onClick={() => navigate('/app/palettisations/nouveau')}><Boxes size={15} /> Nouvelle palettisation</Btn>
           <Btn onClick={() => navigate('/app/chargements/nouveau')}><Plus size={15} /> Nouveau chargement</Btn></>} />
       <div className="px-5 sm:px-8 py-6 space-y-6">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
@@ -71,7 +71,7 @@ export default function Dashboard() {
         </div>
 
         <div className="grid sm:grid-cols-2 gap-3 sm:gap-4">
-          {[[Boxes, 'Palettiser des colis', 'Colis → palettes complètes et mixtes, puis « Charger le camion ».', '/app/palettisation'],
+          {[[Boxes, 'Palettiser des colis', 'Colis → palettes complètes et mixtes, puis « Charger le camion ».', '/app/palettisations/nouveau'],
             [Truck, 'Préparer un camion', 'Plan 3D, tournée, essieux, sangles, fiche et QR cariste.', '/app/chargements/nouveau']].map(([Icon, t, d, to]) => (
             <Link key={t} to={to} className="rounded-xl border border-slate-200 bg-white p-5 flex gap-4 hover:shadow-md transition">
               <div className="w-10 h-10 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center shrink-0"><Icon size={20} /></div>
