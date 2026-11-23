@@ -453,6 +453,9 @@ export default function LoadOptimizer({ onBack }) {
   const [importOpen, setImportOpen] = useState(false);
   const [importMsg, setImportMsg] = useState(null);
   const resultRef = useRef(null);
+  const fleetRef = useRef(null);
+  const [fleetFlash, setFleetFlash] = useState(false);
+  const [goodsOpen, setGoodsOpen] = useState(true); // tableau des marchandises replié / déplié
   const ctaRef = useRef(null);
   const [ctaVisible, setCtaVisible] = useState(true);
   useEffect(() => {
@@ -642,9 +645,19 @@ export default function LoadOptimizer({ onBack }) {
 
   // Données structurées FAQ / logiciel : injectées dans le HTML pré-rendu au build (scripts/prerender.mjs).
 
+  // Flotte proposée : on la fait défiler dans la vue et on la met en évidence un instant,
+  // sinon l'utilisateur ne voit pas que le calcul est fini (elle s'affiche plus bas).
+  useEffect(() => {
+    if (fleetStatus !== 'done') return undefined;
+    const t1 = setTimeout(() => fleetRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
+    setFleetFlash(true);
+    const t2 = setTimeout(() => setFleetFlash(false), 2200);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, [fleetStatus]);
+
   // À la fin du calcul, on amène le résultat (camion + KPI) dans la vue.
   useEffect(() => {
-    if (status === 'done' && resultRef.current) {
+    if (status === 'done' && resultRef.current && !(vehicleMode === 'fleet' && fleetFlash)) {
       resultRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   }, [status]);
@@ -659,7 +672,7 @@ export default function LoadOptimizer({ onBack }) {
   };
   const removeRow = (id) => { setRows((rs) => rs.filter((r) => r.id !== id)); if (status !== 'idle') reset(); };
   const addRow = () => setRows((rs) => [...rs, emptyRow()]);
-  const loadExample = () => { setRows(exampleRows()); setExcludedStops([]); reset(); track('load_optimizer_example_clicked'); };
+  const loadExample = () => { setGoodsOpen(true); setRows(exampleRows()); setExcludedStops([]); reset(); track('load_optimizer_example_clicked'); };
 
   const flashImport = (type, text, ms = 6000) => { setImportMsg({ type, text }); setTimeout(() => setImportMsg(null), ms); };
 
@@ -680,6 +693,7 @@ export default function LoadOptimizer({ onBack }) {
 
   /** Import via l'assistant (module partagé src/shared/import). */
   const onImported = ({ records, options, mode, source }) => {
+    setGoodsOpen(true);
     const mapped = recordsToColisRows(records, { stopsFromDestination: !!options.stopsFromDestination })
       .map((r) => ({ id: newRowId(), ...r }));
     if (mapped.length === 0) return;
@@ -856,7 +870,17 @@ export default function LoadOptimizer({ onBack }) {
           {/* 1. Marchandises : pleine largeur */}
           <div className="rounded-xl border border-slate-200 overflow-hidden bg-white">
             <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <div className="font-jetbrains text-xs text-slate-600 flex items-center gap-2"><Boxes size={13} />{' '}{tr('1 · QUE SOUHAITEZ-VOUS CHARGER ?')}</div>
+              <button type="button" onClick={() => setGoodsOpen((o) => !o)} aria-expanded={goodsOpen}
+                className="font-jetbrains text-xs text-slate-600 flex items-center gap-2 text-left hover:text-slate-900"
+                title={goodsOpen ? tr('Replier le tableau') : tr('Déplier le tableau')}>
+                <ChevronDown size={14} className={`shrink-0 transition-transform ${goodsOpen ? '' : '-rotate-90'}`} />
+                <Boxes size={13} />{' '}{tr('1 · QUE SOUHAITEZ-VOUS CHARGER ?')}
+                {!goodsOpen && (
+                  <span className="text-slate-400 font-normal">
+                    {tr('· {n} réf. · {u} unités · {w} kg', { n: activeRows.length, u: totals.units.toLocaleString(numLocale()), w: Math.round(totals.weight).toLocaleString(numLocale()) })}
+                  </span>
+                )}
+              </button>
               <div className="grid grid-cols-4 sm:flex sm:items-center gap-1.5">
                 <button onClick={() => setImportOpen(true)} className="col-span-2 flex items-center justify-center gap-1 font-jetbrains text-[11px] px-2.5 py-2 sm:py-1.5 rounded-md" style={{ background: BLUE, color: '#fff' }} title={tr('Fichier Excel / CSV (ERP, WMS) ou copier-coller')}><Upload size={11} />{' '}{tr('Importer / coller')}</button>
                 <button onClick={downloadTemplate} className="flex items-center justify-center gap-1 font-jetbrains text-[11px] px-2.5 py-2 sm:py-1.5 rounded-md" style={{ background: '#F1F5F9', color: '#475569' }}><Download size={11} />{' '}{tr('Modèle')}</button>
@@ -877,7 +901,7 @@ export default function LoadOptimizer({ onBack }) {
                 {importMsg.text}
               </div>
             )}
-            <ColisTable rows={rows} updateRow={updateRow} updateStacking={updateStacking} removeRow={removeRow} addRow={addRow} />
+            {goodsOpen && <ColisTable rows={rows} updateRow={updateRow} updateStacking={updateStacking} removeRow={removeRow} addRow={addRow} />}
           </div>
 
 
@@ -1025,7 +1049,10 @@ export default function LoadOptimizer({ onBack }) {
 
           {/* Flotte proposée (mode Flotte automatique) */}
           {vehicleMode === 'fleet' && fleetStatus === 'done' && fleetPlan && (
-            <FleetResult plan={fleetPlan} viewing={viewingTruck} onView={viewTruck} />
+            <div ref={fleetRef} className="scroll-mt-20 rounded-xl transition-shadow duration-700"
+              style={fleetFlash ? { boxShadow: '0 0 0 3px #F59E0B, 0 10px 30px -10px rgba(245,158,11,0.6)' } : undefined}>
+              <FleetResult plan={fleetPlan} viewing={viewingTruck} onView={viewTruck} />
+            </div>
           )}
 
           {/* 3. Résultat : plan 3D + analyse */}
