@@ -18,7 +18,8 @@ import Palletizer from './outils/palettisation/Palletizer.jsx';
 const LoadingGuide = lazy(() => import('./outils/optimiseur-chargement/guide/LoadingGuide.jsx'));
 // Comptes (fonctions en plus) : chargés seulement sur ces pages.
 const LoginPage = lazy(() => import('./shared/account/AccountPages.jsx').then((m) => ({ default: m.LoginPage })));
-const AccountPage = lazy(() => import('./shared/account/AccountPages.jsx').then((m) => ({ default: m.AccountPage })));
+// Espace connecté (mini-ERP) : barre latérale, chargements, palettisation, paramètres.
+const EspaceApp = lazy(() => import('./espace/EspaceApp.jsx'));
 import { SITE, toolSeo } from './seo/pages';
 import { toolSeoEn } from './seo/pages-en';
 import { I18nProvider } from './shared/i18n/I18nProvider.jsx';
@@ -216,7 +217,8 @@ export default function App() {
         <Route path="/en/loading" element={<I18nProvider lang="en"><Suspense fallback={null}><LoadingGuide /></Suspense></I18nProvider>} />
         <Route path="/en/:page" element={<EnToolRoute />} />
         <Route path="/connexion" element={<AccountShell><LoginPage /></AccountShell>} />
-        <Route path="/compte" element={<AccountShell><AccountPage /></AccountShell>} />
+        <Route path="/compte" element={<Navigate to="/app" replace />} />
+        <Route path="/app/*" element={<Suspense fallback={<div className="min-h-screen" style={{ background: '#0F172A' }} />}><EspaceApp /></Suspense>} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </BrowserRouter>
