@@ -12,13 +12,14 @@ import { createOrganization, signOut } from './data';
 import Dashboard from './pages/Dashboard';
 import Shipments from './pages/Shipments';
 import ShipmentEditor, { NewShipment } from './pages/ShipmentEditor';
-import PalletPage from './pages/PalletPage';
+import Palletizations from './pages/Palletizations';
+import PalletizationEditor, { NewPalletization } from './pages/PalletizationEditor';
 import SettingsPage from './pages/SettingsPage';
 
 const NAV = [
   { to: '/app', end: true, icon: LayoutDashboard, label: 'Tableau de bord' },
   { to: '/app/chargements', icon: Truck, label: 'Chargements' },
-  { to: '/app/palettisation', icon: Boxes, label: 'Palettisation' },
+  { to: '/app/palettisations', icon: Boxes, label: 'Palettisations' },
   { to: null, icon: KeyRound, label: 'Clés d’API', soon: true },
   { to: '/app/parametres', icon: Settings, label: 'Paramètres' },
 ];
@@ -39,6 +40,7 @@ const readCollapsed = () => { try { return localStorage.getItem(COLLAPSE_KEY) ==
 function Sidebar({ onNavigate, collapsed = false, onToggle = null }) {
   const { org, user } = useEspace();
   const navigate = useNavigate();
+  const [newOpen, setNewOpen] = useState(false);
   const out = async () => { await signOut(); navigate('/', { replace: true }); };
   return (
     <div className="h-full flex flex-col text-slate-300" style={{ background: '#0F172A' }}>
@@ -52,12 +54,21 @@ function Sidebar({ onNavigate, collapsed = false, onToggle = null }) {
         )}
       </div>
 
-      <div className={`pb-3 ${collapsed ? 'px-2' : 'px-3'}`}>
-        <button onClick={() => { navigate('/app/chargements/nouveau'); onNavigate?.(); }} title={collapsed ? 'Nouveau chargement' : undefined}
+      <div className={`pb-3 relative ${collapsed ? 'px-2' : 'px-3'}`}>
+        <button onClick={() => setNewOpen((o) => !o)} title={collapsed ? 'Nouveau…' : undefined} aria-expanded={newOpen}
           className="w-full inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition hover:brightness-105"
           style={{ background: '#F59E0B', color: '#0F172A' }}>
-          <Plus size={16} /> {!collapsed && 'Nouveau chargement'}
+          <Plus size={16} /> {!collapsed && 'Nouveau'}
         </button>
+        {newOpen && (
+          <div className={`absolute z-50 mt-1 rounded-lg bg-white shadow-xl border border-slate-200 py-1 text-slate-800 ${collapsed ? 'left-14 top-0 w-56' : 'left-3 right-3'}`}>
+            {[[Truck, 'Chargement', 'camion, conteneur, tournée', '/app/chargements/nouveau'], [Boxes, 'Palettisation', 'colis → palettes', '/app/palettisations/nouveau']].map(([Icon, l, d, to]) => (
+              <button key={to} onClick={() => { setNewOpen(false); navigate(to); onNavigate?.(); }} className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-slate-50">
+                <Icon size={16} className="text-blue-700" /><span><span className="block text-sm font-medium">{l}</span><span className="block text-[11px] text-slate-500">{d}</span></span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <nav className={`flex-1 space-y-0.5 ${collapsed ? 'px-2' : 'px-3'}`}>
@@ -172,7 +183,10 @@ function Shell() {
           <Route path="chargements" element={<Shipments />} />
           <Route path="chargements/nouveau" element={<NewShipment />} />
           <Route path="chargements/:code" element={<ShipmentEditor />} />
-          <Route path="palettisation" element={<PalletPage />} />
+          <Route path="palettisations" element={<Palletizations />} />
+          <Route path="palettisations/nouveau" element={<NewPalletization />} />
+          <Route path="palettisations/:code" element={<PalletizationEditor />} />
+          <Route path="palettisation" element={<Navigate to="/app/palettisations" replace />} />
           <Route path="parametres" element={<SettingsPage />} />
           <Route path="*" element={<Navigate to="/app" replace />} />
         </Routes>

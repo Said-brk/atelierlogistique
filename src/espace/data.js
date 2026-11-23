@@ -34,7 +34,7 @@ export async function renameOrganization(id, name) {
   fail(error);
 }
 
-const LIST_FIELDS = 'id, code, label, external_id, source, status, version, departure_at, created_at, updated_at, result';
+const LIST_FIELDS = 'id, code, label, external_id, source, status, version, departure_at, created_at, updated_at, result, palletizations(code)';
 
 export async function listShipments(orgId, { status = null, limit = 200 } = {}) {
   const sb = await getSupabase();
@@ -71,4 +71,57 @@ export async function updateShipment(id, patch) {
 export async function signOut() {
   const sb = await getSupabase();
   await sb.auth.signOut();
+}
+
+// ---------------------------------------------------------------- Palettisations
+const PZ_FIELDS = 'id, code, label, external_id, source, status, version, created_at, updated_at, result, shipment_id, shipments(code, label)';
+
+export async function listPalletizations(orgId, { limit = 200 } = {}) {
+  const sb = await getSupabase();
+  const { data, error } = await sb.from('palletizations').select(PZ_FIELDS).eq('org_id', orgId).order('updated_at', { ascending: false }).limit(limit);
+  fail(error);
+  return data;
+}
+
+export async function getPalletization(code) {
+  const sb = await getSupabase();
+  const { data, error } = await sb.from('palletizations').select('*, shipments(code, label)').eq('code', code).maybeSingle();
+  fail(error);
+  return data;
+}
+
+export async function createPalletization(orgId, fields = {}) {
+  const sb = await getSupabase();
+  const label = fields.label ?? `Palettisation du ${new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}`;
+  const { data, error } = await sb.from('palletizations')
+    .insert({ org_id: orgId, source: 'web', label, input: { rows: [] }, ...fields }).select('code').single();
+  fail(error);
+  return data.code;
+}
+
+export async function updatePalletization(id, patch) {
+  const sb = await getSupabase();
+  const { data, error } = await sb.from('palletizations').update(patch).eq('id', id).select('*, shipments(code, label)').single();
+  fail(error);
+  return data;
+}
+
+/** Palettisations qui alimentent un chargement (navigation chargement → palettes). */
+export async function palletizationsOfShipment(shipmentId) {
+  const sb = await getSupabase();
+  const { data, error } = await sb.from('palletizations').select('code, label, result').eq('shipment_id', shipmentId).order('created_at');
+  fail(error);
+  return data;
+}
+
+/** Crée un chargement pour une palettisation et les relie ; renvoie le n° du chargement. */
+export async function createShipmentForPalletization(orgId, pz) {
+  const sb = await getSupabase();
+  const { data, error } = await sb.from('shipments')
+    .insert({ org_id: orgId, source: 'web', label: pz.label ? `Chargement — ${pz.label}` : undefined, input: { rows: [] } })
+    .select('id, code').single();
+  fail(error);
+  const { error: e2 } = await sb.from('palletizations').update({ shipment_id: data.id }).eq('id', pz.id);
+  fail(e2);
+  return data.code;
 }
