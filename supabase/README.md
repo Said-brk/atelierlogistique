@@ -1,0 +1,51 @@
+# Base de données Supabase — Atelier Logistique
+
+Fonctions **en plus** du site : comptes, « Mes chargements », API. Les outils publics
+(palettisation, chargement) n'utilisent pas cette base et restent sans compte.
+
+## Contenu
+
+| Table | Rôle |
+|---|---|
+| `organizations` | entreprises clientes (durée de conservation des chargements, 90 j par défaut) |
+| `organization_members` | utilisateurs de chaque entreprise : `owner`, `admin`, `member` |
+| `shipments` | chargements reçus (API, fichier, site) : données, plan, statut, version, n° `PL-XXXXXX`, lien de partage |
+| `shipment_versions` | historique : une ligne à chaque changement de plan ou de statut |
+| `api_keys` | clés d'API (empreinte SHA-256 seulement, jamais la clé en clair) |
+| `usage_events` | consommation de l'API (appels, durée, nombre d'unités) |
+
+Statuts d'un chargement : `new` → `in_progress` → `validated` → `sent` (renvoyé au WMS) · `cancelled`.
+
+Fonctions : `create_organization(nom)`, `create_api_key(org, nom)` (renvoie la clé en clair **une seule fois**),
+`shipment_by_token(jeton)` (plan ouvert par lien, sans compte), `purge_expired_shipments()`.
+
+Sécurité : RLS sur toutes les tables ; un utilisateur ne voit que les données des entreprises dont il est membre.
+Les clés d'API et la consommation ne sont visibles que des administrateurs / membres de l'entreprise.
+
+## Installer ou mettre à jour
+
+1. Supabase → **SQL Editor** → *New query*.
+2. Coller le contenu de chaque fichier de `migrations/`, dans l'ordre, puis **Run**.
+   Les scripts sont ré-exécutables sans danger.
+
+## Purge automatique (une fois)
+
+1. Supabase → **Database → Extensions** → activer `pg_cron`.
+2. SQL Editor :
+
+```sql
+select cron.schedule('purge-chargements-expires', '17 3 * * *', $$select public.purge_expired_shipments()$$);
+```
+
+## Variables d'environnement (Vercel → Settings → Environment Variables)
+
+| Nom | Valeur | Visible par |
+|---|---|---|
+| `VITE_SUPABASE_URL` | `https://<projet>.supabase.co` | site |
+| `VITE_SUPABASE_ANON_KEY` | clé publique `sb_publishable_…` | site |
+| `SUPABASE_SERVICE_ROLE_KEY` | clé secrète `sb_secret_…` | API seulement — **jamais** dans le code ni dans un message |
+
+## Tests
+
+`npm test` rejoue les migrations dans un Postgres en mémoire (PGlite) et vérifie l'isolation entre
+entreprises, les versions, le lien de partage, les clés d'API et la purge (`supabase/tests/schema.test.js`).
