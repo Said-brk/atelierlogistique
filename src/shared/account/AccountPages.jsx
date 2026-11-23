@@ -1,5 +1,5 @@
 // Pages de compte (chargées à la demande) : /connexion et /compte.
-//   Connexion : lien magique par e-mail (pas de mot de passe). Supabase crée le compte au premier lien.
+//   Connexion : e-mail + mot de passe, ou lien par e-mail. Création de compte : lien par e-mail.
 //   Compte : création de son entreprise, membres, déconnexion ; « Mes chargements » et clés d'API arrivent ensuite.
 
 import { useEffect, useState } from 'react';
@@ -50,53 +50,99 @@ function useSession() {
   return session;
 }
 
+// Connexion : e-mail + mot de passe (le plus courant), ou lien par e-mail (sans mot de passe, ou oublié).
+// Création de compte : lien par e-mail (le mot de passe se définit ensuite dans Paramètres).
+const LOGIN_ERRORS = [
+  [/invalid login credentials/i, 'E-mail ou mot de passe incorrect. Pas encore de mot de passe ? Recevez un lien de connexion, puis définissez-le dans Paramètres.'],
+  [/email not confirmed/i, 'Adresse pas encore confirmée : ouvrez l’e-mail de confirmation reçu.'],
+  [/signups not allowed|user not found/i, 'Aucun compte avec cette adresse. Créez-en un ci-dessous.'],
+  [/rate|limit|security purposes/i, 'Trop de demandes : réessayez dans quelques minutes.'],
+];
+const loginError = (err) => LOGIN_ERRORS.find(([re]) => re.test(err?.message ?? ''))?.[1] ?? 'Connexion impossible. Vérifiez l’adresse et réessayez.';
+
+const fieldCls = 'w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200';
+const TITLES = {
+  password: ['Se connecter', 'Retrouvez vos chargements et palettisations. Les outils restent utilisables sans compte.'],
+  link: ['Recevoir un lien de connexion', 'Sans mot de passe, ou si vous l’avez oublié : un lien vous connecte directement.'],
+  signup: ['Créer un compte', 'Gratuit. Un lien vous est envoyé pour confirmer l’adresse ; vous choisirez ensuite un mot de passe.'],
+};
+
 export function LoginPage() {
   useNoIndex('Connexion');
   const navigate = useNavigate();
   const session = useSession();
+  const [mode, setMode] = useState(() => (new URLSearchParams(window.location.search).get('mode') === 'inscription' ? 'signup' : 'password'));
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [state, setState] = useState('idle'); // idle | sending | sent | error
   const [error, setError] = useState('');
 
   useEffect(() => { if (session) navigate('/app', { replace: true }); }, [session, navigate]);
   if (!accountEnabled) return <Disabled />;
 
-  const send = async (e) => {
+  const switchTo = (m) => { setMode(m); setState('idle'); setError(''); };
+  const submit = async (e) => {
     e.preventDefault();
     setState('sending'); setError('');
     try {
       const sb = await getSupabase();
-      const { error: err } = await sb.auth.signInWithOtp({ email: email.trim(), options: { emailRedirectTo: `${window.location.origin}/app` } });
+      if (mode === 'password') {
+        const { error: err } = await sb.auth.signInWithPassword({ email: email.trim(), password });
+        if (err) throw err;
+        navigate('/app', { replace: true });
+        return;
+      }
+      // Lien : « se connecter » ne crée pas de compte par erreur (faute de frappe dans l'adresse).
+      const { error: err } = await sb.auth.signInWithOtp({
+        email: email.trim(), options: { emailRedirectTo: `${window.location.origin}/app`, shouldCreateUser: mode === 'signup' },
+      });
       if (err) throw err;
       setState('sent');
     } catch (err) {
       setState('error');
-      setError(/rate|limit/i.test(err?.message ?? '') ? 'Trop de demandes : réessayez dans quelques minutes.' : 'Envoi impossible. Vérifiez l’adresse et réessayez.');
+      setError(loginError(err));
     }
   };
 
+  const [title, subtitle] = TITLES[mode];
+  const link = (m, label) => <button type="button" onClick={() => switchTo(m)} className="font-medium hover:underline" style={{ color: BLUE }}>{label}</button>;
   return (
     <Shell>
       <Card>
-        <h1 className="font-bricolage font-bold text-2xl text-slate-900 mb-1">Se connecter</h1>
-        <p className="text-sm text-slate-500 mb-6">Pour retrouver vos chargements et connecter votre ERP ou WMS. Les outils restent utilisables sans compte.</p>
+        <h1 className="font-bricolage font-bold text-2xl text-slate-900 mb-1">{title}</h1>
+        <p className="text-sm text-slate-500 mb-6">{subtitle}</p>
         {state === 'sent' ? (
-          <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-4 text-sm text-emerald-800 flex gap-2">
-            <CheckCircle2 size={18} className="shrink-0 mt-0.5" />
-            <div>Lien envoyé à <b>{email}</b>. Ouvrez l’e-mail et cliquez sur le lien pour vous connecter (pensez aux indésirables).</div>
+          <div className="space-y-3">
+            <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-4 text-sm text-emerald-800 flex gap-2">
+              <CheckCircle2 size={18} className="shrink-0 mt-0.5" />
+              <div>Lien envoyé à <b>{email}</b>. Ouvrez l’e-mail et cliquez sur le lien (pensez aux indésirables).
+                <span className="block mt-1 text-emerald-700/80 text-xs">Ouvrez-le sur cet appareil, dans ce même navigateur.</span></div>
+            </div>
+            <p className="text-sm text-slate-500">{link('password', '← Retour à la connexion')}</p>
           </div>
         ) : (
-          <form onSubmit={send} className="space-y-3">
+          <form onSubmit={submit} className="space-y-3">
             <label className="block text-xs font-jetbrains text-slate-500" htmlFor="email">ADRESSE E-MAIL PROFESSIONNELLE</label>
             <input id="email" type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)}
-              placeholder="prenom.nom@entreprise.com"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" />
+              placeholder="prenom.nom@entreprise.com" className={fieldCls} />
+            {mode === 'password' && (<>
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-jetbrains text-slate-500" htmlFor="password">MOT DE PASSE</label>
+                <button type="button" onClick={() => switchTo('link')} className="text-xs hover:underline" style={{ color: BLUE }}>Mot de passe oublié ?</button>
+              </div>
+              <input id="password" type="password" required autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} className={fieldCls} />
+            </>)}
             <button type="submit" disabled={state === 'sending'}
               className="w-full inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60" style={{ background: BLUE }}>
-              {state === 'sending' ? <Loader2 size={16} className="animate-spin" /> : <Mail size={16} />} Recevoir un lien de connexion
+              {state === 'sending' ? <Loader2 size={16} className="animate-spin" /> : mode === 'password' ? <ArrowRight size={16} /> : <Mail size={16} />}
+              {mode === 'password' ? 'Se connecter' : mode === 'signup' ? 'Créer mon compte' : 'Recevoir le lien'}
             </button>
             {error && <div className="text-sm text-red-700">{error}</div>}
-            <p className="text-[11px] text-slate-400">Pas de mot de passe : un lien de connexion vous est envoyé par e-mail. Premier lien = création du compte.</p>
+            <div className="pt-2 border-t border-slate-100 text-sm text-slate-500 space-y-1">
+              {mode === 'password' && <p>Pas de mot de passe ? {link('link', 'Recevoir un lien par e-mail')}</p>}
+              {mode !== 'password' && <p>Déjà un mot de passe ? {link('password', 'Se connecter')}</p>}
+              {mode !== 'signup' ? <p>Pas encore de compte ? {link('signup', 'Créer un compte')}</p> : <p>Déjà un compte ? {link('link', 'Recevoir un lien de connexion')}</p>}
+            </div>
           </form>
         )}
       </Card>

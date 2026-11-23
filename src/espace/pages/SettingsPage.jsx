@@ -4,6 +4,7 @@ import { Building2, UserRound, LogOut, Save, Loader2 } from 'lucide-react';
 import { useEspace } from '../useEspace';
 import { renameOrganization, signOut } from '../data';
 import { PageHeader, Btn } from '../ui';
+import PasswordForm, { hasPassword } from '../PasswordForm';
 
 const ROLE = { owner: 'Propriétaire', admin: 'Administrateur', member: 'Membre' };
 
@@ -37,7 +38,8 @@ export default function SettingsPage() {
         <section className="rounded-xl bg-white border border-slate-200 p-5 space-y-3">
           <div className="flex items-center gap-2 font-semibold text-slate-900"><UserRound size={17} /> Mon compte</div>
           <div className="text-sm text-slate-600">{user.email}</div>
-          <div className="text-xs text-slate-400">Connexion par lien envoyé par e-mail (pas de mot de passe).</div>
+          <div className="text-xs text-slate-500">{hasPassword(user) ? 'Connexion par e-mail et mot de passe (ou par lien envoyé par e-mail).' : 'Pas encore de mot de passe : définissez-en un pour vous connecter sans attendre d’e-mail.'}</div>
+          <PasswordForm user={user} />
           <Btn variant="ghost" onClick={async () => { await signOut(); navigate('/', { replace: true }); }}><LogOut size={15} /> Se déconnecter</Btn>
         </section>
       </div>
