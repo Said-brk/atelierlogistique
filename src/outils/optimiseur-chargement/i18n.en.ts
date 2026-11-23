@@ -416,6 +416,9 @@ const en: Record<string, string> = {
   "← Cabine": "← Cab",
   "Portes →": "Doors →",
   " · sur le n° {n}": " · on no. {n}",
+  "Replier le tableau": "Collapse the table",
+  "Déplier le tableau": "Expand the table",
+  "· {n} réf. · {u} unités · {w} kg": "· {n} lines · {u} units · {w} kg",
 };
 
 export default en;
