@@ -49,6 +49,7 @@ export interface FleetPlan {
   computationTimeMs: number;
 }
 
+const EXACT_BUDGET_MS = 2500; // recherche exacte : au-delà, meilleure heuristique
 const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
 const volOf = (d: ItemDefinition) => d.length * d.width * d.height * d.quantity;
 const weightOf = (d: ItemDefinition) => d.weight * d.quantity;
@@ -60,7 +61,7 @@ function fitsDims(d: ItemDefinition, c: ContainerDefinition): boolean {
 }
 const fitsVehicle = (d: ItemDefinition, c: ContainerDefinition) => fitsDims(d, c) && (c.maxWeight == null || d.weight <= c.maxWeight);
 
-interface Ctx { opts: OptimizeOptions; cache: Map<string, ReturnType<typeof optimize> | null>; }
+interface Ctx { opts: OptimizeOptions; cache: Map<string, ReturnType<typeof optimize> | null>; budgetMs: number; }
 
 /** Charge tout ? Bornes rapides (volume, poids, gabarit) puis vrai moteur 3D. Résultat mis en cache. */
 function tryLoad(defs: ItemDefinition[], c: ContainerDefinition, ctx: Ctx, key: string) {
@@ -108,7 +109,7 @@ function solve(groups: { stop: number; defs: ItemDefinition[] }[], vehicles: Fle
   let fixedCost = 0;
 
   // 3. Arrêts trop gros pour un seul véhicule : véhicules pleins d'abord (meilleur coût par m³ chargé).
-  const segments: { stop: number; defs: ItemDefinition[] }[] = [];
+  const segments: Segment[] = [];
   for (const g of groups) {
     const alone = vehicles.some((v) => tryLoad(g.defs, v.container, ctx, `s${g.stop}`));
     if (alone) { segments.push(g); continue; }
@@ -131,42 +132,135 @@ function solve(groups: { stop: number; defs: ItemDefinition[] }[], vehicles: Fle
       fixedCost += best.v.cost;
       rest = best.rest;
     }
-    if (rest.length > 0) segments.push({ stop: g.stop, defs: rest });
+    if (rest.length > 0) segments.push({ stop: g.stop, defs: rest, partial: true });
   }
 
-  // 2. Programmation dynamique sur les suites d'arrêts consécutifs.
+  // 2. Répartition des arrêts (ou restes d'arrêts) entre véhicules.
+  const part = partitionSegments(segments, vehicles, ctx);
+  if (!part) return { trucks: [], cost: Infinity, ok: false };
+  return { trucks: [...trucks, ...part.trucks].sort((a, b) => (a.stops[0] ?? 0) - (b.stops[0] ?? 0)), cost: fixedCost + part.cost, ok: true };
+}
+
+type Segment = { stop: number; defs: ItemDefinition[]; partial?: boolean };
+type Partition = { trucks: Omit<FleetTruck, 'index'>[]; cost: number; count: number; gaps: number };
+
+const segKey = (segs: Segment[]) => segs.map((s) => `${s.stop}:${s.defs.map((d) => `${d.id}x${d.quantity}`).join(',')}`).sort().join('|');
+/** Arrêts sautés dans un véhicule (2 puis 4 = 1 saut) : à coût égal, on préfère des arrêts qui se suivent. */
+const gapsOf = (segs: Segment[]) => {
+  const st = [...new Set(segs.map((s) => s.stop))].sort((a, b) => a - b);
+  let g = 0; for (let i = 1; i < st.length; i++) g += st[i] - st[i - 1] - 1;
+  return g;
+};
+const better = (a: Partition | null, b: Partition | null) => {
+  if (!b) return a; if (!a) return b;
+  if (Math.abs(a.cost - b.cost) > 1e-9) return a.cost < b.cost ? a : b;
+  if (a.count !== b.count) return a.count < b.count ? a : b;
+  return a.gaps <= b.gaps ? a : b;
+};
+
+/** Le véhicule le moins cher qui charge tout ce groupe (vrai moteur 3D, en cache). */
+function cheapestFor(segs: Segment[], vehicles: FleetVehicle[], ctx: Ctx) {
+  const defs = segs.flatMap((s) => s.defs);
+  const key = segKey(segs);
+  let best: { v: FleetVehicle; r: ReturnType<typeof optimize> } | null = null;
+  for (const v of [...vehicles].sort((a, b) => a.cost - b.cost)) {
+    if (best && v.cost > best.v.cost) break;
+    const r = tryLoad(defs, v.container, ctx, key);
+    if (r) best = { v, r };
+  }
+  return best;
+}
+
+/**
+ * Chaque véhicule fait sa propre tournée : il peut prendre n'importe quels arrêts (livrés dans l'ordre
+ * de la tournée, règle de chargement par arrêt respectée par le moteur 3D). On cherche la combinaison
+ * la moins chère : deux heuristiques (arrêts consécutifs, premier véhicule qui convient), puis recherche
+ * exacte jusqu'à 10 groupes dans un temps limité (bornes poids / volume d'abord, moteur 3D ensuite).
+ */
+function partitionSegments(segments: Segment[], vehicles: FleetVehicle[], ctx: Ctx): Partition | null {
   const n = segments.length;
-  const best: { cost: number; count: number; prev: number; v: FleetVehicle | null; r: ReturnType<typeof optimize> | null }[] =
-    Array.from({ length: n + 1 }, () => ({ cost: Infinity, count: Infinity, prev: -1, v: null, r: null }));
-  best[0] = { cost: 0, count: 0, prev: -1, v: null, r: null };
+  if (n === 0) return { trucks: [], cost: 0, count: 0, gaps: 0 };
+  const truckOf = (segs: Segment[], v: FleetVehicle, r: ReturnType<typeof optimize>) =>
+    summarize(segs.flatMap((s) => s.defs), v, r, segs.some((s) => s.partial));
+  const maxW = Math.max(...vehicles.map((v) => v.container.maxWeight ?? Infinity));
+  const maxV = Math.max(...vehicles.map((v) => capVol(v.container)));
+  const w = segments.map((s) => s.defs.reduce((a, d) => a + weightOf(d), 0));
+  const vol = segments.map((s) => s.defs.reduce((a, d) => a + volOf(d), 0));
+
+  // Heuristiques d'abord (rapides) ; la recherche exacte ne peut que faire mieux, dans un temps limité.
+  let result: Partition | null = better(contiguous(segments, vehicles, ctx, truckOf), firstFit(segments, vehicles, ctx, truckOf, w));
+  const deadline = now() + ctx.budgetMs;
+  if (n <= 10) try {
+    const memo = new Map<number, Partition | null>();
+    const groupCache = new Map<number, ReturnType<typeof cheapestFor>>();
+    const segsOf = (mask: number) => segments.filter((_, i) => mask & (1 << i));
+    const group = (mask: number) => {
+      if (!groupCache.has(mask)) {
+        if (now() > deadline) throw new Error('budget');
+        let sw = 0, sv = 0;
+        for (let i = 0; i < n; i++) if (mask & (1 << i)) { sw += w[i]; sv += vol[i]; }
+        groupCache.set(mask, sw <= maxW && sv <= maxV ? cheapestFor(segsOf(mask), vehicles, ctx) : null);
+      }
+      return groupCache.get(mask)!;
+    };
+    const solveMask = (rest: number): Partition | null => {
+      if (rest === 0) return { trucks: [], cost: 0, count: 0, gaps: 0 };
+      if (memo.has(rest)) return memo.get(rest)!;
+      const low = rest & -rest; // le premier groupe restant part forcément dans un véhicule
+      const others = rest & ~low;
+      let best: Partition | null = null;
+      // Tous les sous-ensembles des autres groupes, ajoutés au premier.
+      for (let sub = others; ; sub = (sub - 1) & others) {
+        const mask = low | sub;
+        const g = group(mask);
+        if (g) {
+          const tail = solveMask(rest & ~mask);
+          if (tail) {
+            const segs = segsOf(mask);
+            best = better(best, { trucks: [truckOf(segs, g.v, g.r), ...tail.trucks], cost: tail.cost + g.v.cost, count: tail.count + 1, gaps: tail.gaps + gapsOf(segs) });
+          }
+        }
+        if (sub === 0) break;
+      }
+      memo.set(rest, best);
+      return best;
+    };
+    result = better(result, solveMask((1 << n) - 1));
+  } catch { /* trop long : on garde la meilleure heuristique */ }
+  return result;
+}
+
+/** Heuristique 1 : suites d'arrêts consécutifs (programmation dynamique). */
+function contiguous(segments: Segment[], vehicles: FleetVehicle[], ctx: Ctx, truckOf: (s: Segment[], v: FleetVehicle, r: ReturnType<typeof optimize>) => Omit<FleetTruck, 'index'>): Partition | null {
+  const n = segments.length;
+  const best: (Partition | null)[] = Array.from({ length: n + 1 }, () => null);
+  best[0] = { trucks: [], cost: 0, count: 0, gaps: 0 };
   for (let j = 1; j <= n; j++) {
     for (let i = j; i >= 1; i--) {
-      if (best[i - 1].cost === Infinity) continue;
-      const defs = segments.slice(i - 1, j).flatMap((s) => s.defs);
-      const key = segments.slice(i - 1, j).map((s) => `${s.stop}:${s.defs.map((d) => `${d.id}x${d.quantity}`).join(',')}`).join('|');
-      let anyFits = false;
-      for (const v of vehicles) {
-        const r = tryLoad(defs, v.container, ctx, key);
-        if (!r) continue;
-        anyFits = true;
-        const cost = best[i - 1].cost + v.cost;
-        const count = best[i - 1].count + 1;
-        if (cost < best[j].cost - 1e-9 || (Math.abs(cost - best[j].cost) < 1e-9 && count < best[j].count)) {
-          best[j] = { cost, count, prev: i - 1, v, r };
-        }
-      }
-      // Si aucun véhicule ne prend cette suite, une suite plus longue ne passera pas non plus.
-      if (!anyFits) break;
+      if (!best[i - 1]) continue;
+      const segs = segments.slice(i - 1, j);
+      const g = cheapestFor(segs, vehicles, ctx);
+      if (!g) break; // une suite plus longue ne passera pas non plus
+      const prev = best[i - 1]!;
+      best[j] = better(best[j], { trucks: [...prev.trucks, truckOf(segs, g.v, g.r)], cost: prev.cost + g.v.cost, count: prev.count + 1, gaps: prev.gaps });
     }
   }
-  if (best[n].cost === Infinity) return { trucks: [], cost: Infinity, ok: false };
-  const dpTrucks: Omit<FleetTruck, 'index'>[] = [];
-  for (let j = n; j > 0; j = best[j].prev) {
-    const b = best[j];
-    const defs = segments.slice(b.prev, j).flatMap((s) => s.defs);
-    dpTrucks.unshift(summarize(defs, b.v!, b.r!, false));
+  return best[n];
+}
+
+/** Heuristique 2 : groupes du plus lourd au plus léger, dans le premier véhicule ouvert qui les accepte. */
+function firstFit(segments: Segment[], vehicles: FleetVehicle[], ctx: Ctx, truckOf: (s: Segment[], v: FleetVehicle, r: ReturnType<typeof optimize>) => Omit<FleetTruck, 'index'>, w: number[]): Partition | null {
+  const order = segments.map((_, i) => i).sort((a, b) => w[b] - w[a]);
+  const bins: Segment[][] = [];
+  for (const i of order) {
+    const seg = segments[i];
+    const open = bins.find((b) => cheapestFor([...b, seg], vehicles, ctx));
+    if (open) open.push(seg);
+    else if (cheapestFor([seg], vehicles, ctx)) bins.push([seg]);
+    else return null;
   }
-  return { trucks: [...trucks, ...dpTrucks].sort((a, b) => (a.stops[0] ?? 0) - (b.stops[0] ?? 0)), cost: fixedCost + best[n].cost, ok: true };
+  const trucks = bins.map((b) => { const g = cheapestFor(b, vehicles, ctx)!; return { t: truckOf(b, g.v, g.r), cost: g.v.cost, gaps: gapsOf(b) }; });
+  return { trucks: trucks.map((x) => x.t), cost: trucks.reduce((s, x) => s + x.cost, 0), count: trucks.length, gaps: trucks.reduce((s, x) => s + x.gaps, 0) };
 }
 
 export function planFleet(
@@ -174,7 +268,7 @@ export function planFleet(
 ): FleetPlan {
   const t0 = now();
   const usable = vehicles.filter((v) => v.container.length > 0 && v.container.width > 0 && v.container.height > 0);
-  const ctx: Ctx = { opts: options, cache: new Map() };
+  const ctx: Ctx = { opts: options, cache: new Map(), budgetMs: EXACT_BUDGET_MS };
   const unplaced: FleetPlan['unplaced'] = [];
   const valid: ItemDefinition[] = [];
   for (const d of definitions) {
@@ -194,6 +288,7 @@ export function planFleet(
   // 4. Comparaisons : un seul type de véhicule.
   const alternatives: FleetAlternative[] = [];
   if (main.ok && usable.length > 1 && groups.length) {
+    ctx.budgetMs = EXACT_BUDGET_MS / 4; // comparaisons : recherche plus courte
     for (const v of usable) {
       const s = solve(groups, [v], ctx);
       if (s.ok) alternatives.push({ vehicleId: v.container.id, label: v.container.label, count: s.trucks.length, cost: s.cost });
