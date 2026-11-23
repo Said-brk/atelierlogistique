@@ -157,7 +157,7 @@ function PrintSheet({ result, colorOf }) {
 
 /** embedded : intégré à l'espace connecté (pas de barre d'outil ni de contenu SEO) ;
  *  onLoadTruck : où aller après « Charger le camion » (par défaut l'optimiseur public) ;
- *  workspace : { initial, onChange } — palettisation enregistrée dans l'espace (pré-remplissage,
+ *  workspace : { initial, onChange, origin } — palettisation enregistrée dans l'espace (pré-remplissage,
  *  état courant + résumé renvoyés à chaque changement pour l'enregistrement par la page). */
 export default function Palletizer({ onBack, embedded: embeddedProp = false, onLoadTruck = null, workspace = null }) {
   const embedded = embeddedProp || !!workspace;
@@ -170,7 +170,7 @@ export default function Palletizer({ onBack, embedded: embeddedProp = false, onL
   const [formatMode, setFormatMode] = useState(init.formatMode ?? 'stop'); // 'stop' | 'shipment' | 'free'
   const [forcedStops, setForcedStops] = useState(init.forcedStops ?? {});
   const [stacking, setStacking] = useState(init.stacking ?? 'AUTO');
-  const [result, setResult] = useState(null);
+  const [result, setResult] = useState(() => init.plan?.base ?? null); // espace : palettes enregistrées, sans recalcul
   const [running, setRunning] = useState(false);
   const [active, setActive] = useState(0);
   const [importOpen, setImportOpen] = useState(false);
@@ -263,7 +263,7 @@ export default function Palletizer({ onBack, embedded: embeddedProp = false, onL
       schemaVersion: COLIS_SCHEMA.version,
       source: { tool: 'pallet', label: t('Palettisation 3D') },
       records: palletsToLoadRecords(result.pallets, result.specs, stacking),
-      extra: { unitLabel: t('palette(s)') },
+      extra: { unitLabel: t('palette(s)'), ...(workspace?.origin ? { origin: workspace.origin } : {}) },
     });
     track('pallet_sent_to_load_optimizer', { pallets: result.pallets.length });
     if (onLoadTruck) onLoadTruck(); else navigate(toolHref('optimiseur-chargement', getCurrentLang()));
@@ -297,6 +297,7 @@ export default function Palletizer({ onBack, embedded: embeddedProp = false, onL
         pallets: result.pallets.length, full: totals.full, mixed: totals.mixed, weight: totals.weight,
         stops: totals.stops, unplaced: totals.unplaced, bySupport: totals.bySupport, fill: totals.fill,
       } : null,
+      plan: result ? { base: result } : null,
     });
   }, [rows, supports, fullFirst, separateStops, formatMode, forcedStops, stacking, result, totals, onWorkspaceChange]);
 

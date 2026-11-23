@@ -442,8 +442,11 @@ function Kpi({ label, value, sub }) {
 
 /**
  * workspace (facultatif) : outil intégré à l'espace connecté (/app).
- *   initial  : { rows, containerId, custom, vehicleMode, deliveryMode } — état de départ (chargement enregistré)
- *   onChange : appelé à chaque changement avec l'état et le résumé du plan, pour l'enregistrement par la page
+ *   initial  : { rows, containerId, custom, vehicleMode, deliveryMode, excludedStops, plan } — état de départ
+ *              (chargement enregistré). plan = { base, manual } : plan 3D calculé + retouches, réaffiché sans recalcul.
+ *   onChange : appelé à chaque changement avec l'état, le résumé et le plan, pour l'enregistrement par la page
+ *   origin   : n° du document qui envoie des palettes (ex. PZ-…) : ses lignes remplacent ses envois précédents
+ *              et s'ajoutent aux autres lignes au lieu de tout remplacer.
  * Sans workspace : page publique (barre d'outil, en-tête SEO, FAQ).
  */
 export default function LoadOptimizer({ onBack, workspace = null }) {
@@ -474,7 +477,7 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
     io.observe(el);
     return () => io.disconnect();
   }, []);
-  const { run, reset, result: rawResult, status } = useOptimizer();
+  const { run, reset, restore, result: rawResult, status } = useOptimizer();
 
   // Mode véhicule : 'single' = standard (l'utilisateur choisit) ; 'fleet' = l'outil propose la flotte.
   const [vehicleMode, setVehicleMode] = useState(init.vehicleMode ?? 'single');
@@ -528,7 +531,7 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
   const [deliveryMode, setDeliveryMode] = useState(init.deliveryMode ?? 'STRICT');
   const [colorBy, setColorBy] = useState('auto'); // 'auto' | 'ref' | 'stop' | 'both'
   const [unloadedUpTo, setUnloadedUpTo] = useState(0); // 0 = chargement complet
-  const [excludedStops, setExcludedStops] = useState([]); // arrêts retirés du camion
+  const [excludedStops, setExcludedStops] = useState(() => (Array.isArray(init.excludedStops) ? init.excludedStops : [])); // arrêts retirés du camion
   const [deferredExcess, setDeferredExcess] = useState([]); // arrêts dont l'excédent est reporté
 
   const stops = useMemo(() => distinctStops(rows), [rows]);
@@ -685,13 +688,19 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
 
   const flashImport = (type, text, ms = 6000) => { setImportMsg({ type, text }); setTimeout(() => setImportMsg(null), ms); };
 
+  const savedPlan = useRef(init.plan ?? null);
+  const handoffReceived = useRef(false);
+  const pendingManual = useRef(false); // retouches enregistrées en cours de rechargement
   // Données envoyées par un autre outil (ex. palettes de la palettisation 3D).
   useEffect(() => {
     const env = consumeHandoff('optimiseur-chargement', COLIS_SCHEMA.id);
     if (!env) return;
-    const received = recordsToColisRows(env.records).map((r) => ({ id: newRowId(), ...r }));
+    const origin = typeof env.extra?.origin === 'string' ? env.extra.origin : null;
+    const received = recordsToColisRows(env.records).map((r) => ({ id: newRowId(), ...r, ...(origin ? { origin } : {}) }));
     if (received.length === 0) return;
-    setRows(received);
+    handoffReceived.current = true;
+    // Avec une origine (espace) : on remplace les lignes déjà reçues de ce document et on garde les autres.
+    setRows((rs) => (origin ? [...rs.filter((r) => r.origin !== origin && (r.reference || r.length)), ...received] : received));
     setExcludedStops([]);
     const units = received.reduce((s, r) => s + r.quantity, 0);
     const unitLabel = typeof env.extra?.unitLabel === 'string' ? env.extra.unitLabel : tr('unité(s)');
@@ -699,6 +708,20 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
     track('load_optimizer_handoff_received', { from: env.source.tool, units });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Plan enregistré (espace) : réaffiché tel quel, retouches comprises, sauf si de nouvelles lignes viennent d'arriver.
+  useEffect(() => {
+    const p = savedPlan.current;
+    if (!p?.base || handoffReceived.current || vehicleMode !== 'single') { savedPlan.current = null; return; }
+    restore(p.base);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    const p = savedPlan.current;
+    if (!p || !rawResult || rawResult !== p.base) return;
+    savedPlan.current = null;
+    if (p.manual) { pendingManual.current = true; manual.load(p.manual); }
+  }, [rawResult, manual]);
 
   /** Import via l'assistant (module partagé src/shared/import). */
   const onImported = ({ records, options, mode, source }) => {
@@ -852,14 +875,20 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
   // Espace connecté : la page reçoit l'état courant (saisie + résumé du plan) pour l'enregistrer.
   const onWorkspaceChange = workspace?.onChange;
   useEffect(() => {
+    const done = result && status === 'done';
+    if (pendingManual.current && manual.snapshot) pendingManual.current = false;
+    const restoring = !!savedPlan.current || pendingManual.current;
     onWorkspaceChange?.({
-      rows, containerId, custom, vehicleMode, deliveryMode,
-      summary: result && status === 'done' ? {
+      rows, containerId, custom, vehicleMode, deliveryMode, excludedStops,
+      summary: done ? {
         vehicle: tText(container.label), packed: result.packedItems, unpacked: result.unpackedCount,
         fill: result.volumeUtilization, weight: result.usedWeight, edited: manual.edited,
       } : null,
+      // Plan 3D (un véhicule) : calcul + retouches, pour le rouvrir à l'identique.
+      // (rien tant que le plan enregistré est en cours de réaffichage, pour ne pas le voir comme une modification)
+      plan: done && vehicleMode === 'single' && !containerOverride && !restoring ? { base: rawResult, manual: manual.snapshot } : null,
     });
-  }, [rows, containerId, custom, vehicleMode, deliveryMode, result, status, container, manual.edited, onWorkspaceChange]);
+  }, [rows, containerId, custom, vehicleMode, deliveryMode, excludedStops, result, rawResult, status, container, containerOverride, manual.edited, manual.snapshot, onWorkspaceChange]);
 
   return (
     <div className={`${embedded ? '' : 'min-h-screen'} text-slate-900`} style={{ background: '#F8FAFC', fontFamily: "'DM Sans', system-ui, sans-serif" }}>

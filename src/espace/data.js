@@ -14,6 +14,10 @@ export const SOURCE = { api: 'API', file: 'Fichier', web: 'Saisie' };
 
 const fail = (error) => { if (error) throw new Error(error.message); };
 
+// Les listes ne lisent que le résumé du plan (result->summary), pas le plan 3D complet (lourd).
+const SUMMARY = 'summary:result->summary';
+const withSummary = (rows) => rows.map(({ summary, ...r }) => ({ ...r, result: summary ? { summary } : null }));
+
 export async function myOrganizations(userId) {
   const sb = await getSupabase();
   const { data, error } = await sb.from('organization_members')
@@ -34,7 +38,7 @@ export async function renameOrganization(id, name) {
   fail(error);
 }
 
-const LIST_FIELDS = 'id, code, label, external_id, source, status, version, departure_at, created_at, updated_at, result, palletizations(code)';
+const LIST_FIELDS = `id, code, label, external_id, source, status, version, departure_at, created_at, updated_at, ${SUMMARY}, palletizations(code)`;
 
 export async function listShipments(orgId, { status = null, limit = 200 } = {}) {
   const sb = await getSupabase();
@@ -42,7 +46,7 @@ export async function listShipments(orgId, { status = null, limit = 200 } = {}) 
   if (status) q = q.eq('status', status);
   const { data, error } = await q;
   fail(error);
-  return data;
+  return withSummary(data);
 }
 
 export async function getShipment(code) {
@@ -74,13 +78,13 @@ export async function signOut() {
 }
 
 // ---------------------------------------------------------------- Palettisations
-const PZ_FIELDS = 'id, code, label, external_id, source, status, version, created_at, updated_at, result, shipment_id, shipments(code, label)';
+const PZ_FIELDS = `id, code, label, external_id, source, status, version, created_at, updated_at, ${SUMMARY}, shipment_id, shipments(code, label)`;
 
 export async function listPalletizations(orgId, { limit = 200 } = {}) {
   const sb = await getSupabase();
   const { data, error } = await sb.from('palletizations').select(PZ_FIELDS).eq('org_id', orgId).order('updated_at', { ascending: false }).limit(limit);
   fail(error);
-  return data;
+  return withSummary(data);
 }
 
 export async function getPalletization(code) {
@@ -109,9 +113,9 @@ export async function updatePalletization(id, patch) {
 /** Palettisations qui alimentent un chargement (navigation chargement → palettes). */
 export async function palletizationsOfShipment(shipmentId) {
   const sb = await getSupabase();
-  const { data, error } = await sb.from('palletizations').select('code, label, result').eq('shipment_id', shipmentId).order('created_at');
+  const { data, error } = await sb.from('palletizations').select(`code, label, ${SUMMARY}`).eq('shipment_id', shipmentId).order('created_at');
   fail(error);
-  return data;
+  return withSummary(data);
 }
 
 /** Crée un chargement pour une palettisation et les relie ; renvoie le n° du chargement. */

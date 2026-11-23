@@ -58,5 +58,12 @@ export function useOptimizer() {
     setError(null);
   }, []);
 
-  return { run, reset, result, status, error };
+  /** Réaffiche un plan déjà calculé (plan enregistré), sans relancer le moteur. */
+  const restore = useCallback((r) => {
+    setResult(r);
+    setStatus('done');
+    setError(null);
+  }, []);
+
+  return { run, reset, restore, result, status, error };
 }
