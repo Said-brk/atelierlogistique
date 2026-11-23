@@ -7,7 +7,7 @@ export const STATUS = {
   new: { label: 'Nouveau', color: '#1D4ED8', bg: '#EFF6FF' },
   in_progress: { label: 'En cours', color: '#B45309', bg: '#FFFBEB' },
   validated: { label: 'Validé', color: '#15803D', bg: '#F0FDF4' },
-  sent: { label: 'Envoyé au WMS', color: '#0F766E', bg: '#F0FDFA' },
+  sent: { label: 'Envoyé', color: '#0F766E', bg: '#F0FDFA' },
   cancelled: { label: 'Annulé', color: '#64748B', bg: '#F1F5F9' },
 };
 export const SOURCE = { api: 'API', file: 'Fichier', web: 'Saisie' };
@@ -128,4 +128,16 @@ export async function createShipmentForPalletization(orgId, pz) {
   const { error: e2 } = await sb.from('palletizations').update({ shipment_id: data.id }).eq('id', pz.id);
   fail(e2);
   return data.code;
+}
+
+// ---------------------------------------------------------------- Lien quai (cariste, sans compte)
+/** Lien permanent d'un chargement : ouvre le dernier plan enregistré, sans compte. */
+export const shareUrlOf = (doc) => (doc?.share_token ? `${window.location.origin}/q/${doc.share_token}` : null);
+
+/** Chargement ouvert par son lien de partage (fonction de la base, accessible sans compte). */
+export async function shipmentByToken(token) {
+  const sb = await getSupabase();
+  const { data, error } = await sb.rpc('shipment_by_token', { p_token: token });
+  fail(error);
+  return data?.[0] ?? null;
 }

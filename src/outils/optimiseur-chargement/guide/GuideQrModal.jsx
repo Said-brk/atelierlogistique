@@ -1,14 +1,15 @@
 // Fenêtre « Guide cariste » : QR code + lien vers le plan pas à pas sur téléphone.
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Copy, ExternalLink, Check, Maximize2 } from 'lucide-react';
+import { X, Copy, ExternalLink, Check, Maximize2, Share2 } from 'lucide-react';
 import QrCode, { qrModules, QR_MAX_MODULES } from './QrCode';
 import { qrTextOf } from './planLink';
 import { t } from '../../../shared/i18n/core';
 
 const BLUE = '#2563EB';
 
-export default function GuideQrModal({ url, onClose }) {
+/** note : texte en pied de fenêtre (par défaut : le plan est dans le lien) ; title : sous-titre. */
+export default function GuideQrModal({ url, onClose, note = null, title = null }) {
   const [copied, setCopied] = useState(false);
   const [big, setBig] = useState(false);
   useEffect(() => {
@@ -16,6 +17,8 @@ export default function GuideQrModal({ url, onClose }) {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose, big]);
+  const canShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
+  const share = async () => { try { await navigator.share({ title: title ?? t('Guide de chargement'), url }); } catch { /* partage annulé */ } };
   const copy = async () => { try { await navigator.clipboard.writeText(url); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch { /* presse-papiers indisponible */ } };
   const qrText = qrTextOf(url);
   const modules = qrModules(qrText);
@@ -28,7 +31,7 @@ export default function GuideQrModal({ url, onClose }) {
         <div className="flex items-start justify-between gap-3">
           <div>
             <div className="font-jetbrains text-[10px] text-slate-500">{t('GUIDE CARISTE')}</div>
-            <div className="font-bricolage font-semibold text-slate-900">{t('Le plan pas à pas sur le téléphone du cariste')}</div>
+            <div className="font-bricolage font-semibold text-slate-900">{title ?? t('Le plan pas à pas sur le téléphone du cariste')}</div>
           </div>
           <button onClick={onClose} aria-label={t('Fermer')} className="p-1.5 rounded-md hover:bg-slate-100 text-slate-500"><X size={16} /></button>
         </div>
@@ -55,7 +58,11 @@ export default function GuideQrModal({ url, onClose }) {
           <a href={url} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-1.5 py-2.5 rounded-lg font-jetbrains text-xs text-white" style={{ background: BLUE }}>
             <ExternalLink size={13} />{' '}{t('Ouvrir le guide')}</a>
         </div>
-        <p className="font-jetbrains text-[10px] text-slate-400">{t('Le plan est contenu dans le lien : aucune donnée n’est envoyée à un serveur.')}</p>
+        {canShare && (
+          <button onClick={share} className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-lg font-jetbrains text-xs border border-slate-200 text-slate-700">
+            <Share2 size={13} />{' '}{t('Envoyer (SMS, WhatsApp, e-mail…)')}</button>
+        )}
+        <p className="font-jetbrains text-[10px] text-slate-400">{note ?? t('Le plan est contenu dans le lien : aucune donnée n’est envoyée à un serveur.')}</p>
       </div>
       {big && qrOk && (
         <div className="fixed inset-0 z-[60] bg-white flex flex-col items-center justify-center gap-4 p-4" onClick={() => setBig(false)}>

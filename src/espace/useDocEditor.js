@@ -8,7 +8,7 @@ const toDateInput = (d) => (d ? new Date(d).toISOString().slice(0, 10) : '');
 // Clés triées : la base (jsonb) ne rend pas les clés dans l'ordre d'origine (saisie et plan).
 const stable = (v) => (Array.isArray(v) ? `[${v.map(stable).join(',')}]`
   : v && typeof v === 'object' ? `{${Object.keys(v).filter((k) => v[k] !== undefined).sort().map((k) => `${k}:${stable(v[k])}`).join(',')}}` : JSON.stringify(v ?? null));
-const planSig = (p) => (p?.base ? stable(p) : '');
+const planSig = (p) => (p?.base ? stable({ base: p.base, manual: p.manual ?? null }) : '');
 
 /** initialOf(doc) : état de départ de l'outil intégré (saisie + plan enregistré). */
 export const initialOf = (d) => ({ rows: [], ...(d.input ?? {}), plan: d.result?.plan ?? null });

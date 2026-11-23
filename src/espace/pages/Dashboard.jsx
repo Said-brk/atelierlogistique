@@ -19,7 +19,7 @@ export default function Dashboard() {
     { st: 'new', hint: 'arrivés, à traiter' },
     { st: 'in_progress', hint: 'en préparation' },
     { st: 'validated', hint: 'prêts pour le quai' },
-    { st: 'sent', hint: 'renvoyés au WMS' },
+    { st: 'sent', hint: 'envoyés au quai' },
   ];
   return (
     <>

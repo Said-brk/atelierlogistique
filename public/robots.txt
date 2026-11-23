@@ -3,6 +3,9 @@
 
 User-agent: *
 Allow: /
+# Espace connecté et liens de chargement privés
+Disallow: /app
+Disallow: /q/
 
 # Sitemap
 Sitemap: https://atelierlogistique.com/sitemap.xml
