@@ -40,6 +40,12 @@ export default function useManualEdit(container, basePlaced, rulesOf = () => DEF
     undo: () => setH((s) => (s.past.length ? { cur: s.past[s.past.length - 1], past: s.past.slice(0, -1), future: [s.cur, ...s.future] } : s)),
     redo: () => setH((s) => (s.future.length ? { cur: s.future[0], past: [...s.past, s.cur], future: s.future.slice(1) } : s)),
     reset: () => { setH({ cur: fresh(basePlaced), past: [], future: [] }); setSelectedId(null); },
+    /** Recharge des retouches enregistrées ({ placed, staged, touched[] }) ; « Annuler » revient au plan calculé. */
+    load: (saved) => {
+      if (!saved?.placed) return;
+      setH({ cur: { placed: saved.placed, staged: saved.staged ?? [], touched: new Set(saved.touched ?? []) }, past: [fresh(basePlaced)], future: [] });
+      setSelectedId(null);
+    },
   }), [commit, container, rulesOf, basePlaced]);
 
   /** Replace un colis de la zone d'attente à la première place libre. Renvoie false s'il n'y en a pas. */
@@ -51,6 +57,12 @@ export default function useManualEdit(container, basePlaced, rulesOf = () => DEF
     setSelectedId(id);
     return true;
   }, [h.cur, container, rulesOf, commit]);
+
+  const edited = h.past.length > 0;
+  const snapshot = useMemo(
+    () => (edited ? { placed: h.cur.placed, staged: h.cur.staged, touched: [...h.cur.touched] } : null),
+    [edited, h.cur],
+  );
 
   const issues = useMemo(() => checkPlan(container, h.cur.placed, rulesOf), [container, h.cur.placed, rulesOf]);
 
@@ -64,6 +76,8 @@ export default function useManualEdit(container, basePlaced, rulesOf = () => DEF
     select: setSelectedId,
     canUndo: h.past.length > 0,
     canRedo: h.future.length > 0,
+    /** Retouches à enregistrer (null si le plan calculé n'a pas été modifié). */
+    snapshot,
     restore,
     ...actions,
   };

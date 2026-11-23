@@ -8,7 +8,7 @@ import LoadOptimizer from '../../outils/optimiseur-chargement/LoadOptimizer.jsx'
 import { useEspace } from '../useEspace';
 import { getShipment, createShipment, updateShipment, palletizationsOfShipment, SOURCE } from '../data';
 import { EditorHeader, DocChip, editorInputCls, pct } from '../ui';
-import useDocEditor from '../useDocEditor';
+import useDocEditor, { initialOf } from '../useDocEditor';
 
 /** /app/chargements/nouveau : crée un chargement vide puis ouvre l'éditeur. */
 export function NewShipment() {
@@ -44,7 +44,7 @@ export default function ShipmentEditor() {
         links={pzs.length > 0 && <span className="flex flex-wrap items-center gap-1.5 text-slate-500 text-xs">Palettes issues de
           {pzs.map((p) => <DocChip key={p.code} kind="pallet" to={`/app/palettisations/${p.code}`} code={p.code} title={p.label ?? ''} />)}</span>}
         summary={s && `Plan : ${s.vehicle} · ${s.packed} colis · ${pct(s.fill)}${s.unpacked ? ` · ${s.unpacked} non chargé(s)` : ''}${s.edited ? ' · modifié à la main' : ''}`} />
-      <LoadOptimizer key={ed.doc.id} workspace={{ initial: { rows: [], ...(ed.doc.input ?? {}) }, onChange: ed.onChange }} />
+      <LoadOptimizer key={ed.doc.id} workspace={{ initial: initialOf(ed.doc), onChange: ed.onChange }} />
     </>
   );
 }

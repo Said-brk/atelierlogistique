@@ -9,7 +9,7 @@ import Palletizer from '../../outils/palettisation/Palletizer.jsx';
 import { useEspace } from '../useEspace';
 import { getPalletization, createPalletization, updatePalletization, createShipmentForPalletization, SOURCE } from '../data';
 import { EditorHeader, DocChip } from '../ui';
-import useDocEditor from '../useDocEditor';
+import useDocEditor, { initialOf } from '../useDocEditor';
 
 export function NewPalletization() {
   const { org } = useEspace();
@@ -53,7 +53,7 @@ export default function PalletizationEditor() {
           ? <DocChip kind="shipment" to={`/app/chargements/${ed.doc.shipments.code}`} code={ed.doc.shipments.code} title={ed.doc.shipments.label ?? ''} />
           : <span className="text-slate-400">— créé au clic sur « Charger le camion »</span>}</span>}
         summary={s && `${s.pallets} palette(s) · ${s.full} complète(s) · ${s.mixed} mixte(s) · ${Math.round(s.weight).toLocaleString('fr-FR')} kg${s.unplaced ? ` · ${s.unplaced} colis non palettisé(s)` : ''}`} />
-      <Palletizer key={ed.doc.id} workspace={{ initial: { rows: [], ...(ed.doc.input ?? {}) }, onChange: ed.onChange }} onLoadTruck={loadTruck} />
+      <Palletizer key={ed.doc.id} workspace={{ initial: initialOf(ed.doc), onChange: ed.onChange, origin: ed.doc.code }} onLoadTruck={loadTruck} />
     </>
   );
 }
