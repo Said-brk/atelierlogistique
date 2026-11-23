@@ -4,6 +4,7 @@ import { Plus, Boxes, Truck, ArrowRight, Loader2, Inbox } from 'lucide-react';
 import { useEspace } from '../useEspace';
 import { listShipments, STATUS } from '../data';
 import { PageHeader, StatusBadge, Btn, fmtDateTime, pct } from '../ui';
+import PasswordForm, { hasPassword } from '../PasswordForm';
 
 export default function Dashboard() {
   const { org, user } = useEspace();
@@ -27,6 +28,12 @@ export default function Dashboard() {
         actions={<><Btn variant="ghost" onClick={() => navigate('/app/palettisations/nouveau')}><Boxes size={15} /> Nouvelle palettisation</Btn>
           <Btn onClick={() => navigate('/app/chargements/nouveau')}><Plus size={15} /> Nouveau chargement</Btn></>} />
       <div className="px-5 sm:px-8 py-6 space-y-6">
+        {!hasPassword(user) && (
+          <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 space-y-2">
+            <div className="text-sm text-blue-900"><b>Choisissez un mot de passe</b> : la prochaine fois, connectez-vous directement, sans attendre d’e-mail.</div>
+            <PasswordForm user={user} compact />
+          </div>
+        )}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           {kpis.map((k) => (
             <Link key={k.st} to={`/app/chargements?statut=${k.st}`} className="rounded-xl bg-white border border-slate-200 p-4 sm:p-5 hover:shadow-md transition">

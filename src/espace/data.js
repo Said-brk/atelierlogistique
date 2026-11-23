@@ -141,3 +141,13 @@ export async function shipmentByToken(token) {
   fail(error);
   return data?.[0] ?? null;
 }
+
+// ---------------------------------------------------------------- Mot de passe
+/** Définit ou change le mot de passe (connexion sans attendre d'e-mail). */
+export async function setPassword(password) {
+  const sb = await getSupabase();
+  const { error } = await sb.auth.updateUser({ password, data: { has_password: true } });
+  if (error && /different from the old/i.test(error.message)) return; // même mot de passe : rien à faire
+  if (error && /weak|at least/i.test(error.message)) throw new Error('Mot de passe trop simple : 8 caractères minimum, avec lettres et chiffres.');
+  fail(error);
+}
