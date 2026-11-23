@@ -155,7 +155,9 @@ function PrintSheet({ result, colorOf }) {
   );
 }
 
-export default function Palletizer({ onBack }) {
+/** embedded : intégré à l'espace connecté (pas de barre d'outil ni de contenu SEO) ;
+ *  onLoadTruck : où aller après « Charger le camion » (par défaut l'optimiseur public). */
+export default function Palletizer({ onBack, embedded = false, onLoadTruck = null }) {
   const navigate = useNavigate();
   const [rows, setRows] = useState(exampleRows);
   const [supports, setSupports] = useState(loadSupports);
@@ -171,6 +173,7 @@ export default function Palletizer({ onBack }) {
   const [msg, setMsg] = useState(null);
 
   useEffect(() => {
+    if (embedded) return undefined; // intégré à l'espace connecté : la page gère son titre
     const seo = getCurrentLang() === 'en' ? toolSeoEn('pallet') : toolSeo('pallet');
     const prev = document.title;
     document.title = seo.title;
@@ -259,7 +262,7 @@ export default function Palletizer({ onBack }) {
       extra: { unitLabel: t('palette(s)') },
     });
     track('pallet_sent_to_load_optimizer', { pallets: result.pallets.length });
-    navigate(toolHref('optimiseur-chargement', getCurrentLang()));
+    if (onLoadTruck) onLoadTruck(); else navigate(toolHref('optimiseur-chargement', getCurrentLang()));
   };
 
   const pallet = result?.pallets[active] ?? null;
@@ -282,7 +285,8 @@ export default function Palletizer({ onBack }) {
   }, [result]);
 
   return (
-    <div className="min-h-screen text-slate-900" style={{ background: '#F8FAFC', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+    <div className={`${embedded ? '' : 'min-h-screen'} text-slate-900`} style={{ background: '#F8FAFC', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+      {!embedded && (<>
       <nav className="tool-nav border-b border-slate-200 bg-white sticky top-0 z-20 print:hidden">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-2.5 sm:py-4 flex items-center justify-between">
           <div className="flex items-center gap-3 sm:gap-5 min-w-0">
@@ -303,6 +307,7 @@ export default function Palletizer({ onBack }) {
         <h1 className="font-bricolage font-bold text-2xl md:text-3xl text-slate-900">{t('Palettisation 3D')}</h1>
         <p className="text-slate-600 mt-1 text-sm sm:text-base">{t('Préparez vos palettes complètes et mixtes, puis chargez-les dans le camion en un clic.')}</p>
       </div>
+      </>)}
 
       <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-4 space-y-4 sm:space-y-5">
         {/* 1. Colis */}
@@ -491,7 +496,7 @@ export default function Palletizer({ onBack }) {
       </div>
 
       {/* Contenu SEO (aussi pré-rendu en HTML : src/seo/pages.js) */}
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-12 space-y-8 print:hidden">
+      {!embedded && <div className="max-w-3xl mx-auto px-4 sm:px-6 py-12 space-y-8 print:hidden">
         <p className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">{t('Une fois les palettes prêtes, calculez le')}{' '}<a href={toolHref('optimiseur-chargement', getCurrentLang())} className="font-medium underline underline-offset-2" style={{ color: BLUE }}>{t('plan de chargement du camion ou du conteneur')}</a>{t('. Méthode complète :')}{' '}<a href="/ressources/plan-de-chargement-camion" className="font-medium underline underline-offset-2" style={{ color: BLUE }}>{t('comment faire un plan de chargement')}</a>.
         </p>
         <section>
@@ -509,7 +514,7 @@ export default function Palletizer({ onBack }) {
             ))}
           </div>
         </section>
-      </div>
+      </div>}
 
       {result && createPortal(
         <div className="pz-print-root"><PrintSheet result={result} colorOf={colorOf} /></div>,

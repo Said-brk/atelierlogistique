@@ -73,6 +73,7 @@ const BLUE_LIGHT = '#EFF6FF';
 
 function useDocumentMeta(title, description) {
   useEffect(() => {
+    if (!title) return undefined; // outil intégré à l'espace connecté : la page gère son titre
     const prevTitle = document.title;
     document.title = title;
     const meta = document.querySelector('meta[name="description"]');
@@ -439,14 +440,22 @@ function Kpi({ label, value, sub }) {
   );
 }
 
-export default function LoadOptimizer({ onBack }) {
+/**
+ * workspace (facultatif) : outil intégré à l'espace connecté (/app).
+ *   initial  : { rows, containerId, custom, vehicleMode, deliveryMode } — état de départ (chargement enregistré)
+ *   onChange : appelé à chaque changement avec l'état et le résumé du plan, pour l'enregistrement par la page
+ * Sans workspace : page publique (barre d'outil, en-tête SEO, FAQ).
+ */
+export default function LoadOptimizer({ onBack, workspace = null }) {
+  const embedded = !!workspace;
+  const init = workspace?.initial ?? {};
   const lang = getCurrentLang();
   const seo = lang === 'en' ? toolSeoEn('optimiseur-chargement') : toolSeo('optimiseur-chargement');
-  useDocumentMeta(seo.title, seo.description);
+  useDocumentMeta(embedded ? null : seo.title, seo.description);
 
-  const [rows, setRows] = useState(exampleRows);
-  const [containerId, setContainerId] = useState('semi');
-  const [custom, setCustom] = useState({ label: tr('Mon contenant'), length: 600, width: 240, height: 240, maxWeight: '' });
+  const [rows, setRows] = useState(() => (Array.isArray(init.rows) ? init.rows : exampleRows()));
+  const [containerId, setContainerId] = useState(init.containerId ?? 'semi');
+  const [custom, setCustom] = useState(init.custom ?? { label: tr('Mon contenant'), length: 600, width: 240, height: 240, maxWeight: '' });
   const [highlight, setHighlight] = useState(null);
   const [view3d, setView3d] = useState(true);
   const [hovered, setHovered] = useState(null);
@@ -468,7 +477,7 @@ export default function LoadOptimizer({ onBack }) {
   const { run, reset, result: rawResult, status } = useOptimizer();
 
   // Mode véhicule : 'single' = standard (l'utilisateur choisit) ; 'fleet' = l'outil propose la flotte.
-  const [vehicleMode, setVehicleMode] = useState('single');
+  const [vehicleMode, setVehicleMode] = useState(init.vehicleMode ?? 'single');
   const [fleetVehicles, setFleetVehicles] = useState(loadFleet);
   const [containerOverride, setContainerOverride] = useState(null); // véhicule de la flotte affiché
   const container = useMemo(() => {
@@ -516,7 +525,7 @@ export default function LoadOptimizer({ onBack }) {
   const [loadedUpToWall, setLoadedUpToWall] = useState(null); // null = chargement complet
 
   // Tournée multi-arrêts
-  const [deliveryMode, setDeliveryMode] = useState('STRICT');
+  const [deliveryMode, setDeliveryMode] = useState(init.deliveryMode ?? 'STRICT');
   const [colorBy, setColorBy] = useState('auto'); // 'auto' | 'ref' | 'stop' | 'both'
   const [unloadedUpTo, setUnloadedUpTo] = useState(0); // 0 = chargement complet
   const [excludedStops, setExcludedStops] = useState([]); // arrêts retirés du camion
@@ -840,8 +849,21 @@ export default function LoadOptimizer({ onBack }) {
 
   const printSheet = () => { track('load_optimizer_print_sheet'); window.print(); };
 
+  // Espace connecté : la page reçoit l'état courant (saisie + résumé du plan) pour l'enregistrer.
+  const onWorkspaceChange = workspace?.onChange;
+  useEffect(() => {
+    onWorkspaceChange?.({
+      rows, containerId, custom, vehicleMode, deliveryMode,
+      summary: result && status === 'done' ? {
+        vehicle: tText(container.label), packed: result.packedItems, unpacked: result.unpackedCount,
+        fill: result.volumeUtilization, weight: result.usedWeight, edited: manual.edited,
+      } : null,
+    });
+  }, [rows, containerId, custom, vehicleMode, deliveryMode, result, status, container, manual.edited, onWorkspaceChange]);
+
   return (
-    <div className="min-h-screen text-slate-900" style={{ background: '#F8FAFC', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+    <div className={`${embedded ? '' : 'min-h-screen'} text-slate-900`} style={{ background: '#F8FAFC', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+      {!embedded && (<>
       <nav className="tool-nav border-b border-slate-200 bg-white sticky top-0 z-20">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-2.5 sm:py-4 flex items-center justify-between">
           <div className="flex items-center gap-3 sm:gap-5 min-w-0">
@@ -863,6 +885,7 @@ export default function LoadOptimizer({ onBack }) {
         <h1 className="font-bricolage font-bold text-2xl md:text-3xl text-slate-900">{tr('Optimiseur de chargement 3D')}</h1>
         <p className="text-slate-600 mt-1 text-sm sm:text-base">{tr('Optimisez le remplissage de vos camions et conteneurs en quelques secondes.')}</p>
       </div>
+      </>)}
 
       <div className={`max-w-[1600px] mx-auto px-4 sm:px-6 py-4 ${status !== 'done' ? 'pb-24 xl:pb-4' : ''}`}>
         <div className="space-y-4 sm:space-y-5">
@@ -1470,7 +1493,7 @@ export default function LoadOptimizer({ onBack }) {
       )}
 
       {/* Contenu SEO */}
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-12 space-y-8">
+      {!embedded && <div className="max-w-3xl mx-auto px-4 sm:px-6 py-12 space-y-8">
         <p className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">{tr('Guide complet :')}{' '}<a href="/ressources/plan-de-chargement-camion" className="font-medium underline underline-offset-2" style={{ color: BLUE }}>{tr('comment faire un plan de chargement de camion ou de conteneur')}</a>{' '}{tr('(dimensions utiles, palettes, tournées multi-arrêts) et')}{' '}<a href="/ressources/arrimage-des-charges" className="font-medium underline underline-offset-2" style={{ color: BLUE }}>{tr('combien de sangles poser pour l\'arrimage')}</a>.
         </p>
         <section>
@@ -1504,7 +1527,7 @@ export default function LoadOptimizer({ onBack }) {
           <a href={lang === 'en' ? homeHref('en') : '/#tools'} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg font-jetbrains text-sm font-medium text-white" style={{ background: BLUE }}>{tr('Découvrir les autres outils')}{' '}<ArrowRight size={15} />
           </a>
         </section>
-      </div>
+      </div>}
 
       {result && status === 'done' && (
         createPortal(

@@ -16,9 +16,9 @@ function NavLink({ href, className, children, onClick, style }) {
 /** compact : variante pour la barre des pages outils. L'en-tête parent doit être positionné (sticky ou relative). */
 export default function SiteNav({ compact = false, lang = 'fr' }) {
   const links = lang === 'en' ? NAV_LINKS_EN : NAV_LINKS;
-  // Compte (FR, si configuré) : « Mon compte » si une session existe dans ce navigateur, sinon « Se connecter ».
+  // Compte (FR, si configuré) : « Mon espace » si une session existe dans ce navigateur, sinon « Se connecter ».
   const account = accountEnabled && lang === 'fr'
-    ? (hasStoredSession() ? { href: '/compte', label: 'Mon compte' } : { href: '/connexion', label: 'Se connecter' })
+    ? (hasStoredSession() ? { href: '/app', label: 'Mon espace' } : { href: '/connexion', label: 'Se connecter' })
     : null;
   const [open, setOpen] = useState(false);
   const ref = useRef(null);

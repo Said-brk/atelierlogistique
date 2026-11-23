@@ -58,7 +58,7 @@ export function LoginPage() {
   const [state, setState] = useState('idle'); // idle | sending | sent | error
   const [error, setError] = useState('');
 
-  useEffect(() => { if (session) navigate('/compte', { replace: true }); }, [session, navigate]);
+  useEffect(() => { if (session) navigate('/app', { replace: true }); }, [session, navigate]);
   if (!accountEnabled) return <Disabled />;
 
   const send = async (e) => {
@@ -66,7 +66,7 @@ export function LoginPage() {
     setState('sending'); setError('');
     try {
       const sb = await getSupabase();
-      const { error: err } = await sb.auth.signInWithOtp({ email: email.trim(), options: { emailRedirectTo: `${window.location.origin}/compte` } });
+      const { error: err } = await sb.auth.signInWithOtp({ email: email.trim(), options: { emailRedirectTo: `${window.location.origin}/app` } });
       if (err) throw err;
       setState('sent');
     } catch (err) {
