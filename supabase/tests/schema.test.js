@@ -16,7 +16,7 @@ describe('schéma Supabase', () => {
     // Ce que Supabase fournit déjà : rôles, schéma auth, auth.uid().
     await db.exec(`
     create role anon nologin; create role authenticated nologin; create role service_role nologin bypassrls;
-    create schema auth; create table auth.users(id uuid primary key);
+    create schema auth; create table auth.users(id uuid primary key, email text);
     create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub', true),'')::uuid $$;
     grant usage on schema auth to anon, authenticated; grant execute on function auth.uid() to anon, authenticated;
     `);
@@ -28,7 +28,7 @@ describe('schéma Supabase', () => {
     grant select, insert, update, delete on all tables in schema public to authenticated;
     grant select on all tables in schema public to anon;`); // comme Supabase par défaut
     const A = '11111111-1111-1111-1111-111111111111', B = '22222222-2222-2222-2222-222222222222';
-    await db.exec(`insert into auth.users values ('${A}'), ('${B}')`);
+    await db.exec(`insert into auth.users values ('${A}', 'alice@a.fr'), ('${B}', 'bob@b.fr')`);
     const as = async (uid, q, params) => {
       await db.exec(`reset role; select set_config('request.jwt.claim.sub', '${uid ?? ''}', false); set role ${uid ? 'authenticated' : 'anon'};`);
       try { return await db.query(q, params); } finally { await db.exec('reset role'); }
@@ -76,5 +76,39 @@ describe('schéma Supabase', () => {
     await db.exec(`update palletizations set expires_at = now() - interval '1 day'`);
     await db.query('select purge_expired_shipments()');
     ok((await db.query('select count(*)::int as n from palletizations')).rows[0].n === 0, 'purge des palettisations expirées');
+
+    // Invitations : un admin invite une adresse ; seule cette adresse peut accepter ; rôles protégés.
+    const C = '33333333-3333-3333-3333-333333333333';
+    await db.exec(`insert into auth.users values ('${C}', 'Claire@C.fr')`);
+    err = null; try { await as(B, `select invite_member($1, 'claire@c.fr')`, [orgA]); } catch (e) { err = e; }
+    ok(err, 'B ne peut pas inviter chez A');
+    err = null; try { await as(A, `insert into organization_members(org_id, user_id) values ($1, $2)`, [orgA, C]); } catch (e) { err = e; }
+    ok(err, 'personne n’est ajouté sans accepter une invitation');
+    const inv = (await as(A, `select invite_member($1, ' CLAIRE@c.fr ', 'member') as id`, [orgA])).rows[0].id;
+    await as(A, `select invite_member($1, 'claire@c.fr', 'admin')`, [orgA]);
+    ok((await as(A, 'select role from invitations')).rows.map((r) => r.role).join() === 'admin', 'ré-invitation : une seule invitation, rôle mis à jour');
+    ok((await as(B, 'select * from invitations')).rows.length === 0, 'B ne voit pas les invitations de A');
+    ok((await as(B, 'select * from my_invitations()')).rows.length === 0, 'invitation invisible pour une autre adresse');
+    err = null; try { await as(B, `select accept_invitation($1)`, [inv]); } catch (e) { err = e; }
+    ok(err, 'une autre adresse ne peut pas accepter');
+    const mine = (await as(C, 'select * from my_invitations()')).rows;
+    ok(mine.length === 1 && mine[0].org_name === 'Transports A' && mine[0].invited_by_email === 'alice@a.fr', 'Claire voit l’invitation (adresse sans tenir compte des majuscules)');
+    await as(C, `select accept_invitation($1)`, [inv]);
+    ok((await as(C, 'select name from organizations')).rows[0]?.name === 'Transports A', 'Claire a rejoint Transports A');
+    ok((await as(C, 'select count(*)::int as n from shipments')).rows[0].n >= 0 && (await as(C, 'select * from invitations')).rows.length === 0, 'invitation consommée');
+    const team = (await as(C, `select email, role from org_members($1)`, [orgA])).rows;
+    ok(team.length === 2 && team[0].role === 'owner' && team[1].email === 'claire@c.fr' && team[1].role === 'admin', 'équipe : propriétaire puis admin');
+    ok((await as(B, `select * from org_members($1)`, [orgA])).rows.length === 0, 'B ne voit pas l’équipe de A');
+    err = null; try { await as(A, `select invite_member($1, 'claire@c.fr')`, [orgA]); } catch (e) { err = e; }
+    ok(err, 'déjà membre : pas de nouvelle invitation');
+    err = null; try { await as(C, `delete from organization_members where org_id = $1 and user_id = $2`, [orgA, A]); } catch (e) { err = e; }
+    ok(err, 'le propriétaire ne peut pas être retiré');
+    err = null; try { await as(C, `update organization_members set role = 'owner' where user_id = $1`, [C]); } catch (e) { err = e; }
+    ok(err, 'personne ne se donne le rôle de propriétaire');
+    await as(A, `update organization_members set role = 'member' where user_id = $1`, [C]);
+    err = null; try { await as(C, `select invite_member($1, 'dan@d.fr')`, [orgA]); } catch (e) { err = e; }
+    ok(err, 'un membre simple ne peut pas inviter');
+    await as(C, `delete from organization_members where user_id = $1`, [C]);
+    ok((await as(C, 'select * from organizations')).rows.length === 0, 'Claire peut quitter l’entreprise');
   }, 60000);
 });

@@ -151,3 +151,75 @@ export async function setPassword(password) {
   if (error && /weak|at least/i.test(error.message)) throw new Error('Mot de passe trop simple : 8 caractères minimum, avec lettres et chiffres.');
   fail(error);
 }
+
+// ---------------------------------------------------------------- Équipe et invitations
+export const ROLES = { owner: 'Propriétaire', admin: 'Administrateur', member: 'Membre' };
+
+export async function orgMembers(orgId) {
+  const sb = await getSupabase();
+  const { data, error } = await sb.rpc('org_members', { p_org: orgId });
+  fail(error);
+  return data;
+}
+
+export async function setMemberRole(orgId, userId, role) {
+  const sb = await getSupabase();
+  const { error } = await sb.from('organization_members').update({ role }).eq('org_id', orgId).eq('user_id', userId);
+  fail(error);
+}
+
+/** Retirer un membre (ou se retirer soi-même : quitter l'entreprise). */
+export async function removeMember(orgId, userId) {
+  const sb = await getSupabase();
+  const { error } = await sb.from('organization_members').delete().eq('org_id', orgId).eq('user_id', userId);
+  fail(error);
+}
+
+export async function listInvitations(orgId) {
+  const sb = await getSupabase();
+  const { data, error } = await sb.from('invitations').select('id, email, role, created_at, expires_at').eq('org_id', orgId).order('created_at', { ascending: false });
+  fail(error);
+  return data;
+}
+
+export async function inviteMember(orgId, email, role) {
+  const sb = await getSupabase();
+  const { error } = await sb.rpc('invite_member', { p_org: orgId, p_email: email.trim().toLowerCase(), p_role: role });
+  fail(error);
+}
+
+export async function revokeInvitation(id) {
+  const sb = await getSupabase();
+  const { error } = await sb.from('invitations').delete().eq('id', id);
+  fail(error);
+}
+
+export async function myInvitations() {
+  const sb = await getSupabase();
+  const { data, error } = await sb.rpc('my_invitations');
+  fail(error);
+  return data ?? [];
+}
+
+export async function acceptInvitation(id) {
+  const sb = await getSupabase();
+  const { data, error } = await sb.rpc('accept_invitation', { p_id: id });
+  fail(error);
+  return data; // id de l'entreprise rejointe
+}
+
+export async function declineInvitation(id) {
+  const sb = await getSupabase();
+  const { error } = await sb.rpc('decline_invitation', { p_id: id });
+  fail(error);
+}
+
+/** Lien et message d'invitation à envoyer au collègue (la création du compte se fait avec son adresse). */
+export function invitationMessage(orgName, email) {
+  const url = `${window.location.origin}/connexion?mode=inscription&email=${encodeURIComponent(email)}`;
+  const text = `Bonjour,\n\nJe t’invite à rejoindre « ${orgName} » sur Atelier Logistique (chargements, palettisations, plans 3D).\n\n`
+    + `1. Ouvre ce lien et crée ton compte avec l’adresse ${email} :\n${url}\n`
+    + '2. Choisis ton mot de passe, connecte-toi et accepte l’invitation.\n\n'
+    + 'Tu as déjà un compte avec cette adresse ? Connecte-toi simplement : l’invitation t’attend.';
+  return { url, text, subject: `Invitation à rejoindre ${orgName} sur Atelier Logistique` };
+}

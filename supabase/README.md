@@ -13,11 +13,15 @@ Fonctions **en plus** du site : comptes, « Mes chargements », API. Les outils 
 | `shipment_versions` | historique : une ligne à chaque changement de plan ou de statut |
 | `api_keys` | clés d'API (empreinte SHA-256 seulement, jamais la clé en clair) |
 | `usage_events` | consommation de l'API (appels, durée, nombre d'unités) |
+| `palletizations` | palettisations (n° `PZ-XXXXXX`), reliées au chargement qu'elles alimentent |
+| `invitations` | invitations d'un collègue par adresse e-mail (14 jours), acceptées à l'entrée de l'espace |
 
-Statuts d'un chargement : `new` → `in_progress` → `validated` → `sent` (renvoyé au WMS) · `cancelled`.
+Statuts d'un chargement : `new` → `in_progress` → `validated` → `sent` (envoyé au quai) · `cancelled`.
 
 Fonctions : `create_organization(nom)`, `create_api_key(org, nom)` (renvoie la clé en clair **une seule fois**),
-`shipment_by_token(jeton)` (plan ouvert par lien, sans compte), `purge_expired_shipments()`.
+`shipment_by_token(jeton)` (plan ouvert par lien, sans compte), `purge_expired_shipments()`,
+`invite_member(org, e-mail, rôle)`, `my_invitations()`, `accept_invitation(id)`, `decline_invitation(id)`, `org_members(org)`.
+Un membre n'entre dans une entreprise qu'en la créant ou en acceptant une invitation ; le propriétaire ne peut être ni retiré ni rétrogradé.
 
 Sécurité : RLS sur toutes les tables ; un utilisateur ne voit que les données des entreprises dont il est membre.
 Les clés d'API et la consommation ne sont visibles que des administrateurs / membres de l'entreprise.

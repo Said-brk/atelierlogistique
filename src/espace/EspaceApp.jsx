@@ -4,23 +4,25 @@
 
 import { useState, useEffect } from 'react';
 import { Routes, Route, NavLink, Navigate, useNavigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Truck, Boxes, KeyRound, Settings, Plus, LogOut, Menu, X, ExternalLink, Loader2, Building2, ArrowRight, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { LayoutDashboard, Truck, Boxes, KeyRound, Settings, Plus, LogOut, Menu, X, ExternalLink, Loader2, Building2, ArrowRight, PanelLeftClose, PanelLeftOpen, Users, Mail, ChevronDown } from 'lucide-react';
 import { EspaceProvider, useEspace } from './useEspace';
 import { I18nProvider } from '../shared/i18n/I18nProvider.jsx';
 import { accountEnabled, passwordStep } from '../shared/account/supabase';
 import { hasPassword } from './PasswordForm';
-import { createOrganization, signOut, setPassword } from './data';
+import { createOrganization, signOut, setPassword, acceptInvitation, declineInvitation, ROLES } from './data';
 import Dashboard from './pages/Dashboard';
 import Shipments from './pages/Shipments';
 import ShipmentEditor, { NewShipment } from './pages/ShipmentEditor';
 import Palletizations from './pages/Palletizations';
 import PalletizationEditor, { NewPalletization } from './pages/PalletizationEditor';
 import SettingsPage from './pages/SettingsPage';
+import TeamPage from './pages/TeamPage';
 
 const NAV = [
   { to: '/app', end: true, icon: LayoutDashboard, label: 'Tableau de bord' },
   { to: '/app/chargements', icon: Truck, label: 'Chargements' },
   { to: '/app/palettisations', icon: Boxes, label: 'Palettisations' },
+  { to: '/app/equipe', icon: Users, label: 'Équipe' },
   { to: null, icon: KeyRound, label: 'Clés d’API', soon: true },
   { to: '/app/parametres', icon: Settings, label: 'Paramètres' },
 ];
@@ -39,9 +41,10 @@ const COLLAPSE_KEY = 'al.espace.sidebar.collapsed';
 const readCollapsed = () => { try { return localStorage.getItem(COLLAPSE_KEY) === '1'; } catch { return false; } };
 
 function Sidebar({ onNavigate, collapsed = false, onToggle = null }) {
-  const { org, user } = useEspace();
+  const { org, orgs, setOrgId, user } = useEspace();
   const navigate = useNavigate();
   const [newOpen, setNewOpen] = useState(false);
+  const switchOrg = (id) => { setOrgId(id); navigate('/app'); onNavigate?.(); };
   const out = async () => { await signOut(); navigate('/', { replace: true }); };
   return (
     <div className="h-full flex flex-col text-slate-300" style={{ background: '#0F172A' }}>
@@ -50,7 +53,15 @@ function Sidebar({ onNavigate, collapsed = false, onToggle = null }) {
         {!collapsed && (
           <div className="min-w-0">
             <div className="font-bricolage font-bold text-white text-[15px] leading-tight">Atelier <span style={{ color: '#60A5FA' }}>Logistique</span></div>
-            <div className="text-[11px] text-slate-400 truncate">{org?.name ?? '—'}</div>
+            {orgs?.length > 1 ? (
+              // Plusieurs entreprises : choix de l'entreprise affichée.
+              <label className="relative flex items-center text-[11px] text-slate-300 hover:text-white" title="Changer d’entreprise">
+                <select value={org?.id} onChange={(e) => switchOrg(e.target.value)} className="appearance-none bg-transparent pr-4 truncate max-w-[150px] cursor-pointer focus:outline-none">
+                  {orgs.map((o) => <option key={o.id} value={o.id} className="text-slate-900">{o.name}</option>)}
+                </select>
+                <ChevronDown size={11} className="absolute right-0 pointer-events-none" />
+              </label>
+            ) : <div className="text-[11px] text-slate-400 truncate">{org?.name ?? '—'}</div>}
           </div>
         )}
       </div>
@@ -128,6 +139,7 @@ function Onboarding() {
         <div className="flex items-center gap-2 text-blue-700"><Building2 size={20} /><span className="font-jetbrains text-xs">BIENVENUE {user?.email}</span></div>
         <h1 className="font-bricolage font-bold text-2xl text-slate-900">Créez votre espace</h1>
         <p className="text-sm text-slate-500">Le nom de votre entreprise. Vos chargements et vos clés d’API y seront rattachés ; vous pourrez inviter vos collègues.</p>
+        <p className="text-xs text-slate-400">Votre entreprise a déjà un espace ? Ne créez rien : demandez à un administrateur de vous inviter avec l’adresse {user?.email}, puis reconnectez-vous.</p>
         <input required minLength={2} maxLength={120} value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex. Transports Martin"
           className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" />
         <button disabled={busy} className="w-full inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60" style={{ background: '#2563EB' }}>
@@ -181,15 +193,55 @@ function ChoosePassword() {
   );
 }
 
+// Invitations en attente (adresse du compte) : à l'entrée de l'espace, avant de créer son entreprise.
+function Invitations({ canSkip, onSkip }) {
+  const { invitations, reloadOrgs, setOrgId, user } = useEspace();
+  const [busy, setBusy] = useState(null);
+  const [error, setError] = useState('');
+  const act = async (id, accept) => {
+    setBusy(id); setError('');
+    try {
+      if (accept) setOrgId(await acceptInvitation(id)); else await declineInvitation(id);
+      await reloadOrgs();
+    } catch (e) { setError(e.message); }
+    setBusy(null);
+  };
+  return (
+    <div className="min-h-screen flex items-center justify-center px-4" style={{ background: 'radial-gradient(120% 120% at 80% 0%, #1D4ED8 0%, #0F172A 55%, #020617 100%)' }}>
+      <div className="w-full max-w-md rounded-2xl bg-white p-7 shadow-2xl space-y-4">
+        <div className="flex items-center gap-2 text-blue-700"><Mail size={18} /><span className="font-jetbrains text-xs break-all">{user?.email}</span></div>
+        <h1 className="font-bricolage font-bold text-2xl text-slate-900">{invitations.length > 1 ? 'Vous êtes invité' : 'Vous êtes invité à rejoindre une entreprise'}</h1>
+        {invitations.map((i) => (
+          <div key={i.id} className="rounded-xl border border-slate-200 p-4 space-y-3">
+            <div>
+              <div className="font-semibold text-slate-900">{i.org_name}</div>
+              <div className="text-xs text-slate-500">{i.invited_by_email ? `Invité par ${i.invited_by_email}` : 'Invitation'} · rôle {ROLES[i.role]?.toLowerCase()}</div>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => act(i.id, true)} disabled={!!busy} className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-60" style={{ background: '#2563EB' }}>
+                {busy === i.id ? <Loader2 size={15} className="animate-spin" /> : <ArrowRight size={15} />} Rejoindre</button>
+              <button onClick={() => act(i.id, false)} disabled={!!busy} className="rounded-lg px-4 py-2 text-sm font-medium border border-slate-300 text-slate-600 hover:bg-slate-50">Refuser</button>
+            </div>
+          </div>
+        ))}
+        {error && <div className="text-sm text-red-700">{error}</div>}
+        {canSkip && <button onClick={onSkip} className="text-sm text-slate-500 hover:text-slate-800">Plus tard</button>}
+      </div>
+    </div>
+  );
+}
+
 function Gate({ children }) {
-  const { session, orgs } = useEspace();
+  const { session, orgs, invitations } = useEspace();
   const navigate = useNavigate();
+  const [skipInvites, setSkipInvites] = useState(false);
   useEffect(() => { if (session === null) navigate('/connexion', { replace: true }); }, [session, navigate]);
   if (!accountEnabled) return <Navigate to="/" replace />;
   if (!session || orgs === null) {
     return <div className="min-h-screen flex items-center justify-center bg-slate-50 text-slate-400"><Loader2 className="animate-spin" /></div>;
   }
   if (passwordStep.pending() || !hasPassword(session.user)) return <ChoosePassword />;
+  if (invitations.length > 0 && !skipInvites) return <Invitations canSkip={orgs.length > 0} onSkip={() => setSkipInvites(true)} />;
   if (orgs.length === 0) return <Onboarding />;
   return children;
 }
@@ -231,6 +283,7 @@ function Shell() {
           <Route path="palettisations/nouveau" element={<NewPalletization />} />
           <Route path="palettisations/:code" element={<PalletizationEditor />} />
           <Route path="palettisation" element={<Navigate to="/app/palettisations" replace />} />
+          <Route path="equipe" element={<TeamPage />} />
           <Route path="parametres" element={<SettingsPage />} />
           <Route path="*" element={<Navigate to="/app" replace />} />
         </Routes>
