@@ -122,7 +122,7 @@ export default function LoadingGuide({ payload: given = null, notice = null, war
       <div className="relative bg-white" style={{ height: '42vh', minHeight: 260 }}>
         <Boundary fallback={<div className="h-full flex items-center justify-center text-sm text-slate-500 px-6 text-center">{t('Vue 3D indisponible sur ce téléphone : suivez les indications ci-dessous.')}</div>}>
           <Suspense fallback={<div className="h-full flex items-center justify-center text-slate-400"><Loader2 className="animate-spin" /></div>}>
-            <LoadView3D container={container} placed={placed} colorOf={colorOf} isDimmed={(p) => !!current && !p.current} blockedIds={null} onHover={() => {}} cameraScale={0.75} />
+            <LoadView3D container={container} placed={placed} colorOf={colorOf} isDimmed={(p) => !!current && !p.current} blockedIds={null} onHover={() => {}} />
           </Suspense>
         </Boundary>
       </div>

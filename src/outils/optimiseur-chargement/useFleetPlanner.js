@@ -27,6 +27,8 @@ export function useFleetPlanner() {
     try { setPlan(planFleet(definitions, vehicles, options)); setStatus('done'); } catch (e) { setError(e?.message || 'Erreur moteur'); setStatus('error'); }
   }, []);
 
+  /** Réaffiche une flotte déjà calculée (chargement enregistré), sans relancer le calcul. */
+  const restoreFleet = useCallback((p) => { setPlan(p); setStatus('done'); setError(null); }, []);
   const resetFleet = useCallback(() => { setStatus('idle'); setPlan(null); setError(null); }, []);
-  return { runFleet, resetFleet, plan, status, error };
+  return { runFleet, resetFleet, restoreFleet, plan, status, error };
 }

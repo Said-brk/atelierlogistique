@@ -8,7 +8,8 @@ const toDateInput = (d) => (d ? new Date(d).toISOString().slice(0, 10) : '');
 // Clés triées : la base (jsonb) ne rend pas les clés dans l'ordre d'origine (saisie et plan).
 const stable = (v) => (Array.isArray(v) ? `[${v.map(stable).join(',')}]`
   : v && typeof v === 'object' ? `{${Object.keys(v).filter((k) => v[k] !== undefined).sort().map((k) => `${k}:${stable(v[k])}`).join(',')}}` : JSON.stringify(v ?? null));
-const planSig = (p) => (p?.base ? stable({ base: p.base, manual: p.manual ?? null }) : '');
+const hasGuide = (p) => !!(p?.guide || p?.guides?.length);
+const planSig = (p) => (p?.base || p?.fleet ? stable({ base: p.base ?? null, manual: p.manual ?? null, fleet: p.fleet ?? null }) : '');
 
 /** initialOf(doc) : état de départ de l'outil intégré (saisie + plan enregistré). */
 export const initialOf = (d) => ({ rows: [], ...(d.input ?? {}), plan: d.result?.plan ?? null });
@@ -23,6 +24,7 @@ export default function useDocEditor({ code, load, update, titleOf }) {
   const snapshot = useRef(null);
   const savedInput = useRef('');
   const savedPlan = useRef('');
+  const savedGuide = useRef(false); // le plan enregistré a-t-il son guide cariste (calculé après coup) ?
 
   const apply = (d) => {
     setDoc(d);
@@ -30,6 +32,7 @@ export default function useDocEditor({ code, load, update, titleOf }) {
     setMetaState({ label: d.label ?? '', external_id: d.external_id ?? '', departure_at: toDateInput(d.departure_at) });
     savedInput.current = stable(d.input ?? {});
     savedPlan.current = planSig(d.result?.plan);
+    savedGuide.current = hasGuide(d.result?.plan);
     setSummary(d.result?.summary ?? null);
     document.title = `${d.code} · ${titleOf(d)} | Atelier Logistique`;
   };
@@ -47,7 +50,7 @@ export default function useDocEditor({ code, load, update, titleOf }) {
     // Saisie modifiée sans nouveau calcul : l'ancien plan ne correspond plus.
     if (sum) setSummary(sum); else if (inputChanged) setSummary(null);
     // Un plan absent (calcul pas encore relancé) ne compte pas comme une modification.
-    const planChanged = !!plan && planSig(plan) !== savedPlan.current;
+    const planChanged = !!plan && (planSig(plan) !== savedPlan.current || (hasGuide(plan) && !savedGuide.current));
     setDirty((d) => d || planChanged || inputChanged);
   }, []);
 

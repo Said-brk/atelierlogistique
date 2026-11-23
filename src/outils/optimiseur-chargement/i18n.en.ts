@@ -148,6 +148,7 @@ const en: Record<string, string> = {
   "Remplissage": "Fill rate",
   "Accès": "Access",
   "QR code cariste : plan pas à pas sur téléphone": "Loader QR code: step-by-step plan on a phone",
+  "QR code cariste": "Loader QR code",
   "Séquence de chargement colis par colis, à réimporter dans votre WMS / ERP": "Case-by-case loading sequence, to import into your WMS / ERP",
   "Fiche PDF": "PDF sheet",
   "Relancer": "Run again",
