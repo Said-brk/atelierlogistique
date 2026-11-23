@@ -39,6 +39,7 @@ import { useFleetPlanner } from './useFleetPlanner';
 import { encodePlan, guideUrl, qrTextOf } from './guide/planLink';
 import QrCode, { qrModules, QR_MAX_MODULES } from './guide/QrCode';
 import GuideQrModal from './guide/GuideQrModal';
+import { fleetGuides } from './guide/fleetGuides';
 import { DEFAULT_FLEET } from './constants/fleet';
 
 // Mode « Flotte automatique » : véhicules proposés, mémorisés (coûts, cases cochées).
@@ -443,7 +444,8 @@ function Kpi({ label, value, sub }) {
 /**
  * workspace (facultatif) : outil intégré à l'espace connecté (/app).
  *   initial  : { rows, containerId, custom, vehicleMode, deliveryMode, excludedStops, plan } — état de départ
- *              (chargement enregistré). plan = { base, manual } : plan 3D calculé + retouches, réaffiché sans recalcul.
+ *              (chargement enregistré). plan = { base, manual } : plan 3D calculé + retouches, réaffiché sans recalcul ;
+ *              en flotte : plan = { fleet, guides } (flotte calculée + plan pas à pas de chaque véhicule).
  *   onChange : appelé à chaque changement avec l'état, le résumé et le plan, pour l'enregistrement par la page
  *   shareUrl : lien permanent du plan enregistré (/q/…), utilisé pour le QR code et la fiche à la place
  *              du lien qui contient le plan ; à ne fournir que si le plan affiché est celui enregistré.
@@ -514,7 +516,7 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
     track('load_optimizer_manual_edit');
   };
   const [viewingTruck, setViewingTruck] = useState(null);
-  const { runFleet, resetFleet, plan: fleetPlan, status: fleetStatus } = useFleetPlanner();
+  const { runFleet, resetFleet, restoreFleet, plan: fleetPlan, status: fleetStatus } = useFleetPlanner();
   const changeFleetVehicles = (next) => {
     setFleetVehicles(next);
     resetFleet(); setContainerOverride(null); setViewingTruck(null);
@@ -578,7 +580,11 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
     : result), [result, shiftMm]);
   // Guide cariste : lien (plan dans l'URL) recalculé à chaque nouveau plan.
   const [encodedGuideLink, setGuideLink] = useState(null);
-  const guideLink = workspace?.shareUrl ?? encodedGuideLink;
+  // Lien permanent (espace) : en flotte, celui du véhicule affiché (?camion=N).
+  const shareUrl = workspace?.shareUrl ?? null;
+  const guideLink = shareUrl
+    ? (vehicleMode === 'fleet' ? (viewingTruck ? `${shareUrl}?camion=${viewingTruck}` : null) : shareUrl)
+    : encodedGuideLink;
   const [guideOpen, setGuideOpen] = useState(false);
   useEffect(() => {
     let alive = true;
@@ -715,6 +721,7 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
   // Plan enregistré (espace) : réaffiché tel quel, retouches comprises, sauf si de nouvelles lignes viennent d'arriver.
   useEffect(() => {
     const p = savedPlan.current;
+    if (!handoffReceived.current && vehicleMode === 'fleet' && p?.fleet) { savedPlan.current = null; restoreFleet(p.fleet); return; }
     if (!p?.base || handoffReceived.current || vehicleMode !== 'single') { savedPlan.current = null; return; }
     restore(p.base);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -875,25 +882,46 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
 
   const printSheet = () => { track('load_optimizer_print_sheet'); window.print(); };
 
+  // Flotte (espace) : plan pas à pas de chaque véhicule, pour le lien quai permanent (un QR, choix du camion).
+  const [fleetGuideList, setFleetGuideList] = useState(null);
+  useEffect(() => {
+    setFleetGuideList(null);
+    if (!embedded || fleetStatus !== 'done' || !fleetPlan?.trucks.length) return undefined;
+    let alive = true;
+    fleetGuides(fleetPlan, { deliveryMode, loading: { mode: LOADING_DEFAULTS.mode } }, (c) => tText(c.label), lang)
+      .then((g) => { if (alive) setFleetGuideList(g); }).catch(() => {});
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fleetPlan, fleetStatus]);
+
   // Espace connecté : la page reçoit l'état courant (saisie + résumé du plan) pour l'enregistrer.
   const onWorkspaceChange = workspace?.onChange;
   useEffect(() => {
     const done = result && status === 'done';
     if (pendingManual.current && manual.snapshot) pendingManual.current = false;
     const restoring = !!savedPlan.current || pendingManual.current;
+    const fleetDone = vehicleMode === 'fleet' && fleetStatus === 'done' && fleetPlan?.trucks.length > 0;
+    const byVehicle = fleetDone ? Object.entries(fleetPlan.trucks.reduce((m, t) => { const l = tText(t.container.label); m[l] = (m[l] ?? 0) + 1; return m; }, {})) : [];
     onWorkspaceChange?.({
       rows, containerId, custom, vehicleMode, deliveryMode, excludedStops,
-      summary: done ? {
+      summary: fleetDone ? {
+        vehicle: byVehicle.map(([l, n]) => `${n} × ${l}`).join(' + '), fleet: fleetPlan.trucks.length,
+        packed: fleetPlan.trucks.reduce((s, t) => s + t.units, 0), unpacked: fleetPlan.unplaced.reduce((s, u) => s + u.quantity, 0),
+        fill: fleetPlan.trucks.reduce((s, t) => s + t.volumeUtilization, 0) / fleetPlan.trucks.length,
+        weight: fleetPlan.trucks.reduce((s, t) => s + t.weight, 0), edited: false,
+      } : done ? {
         vehicle: tText(container.label), packed: result.packedItems, unpacked: result.unpackedCount,
         fill: result.volumeUtilization, weight: result.usedWeight, edited: manual.edited,
       } : null,
       // Plan 3D (un véhicule) : calcul + retouches, pour le rouvrir à l'identique.
       // (rien tant que le plan enregistré est en cours de réaffichage, pour ne pas le voir comme une modification)
       // guide = plan pas à pas du cariste (format compact), servi par le lien permanent /q/…
-      plan: done && vehicleMode === 'single' && !containerOverride && !restoring
-        ? { base: rawResult, manual: manual.snapshot, guide: encodedGuideLink?.split('#')[1] ?? null } : null,
+      // flotte : la flotte calculée + le guide de chaque véhicule (guides = null tant qu'ils se calculent).
+      plan: fleetDone && !restoring ? { fleet: fleetPlan, guides: fleetGuideList }
+        : done && vehicleMode === 'single' && !containerOverride && !restoring
+          ? { base: rawResult, manual: manual.snapshot, guide: encodedGuideLink?.split('#')[1] ?? null } : null,
     });
-  }, [rows, containerId, custom, vehicleMode, deliveryMode, excludedStops, result, rawResult, status, container, containerOverride, manual.edited, manual.snapshot, encodedGuideLink, onWorkspaceChange]);
+  }, [rows, containerId, custom, vehicleMode, deliveryMode, excludedStops, result, rawResult, status, container, containerOverride, manual.edited, manual.snapshot, encodedGuideLink, fleetPlan, fleetStatus, fleetGuideList, onWorkspaceChange]);
 
   return (
     <div className={`${embedded ? '' : 'min-h-screen'} text-slate-900`} style={{ background: '#F8FAFC', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
@@ -1120,7 +1148,8 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
                   <div className="rounded-xl border border-slate-200 overflow-hidden bg-white">
                     <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-slate-200 bg-slate-50 font-jetbrains text-xs text-slate-600 flex flex-wrap items-center justify-between gap-2">
                       <span className="flex items-center gap-2 shrink-0"><Box size={13} />{' '}{tr('PLAN')}<span className="hidden sm:inline">{' '}{tr('DE CHARGEMENT')}</span></span>
-                      <div className="flex flex-wrap items-center justify-end gap-1.5 sm:gap-2">
+                      {/* Téléphone : actions sous le titre, alignées à gauche ; écran large : à droite du titre. */}
+                      <div className="w-full sm:w-auto flex flex-wrap items-center gap-1.5 sm:gap-2 sm:justify-end">
                         <button onClick={() => (editMode ? setEditMode(false) : startEdit())}
                           className="flex items-center gap-1 font-jetbrains text-[10px] px-2 py-1 rounded-md"
                           style={editMode ? { background: '#F59E0B', color: '#0F172A', fontWeight: 600 } : { background: '#FEF3C7', color: '#92400E' }}
@@ -1144,14 +1173,14 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
                     <div className="p-2 sm:p-4 relative">
                       {editMode ? (
                         <ThreeErrorBoundary fallback={<Schematic2D container={container} placed={manual.placed} colorOf={colorOf} isDimmed={() => false} blockedIds={manual.issues.all} />}>
-                          <Suspense fallback={<div className="flex items-center justify-center text-slate-400 font-jetbrains text-xs h-[340px] sm:h-[420px] lg:h-[460px]"><Loader2 size={18} className="animate-spin mr-2" />{' '}{tr('Chargement de la vue 3D…')}</div>}>
+                          <Suspense fallback={<div className="flex items-center justify-center text-slate-400 font-jetbrains text-xs h-[280px] sm:h-[420px] lg:h-[460px]"><Loader2 size={18} className="animate-spin mr-2" />{' '}{tr('Chargement de la vue 3D…')}</div>}>
                             <LoadView3D container={container} placed={manual.placed} colorOf={colorOf} isDimmed={() => false} blockedIds={null} onHover={setHovered}
                               edit={{ selectedId: manual.selectedId, onSelect: manual.select, invalidIds: manual.issues.all, onDragEnd: manual.dropAt }} />
                           </Suspense>
                         </ThreeErrorBoundary>
                       ) : view3d ? (
                         <ThreeErrorBoundary fallback={<Schematic2D container={container} placed={visiblePlaced} colorOf={colorOf} isDimmed={isDimmed} blockedIds={blockedIds} />}>
-                          <Suspense fallback={<div className="flex items-center justify-center text-slate-400 font-jetbrains text-xs h-[340px] sm:h-[420px] lg:h-[460px]"><Loader2 size={18} className="animate-spin mr-2" />{' '}{tr('Chargement de la vue 3D…')}</div>}>
+                          <Suspense fallback={<div className="flex items-center justify-center text-slate-400 font-jetbrains text-xs h-[280px] sm:h-[420px] lg:h-[460px]"><Loader2 size={18} className="animate-spin mr-2" />{' '}{tr('Chargement de la vue 3D…')}</div>}>
                             <LoadView3D container={container} placed={visiblePlaced} colorOf={colorOf} isDimmed={isDimmed} blockedIds={blockedIds} onHover={setHovered} cog={loadedUpToWall === null && unloadedUpTo === 0 ? balance?.cog : null} />
                           </Suspense>
                         </ThreeErrorBoundary>
@@ -1252,10 +1281,10 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
                           </button>
                         ))}
                       </div>
-                      <button onClick={() => { setGuideOpen(true); track('load_optimizer_guide_qr'); }} disabled={!guideLink}
+                      <button onClick={() => { setGuideOpen(true); track('load_optimizer_guide_qr'); }} disabled={!guideLink} title={tr('QR code cariste : plan pas à pas sur téléphone')}
                         className="w-full mb-2 flex items-center justify-center gap-2 py-2.5 rounded-lg font-jetbrains text-xs font-semibold disabled:opacity-50"
                         style={{ background: '#F59E0B', color: '#0F172A' }}>
-                        <QrCodeIcon size={14} />{' '}{tr('QR code cariste : plan pas à pas sur téléphone')}</button>
+                        <QrCodeIcon size={14} className="shrink-0" />{' '}{tr('QR code cariste')}</button>
                       {guideOpen && guideLink && <GuideQrModal url={guideLink} onClose={() => setGuideOpen(false)}
                         note={workspace?.shareUrl ? tr('Lien permanent : il affiche toujours la dernière version enregistrée du chargement.') : null} />}
                       <div className="grid grid-cols-3 gap-2">

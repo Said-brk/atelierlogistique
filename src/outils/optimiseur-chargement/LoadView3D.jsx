@@ -7,6 +7,50 @@ import { t } from '../../shared/i18n/core';
 
 const S = 1 / 1000; // mm → unités de scène (mètres)
 
+// Directions de vue (de la cible vers la caméra). Écran large : 3/4 classique. Écran étroit (téléphone) :
+// vue plus haute et plus de côté, pour que la longueur du camion occupe la largeur disponible.
+const DIR_WIDE = [0.95, 0.75, 1.15];
+const DIR_NARROW = [0.55, 0.95, 1.15];
+
+/**
+ * Distance de caméra qui fait tenir la boîte (demi-dimensions hx, hy, hz, centrée en 0) dans le cadre,
+ * selon la forme réelle de la vue (largeur / hauteur) : le contenant remplit l'écran sur ordinateur
+ * comme sur téléphone, au lieu d'une distance fixe qui le laisse minuscule en portrait.
+ */
+export function fitCameraPosition([hx, hy, hz], dir, aspect, fovDeg, margin = 1.06) {
+  const n = Math.hypot(...dir); const f = dir.map((v) => v / n); // vers la caméra
+  const fwd = f.map((v) => -v);
+  const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+  const norm = (v) => { const l = Math.hypot(...v); return v.map((x) => x / l); };
+  const right = norm(cross(fwd, [0, 1, 0])); const up = cross(right, fwd);
+  const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  const tanV = Math.tan((fovDeg * Math.PI) / 360); const tanH = tanV * aspect;
+  let d = 0;
+  for (const sx of [-1, 1]) for (const sy of [-1, 1]) for (const sz of [-1, 1]) {
+    const c = [sx * hx, sy * hy, sz * hz];
+    const z = dot(c, f);
+    d = Math.max(d, z + (Math.abs(dot(c, right)) * margin) / tanH, z + (Math.abs(dot(c, up)) * margin) / tanV);
+  }
+  return f.map((v) => v * d);
+}
+
+/** Cadre la caméra à chaque changement de taille de la vue ; « Vue » (réinitialiser) revient à ce cadrage. */
+function CameraFit({ half, scale, controls }) {
+  const { camera, size } = useThree();
+  const [hx, hy, hz] = half;
+  useEffect(() => {
+    if (!size.width || !size.height) return;
+    const aspect = size.width / size.height;
+    const pos = fitCameraPosition(half, aspect < 1.25 ? DIR_NARROW : DIR_WIDE, aspect, camera.fov).map((v) => v * scale);
+    camera.position.set(...pos);
+    camera.lookAt(0, 0, 0);
+    const c = controls.current;
+    if (c) { c.target.set(0, 0, 0); c.update(); c.saveState(); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [size.width, size.height, hx, hy, hz, scale]);
+  return null;
+}
+
 function ItemMesh({ item, color, dimmed, blocked, withEdges, onHover, editing, selected, invalid, onSelect, onDragStart }) {
   const [hovered, setHovered] = useState(false);
   const size = [item.length * S, item.height * S, item.width * S];
@@ -150,6 +194,7 @@ function DragController({ drag, setDrag, container, deckHeight, controls, onDrag
  * le volume transparent figure la hauteur maxi de la palette).
  */
 export default function LoadView3D({ container, placed, colorOf, isDimmed, blockedIds, onHover, cog, variant = 'truck', deckHeight = 0, cameraScale = 1, edit = null }) {
+  // cameraScale : 1 = contenant cadré au plus juste ; > 1 = plus de recul.
   const controls = useRef(null);
   const [showWalls, setShowWalls] = useState(true);
   const [drag, setDrag] = useState(null);
@@ -162,12 +207,12 @@ export default function LoadView3D({ container, placed, colorOf, isDimmed, block
 
   const camera = useMemo(() => {
     const maxDim = Math.max(container.length, container.width, container.height + deckHeight) * S;
-    const k = (variant === 'pallet' ? 1.25 : 1) * cameraScale; // cameraScale < 1 : vue plus rapprochée
+    const k = (variant === 'pallet' ? 1.25 : 1) * cameraScale; // position de départ, recadrée par CameraFit
     return { position: [maxDim * 0.95 * k, maxDim * 0.75 * k, maxDim * 1.15 * k], fov: 42, near: 0.01, far: 1000 };
   }, [container.length, container.width, container.height, deckHeight, variant, cameraScale]);
 
   return (
-    <div className="relative h-[340px] sm:h-[420px] lg:h-[460px]">
+    <div className="relative h-[280px] sm:h-[420px] lg:h-[460px]">
       <div className="absolute top-2 right-2 z-10 flex gap-1.5">
         <button onClick={() => setShowWalls((w) => !w)}
           className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md font-jetbrains text-[11px] bg-white/90 border border-slate-200 text-slate-600 hover:text-slate-900"
@@ -206,6 +251,7 @@ export default function LoadView3D({ container, placed, colorOf, isDimmed, block
         />
         {edit && <DragController drag={drag} setDrag={setDrag} container={container} deckHeight={deckHeight} controls={controls} onDragEnd={edit.onDragEnd} />}
         <OrbitControls ref={controls} makeDefault enablePan enableZoom target={[0, 0, 0]} />
+        <CameraFit controls={controls} scale={cameraScale} half={[(container.length * S) / 2, ((container.height + deckHeight) * S) / 2, (container.width * S) / 2]} />
       </Canvas>
     </div>
   );

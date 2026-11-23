@@ -31,7 +31,7 @@ export function Btn({ children, variant = 'primary', ...props }) {
     ghost: { background: '#fff', color: '#334155', border: '1px solid #CBD5E1' },
     amber: { background: '#F59E0B', color: '#0F172A' },
   }[variant];
-  return <button {...props} className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-semibold disabled:opacity-50 transition hover:brightness-105 ${props.className ?? ''}`} style={styles}>{children}</button>;
+  return <button {...props} className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-2.5 sm:px-3.5 py-2 text-sm font-semibold whitespace-nowrap disabled:opacity-50 transition hover:brightness-105 ${props.className ?? ''}`} style={styles}>{children}</button>;
 }
 
 export const fmtDate = (d) => (d ? new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) : '—');
@@ -50,26 +50,30 @@ export function EditorHeader({
 }) {
   const validated = doc.status === 'validated' || doc.status === 'sent';
   return (
-    <div className="bg-white border-b border-slate-200 sticky top-0 z-20 print:hidden">
-      <div className="px-5 sm:px-8 py-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+    // Fixé en haut sur grand écran ; sur téléphone il défile (sinon il mangerait la moitié de l'écran).
+    <div className="bg-white border-b border-slate-200 lg:sticky top-0 z-20 print:hidden">
+      <div className="px-4 sm:px-8 py-3 flex flex-wrap items-center gap-x-3 sm:gap-x-4 gap-y-2">
         <Link to={backTo} className="text-slate-400 hover:text-slate-700" title={backTitle}><ArrowLeft size={18} /></Link>
         <span className="font-jetbrains text-xs rounded px-2 py-1" style={{ color: kindColor, background: kindBg }}>{doc.code}</span>
         <input value={meta.label} onChange={(e) => onMeta({ ...meta, label: e.target.value })} placeholder="Libellé"
-          className="font-bricolage font-bold text-lg text-slate-900 bg-transparent border-b border-transparent hover:border-slate-200 focus:border-blue-400 focus:outline-none min-w-0 flex-1 sm:flex-none sm:w-72" />
+          className="font-bricolage font-bold text-base sm:text-lg text-slate-900 bg-transparent border-b border-transparent hover:border-slate-200 focus:border-blue-400 focus:outline-none min-w-0 flex-1 sm:flex-none sm:w-72" />
         <StatusBadge status={doc.status} />
-        <span className="text-xs text-slate-400 hidden md:inline">v{doc.version}{sourceLabel ? ` · ${sourceLabel}` : ''} · {fmtDateTime(doc.updated_at)}</span>
-        <div className="ml-auto flex items-center gap-2">
-          {dirty && <span className="text-xs text-amber-700 hidden sm:inline">Modifications non enregistrées</span>}
+        <span className="text-xs text-slate-400 hidden 2xl:inline">v{doc.version}{sourceLabel ? ` · ${sourceLabel}` : ''} · {fmtDateTime(doc.updated_at)}</span>
+        {/* Téléphone : boutons sur toute la largeur, sous le titre. */}
+        <div className="w-full sm:w-auto sm:ml-auto flex items-center gap-2 [&>button]:flex-1 sm:[&>button]:flex-none">
+          {dirty && <span className="text-xs text-amber-700 hidden lg:inline">Modifications non enregistrées</span>}
           {actions}
-          <Btn variant="ghost" onClick={() => onSave()} disabled={saving}>{saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />} Enregistrer</Btn>
+          <Btn variant="ghost" onClick={() => onSave()} disabled={saving} title={dirty ? 'Modifications non enregistrées' : ''}>
+            {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />} Enregistrer
+            {dirty && <span className="w-2 h-2 rounded-full bg-amber-500 lg:hidden" aria-label="Modifications non enregistrées" />}</Btn>
           {validated
             ? <Btn variant="ghost" onClick={() => onSave('in_progress')} disabled={saving}><RotateCcw size={15} /> Rouvrir</Btn>
             : <Btn variant="success" onClick={() => onSave('validated')} disabled={saving || !canValidate} title={canValidate ? '' : validateHint}><CheckCircle2 size={15} /> Valider</Btn>}
         </div>
       </div>
-      <div className="px-5 sm:px-8 pb-3 flex flex-wrap items-center gap-3 text-sm">
-        <label className="flex items-center gap-2 text-slate-500">Réf. WMS / ERP
-          <input value={meta.external_id} onChange={(e) => onMeta({ ...meta, external_id: e.target.value })} placeholder="EXP-…" className={`${inputCls} w-36`} /></label>
+      <div className="px-4 sm:px-8 pb-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
+        <label className="flex items-center gap-2 text-slate-500"><span className="whitespace-nowrap">Réf.<span className="hidden sm:inline"> WMS / ERP</span></span>
+          <input value={meta.external_id} onChange={(e) => onMeta({ ...meta, external_id: e.target.value })} placeholder="EXP-…" className={`${inputCls} w-28 sm:w-36`} /></label>
         {extraFields}
         {links}
         {summary && <span className="text-xs text-slate-500 font-jetbrains">{summary}</span>}
