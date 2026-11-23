@@ -49,3 +49,18 @@ select cron.schedule('purge-chargements-expires', '17 3 * * *', $$select public.
 
 `npm test` rejoue les migrations dans un Postgres en mémoire (PGlite) et vérifie l'isolation entre
 entreprises, les versions, le lien de partage, les clés d'API et la purge (`supabase/tests/schema.test.js`).
+
+## E-mails de connexion en français (Authentication → Email Templates)
+
+Modèles **Magic Link** et **Confirm signup** (même contenu) :
+
+- Sujet : `Votre lien de connexion — Atelier Logistique`
+- Corps :
+
+```html
+<h2>Connexion à Atelier Logistique</h2>
+<p>Cliquez sur le bouton ci-dessous pour vous connecter. Le lien est valable une heure et ne sert qu'une fois.</p>
+<p><a href="{{ .ConfirmationURL }}" style="display:inline-block;padding:12px 20px;background:#2563EB;color:#fff;border-radius:8px;text-decoration:none;font-weight:600">Me connecter</a></p>
+<p style="color:#64748B;font-size:13px">Vous n'avez pas demandé ce lien ? Ignorez simplement cet e-mail.</p>
+<p style="color:#64748B;font-size:13px">Atelier Logistique — atelierlogistique.com</p>
+```
