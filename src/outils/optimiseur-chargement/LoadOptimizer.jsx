@@ -57,6 +57,7 @@ import { t as tr, tText, numLocale, getCurrentLang, N_ } from '../../shared/i18n
 import useManualEdit from './manual/useManualEdit';
 import { applyManualPlan } from './manual/editPlan';
 import EditPanel from './manual/EditPanel';
+import WallSteps from './print/WallSteps';
 import { homeHref } from '../../shared/i18n/paths';
 
 const importProfiles = createLocalProfileStore();
@@ -197,7 +198,7 @@ function groupByReference(items) {
 }
 
 // Vue de dessus compacte : ce arrêt en couleur, le reste du chargement en gris (repère de zone).
-function StopMiniPlan({ container, placed, stop, color }) {
+function StopMiniPlan({ container, placed, stop, color, colorOf = null }) {
   const scale = 460 / container.length;
   const W = container.length * scale;
   const H = container.width * scale;
@@ -206,9 +207,10 @@ function StopMiniPlan({ container, placed, stop, color }) {
       <rect x="0" y="0" width={W} height={H} fill="#FFFFFF" stroke="#CBD5E1" strokeWidth="1" />
       {placed.map((p, i) => {
         const here = (p.stop ?? 1) === stop;
+        const c = colorOf ? colorOf(p) : color; // un seul arrêt : couleur de la référence (comme la légende)
         return (
           <rect key={i} x={p.x * scale} y={p.y * scale} width={p.length * scale} height={p.width * scale}
-            fill={here ? color.light : '#F1F5F9'} stroke={here ? color.dark : '#E2E8F0'} strokeWidth={here ? 0.9 : 0.5}
+            fill={here ? c.light : '#F1F5F9'} stroke={here ? c.dark : '#E2E8F0'} strokeWidth={here ? 0.9 : 0.5}
             opacity={here ? 1 : 0.45} />
         );
       })}
@@ -311,6 +313,14 @@ function PrintSheet({ container, result, rows, colorIndex, multiStopResult, left
         </div>
       )}
 
+      {/* Pas à pas, mur par mur : vue de face numérotée (ordre de chargement), repère dans le camion. */}
+      {result.loadingMode === 'WALLS' && canDrawPlan && result.walls?.length > 0 && (
+        <div style={{ marginBottom: 18, breakBefore: 'page', pageBreakBefore: 'always' }}>
+          <WallSteps container={container} placed={result.placedItems} walls={result.walls}
+            colorOf={(p) => (multiStopResult ? stopColor(p.stop ?? 1) : refColorOf(p.definitionId))} />
+        </div>
+      )}
+
       {ordered.filter((s) => s.packedItems > 0).map((s, idx) => {
         const items = result.placedItems.filter((p) => (p.stop ?? 1) === s.stop);
         const groups = groupByReference(items);
@@ -358,7 +368,7 @@ function PrintSheet({ container, result, rows, colorIndex, multiStopResult, left
               {canDrawPlan && (
                 <div style={{ width: 220 }}>
                   <div style={{ fontSize: 8, letterSpacing: '0.05em', color: '#94A3B8', marginBottom: 2, textTransform: 'uppercase' }}>{tr('Vue de dessus · portes ▮ à droite')}</div>
-                  <StopMiniPlan container={container} placed={result.placedItems} stop={s.stop} color={color} />
+                  <StopMiniPlan container={container} placed={result.placedItems} stop={s.stop} color={color} colorOf={multiStopResult ? null : (p) => refColorOf(p.definitionId)} />
                 </div>
               )}
             </div>
