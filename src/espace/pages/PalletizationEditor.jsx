@@ -47,7 +47,7 @@ export default function PalletizationEditor() {
   return (
     <>
       <EditorHeader backTo="/app/palettisations" backTitle="Retour aux palettisations" doc={ed.doc} kindColor="#7C3AED" kindBg="#F5F3FF"
-        meta={ed.meta} onMeta={ed.setMeta} dirty={ed.dirty} saving={ed.saving} onSave={ed.save} canValidate={!!s}
+        meta={ed.meta} onMeta={ed.setMeta} dirty={ed.dirty} savedAt={ed.savedAt} saving={ed.saving} onSave={ed.save} canValidate={!!s}
         validateHint="Lancez d’abord le calcul" sourceLabel={SOURCE[ed.doc.source]} error={ed.error}
         links={<span className="flex items-center gap-1.5 text-slate-500 text-xs">Chargement {ed.doc.shipments?.code
           ? <DocChip kind="shipment" to={`/app/chargements/${ed.doc.shipments.code}`} code={ed.doc.shipments.code} title={ed.doc.shipments.label ?? ''} />

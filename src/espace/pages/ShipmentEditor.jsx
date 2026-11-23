@@ -50,7 +50,7 @@ export default function ShipmentEditor() {
   return (
     <>
       <EditorHeader backTo="/app/chargements" backTitle="Retour aux chargements" doc={ed.doc} meta={ed.meta} onMeta={ed.setMeta}
-        dirty={ed.dirty} saving={ed.saving} onSave={ed.save} canValidate={!!s} validateHint="Lancez d’abord l’optimisation"
+        dirty={ed.dirty} savedAt={ed.savedAt} saving={ed.saving} onSave={ed.save} canValidate={!!s} validateHint="Lancez d’abord l’optimisation"
         sourceLabel={SOURCE[ed.doc.source]} error={ed.error}
         actions={<Btn variant="amber" onClick={sendToDock} disabled={ed.saving || !s} title={s ? 'QR code et lien du plan pour le cariste, sans compte' : 'Lancez d’abord l’optimisation'}>
           <QrCode size={15} /> {sent ? 'QR quai' : <><span className="sm:hidden">Quai</span><span className="hidden sm:inline">Envoyer au quai</span></>}</Btn>}
