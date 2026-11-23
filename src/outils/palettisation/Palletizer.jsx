@@ -18,6 +18,7 @@ import { PALLET_FAQ_EN, toolSeoEn } from '../../seo/pages-en';
 import { toolHref } from '../../shared/i18n/paths';
 import { createLocalProfileStore, toCsv, downloadText } from '../../shared/import';
 import { sendHandoff } from '../../shared/handoff';
+import useLocalDraft from '../../shared/draft/useLocalDraft';
 import { COLIS_SCHEMA, STANDARD_HEADERS, STANDARD_SAMPLE, recordsToColisRows } from '../optimiseur-chargement/import/colisSchema';
 import { palletizeMulti } from './engine/palletize';
 import SupportsPanel from './SupportsPanel';
@@ -161,7 +162,9 @@ function PrintSheet({ result, colorOf }) {
  *  état courant + résumé renvoyés à chaque changement pour l'enregistrement par la page). */
 export default function Palletizer({ onBack, embedded: embeddedProp = false, onLoadTruck = null, workspace = null }) {
   const embedded = embeddedProp || !!workspace;
-  const init = workspace?.initial ?? {};
+  // Sans compte : brouillon dans ce navigateur (saisie + dernières palettes), retrouvé en revenant sur la page.
+  const draft = useLocalDraft('al.draft.palettisation', !workspace);
+  const init = (workspace ?? draft)?.initial ?? {};
   const navigate = useNavigate();
   const [rows, setRows] = useState(() => (Array.isArray(init.rows) ? init.rows : exampleRows()));
   const [supports, setSupports] = useState(() => (Array.isArray(init.supports) && init.supports.length ? init.supports : loadSupports()));
@@ -289,7 +292,7 @@ export default function Palletizer({ onBack, embedded: embeddedProp = false, onL
   }, [result]);
 
   // Espace connecté : état courant + résumé du calcul, pour l'enregistrement par la page.
-  const onWorkspaceChange = workspace?.onChange;
+  const onWorkspaceChange = (workspace ?? draft)?.onChange;
   useEffect(() => {
     onWorkspaceChange?.({
       rows, supports, fullFirst, separateStops, formatMode, forcedStops, stacking,

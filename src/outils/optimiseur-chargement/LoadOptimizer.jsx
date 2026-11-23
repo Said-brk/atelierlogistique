@@ -52,6 +52,7 @@ function loadFleet() {
 }
 import { createLocalProfileStore, toCsv, downloadText } from '../../shared/import';
 import { consumeHandoff } from '../../shared/handoff';
+import useLocalDraft from '../../shared/draft/useLocalDraft';
 import { COLIS_SCHEMA, STANDARD_HEADERS, STANDARD_SAMPLE, recordsToColisRows } from './import/colisSchema';
 import { SEQUENCE_HEADERS, sequenceRows } from './import/exportSequence';
 import { t as tr, tText, numLocale, getCurrentLang, N_ } from '../../shared/i18n/core';
@@ -455,7 +456,9 @@ function Kpi({ label, value, sub }) {
  */
 export default function LoadOptimizer({ onBack, workspace = null }) {
   const embedded = !!workspace;
-  const init = workspace?.initial ?? {};
+  // Sans compte : brouillon dans ce navigateur (saisie + dernier plan), retrouvé en revenant sur la page.
+  const draft = useLocalDraft('al.draft.chargement', !workspace);
+  const init = (workspace ?? draft)?.initial ?? {};
   const lang = getCurrentLang();
   const seo = lang === 'en' ? toolSeoEn('optimiseur-chargement') : toolSeo('optimiseur-chargement');
   useDocumentMeta(embedded ? null : seo.title, seo.description);
@@ -895,7 +898,7 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
   }, [fleetPlan, fleetStatus]);
 
   // Espace connecté : la page reçoit l'état courant (saisie + résumé du plan) pour l'enregistrer.
-  const onWorkspaceChange = workspace?.onChange;
+  const onWorkspaceChange = (workspace ?? draft)?.onChange;
   useEffect(() => {
     const done = result && status === 'done';
     if (pendingManual.current && manual.snapshot) pendingManual.current = false;

@@ -14,22 +14,30 @@ const planSig = (p) => (p?.base || p?.fleet ? stable({ base: p.base ?? null, man
 /** initialOf(doc) : état de départ de l'outil intégré (saisie + plan enregistré). */
 export const initialOf = (d) => ({ rows: [], ...(d.input ?? {}), plan: d.result?.plan ?? null });
 
-export default function useDocEditor({ code, load, update, titleOf }) {
+export default function useDocEditor({ code, load, update, titleOf, autosaveMs = 2000 }) {
   const [doc, setDoc] = useState(undefined);
   const [meta, setMetaState] = useState({ label: '', external_id: '', departure_at: '' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [dirty, setDirty] = useState(false);
   const [summary, setSummary] = useState(null);
+  const [savedAt, setSavedAt] = useState(null);
+  const [rev, setRev] = useState(0); // +1 à chaque modification : relance le minuteur d'enregistrement auto
   const snapshot = useRef(null);
   const savedInput = useRef('');
   const savedPlan = useRef('');
   const savedGuide = useRef(false); // le plan enregistré a-t-il son guide cariste (calculé après coup) ?
+  const metaRef = useRef(meta); metaRef.current = meta;
+  const docRef = useRef(doc); docRef.current = doc;
+  const dirtyRef = useRef(false); dirtyRef.current = dirty;
+  const inFlight = useRef(null);
+  const saveRef = useRef(null);
 
-  const apply = (d) => {
+  /** Document reçu de la base. keepMeta : après un enregistrement, on garde ce qui a été tapé entre-temps. */
+  const apply = (d, keepMeta = false) => {
     setDoc(d);
     if (!d) return;
-    setMetaState({ label: d.label ?? '', external_id: d.external_id ?? '', departure_at: toDateInput(d.departure_at) });
+    if (!keepMeta) setMetaState({ label: d.label ?? '', external_id: d.external_id ?? '', departure_at: toDateInput(d.departure_at) });
     savedInput.current = stable(d.input ?? {});
     savedPlan.current = planSig(d.result?.plan);
     savedGuide.current = hasGuide(d.result?.plan);
@@ -38,8 +46,11 @@ export default function useDocEditor({ code, load, update, titleOf }) {
   };
 
   useEffect(() => {
+    // Passage direct à un autre document : on enregistre d'abord celui qu'on quitte.
+    if (dirtyRef.current) saveRef.current?.();
+    snapshot.current = null; setDirty(false);
     setDoc(undefined);
-    load(code).then(apply).catch((e) => { setError(e.message); setDoc(null); });
+    load(code).then((d) => apply(d)).catch((e) => { setError(e.message); setDoc(null); });
   }, [code]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /** À passer à l'outil intégré (workspace.onChange). */
@@ -51,10 +62,10 @@ export default function useDocEditor({ code, load, update, titleOf }) {
     if (sum) setSummary(sum); else if (inputChanged) setSummary(null);
     // Un plan absent (calcul pas encore relancé) ne compte pas comme une modification.
     const planChanged = !!plan && (planSig(plan) !== savedPlan.current || (hasGuide(plan) && !savedGuide.current));
-    setDirty((d) => d || planChanged || inputChanged);
+    if (planChanged || inputChanged) { setDirty(true); setRev((r) => r + 1); }
   }, []);
 
-  const setMeta = (m) => { setMetaState(m); setDirty(true); };
+  const setMeta = (m) => { setMetaState(m); setDirty(true); setRev((r) => r + 1); };
 
   useEffect(() => {
     if (!dirty) return undefined;
@@ -65,31 +76,55 @@ export default function useDocEditor({ code, load, update, titleOf }) {
 
   /** Enregistre (statut : inchangé, sauf Nouveau → En cours ; ou celui demandé). Renvoie le document. */
   const save = async (nextStatus, extra = {}) => {
-    if (!doc) return null;
+    const current = docRef.current;
+    if (!current) return null;
+    if (inFlight.current) await inFlight.current.catch(() => {}); // un enregistrement à la fois
+    const base = docRef.current;
+    const usedSnap = snapshot.current;
+    const usedMeta = metaRef.current;
     setSaving(true); setError('');
-    try {
-      const { summary: sum, plan, ...input } = snapshot.current ?? { ...(doc.input ?? {}) };
+    const run = (async () => {
+      const { summary: sum, plan, ...input } = usedSnap ?? { ...(base.input ?? {}) };
       const patch = {
-        label: meta.label.trim() || null,
-        external_id: meta.external_id.trim() || null,
+        label: usedMeta.label.trim() || null,
+        external_id: usedMeta.external_id.trim() || null,
         input,
         // Plan 3D gardé tant que la saisie n'a pas changé ; sinon seul le résumé (le plan sera recalculé).
-        result: sum ? { summary: sum, ...(plan ? { plan } : {}) } : stable(input) === savedInput.current ? doc.result : null,
-        status: nextStatus ?? (doc.status === 'new' ? 'in_progress' : doc.status),
+        result: sum ? { summary: sum, ...(plan ? { plan } : {}) } : stable(input) === savedInput.current ? base.result : null,
+        status: nextStatus ?? (base.status === 'new' ? 'in_progress' : base.status),
         ...extra,
       };
-      if ('departure_at' in doc) patch.departure_at = meta.departure_at ? new Date(meta.departure_at).toISOString() : null;
-      const d = await update(doc.id, patch);
-      apply(d);
-      setDirty(false);
-      setSaving(false);
+      if ('departure_at' in base) patch.departure_at = usedMeta.departure_at ? new Date(usedMeta.departure_at).toISOString() : null;
+      return update(base.id, patch);
+    })();
+    inFlight.current = run;
+    try {
+      const d = await run;
+      apply(d, true);
+      // Modifié pendant l'enregistrement ? On reste « à enregistrer » (l'enregistrement auto repassera).
+      const changedMeanwhile = snapshot.current !== usedSnap || metaRef.current !== usedMeta;
+      setDirty(changedMeanwhile);
+      if (changedMeanwhile) setRev((r) => r + 1);
+      setSavedAt(new Date());
       return d;
     } catch (e) {
       setError(/duplicate key|unique/i.test(e.message) ? 'Cette référence WMS / ERP existe déjà sur un autre document.' : e.message);
-      setSaving(false);
       return null;
+    } finally {
+      inFlight.current = null;
+      setSaving(false);
     }
   };
+  saveRef.current = save;
 
-  return { doc, meta, setMeta, saving, error, dirty, summary, onChange, save };
+  // Enregistrement automatique : quelques secondes après la dernière modification.
+  useEffect(() => {
+    if (!autosaveMs || !dirtyRef.current) return undefined;
+    const t = setTimeout(() => { if (dirtyRef.current) saveRef.current(); }, autosaveMs);
+    return () => clearTimeout(t);
+  }, [rev, autosaveMs]);
+  // En quittant l'éditeur (autre page de l'espace) : on enregistre ce qui restait.
+  useEffect(() => () => { if (dirtyRef.current) saveRef.current(); }, []);
+
+  return { doc, meta, setMeta, saving, error, dirty, savedAt, summary, onChange, save };
 }

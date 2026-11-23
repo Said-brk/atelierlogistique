@@ -46,7 +46,7 @@ const inputCls = 'rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text
  */
 export function EditorHeader({
   backTo, backTitle, doc, kindColor = '#1D4ED8', kindBg = '#EFF6FF', meta, onMeta, dirty, saving, onSave,
-  canValidate, validateHint, extraFields = null, links = null, summary = null, error = '', sourceLabel = '', actions = null,
+  canValidate, validateHint, extraFields = null, links = null, summary = null, error = '', sourceLabel = '', actions = null, savedAt = null,
 }) {
   const validated = doc.status === 'validated' || doc.status === 'sent';
   return (
@@ -61,7 +61,10 @@ export function EditorHeader({
         <span className="text-xs text-slate-400 hidden 2xl:inline">v{doc.version}{sourceLabel ? ` · ${sourceLabel}` : ''} · {fmtDateTime(doc.updated_at)}</span>
         {/* Téléphone : boutons sur toute la largeur, sous le titre. */}
         <div className="w-full sm:w-auto sm:ml-auto flex items-center gap-2 [&>button]:flex-1 sm:[&>button]:flex-none">
-          {dirty && <span className="text-xs text-amber-700 hidden lg:inline">Modifications non enregistrées</span>}
+          {/* Enregistrement automatique : état discret (le bouton reste pour forcer l'enregistrement). */}
+          <span className={`text-xs hidden lg:inline ${saving || dirty ? 'text-slate-500' : 'text-emerald-700'}`}>
+            {saving ? 'Enregistrement…' : dirty ? 'Modifications en cours…' : savedAt ? `Enregistré à ${savedAt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}` : ''}
+          </span>
           {actions}
           <Btn variant="ghost" onClick={() => onSave()} disabled={saving} title={dirty ? 'Modifications non enregistrées' : ''}>
             {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />} Enregistrer
