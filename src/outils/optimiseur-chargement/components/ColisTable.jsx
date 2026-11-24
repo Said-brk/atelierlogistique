@@ -74,8 +74,20 @@ function DestinationField({ value, onChange, agencies, className, placeholder, m
   );
 }
 
-/** agencies (facultatif, espace) : [{ code, label, city }] — liste des destinations. */
+/** Arrêt donné par le paramétrage : rang de l'agence dans sa tournée (null si agence inconnue ou hors tournée). */
+export function agencyStop(code, agencies) {
+  const a = agencies?.find((x) => x.code === code);
+  return a?.tour && a.order > 0 ? Math.round(a.order) : null;
+}
+
+/** agencies (facultatif, espace) : [{ code, label, city, tour, order }] — liste des destinations. */
 export default function ColisTable({ rows, updateRow, updateStacking, removeRow, addRow, footerHint = t('dimensions en cm · poids en kg · arrêt 1 = livré en premier'), extraSelect = null, agencies = null }) {
+  // Destination = agence d'une tournée : l'arrêt suit son rang dans la tournée (Paramètres › Tables de référence).
+  const setDestination = (r, v) => {
+    updateRow(r.id, 'destination', v);
+    const stop = agencyStop(v, agencies);
+    if (stop && stop !== (r.stop ?? 1)) updateRow(r.id, 'stop', stop);
+  };
   return (
     <>
       {agencies?.length > 0 && (
@@ -125,7 +137,7 @@ export default function ColisTable({ rows, updateRow, updateStacking, removeRow,
                 <MobileNum label={t('Arrêt')} value={r.stop ?? 1} onChange={(v) => updateRow(r.id, 'stop', v)} error={err.stop} />
                 <label className="block min-w-0">
                   <span className="block font-jetbrains text-[10px] text-slate-400 mb-0.5">{t('Destination (facultatif)')}</span>
-                  <DestinationField value={r.destination} onChange={(v) => updateRow(r.id, 'destination', v)} agencies={agencies} mobile
+                  <DestinationField value={r.destination} onChange={(v) => setDestination(r, v)} agencies={agencies} mobile
                     placeholder={t('Client, ville…')}
                     className="w-full px-2.5 py-2 bg-white border border-slate-200 rounded-md outline-none font-jetbrains text-base text-slate-800 focus:border-slate-400" />
                 </label>
@@ -194,7 +206,7 @@ export default function ColisTable({ rows, updateRow, updateStacking, removeRow,
                   </td>
                   <td className="px-0.5 py-1.5"><NumCell value={r.stop ?? 1} onChange={(v) => updateRow(r.id, 'stop', v)} error={err.stop} width="w-10" /></td>
                   <td className="px-0.5 py-1.5">
-                    <DestinationField value={r.destination} onChange={(v) => updateRow(r.id, 'destination', v)} agencies={agencies}
+                    <DestinationField value={r.destination} onChange={(v) => setDestination(r, v)} agencies={agencies}
                       placeholder={t('Client…')}
                       className="w-16 lg:w-32 px-2 py-1.5 bg-white border border-slate-200 rounded-md outline-none font-jetbrains text-xs text-slate-800 focus:border-slate-400" />
                   </td>
