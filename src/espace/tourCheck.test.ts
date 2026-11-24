@@ -14,3 +14,13 @@ describe('alerte tournée', () => {
     expect(tourWarning(['LYO', 'PAR'], refs)).toMatch(/hors tournée : PAR/);
   });
 });
+
+import { agencyStop } from '../outils/optimiseur-chargement/components/ColisTable';
+describe('arrêt d’après la tournée', () => {
+  it('rang de l’agence dans sa tournée, sinon rien', () => {
+    const ag = [{ code: 'LYO', tour: 'N', order: 2 }, { code: 'PAR', tour: null, order: 1 }];
+    expect(agencyStop('LYO', ag)).toBe(2);
+    expect(agencyStop('PAR', ag)).toBeNull();
+    expect(agencyStop('XXX', ag)).toBeNull();
+  });
+});
