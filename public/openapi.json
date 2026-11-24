@@ -1,0 +1,654 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Atelier Logistique API",
+    "version": "1.0.0",
+    "description": "Plans de chargement 3D, flotte et guide cariste pour WMS / ERP. Documentation : https://atelierlogistique.com/api",
+    "contact": {
+      "email": "contact@atelierlogistique.com"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://atelierlogistique.com/api/v1"
+    }
+  ],
+  "security": [
+    {
+      "bearer": []
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "État de l'API",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/shipments": {
+      "post": {
+        "summary": "Créer ou mettre à jour un chargement",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShipmentInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Créé",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Shipment"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Mis à jour",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Shipment"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Déjà validé",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalide",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Clé invalide",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "summary": "Lister les chargements",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Un ou plusieurs statuts séparés par des virgules"
+          },
+          {
+            "name": "updated_since",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "maximum": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Liste",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Shipment"
+                      }
+                    },
+                    "count": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Clé invalide",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/shipments/{ref}": {
+      "get": {
+        "summary": "Détail et plan",
+        "parameters": [
+          {
+            "name": "ref",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "N° PL-… ou référence WMS"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Chargement",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Shipment"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Clé invalide",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Introuvable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/shipments/{ref}/cancel": {
+      "post": {
+        "summary": "Annuler",
+        "parameters": [
+          {
+            "name": "ref",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Annulé",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Shipment"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Clé invalide",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Introuvable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Clé al_live_… créée dans l'espace (Clés d'API)"
+      }
+    },
+    "schemas": {
+      "ShipmentInput": {
+        "type": "object",
+        "required": [
+          "reference",
+          "lines"
+        ],
+        "properties": {
+          "reference": {
+            "type": "string",
+            "description": "Référence WMS / ERP, unique par entreprise (idempotence)"
+          },
+          "label": {
+            "type": "string"
+          },
+          "departure_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "auto"
+            ],
+            "default": "draft"
+          },
+          "validate": {
+            "type": "boolean",
+            "default": false
+          },
+          "units": {
+            "type": "string",
+            "enum": [
+              "cm",
+              "mm",
+              "m"
+            ],
+            "default": "cm"
+          },
+          "delivery": {
+            "type": "string",
+            "enum": [
+              "strict",
+              "soft"
+            ],
+            "default": "strict"
+          },
+          "vehicle": {
+            "oneOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "semi",
+                  "20ft",
+                  "40ft",
+                  "40hc",
+                  "fourgon20",
+                  "porteur12",
+                  "porteur19"
+                ]
+              },
+              {
+                "type": "object",
+                "required": [
+                  "length",
+                  "width",
+                  "height"
+                ],
+                "properties": {
+                  "label": {
+                    "type": "string"
+                  },
+                  "length": {
+                    "type": "number"
+                  },
+                  "width": {
+                    "type": "number"
+                  },
+                  "height": {
+                    "type": "number"
+                  },
+                  "max_weight": {
+                    "type": "number",
+                    "description": "kg"
+                  }
+                }
+              }
+            ]
+          },
+          "fleet": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "vehicle": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "enum": [
+                        "semi",
+                        "20ft",
+                        "40ft",
+                        "40hc",
+                        "fourgon20",
+                        "porteur12",
+                        "porteur19"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "length",
+                        "width",
+                        "height"
+                      ],
+                      "properties": {
+                        "label": {
+                          "type": "string"
+                        },
+                        "length": {
+                          "type": "number"
+                        },
+                        "width": {
+                          "type": "number"
+                        },
+                        "height": {
+                          "type": "number"
+                        },
+                        "max_weight": {
+                          "type": "number",
+                          "description": "kg"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "cost": {
+                  "type": "number"
+                }
+              }
+            }
+          },
+          "lines": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 2000,
+            "items": {
+              "$ref": "#/components/schemas/Line"
+            }
+          }
+        }
+      },
+      "Line": {
+        "type": "object",
+        "required": [
+          "reference",
+          "length",
+          "width",
+          "height"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Identifiant de ligne (renvoyé en line_id)"
+          },
+          "reference": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "case",
+              "pallet",
+              "unit"
+            ],
+            "default": "case"
+          },
+          "quantity": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10000,
+            "default": 1
+          },
+          "length": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "width": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "height": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "weight": {
+            "type": "number",
+            "minimum": 0,
+            "description": "kg par unité"
+          },
+          "rotation": {
+            "type": "string",
+            "enum": [
+              "free",
+              "horizontal",
+              "none"
+            ]
+          },
+          "stacking": {
+            "type": "string",
+            "enum": [
+              "free",
+              "top_only",
+              "floor",
+              "floor_no_top"
+            ]
+          },
+          "stop": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 99,
+            "default": 1
+          },
+          "destination": {
+            "type": "string"
+          }
+        }
+      },
+      "Shipment": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "PL-K4G86R"
+          },
+          "reference": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "new",
+              "in_progress",
+              "validated",
+              "sent",
+              "cancelled"
+            ]
+          },
+          "version": {
+            "type": "integer"
+          },
+          "summary": {
+            "type": "object",
+            "nullable": true
+          },
+          "links": {
+            "type": "object",
+            "properties": {
+              "app": {
+                "type": "string"
+              },
+              "dock": {
+                "type": "string",
+                "nullable": true
+              }
+            }
+          },
+          "plan": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "vehicles": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "index": {
+                      "type": "integer"
+                    },
+                    "vehicle": {
+                      "type": "object"
+                    },
+                    "dock_url": {
+                      "type": "string"
+                    },
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/PlanItem"
+                      }
+                    }
+                  }
+                }
+              },
+              "not_loaded": {
+                "type": "array",
+                "items": {
+                  "type": "object"
+                }
+              },
+              "total_cost": {
+                "type": "number"
+              }
+            }
+          }
+        }
+      },
+      "PlanItem": {
+        "type": "object",
+        "properties": {
+          "sequence": {
+            "type": "integer"
+          },
+          "line_id": {
+            "type": "string"
+          },
+          "reference": {
+            "type": "string"
+          },
+          "stop": {
+            "type": "integer"
+          },
+          "destination": {
+            "type": "string"
+          },
+          "x": {
+            "type": "number"
+          },
+          "y": {
+            "type": "number"
+          },
+          "z": {
+            "type": "number"
+          },
+          "length": {
+            "type": "number"
+          },
+          "width": {
+            "type": "number"
+          },
+          "height": {
+            "type": "number"
+          },
+          "rotated": {
+            "type": "boolean"
+          },
+          "weight_kg": {
+            "type": "number"
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "path": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

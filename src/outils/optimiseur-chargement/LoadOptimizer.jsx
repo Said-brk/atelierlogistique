@@ -488,7 +488,8 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
 
   // Mode véhicule : 'single' = standard (l'utilisateur choisit) ; 'fleet' = l'outil propose la flotte.
   const [vehicleMode, setVehicleMode] = useState(init.vehicleMode ?? 'single');
-  const [fleetVehicles, setFleetVehicles] = useState(loadFleet);
+  // Flotte reçue avec le chargement (API) : prioritaire sur les véhicules mémorisés dans ce navigateur.
+  const [fleetVehicles, setFleetVehicles] = useState(() => (Array.isArray(init.fleetVehicles) ? init.fleetVehicles : loadFleet()));
   const [containerOverride, setContainerOverride] = useState(null); // véhicule de la flotte affiché
   const container = useMemo(() => {
     if (containerOverride) return containerOverride;
@@ -907,6 +908,7 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
     const byVehicle = fleetDone ? Object.entries(fleetPlan.trucks.reduce((m, t) => { const l = tText(t.container.label); m[l] = (m[l] ?? 0) + 1; return m; }, {})) : [];
     onWorkspaceChange?.({
       rows, containerId, custom, vehicleMode, deliveryMode, excludedStops,
+      ...(Array.isArray(init.fleetVehicles) ? { fleetVehicles } : {}),
       summary: fleetDone ? {
         vehicle: byVehicle.map(([l, n]) => `${n} × ${l}`).join(' + '), fleet: fleetPlan.trucks.length,
         packed: fleetPlan.trucks.reduce((s, t) => s + t.units, 0), unpacked: fleetPlan.unplaced.reduce((s, u) => s + u.quantity, 0),
@@ -924,7 +926,7 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
         : done && vehicleMode === 'single' && !containerOverride && !restoring
           ? { base: rawResult, manual: manual.snapshot, guide: encodedGuideLink?.split('#')[1] ?? null } : null,
     });
-  }, [rows, containerId, custom, vehicleMode, deliveryMode, excludedStops, result, rawResult, status, container, containerOverride, manual.edited, manual.snapshot, encodedGuideLink, fleetPlan, fleetStatus, fleetGuideList, onWorkspaceChange]);
+  }, [rows, containerId, custom, vehicleMode, deliveryMode, excludedStops, result, rawResult, status, container, containerOverride, manual.edited, manual.snapshot, encodedGuideLink, fleetPlan, fleetStatus, fleetGuideList, fleetVehicles, onWorkspaceChange]);
 
   return (
     <div className={`${embedded ? '' : 'min-h-screen'} text-slate-900`} style={{ background: '#F8FAFC', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
