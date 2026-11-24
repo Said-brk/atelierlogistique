@@ -230,7 +230,14 @@ function toToolReferences(items) {
   });
   const lashingItem = items.find((i) => i.kind === "setting" && i.code === "lashing");
   const lashing = { ...DEFAULT_LASHING, ...lashingItem?.data ?? {} };
-  return { vehicles, pallets, lashing };
+  const tours = by("tour").filter((i) => i.active).map((i) => ({ code: i.code, label: i.label }));
+  const tourCodes = new Set(tours.map((t2) => t2.code));
+  const agencies = by("agency").filter((i) => i.active).map((i) => {
+    const d = i.data;
+    return { code: i.code, label: i.label, city: d.city ?? "", tour: d.tour && tourCodes.has(d.tour) ? d.tour : null, order: n(d.order) };
+  });
+  const cons = items.find((i) => i.kind === "setting" && i.code === "consolidation")?.data;
+  return { vehicles, pallets, lashing, agencies, tours, consolidation: { mode: cons?.mode === "tour" ? "tour" : "free" } };
 }
 
 // src/outils/optimiseur-chargement/constants/engine-config.ts

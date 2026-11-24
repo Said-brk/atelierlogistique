@@ -44,9 +44,45 @@ export function NumCell({ value, onChange, error, width = 'w-14', step = '1' }) 
  */
 // extraSelect (facultatif) : colonne de choix propre à un outil,
 //   { field, label, title, options: [{ value, label }] } — ex. « Support » en palettisation.
-export default function ColisTable({ rows, updateRow, updateStacking, removeRow, addRow, footerHint = t('dimensions en cm · poids en kg · arrêt 1 = livré en premier'), extraSelect = null }) {
+const AGENCY_LIST = 'al-agencies';
+const norm = (v) => String(v ?? '').trim().toLowerCase();
+
+/** Code d'agence correspondant à un texte saisi (code, description ou « code · description »), sinon le texte. */
+export function resolveAgency(text, agencies) {
+  const s = norm(text);
+  if (!s) return '';
+  const hit = agencies.find((a) => norm(a.code) === s) ?? agencies.find((a) => norm(`${a.code} · ${a.label}`) === s) ?? agencies.find((a) => norm(a.label) === s);
+  return hit ? hit.code : String(text).trim();
+}
+
+/**
+ * Destination d'une ligne. Espace (agences dans les tables de référence) : liste avec recherche par code ou
+ * description, valeur = code de l'agence ; destination inconnue signalée en rouge. Site public : saisie libre.
+ */
+function DestinationField({ value, onChange, agencies, className, placeholder, mobile = false }) {
+  if (!agencies?.length) return <input value={value ?? ''} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className={className} />;
+  const known = agencies.find((a) => a.code === value);
+  const unknown = !!value && !known;
   return (
     <>
+      <input list={AGENCY_LIST} value={value ?? ''} onChange={(e) => onChange(e.target.value)} placeholder="Agence…"
+        onBlur={(e) => { const r = resolveAgency(e.target.value, agencies); if (r !== (value ?? '')) onChange(r); }}
+        title={known ? `${known.code} · ${known.label}` : unknown ? 'Destination inconnue : choisissez une agence de la liste' : 'Code ou description de l’agence'}
+        className={className} style={unknown ? { borderColor: '#FCA5A5', background: '#FEF2F2' } : undefined} />
+      {mobile && (known || unknown) && <span className={`block text-[10px] mt-0.5 ${unknown ? 'text-red-500' : 'text-slate-500'}`}>{known ? known.label : 'Agence inconnue'}</span>}
+    </>
+  );
+}
+
+/** agencies (facultatif, espace) : [{ code, label, city }] — liste des destinations. */
+export default function ColisTable({ rows, updateRow, updateStacking, removeRow, addRow, footerHint = t('dimensions en cm · poids en kg · arrêt 1 = livré en premier'), extraSelect = null, agencies = null }) {
+  return (
+    <>
+      {agencies?.length > 0 && (
+        <datalist id={AGENCY_LIST}>
+          {agencies.map((a) => <option key={a.code} value={a.code}>{`${a.label}${a.city ? ` · ${a.city}` : ''}`}</option>)}
+        </datalist>
+      )}
       {/* Mobile : une carte par référence */}
       <div className="md:hidden divide-y divide-slate-100">
         {rows.map((r, i) => {
@@ -89,7 +125,7 @@ export default function ColisTable({ rows, updateRow, updateStacking, removeRow,
                 <MobileNum label={t('Arrêt')} value={r.stop ?? 1} onChange={(v) => updateRow(r.id, 'stop', v)} error={err.stop} />
                 <label className="block min-w-0">
                   <span className="block font-jetbrains text-[10px] text-slate-400 mb-0.5">{t('Destination (facultatif)')}</span>
-                  <input value={r.destination ?? ''} onChange={(e) => updateRow(r.id, 'destination', e.target.value)}
+                  <DestinationField value={r.destination} onChange={(v) => updateRow(r.id, 'destination', v)} agencies={agencies} mobile
                     placeholder={t('Client, ville…')}
                     className="w-full px-2.5 py-2 bg-white border border-slate-200 rounded-md outline-none font-jetbrains text-base text-slate-800 focus:border-slate-400" />
                 </label>
@@ -158,7 +194,7 @@ export default function ColisTable({ rows, updateRow, updateStacking, removeRow,
                   </td>
                   <td className="px-0.5 py-1.5"><NumCell value={r.stop ?? 1} onChange={(v) => updateRow(r.id, 'stop', v)} error={err.stop} width="w-10" /></td>
                   <td className="px-0.5 py-1.5">
-                    <input value={r.destination ?? ''} onChange={(e) => updateRow(r.id, 'destination', e.target.value)}
+                    <DestinationField value={r.destination} onChange={(v) => updateRow(r.id, 'destination', v)} agencies={agencies}
                       placeholder={t('Client…')}
                       className="w-16 lg:w-32 px-2 py-1.5 bg-white border border-slate-200 rounded-md outline-none font-jetbrains text-xs text-slate-800 focus:border-slate-400" />
                   </td>

@@ -1,13 +1,13 @@
 // Espace connecté (/app) : barre de navigation à gauche (sections et sous-sections), pages de travail à droite.
 //   Tableau de bord
-//   OPÉRATIONS : Chargements · Palettisations
+//   OPÉRATIONS : Chargements · Palettisations · Regrouper
 //   OUTILS : par famille (sous-sections repliables) — outils locaux du site
 //   Paramètres (en bas) : Entreprise · Équipe · API et notifications · Mon compte
 // Chargé à la demande : les visiteurs des outils publics ne téléchargent rien de tout ça.
 
 import { useState, useEffect } from 'react';
 import { Routes, Route, NavLink, Navigate, useNavigate, useLocation, useMatch } from 'react-router-dom';
-import { LayoutDashboard, Truck, Boxes, KeyRound, Settings, Plus, LogOut, Menu, X, ExternalLink, Loader2, Building2, ArrowRight, PanelLeftClose, PanelLeftOpen, Mail, ChevronDown, ChevronRight, Wrench } from 'lucide-react';
+import { LayoutDashboard, Truck, Boxes, KeyRound, Settings, Plus, LogOut, Menu, X, ExternalLink, Loader2, Building2, ArrowRight, PanelLeftClose, PanelLeftOpen, Mail, ChevronDown, ChevronRight, Wrench, Combine } from 'lucide-react';
 import { EspaceProvider, useEspace } from './useEspace';
 import { I18nProvider } from '../shared/i18n/I18nProvider.jsx';
 import { accountEnabled, passwordStep } from '../shared/account/supabase';
@@ -19,6 +19,7 @@ import ShipmentEditor, { NewShipment } from './pages/ShipmentEditor';
 import Palletizations from './pages/Palletizations';
 import PalletizationEditor, { NewPalletization } from './pages/PalletizationEditor';
 import SettingsPage from './pages/SettingsPage';
+import ConsolidationPage from './pages/ConsolidationPage';
 import { ToolsHome, ToolInApp } from './pages/ToolsPages';
 import { TOOL_GROUPS } from './tools';
 
@@ -28,6 +29,7 @@ const NAV = [
   { id: 'operations', label: 'Opérations', items: [
     { to: '/app/chargements', icon: Truck, label: 'Chargements' },
     { to: '/app/palettisations', icon: Boxes, label: 'Palettisations' },
+    { to: '/app/regrouper', icon: Combine, label: 'Regrouper' },
   ] },
 ];
 
@@ -340,6 +342,7 @@ function Shell() {
           <Route path="palettisations" element={<Palletizations />} />
           <Route path="palettisations/nouveau" element={<NewPalletization />} />
           <Route path="palettisations/:code" element={<PalletizationEditor />} />
+          <Route path="regrouper" element={<ConsolidationPage />} />
           <Route path="palettisation" element={<Navigate to="/app/palettisations" replace />} />
           <Route path="outils" element={<ToolsHome />} />
           <Route path="outils/:id" element={<ToolInApp />} />

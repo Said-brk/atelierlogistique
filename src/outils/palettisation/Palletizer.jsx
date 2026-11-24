@@ -355,7 +355,7 @@ export default function Palletizer({ onBack, embedded: embeddedProp = false, onL
               : { background: '#F0FDF4', color: '#15803D', border: '1px solid #BBF7D0' }}>{msg.text}</div>
           )}
           <ColisTable rows={rows} updateRow={updateRow} updateStacking={updateStacking} removeRow={removeRow} addRow={addRow}
-            extraSelect={available.length > 1 ? supportSelect : null}
+            extraSelect={available.length > 1 ? supportSelect : null} agencies={workspace?.references?.agencies}
             footerHint={t('dimensions en cm · poids en kg · un arrêt = des palettes séparées')} />
         </div>
 

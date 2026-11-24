@@ -7,7 +7,8 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import Palletizer from '../../outils/palettisation/Palletizer.jsx';
 import { useEspace } from '../useEspace';
-import { getPalletization, createPalletization, updatePalletization, createShipmentForPalletization, linkPalletization, SOURCE } from '../data';
+import { getPalletization, createPalletization, updatePalletization, createShipmentForPalletization, linkPalletization, getShipment, SOURCE } from '../data';
+import { tourWarning } from '../tourCheck';
 import LoadTruckDialog from '../LoadTruckDialog';
 import { EditorHeader, DocChip } from '../ui';
 import useDocEditor, { initialOf } from '../useDocEditor';
@@ -36,12 +37,24 @@ export default function PalletizationEditor() {
   // Les palettes sont déjà mises de côté pour l'optimiseur (sendHandoff, marquées du n° de la palettisation) :
   // on enregistre, on choisit le chargement, on relie, on l'ouvre (les palettes s'ajoutent à ses lignes).
   const [choosing, setChoosing] = useState(null); // palettisation enregistrée, en attente du choix
+  const destsOf = (doc) => (doc?.input?.rows ?? []).map((r) => r.destination);
   const loadTruck = async () => {
     const saved = await ed.save();
-    if (saved) setChoosing(saved);
+    if (!saved) return;
+    // Tournée : simple alerte (jamais bloquante) si les destinations sont dans plusieurs tournées.
+    const warn = tourWarning(destsOf(saved), refs.tools);
+    if (warn && !window.confirm(warn)) return;
+    setChoosing(saved);
   };
   const toNew = async () => navigate(`/app/chargements/${await createShipmentForPalletization(org.id, choosing)}`);
-  const toExisting = async (s) => navigate(`/app/chargements/${await linkPalletization(choosing, s)}`);
+  const toExisting = async (s) => {
+    const target = await getShipment(s.code).catch(() => null);
+    const others = (target?.input?.rows ?? []).filter((r) => r.origin !== choosing.code).map((r) => r.destination);
+    const before = tourWarning(destsOf(choosing), refs.tools);
+    const warn = tourWarning([...destsOf(choosing), ...others], refs.tools);
+    if (warn && warn !== before && !window.confirm(`En ajoutant ces palettes au chargement ${s.code} :\n\n${warn}`)) return;
+    navigate(`/app/chargements/${await linkPalletization(choosing, s)}`);
+  };
 
   if (ed.doc === undefined || refs.items === undefined) return <div className="p-10 flex justify-center text-slate-400"><Loader2 className="animate-spin" /></div>;
   if (ed.doc === null) return <div className="p-10 text-center text-slate-500">Palettisation introuvable. <Link to="/app/palettisations" className="text-blue-700">Retour à la liste</Link></div>;

@@ -1021,7 +1021,7 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
                 {importMsg.text}
               </div>
             )}
-            {goodsOpen && <ColisTable rows={rows} updateRow={updateRow} updateStacking={updateStacking} removeRow={removeRow} addRow={addRow} />}
+            {goodsOpen && <ColisTable rows={rows} updateRow={updateRow} updateStacking={updateStacking} removeRow={removeRow} addRow={addRow} agencies={refs?.agencies} />}
           </div>
           </fieldset>
 

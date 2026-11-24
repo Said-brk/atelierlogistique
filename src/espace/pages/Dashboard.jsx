@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Plus, Boxes, Truck, ArrowRight, Loader2, Inbox } from 'lucide-react';
+import { Plus, Boxes, Truck, ArrowRight, Loader2, Inbox, Combine } from 'lucide-react';
 import { useEspace } from '../useEspace';
 import { listShipments, STATUS } from '../data';
 import { PageHeader, StatusBadge, Btn, fmtDateTime, pct } from '../ui';
@@ -70,9 +70,10 @@ export default function Dashboard() {
           {error && <div className="px-5 py-3 text-sm text-red-700">{error}</div>}
         </div>
 
-        <div className="grid sm:grid-cols-2 gap-3 sm:gap-4">
+        <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
           {[[Boxes, 'Palettiser des colis', 'Colis → palettes complètes et mixtes, puis « Charger le camion ».', '/app/palettisations/nouveau'],
-            [Truck, 'Préparer un camion', 'Plan 3D, tournée, essieux, sangles, fiche et QR cariste.', '/app/chargements/nouveau']].map(([Icon, t, d, to]) => (
+            [Truck, 'Préparer un camion', 'Plan 3D, tournée, essieux, sangles, fiche et QR cariste.', '/app/chargements/nouveau'],
+            [Combine, 'Regrouper des chargements', 'Ceux du même jour qui coûtent moins cher dans les mêmes véhicules.', '/app/regrouper']].map(([Icon, t, d, to]) => (
             <Link key={t} to={to} className="rounded-xl border border-slate-200 bg-white p-5 flex gap-4 hover:shadow-md transition">
               <div className="w-10 h-10 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center shrink-0"><Icon size={20} /></div>
               <div><div className="font-semibold text-slate-900">{t}</div><div className="text-sm text-slate-500">{d}</div></div>

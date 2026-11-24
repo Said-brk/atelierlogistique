@@ -1,16 +1,18 @@
-// Paramètres › Tables de référence : véhicules / contenants, supports de palettisation, arrimage.
+// Paramètres › Tables de référence : véhicules / contenants, supports de palettisation, agences, tournées,
+// réglages (arrimage, regroupement).
 // Une table = un schéma de champs (REF_TABLES) rendu par les mêmes composants : liste à colonnes
 // redimensionnables, fiche d'édition, ajout, suppression, retour aux valeurs par défaut.
 // Lecture pour tous les membres, modification par les administrateurs (règles de la base).
 
 import { useMemo, useState } from 'react';
 import { NavLink, Navigate, Route, Routes } from 'react-router-dom';
-import { Truck, Package, Link2, Plus, Pencil, Trash2, RotateCcw, Loader2, X, Save, Check } from 'lucide-react';
+import { Truck, Package, Link2, Plus, Pencil, Trash2, RotateCcw, Loader2, X, Save, Check, MapPin, Route as RouteIcon, Combine } from 'lucide-react';
 import { useEspace } from '../useEspace';
 import useReferences from '../useReferences';
 import { saveReference, deleteReference, resetReferences } from '../data';
 import { Btn } from '../ui';
 import ResizableTable from '../ResizableTable';
+import { defaultReferences } from '../../shared/references/defaults';
 
 const inputCls = 'w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:bg-slate-50';
 const fmt = (v, d = 0) => (v == null || v === '' ? '—' : Number(v).toLocaleString('fr-FR', { maximumFractionDigits: d }));
@@ -18,7 +20,8 @@ const m = (mm) => fmt(mm / 1000, 2);
 
 // ---------------------------------------------------------------- Schémas des tables
 // Champ : key (« code », « label », « active », « sort » = colonnes ; sinon dans data, « a.b » = sous-objet),
-// type : text | cm (saisi en cm, stocké en mm) | num | bool | select ; optional : vide autorisé (null).
+// type : text | cm (saisi en cm, stocké en mm) | num | bool | select (options : liste ou fonction des lignes) ;
+// optional : vide autorisé (null).
 
 const VEHICLE_FIELDS = [
   { key: 'code', label: 'Code', type: 'text', hint: 'Identifiant utilisé par l’API (ex. semi, VUL12).' },
@@ -84,6 +87,42 @@ const PALLET_COLUMNS = (admin, patch) => [
   { key: 'active', h: 'Coché', cell: (i) => toggle(i.active, () => patch(i, { active: !i.active }), !admin, 'Coché par défaut') },
 ];
 
+const AGENCY_FIELDS = [
+  { key: 'code', label: 'Code agence / ville', type: 'text', hint: 'Valeur choisie dans la colonne Destination des lignes (ex. LYO01).' },
+  { key: 'label', label: 'Description', type: 'text', wide: true },
+  { key: 'city', label: 'Ville', type: 'text', optional: true },
+  { key: 'tour', label: 'Tournée', type: 'select', optional: true, options: (items) => [['', '— aucune'], ...items.filter((i) => i.kind === 'tour').map((t) => [t.code, `${t.code} · ${t.label}`])] },
+  { key: 'order', label: 'Rang dans la tournée', type: 'num', hint: '1 = livrée en premier.' },
+  { key: 'sort', label: 'Ordre d’affichage', type: 'num' },
+  { key: 'active', label: 'Proposée dans les listes de destinations', type: 'bool' },
+];
+
+const TOUR_FIELDS = [
+  { key: 'code', label: 'Code', type: 'text', hint: 'Ex. T-NORD, 69-01.' },
+  { key: 'label', label: 'Nom de la tournée', type: 'text', wide: true },
+  { key: 'sort', label: 'Ordre d’affichage', type: 'num' },
+  { key: 'active', label: 'Active', type: 'bool' },
+];
+
+const agenciesOf = (items, tour) => items.filter((i) => i.kind === 'agency' && i.data?.tour === tour).sort((a, b) => (a.data.order ?? 0) - (b.data.order ?? 0));
+
+const AGENCY_COLUMNS = (admin, patch, items) => [
+  { key: 'code', h: 'Code', cell: (i) => <span className="font-jetbrains text-xs text-blue-700">{i.code}</span> },
+  { key: 'label', h: 'Description', min: 120, cell: (i) => <span className="font-medium text-slate-900">{i.label}</span> },
+  { key: 'city', h: 'Ville', cell: (i) => i.data.city || '—' },
+  { key: 'tour', h: 'Tournée', cell: (i) => { const t = items.find((x) => x.kind === 'tour' && x.code === i.data.tour); return t ? <span className="text-xs">{t.code} · {t.label}</span> : <span className="text-xs text-slate-400">—</span>; } },
+  { key: 'order', h: 'Rang', cell: (i) => (i.data.tour ? i.data.order ?? '—' : '—') },
+  { key: 'active', h: 'Proposée', cell: (i) => toggle(i.active, () => patch(i, { active: !i.active }), !admin, 'Proposée dans les listes') },
+];
+
+const TOUR_COLUMNS = (admin, patch, items) => [
+  { key: 'code', h: 'Code', cell: (i) => <span className="font-jetbrains text-xs text-blue-700">{i.code}</span> },
+  { key: 'label', h: 'Tournée', min: 120, cell: (i) => <span className="font-medium text-slate-900">{i.label}</span> },
+  { key: 'stops', h: 'Agences, dans l’ordre de livraison', min: 160, cell: (i) => { const a = agenciesOf(items, i.code); return a.length ? <span className="text-xs">{a.map((x) => x.code).join(' → ')}</span> : <span className="text-xs text-slate-400">aucune : rattachez des agences (onglet Agences)</span>; } },
+  { key: 'n', h: 'Agences', cell: (i) => agenciesOf(items, i.code).length },
+  { key: 'active', h: 'Active', cell: (i) => toggle(i.active, () => patch(i, { active: !i.active }), !admin, 'Active') },
+];
+
 const TABLES = {
   vehicle: {
     title: 'Véhicules et contenants', icon: Truck, fields: VEHICLE_FIELDS, columns: VEHICLE_COLUMNS, noun: 'véhicule',
@@ -94,6 +133,16 @@ const TABLES = {
     title: 'Supports de palettisation', icon: Package, fields: PALLET_FIELDS, columns: PALLET_COLUMNS, noun: 'support',
     intro: 'Proposés dans « Mes supports » des palettisations ; le moteur choisit parmi les supports cochés.',
     blank: () => ({ kind: 'pallet', code: '', label: '', active: true, sort: 100, data: { length: 1200, width: 800, deckHeight: 144, tare: 25, maxTotalHeight: 1800, maxLoad: 1000 } }),
+  },
+  agency: {
+    title: 'Agences et destinations', icon: MapPin, fields: AGENCY_FIELDS, columns: AGENCY_COLUMNS, noun: 'destination', feminine: true, noReset: true,
+    intro: 'Les destinations de vos chargements et palettisations : choisies dans une liste (code ou description) au lieu d’une saisie libre. Une agence appartient au plus à une tournée.',
+    blank: () => ({ kind: 'agency', code: '', label: '', active: true, sort: 100, data: { city: '', tour: null, order: 1 } }),
+  },
+  tour: {
+    title: 'Tournées', icon: RouteIcon, fields: TOUR_FIELDS, columns: TOUR_COLUMNS, noun: 'tournée', feminine: true, noReset: true,
+    intro: 'Vos tournées habituelles. Elles servent au regroupement des chargements (mode « par tournée ») et à l’ordre des arrêts ; la saisie reste libre ailleurs.',
+    blank: () => ({ kind: 'tour', code: '', label: '', active: true, sort: 100, data: {} }),
   },
 };
 
@@ -121,9 +170,10 @@ function itemOf(base, form, fields) {
   for (const f of fields) {
     if (f.key === 'axleMode' || (f.if && !f.if(form))) continue;
     let val = form[f.key];
+    if (f.type === 'select') val = val === '' ? null : val;
     if (f.type === 'text') {
       val = String(val ?? '').trim();
-      if (!val) errors[f.key] = 'Obligatoire';
+      if (!val && !f.optional) errors[f.key] = 'Obligatoire';
       else if (f.key === 'code' && !/^[A-Za-z0-9][A-Za-z0-9_.-]{0,39}$/.test(val)) errors[f.key] = 'Lettres, chiffres, - _ . (40 max.)';
     } else if (f.type === 'cm' || f.type === 'num') {
       const s = String(val ?? '').trim().replace(',', '.');
@@ -144,7 +194,8 @@ function itemOf(base, form, fields) {
   return { item: out, errors };
 }
 
-function Field({ f, value, onChange, error, disabled }) {
+function Field({ f, value, onChange, error, disabled, items = [] }) {
+  const options = typeof f.options === 'function' ? f.options(items) : f.options;
   if (f.type === 'bool') {
     return (
       <label className="sm:col-span-2 flex items-center gap-2 text-sm text-slate-700">
@@ -157,7 +208,7 @@ function Field({ f, value, onChange, error, disabled }) {
       {f.label}{f.unit && <span className="text-slate-400"> ({f.unit})</span>}
       {f.type === 'select' ? (
         <select value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled} className={`mt-1 ${inputCls}`}>
-          {f.options.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+          {options.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
         </select>
       ) : (
         <input value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled} inputMode={f.type === 'text' ? undefined : 'decimal'}
@@ -168,7 +219,7 @@ function Field({ f, value, onChange, error, disabled }) {
   );
 }
 
-function EditDialog({ table, item, admin, onClose, onSaved }) {
+function EditDialog({ table, item, admin, onClose, onSaved, items }) {
   const { org } = useEspace();
   const [form, setForm] = useState(() => formOf(item, table.fields));
   const [errors, setErrors] = useState({});
@@ -188,12 +239,12 @@ function EditDialog({ table, item, admin, onClose, onSaved }) {
         className="bg-white w-full sm:max-w-2xl max-h-[92vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl shadow-xl">
         <div className="sticky top-0 bg-white px-5 py-4 border-b border-slate-200 flex items-center gap-2">
           <table.icon size={18} className="text-blue-700" />
-          <div className="font-semibold text-slate-900 flex-1">{item.id ? `${item.label}` : `Nouveau ${table.noun}`}</div>
+          <div className="font-semibold text-slate-900 flex-1">{item.id ? `${item.label}` : `${table.feminine ? 'Nouvelle' : 'Nouveau'} ${table.noun}`}</div>
           <button type="button" onClick={onClose} className="p-1 text-slate-400 hover:text-slate-700" aria-label="Fermer"><X size={18} /></button>
         </div>
         <div className="p-5 grid sm:grid-cols-2 gap-x-4 gap-y-3">
           {table.fields.filter((f) => !f.if || f.if(form)).map((f) => (
-            <Field key={f.key} f={f} value={form[f.key]} error={errors[f.key]} disabled={!admin}
+            <Field key={f.key} f={f} value={form[f.key]} error={errors[f.key]} disabled={!admin} items={items}
               onChange={(v) => setForm((x) => ({ ...x, [f.key]: v }))} />
           ))}
         </div>
@@ -219,7 +270,7 @@ function RefTable({ kind }) {
   const run = async (fn) => { setError(''); try { await fn(); reload(); } catch (e) { setError(e.message); } };
   const patch = (i, p) => run(() => saveReference(org.id, { ...i, ...p }));
   const columns = [
-    ...table.columns(admin, patch),
+    ...table.columns(admin, patch, items ?? []),
     { key: 'actions', h: '', tdClass: 'text-right whitespace-nowrap', cell: (i) => admin && (
       <span className="inline-flex gap-3">
         <button onClick={(e) => { e.stopPropagation(); setEditing(i); }} className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-blue-700"><Pencil size={13} /> Modifier</button>
@@ -237,17 +288,17 @@ function RefTable({ kind }) {
         <span className="font-semibold text-slate-900">{table.title}</span>
         <span className="text-slate-400">· {rows.length}</span>
         <span className="flex-1" />
-        {admin && <Btn variant="ghost" onClick={reset}><RotateCcw size={14} /> Valeurs par défaut</Btn>}
+        {admin && !table.noReset && <Btn variant="ghost" onClick={reset}><RotateCcw size={14} /> Valeurs par défaut</Btn>}
         {admin && <Btn onClick={() => setEditing(table.blank())}><Plus size={15} /> Ajouter</Btn>}
       </div>
       <p className="px-4 py-2.5 text-sm text-slate-500 border-b border-slate-100">{table.intro}</p>
       {items === undefined ? <div className="p-6 flex justify-center text-slate-400"><Loader2 className="animate-spin" /></div>
         : items === null ? <div className="p-6 text-sm text-amber-800 bg-amber-50">Tables de référence indisponibles : le script SQL 20261124000008 n’a pas encore été exécuté dans Supabase.</div>
-          : rows.length === 0 ? <div className="p-6 text-sm text-slate-500">Aucune ligne. {admin && 'Ajoutez-en une ou revenez aux valeurs par défaut.'}</div>
+          : rows.length === 0 ? <div className="p-6 text-sm text-slate-500">Aucune ligne. {admin && (table.noReset ? 'Ajoutez-en une.' : 'Ajoutez-en une ou revenez aux valeurs par défaut.')}</div>
             : <ResizableTable id={`ref-${kind}`} rows={rows} columns={columns} onRowClick={(i) => setEditing(i)} rowClass={(i) => (i.active ? '' : 'text-slate-400')}
               theadClass="bg-slate-50 text-left text-xs text-slate-500" thClass="px-4 py-2 font-medium" />}
       {error && <div className="px-4 py-3 text-sm text-red-700">{error}</div>}
-      {editing && <EditDialog table={table} item={editing} admin={admin} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); reload(); }} />}
+      {editing && <EditDialog table={table} item={editing} admin={admin} items={items ?? []} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); reload(); }} />}
     </section>
   );
 }
@@ -260,34 +311,53 @@ const LASHING_FIELDS = [
   { key: 'forwardBlocked', label: 'Charge bloquée vers l’avant (contre la face avant)', type: 'bool' },
 ];
 
-function LashingSection() {
+const CONSOLIDATION_FIELDS = [
+  { key: 'mode', label: 'Regroupement des chargements', type: 'select', wide: true, options: [
+    ['free', 'Libre : tous les chargements du même jour sont comparés'],
+    ['tour', 'Par tournée : seulement ceux dont toutes les destinations sont dans la même tournée'],
+  ] },
+];
+
+const SETTINGS = {
+  lashing: { title: 'Arrimage', icon: Link2, fields: LASHING_FIELDS,
+    intro: 'Réglages de départ du calcul du nombre de sangles (EN 12195-1) dans « Répartition des charges & arrimage » des chargements.' },
+  consolidation: { title: 'Regroupement', icon: Combine, fields: CONSOLIDATION_FIELDS,
+    intro: 'Opérations › Regrouper : propose les chargements d’un même jour qui coûtent moins cher dans les mêmes véhicules. Ailleurs (palettisation, chargement), la tournée n’est jamais imposée : une simple alerte.' },
+};
+
+/** Réglage unique (une ligne « setting ») : fiche + enregistrer + valeurs par défaut de ce réglage seulement. */
+function SettingSection({ code }) {
+  const cfg = SETTINGS[code];
   const { org } = useEspace();
   const admin = org.role === 'owner' || org.role === 'admin';
   const { items, reload } = useReferences();
-  const item = items?.find((i) => i.kind === 'setting' && i.code === 'lashing');
+  const def = defaultReferences().find((i) => i.kind === 'setting' && i.code === code);
+  const item = items?.find((i) => i.kind === 'setting' && i.code === code) ?? (items ? def : null);
   const [form, setForm] = useState(null);
   const [msg, setMsg] = useState('');
   const [busy, setBusy] = useState(false);
-  const current = form ?? (item ? formOf(item, LASHING_FIELDS) : null);
-  const save = async () => {
-    const base = item ?? { kind: 'setting', code: 'lashing', label: 'Arrimage', active: true, sort: 10, data: {} };
-    const { item: next, errors } = itemOf(base, current, LASHING_FIELDS);
-    if (Object.keys(errors).length) { setMsg('Valeurs invalides.'); return; }
+  const current = form ?? (item ? formOf(item, cfg.fields) : null);
+  const persist = async (next) => {
     setBusy(true); setMsg('');
     try { await saveReference(org.id, next); setForm(null); reload(); setMsg('Enregistré.'); } catch (e) { setMsg(e.message); }
     setBusy(false);
   };
+  const save = () => {
+    const { item: next, errors } = itemOf(item, current, cfg.fields);
+    if (Object.keys(errors).length) { setMsg('Valeurs invalides.'); return; }
+    persist(next);
+  };
   return (
     <section className="rounded-xl bg-white border border-slate-200 overflow-hidden max-w-2xl">
       <div className="px-4 py-3 border-b border-slate-200 flex items-center gap-2">
-        <Link2 size={17} className="text-slate-700" /><span className="font-semibold text-slate-900 flex-1">Arrimage</span>
-        {admin && <Btn variant="ghost" onClick={() => window.confirm('Revenir aux réglages d’arrimage par défaut ?') && resetReferences(org.id, 'setting').then(() => { setForm(null); reload(); })}><RotateCcw size={14} /> Valeurs par défaut</Btn>}
+        <cfg.icon size={17} className="text-slate-700" /><span className="font-semibold text-slate-900 flex-1">{cfg.title}</span>
+        {admin && item && <Btn variant="ghost" onClick={() => window.confirm(`Revenir au réglage « ${cfg.title} » par défaut ?`) && persist({ ...item, data: def.data })}><RotateCcw size={14} /> Valeurs par défaut</Btn>}
       </div>
-      <p className="px-4 py-2.5 text-sm text-slate-500 border-b border-slate-100">Réglages de départ du calcul du nombre de sangles (EN 12195-1) dans « Répartition des charges & arrimage » des chargements.</p>
+      <p className="px-4 py-2.5 text-sm text-slate-500 border-b border-slate-100">{cfg.intro}</p>
       {!current ? <div className="p-6 flex justify-center text-slate-400">{items === undefined ? <Loader2 className="animate-spin" /> : 'Indisponible.'}</div> : (
         <div className="p-4 space-y-3">
           <div className="grid sm:grid-cols-2 gap-x-4 gap-y-3">
-            {LASHING_FIELDS.map((f) => <Field key={f.key} f={f} value={current[f.key]} disabled={!admin} onChange={(v) => setForm({ ...current, [f.key]: v })} />)}
+            {cfg.fields.map((f) => <Field key={f.key} f={f} value={current[f.key]} disabled={!admin} onChange={(v) => setForm({ ...current, [f.key]: v })} />)}
           </div>
           {admin && <div className="flex items-center gap-3"><Btn onClick={save} disabled={busy || !form}>{busy ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />} Enregistrer</Btn>
             {msg && <span className="text-sm text-slate-600">{msg}</span>}</div>}
@@ -303,13 +373,16 @@ const BASE = '/app/parametres/references';
 const SUB = [
   { to: `${BASE}/vehicules`, label: 'Véhicules et contenants', icon: Truck },
   { to: `${BASE}/supports`, label: 'Supports de palettisation', icon: Package },
+  { to: `${BASE}/agences`, label: 'Agences et destinations', icon: MapPin },
+  { to: `${BASE}/tournees`, label: 'Tournées', icon: RouteIcon },
+  { to: `${BASE}/regroupement`, label: 'Regroupement', icon: Combine },
   { to: `${BASE}/arrimage`, label: 'Arrimage', icon: Link2 },
 ];
 
 export default function ReferencesPage() {
   return (
     <div className="px-5 sm:px-8 py-6 space-y-4">
-      <p className="text-sm text-slate-600 max-w-3xl">Les données proposées par défaut dans vos chargements et palettisations. Une modification vaut pour les nouveaux documents et ceux en cours ;
+      <p className="text-sm text-slate-600 max-w-3xl">Les données proposées dans vos chargements, palettisations et regroupements. Une modification vaut pour les nouveaux documents et ceux en cours ;
         un chargement envoyé au quai garde les valeurs du moment. Dans un document, vous pouvez encore ajuster une valeur pour ce document seulement.</p>
       <nav className="flex flex-wrap gap-1.5">
         {SUB.map((s) => (
@@ -323,7 +396,10 @@ export default function ReferencesPage() {
         <Route index element={<Navigate to={`${BASE}/vehicules`} replace />} />
         <Route path="vehicules" element={<RefTable kind="vehicle" />} />
         <Route path="supports" element={<RefTable kind="pallet" />} />
-        <Route path="arrimage" element={<LashingSection />} />
+        <Route path="agences" element={<RefTable kind="agency" />} />
+        <Route path="tournees" element={<RefTable kind="tour" />} />
+        <Route path="regroupement" element={<SettingSection key="consolidation" code="consolidation" />} />
+        <Route path="arrimage" element={<SettingSection key="lashing" code="lashing" />} />
         <Route path="*" element={<Navigate to={`${BASE}/vehicules`} replace />} />
       </Routes>
     </div>
