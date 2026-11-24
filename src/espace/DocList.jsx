@@ -7,7 +7,7 @@ import { Plus, Search, Loader2, Inbox } from 'lucide-react';
 import { STATUS } from './data';
 import { PageHeader, StatusBadge, Btn, fmtDateTime } from './ui';
 
-const TABS = [['', 'Tous'], ['new', 'Nouveaux'], ['in_progress', 'En cours'], ['validated', 'Validés'], ['sent', 'Envoyés']];
+const TABS = [['', 'Tous'], ['new', 'Nouveaux'], ['in_progress', 'En cours'], ['validated', 'Validés'], ['sent', 'Envoyés'], ['loaded', 'Chargés']];
 
 export default function DocList({ title, subtitle, newLabel, newPath, basePath, fetch, columns, docTitle, searchFields = ['code', 'label', 'external_id'] }) {
   const navigate = useNavigate();

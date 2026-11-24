@@ -169,5 +169,31 @@ describe('schéma Supabase', () => {
     await as(A, `update webhooks set active = false`);
     await as(A, `update shipments set status = 'sent' where code = $1`, [sh.code]);
     ok((await db.query('select count(*)::int as n from net.calls')).rows[0].n === before + 1, 'webhook désactivé : plus rien');
+
+    // Fin de chargement par le cariste (lien quai, sans compte) : photos, statut « Chargé », flotte.
+    await as(A, `update webhooks set active = true, events = array['shipment.loaded']`);
+    const tok = sh.share_token;
+    err = null; try { await as(null, `select confirm_loading($1, 1, 'Karim', $2)`, [tok, ['autre/123e4567-e89b-12d3-a456-426614174000.jpg']]); } catch (e) { err = e; }
+    ok(err, 'photo hors du dossier du lien refusée');
+    err = null; try { await as(null, `select confirm_loading('faux', 1, null, '{}')`); } catch (e) { err = e; }
+    ok(err, 'jeton invalide refusé');
+    const photo = `${tok}/123e4567-e89b-12d3-a456-426614174000.jpg`;
+    await as(null, `select confirm_loading($1, 1, '  Karim  ', $2)`, [tok, [photo]]);
+    const ld = (await as(A, `select status, loaded_at from shipments where code = $1`, [sh.code])).rows[0];
+    ok(ld.status === 'loaded' && ld.loaded_at, 'chargé + heure de fin');
+    const lo = (await as(A, 'select loaded_by, photos, truck from shipment_loadings')).rows[0];
+    ok(lo.loaded_by === 'Karim' && lo.photos[0] === photo && lo.truck === 1, 'preuve enregistrée (nom, photo)');
+    ok((await as(B, 'select * from shipment_loadings')).rows.length === 0, 'preuve invisible pour une autre entreprise');
+    ok(JSON.parse((await db.query('select body_text from net.calls order by id desc limit 1')).rows[0].body_text).event === 'shipment.loaded', 'notification « chargé »');
+    const byTok = (await as(null, 'select status, loaded_trucks from shipment_by_token($1)', [tok])).rows[0];
+    ok(byTok.status === 'loaded' && byTok.loaded_trucks.join() === '1', 'le lien quai voit les camions confirmés');
+    ok((await as(null, 'select can_upload_proof($1) as ok', [photo])).rows[0].ok === true && (await as(null, 'select can_upload_proof($1) as ok', ['x/y.jpg'])).rows[0].ok === false, 'dépôt de photo : seulement dans le dossier d’un lien valide');
+    ok((await as(A, 'select can_read_proof($1) as ok', [photo])).rows[0].ok === true && (await as(B, 'select can_read_proof($1) as ok', [photo])).rows[0].ok === false, 'lecture des photos : l’entreprise seulement');
+    // Flotte : chargé quand les deux camions sont confirmés.
+    const fl = (await as(A, `insert into shipments(org_id, input, result, status) values ($1, '{}', '{"plan":{"guides":[{"index":1},{"index":2}]}}', 'sent') returning code, share_token`, [orgA])).rows[0];
+    await as(null, `select confirm_loading($1, 1, null, '{}')`, [fl.share_token]);
+    ok((await as(A, `select status from shipments where code = $1`, [fl.code])).rows[0].status === 'sent', 'flotte : un camion sur deux, pas encore chargé');
+    await as(null, `select confirm_loading($1, 2, null, '{}')`, [fl.share_token]);
+    ok((await as(A, `select status from shipments where code = $1`, [fl.code])).rows[0].status === 'loaded', 'flotte : tous les camions confirmés');
   }, 60000);
 });

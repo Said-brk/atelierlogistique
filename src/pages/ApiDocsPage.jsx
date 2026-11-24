@@ -252,7 +252,7 @@ export default function ApiDocsPage() {
 
           <H2 id="lire" icon={ListChecks}>Lire et suivre</H2>
           <Endpoint method="GET" path="/shipments/{ref}" /> <Endpoint method="GET" path="/shipments?status=…&updated_since=…&limit=50" />
-          <p className="text-slate-700"><code>ref</code> = n° <code>PL-…</code> ou votre référence. Statuts : <code>new</code>, <code>in_progress</code>, <code>validated</code>, <code>sent</code> (envoyé au quai), <code>cancelled</code>. Pour récupérer les plans validés : <a href="#notifications" className="text-blue-700 underline">notifications automatiques</a> (recommandé), ou interrogez la liste régulièrement (toutes les 1 à 5 minutes) avec <code>updated_since</code>.</p>
+          <p className="text-slate-700"><code>ref</code> = n° <code>PL-…</code> ou votre référence. Statuts : <code>new</code>, <code>in_progress</code>, <code>validated</code>, <code>sent</code> (envoyé au quai), <code>loaded</code> (chargé, confirmé par le cariste, <code>loaded_at</code>), <code>cancelled</code>. Pour récupérer les plans validés : <a href="#notifications" className="text-blue-700 underline">notifications automatiques</a> (recommandé), ou interrogez la liste régulièrement (toutes les 1 à 5 minutes) avec <code>updated_since</code>.</p>
           <ExampleTabs examples={[
             { id: 'powershell', label: 'PowerShell (Windows)', code: EX_POLL_PS },
             { id: 'curl', label: 'curl (Mac, Linux)', code: EX_POLL },
@@ -263,6 +263,7 @@ export default function ApiDocsPage() {
           <Table>
             <Field name="shipment.validated" type="">Le planificateur a validé le plan : récupérez-le avec <code>links.api</code>.</Field>
             <Field name="shipment.sent" type="">Envoyé au quai (QR code cariste).</Field>
+            <Field name="shipment.loaded" type="">Le cariste a confirmé la fin du chargement (photos de preuve dans l’espace). Flotte : quand tous les camions sont confirmés.</Field>
             <Field name="shipment.cancelled" type="">Annulé.</Field>
             <Field name="shipment.reopened" type="">Rouvert après validation : le plan va changer.</Field>
             <Field name="ping" type="">Test envoyé depuis l’espace.</Field>
@@ -285,7 +286,7 @@ export default function ApiDocsPage() {
           <Table>
             <Field name="401 unauthorized" type="">Clé absente, invalide ou révoquée.</Field>
             <Field name="404 not_found" type="">Chargement ou route inconnus.</Field>
-            <Field name="409 already_validated" type="">Le chargement est déjà validé ou envoyé au quai : il ne peut plus être remplacé par l’API (rouvrez-le dans l’espace, ou envoyez une nouvelle référence).</Field>
+            <Field name="409 already_validated" type="">Le chargement est déjà validé, envoyé au quai ou chargé : il ne peut plus être remplacé par l’API (rouvrez-le dans l’espace, ou envoyez une nouvelle référence).</Field>
             <Field name="422 invalid_request" type="">Données invalides : <b>toutes</b> les erreurs sont listées dans <code>details</code>, avec le chemin du champ.</Field>
             <Field name="500 server_error" type="">Erreur interne : réessayez, puis écrivez-nous si elle persiste.</Field>
           </Table>

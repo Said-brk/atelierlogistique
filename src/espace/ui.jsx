@@ -48,7 +48,7 @@ export function EditorHeader({
   backTo, backTitle, doc, kindColor = '#1D4ED8', kindBg = '#EFF6FF', meta, onMeta, dirty, saving, onSave,
   canValidate, validateHint, extraFields = null, links = null, summary = null, error = '', sourceLabel = '', actions = null, savedAt = null,
 }) {
-  const validated = doc.status === 'validated' || doc.status === 'sent';
+  const validated = ['validated', 'sent', 'loaded'].includes(doc.status);
   return (
     // Fixé en haut sur grand écran ; sur téléphone il défile (sinon il mangerait la moitié de l'écran).
     <div className="bg-white border-b border-slate-200 lg:sticky top-0 z-20 print:hidden">

@@ -4,6 +4,7 @@
 import { useEffect, useMemo, useState, lazy, Suspense, Component } from 'react';
 import { ChevronLeft, ChevronRight, Check, Camera, Share2, RotateCcw, Loader2, Truck } from 'lucide-react';
 import { decodePlan } from './planLink';
+import ConfirmLoading from './ConfirmLoading';
 import { refColor, stopColor } from '../uiHelpers';
 import { t, numLocale } from '../../../shared/i18n/core';
 
@@ -33,7 +34,7 @@ function where(it, W) {
  * Sans props : plan lu dans l'adresse (#…), lien du QR code des outils publics.
  * Avec payload : plan fourni par la page (lien permanent /q/… de l'espace) ; notice = bandeau d'information (warn : en orange).
  */
-export default function LoadingGuide({ payload: given = null, notice = null, warn = false }) {
+export default function LoadingGuide({ payload: given = null, notice = null, warn = false, onConfirm = null, confirmedAt = null }) {
   const payload = given ?? (typeof window !== 'undefined' ? window.location.hash.slice(1) : '');
   const [plan, setPlan] = useState(null);
   const [error, setError] = useState(null);
@@ -149,6 +150,7 @@ export default function LoadingGuide({ payload: given = null, notice = null, war
         {done && (
           <div className="rounded-xl bg-white border-2 border-green-500 p-4 space-y-3">
             <div className="flex items-center gap-2 font-bricolage font-bold text-xl text-green-700"><Check />{' '}{t('Chargement terminé')}</div>
+            {onConfirm ? <ConfirmLoading onConfirm={onConfirm} confirmedAt={confirmedAt} /> : (<>
             <div className="text-sm text-slate-600">{t('Prenez une photo du camion chargé, portes ouvertes, comme preuve de chargement.')}</div>
             <label className="flex items-center justify-center gap-2 py-3 rounded-lg font-semibold text-white cursor-pointer" style={{ background: BLUE }}>
               <Camera size={18} /> {photo ? t('Reprendre la photo') : t('Prendre une photo')}
@@ -161,6 +163,7 @@ export default function LoadingGuide({ payload: given = null, notice = null, war
                 <button onClick={share} className="w-full flex items-center justify-center gap-2 py-3 rounded-lg font-semibold bg-slate-900 text-white"><Share2 size={18} />{' '}{t('Envoyer la photo')}</button>
               </>
             )}
+            </>)}
             <button onClick={() => { restart(); setPhoto(null); }} className="w-full flex items-center justify-center gap-2 py-2 text-sm text-slate-500"><RotateCcw size={14} />{' '}{t('Recommencer')}</button>
           </div>
         )}

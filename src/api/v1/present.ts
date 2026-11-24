@@ -10,7 +10,7 @@ import { containerOf } from './compute';
 
 export interface ShipmentRow {
   id: string; code: string; external_id: string | null; label: string | null; status: string; version: number; source: string;
-  departure_at: string | null; created_at: string; updated_at: string; validated_at?: string | null; share_token: string;
+  departure_at: string | null; created_at: string; updated_at: string; validated_at?: string | null; loaded_at?: string | null; share_token: string;
   input: Record<string, unknown> | null; result: { summary?: Record<string, unknown>; plan?: Record<string, any> } | null;
 }
 
@@ -91,5 +91,5 @@ export async function shipmentOf(s: ShipmentRow, site: string) {
   const hasGuide = !!(plan?.guide || plan?.guides?.length);
   const dock = hasGuide && s.status !== 'cancelled' ? `${site}/q/${s.share_token}` : null;
   const detailed = await planOf(s, dock);
-  return { ...listItemOf(s, site), validated_at: s.validated_at ?? null, links: { app: `${site}/app/chargements/${s.code}`, dock }, plan: detailed };
+  return { ...listItemOf(s, site), validated_at: s.validated_at ?? null, loaded_at: s.loaded_at ?? null, links: { app: `${site}/app/chargements/${s.code}`, dock }, plan: detailed };
 }

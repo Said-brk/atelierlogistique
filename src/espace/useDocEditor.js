@@ -91,7 +91,8 @@ export default function useDocEditor({ code, load, update, titleOf, autosaveMs =
         input,
         // Plan 3D gardé tant que la saisie n'a pas changé ; sinon seul le résumé (le plan sera recalculé).
         result: sum ? { summary: sum, ...(plan ? { plan } : {}) } : stable(input) === savedInput.current ? base.result : null,
-        status: nextStatus ?? (base.status === 'new' ? 'in_progress' : base.status),
+        // Statut envoyé seulement s'il change : le cariste a pu passer le chargement « Chargé » entre-temps.
+        ...(nextStatus ? { status: nextStatus } : base.status === 'new' ? { status: 'in_progress' } : {}),
         ...extra,
       };
       if ('departure_at' in base) patch.departure_at = usedMeta.departure_at ? new Date(usedMeta.departure_at).toISOString() : null;
