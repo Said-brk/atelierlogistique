@@ -9,7 +9,8 @@ import LoadingGuide from '../outils/optimiseur-chargement/guide/LoadingGuide.jsx
 import { payloadLang } from '../outils/optimiseur-chargement/guide/planLink';
 import { I18nProvider } from '../shared/i18n/I18nProvider.jsx';
 import { accountEnabled } from '../shared/account/supabase';
-import { shipmentByToken } from './data';
+import { shipmentByToken, confirmLoadingWithPhotos } from './data';
+import { shrinkPhoto } from '../outils/optimiseur-chargement/guide/ConfirmLoading';
 
 const font = { fontFamily: "'DM Sans', system-ui, sans-serif" };
 const Message = ({ children }) => (
@@ -68,7 +69,11 @@ export default function QuaiGuide() {
   }
   const payload = picked ? picked.guide : plan?.guide;
   if (!payload) return notReady;
-  const final = s.status === 'validated' || s.status === 'sent';
+  const final = ['validated', 'sent', 'loaded'].includes(s.status);
+  const truckNo = picked?.index ?? 1;
+  // Fin de chargement : photos réduites puis envoyées, confirmation dans la base (statut « Chargé »).
+  const onConfirm = async ({ files, name }) => confirmLoadingWithPhotos(token, truckNo, name, await Promise.all(files.map((f) => shrinkPhoto(f))));
+  const confirmedAt = (s.loaded_trucks ?? []).includes(truckNo) ? (s.loaded_at ?? new Date().toISOString()) : null;
   const truck = picked ? ` · camion ${picked.index}/${guides.length}` : '';
   const notice = `${s.code}${s.label ? ` · ${s.label}` : ''}${truck} · v${s.version}${final ? '' : ' · plan pas encore validé, il peut encore changer'}`;
   return (
@@ -79,7 +84,7 @@ export default function QuaiGuide() {
         </button>
       )}
       {/* La progression est mémorisée par plan (donc par camion) sur ce téléphone. */}
-      <LoadingGuide key={`${token}-${s.version}-${picked?.index ?? 0}`} payload={payload} notice={notice} warn={!final} />
+      <LoadingGuide key={`${token}-${s.version}-${picked?.index ?? 0}`} payload={payload} notice={notice} warn={!final} onConfirm={onConfirm} confirmedAt={confirmedAt} />
     </I18nProvider>
   );
 }

@@ -1539,11 +1539,11 @@ async function shipmentOf(s, site) {
   const hasGuide = !!(plan?.guide || plan?.guides?.length);
   const dock = hasGuide && s.status !== "cancelled" ? `${site}/q/${s.share_token}` : null;
   const detailed = await planOf(s, dock);
-  return { ...listItemOf(s, site), validated_at: s.validated_at ?? null, links: { app: `${site}/app/chargements/${s.code}`, dock }, plan: detailed };
+  return { ...listItemOf(s, site), validated_at: s.validated_at ?? null, loaded_at: s.loaded_at ?? null, links: { app: `${site}/app/chargements/${s.code}`, dock }, plan: detailed };
 }
 
 // src/api/v1/handler.ts
-var STATUSES = ["new", "in_progress", "validated", "sent", "cancelled"];
+var STATUSES = ["new", "in_progress", "validated", "sent", "loaded", "cancelled"];
 var err = (status, code, message, details) => ({ status, body: { error: { code, message, ...details ? { details } : {} } } });
 async function sha256Hex(s) {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
@@ -1575,8 +1575,8 @@ async function handle(req, db, site = "https://atelierlogistique.com") {
         const v = parsed.value;
         items = v.units;
         const existing = await db.findShipment(org, v.reference);
-        if (existing && ["validated", "sent"].includes(existing.status)) {
-          res = err(409, "already_validated", `Le chargement ${existing.code} (\xAB ${v.reference} \xBB) est d\xE9j\xE0 ${existing.status === "sent" ? "envoy\xE9 au quai" : "valid\xE9"} : rouvrez-le dans l\u2019espace ou envoyez une nouvelle r\xE9f\xE9rence.`);
+        if (existing && ["validated", "sent", "loaded"].includes(existing.status)) {
+          res = err(409, "already_validated", `Le chargement ${existing.code} (\xAB ${v.reference} \xBB) est d\xE9j\xE0 ${existing.status === "sent" ? "envoy\xE9 au quai" : existing.status === "loaded" ? "charg\xE9" : "valid\xE9"} : rouvrez-le dans l\u2019espace ou envoyez une nouvelle r\xE9f\xE9rence.`);
         } else {
           const result = v.mode === "auto" ? await computePlan(v.input) : null;
           const status = v.mode === "auto" ? v.validate ? "validated" : "in_progress" : "new";
@@ -1617,7 +1617,7 @@ async function handle(req, db, site = "https://atelierlogistique.com") {
 }
 
 // src/api/v1/vercel.ts
-var SHIPMENT_FIELDS = "id, org_id, code, external_id, label, status, version, source, departure_at, created_at, updated_at, validated_at, share_token, input, result";
+var SHIPMENT_FIELDS = "id, org_id, code, external_id, label, status, version, source, departure_at, created_at, updated_at, validated_at, loaded_at, share_token, input, result";
 var LIST_FIELDS = "id, org_id, code, external_id, label, status, version, source, departure_at, created_at, updated_at, validated_at, share_token, summary:result->summary";
 var client = null;
 function sb() {

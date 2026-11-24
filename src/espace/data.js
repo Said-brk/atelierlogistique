@@ -8,6 +8,7 @@ export const STATUS = {
   in_progress: { label: 'En cours', color: '#B45309', bg: '#FFFBEB' },
   validated: { label: 'Validé', color: '#15803D', bg: '#F0FDF4' },
   sent: { label: 'Envoyé', color: '#0F766E', bg: '#F0FDFA' },
+  loaded: { label: 'Chargé', color: '#6D28D9', bg: '#F5F3FF' },
   cancelled: { label: 'Annulé', color: '#64748B', bg: '#F1F5F9' },
 };
 export const SOURCE = { api: 'API', file: 'Fichier', web: 'Saisie' };
@@ -287,6 +288,7 @@ export async function apiUsage(orgId) {
 export const WEBHOOK_EVENTS = [
   { id: 'shipment.validated', label: 'Chargement validé' },
   { id: 'shipment.sent', label: 'Envoyé au quai' },
+  { id: 'shipment.loaded', label: 'Chargé (photo du cariste)' },
   { id: 'shipment.cancelled', label: 'Annulé' },
   { id: 'shipment.reopened', label: 'Rouvert (après validation)' },
 ];
@@ -329,4 +331,35 @@ export async function listDeliveries(orgId, limit = 15) {
   const { data, error } = await sb.from('webhook_deliveries').select('id, webhook_id, event, shipment_code, status, attempt, http_status, error, created_at, next_attempt_at').eq('org_id', orgId).order('created_at', { ascending: false }).limit(limit);
   fail(error);
   return data;
+}
+
+// ---------------------------------------------------------------- Preuve de chargement (photos du cariste)
+const PROOF_BUCKET = 'preuves';
+
+/** Cariste (sans compte) : envoie les photos dans le dossier du lien quai, puis confirme le chargement. */
+export async function confirmLoadingWithPhotos(token, truck, name, blobs) {
+  const sb = await getSupabase();
+  const paths = [];
+  for (const b of blobs) {
+    const path = `${token}/${crypto.randomUUID()}.jpg`;
+    const { error } = await sb.storage.from(PROOF_BUCKET).upload(path, b, { contentType: 'image/jpeg', upsert: false });
+    if (error) throw new Error(`Photo non envoyée : ${error.message}`);
+    paths.push(path);
+  }
+  const { data, error } = await sb.rpc('confirm_loading', { p_token: token, p_truck: truck, p_name: name || null, p_photos: paths });
+  fail(error);
+  return data;
+}
+
+/** Preuves de chargement d'un chargement, avec des liens temporaires (1 h) vers les photos. */
+export async function loadingProofs(shipmentId) {
+  const sb = await getSupabase();
+  const { data, error } = await sb.from('shipment_loadings').select('id, truck, loaded_by, photos, created_at').eq('shipment_id', shipmentId).order('created_at', { ascending: false });
+  fail(error);
+  const all = data.flatMap((l) => l.photos);
+  if (!all.length) return data.map((l) => ({ ...l, urls: [] }));
+  const { data: signed, error: e2 } = await sb.storage.from(PROOF_BUCKET).createSignedUrls(all, 3600);
+  fail(e2);
+  const urlOf = Object.fromEntries((signed ?? []).map((x) => [x.path, x.signedUrl]));
+  return data.map((l) => ({ ...l, urls: l.photos.map((p) => urlOf[p]).filter(Boolean) }));
 }

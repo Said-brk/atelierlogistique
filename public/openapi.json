@@ -513,6 +513,7 @@
               "in_progress",
               "validated",
               "sent",
+              "loaded",
               "cancelled"
             ]
           },
@@ -572,6 +573,11 @@
                 "type": "number"
               }
             }
+          },
+          "loaded_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
           }
         }
       },

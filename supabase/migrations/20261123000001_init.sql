@@ -147,7 +147,8 @@ create trigger shipments_after_write after insert or update on public.shipments
   for each row execute function public.shipments_after_write();
 
 -- Plan ouvert par lien de partage (cariste, transporteur) : sans compte, champs utiles seulement.
-create or replace function public.shipment_by_token(p_token text)
+drop function if exists public.shipment_by_token(text); -- redéfinie (colonnes en plus) par 20261124000006
+create function public.shipment_by_token(p_token text)
 returns table (code text, label text, status text, version integer, departure_at timestamptz, result jsonb)
 language sql stable security definer set search_path = public as $$
   select s.code, s.label, s.status, s.version, s.departure_at, s.result

@@ -15,9 +15,10 @@ Fonctions **en plus** du site : comptes, « Mes chargements », API. Les outils 
 | `usage_events` | consommation de l'API (appels, durée, nombre d'unités) |
 | `palletizations` | palettisations (n° `PZ-XXXXXX`), reliées au chargement qu'elles alimentent |
 | `webhooks`, `webhook_deliveries` | notifications automatiques (adresse, secret de signature, évènements) et historique des envois (30 jours) |
+| `shipment_loadings` | fins de chargement confirmées par le cariste (camion, nom, photos) ; photos dans le stockage privé `preuves` |
 | `invitations` | invitations d'un collègue par adresse e-mail (14 jours), acceptées à l'entrée de l'espace |
 
-Statuts d'un chargement : `new` → `in_progress` → `validated` → `sent` (envoyé au quai) · `cancelled`.
+Statuts d'un chargement : `new` → `in_progress` → `validated` → `sent` (envoyé au quai), `loaded` (chargé, confirmé par le cariste) · `cancelled`.
 
 Fonctions : `create_organization(nom)`, `create_api_key(org, nom)` (renvoie la clé en clair **une seule fois**),
 `shipment_by_token(jeton)` (plan ouvert par lien, sans compte), `purge_expired_shipments()`,

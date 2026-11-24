@@ -6,7 +6,7 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { handle, type Db } from './handler';
 import type { ShipmentRow } from './present';
 
-const SHIPMENT_FIELDS = 'id, org_id, code, external_id, label, status, version, source, departure_at, created_at, updated_at, validated_at, share_token, input, result';
+const SHIPMENT_FIELDS = 'id, org_id, code, external_id, label, status, version, source, departure_at, created_at, updated_at, validated_at, loaded_at, share_token, input, result';
 const LIST_FIELDS = 'id, org_id, code, external_id, label, status, version, source, departure_at, created_at, updated_at, validated_at, share_token, summary:result->summary';
 
 let client: SupabaseClient | null = null;

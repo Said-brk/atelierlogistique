@@ -7,6 +7,7 @@ import { Loader2, QrCode } from 'lucide-react';
 import LoadOptimizer from '../../outils/optimiseur-chargement/LoadOptimizer.jsx';
 import { useEspace } from '../useEspace';
 import { getShipment, createShipment, updateShipment, palletizationsOfShipment, shareUrlOf, SOURCE } from '../data';
+import LoadingProof from '../LoadingProof';
 import GuideQrModal from '../../outils/optimiseur-chargement/guide/GuideQrModal';
 import { EditorHeader, DocChip, Btn, editorInputCls, pct } from '../ui';
 import useDocEditor, { initialOf } from '../useDocEditor';
@@ -37,7 +38,7 @@ export default function ShipmentEditor() {
 
   const s = ed.summary;
   const plan = ed.doc.result?.plan;
-  const sent = ed.doc.status === 'sent';
+  const sent = ['sent', 'loaded'].includes(ed.doc.status); // déjà envoyé au quai (ou chargé) : on ne rétrograde pas le statut
   // Le lien permanent ne sert que si le plan affiché est celui enregistré (sinon : lien avec le plan dedans).
   const ready = (p) => !!(p?.guide || p?.guides?.length);
   const shareUrl = !ed.dirty && ready(plan) ? shareUrlOf(ed.doc) : null;
@@ -56,8 +57,11 @@ export default function ShipmentEditor() {
           <QrCode size={15} /> {sent ? 'QR quai' : <><span className="sm:hidden">Quai</span><span className="hidden sm:inline">Envoyer au quai</span></>}</Btn>}
         extraFields={<label className="flex items-center gap-2 text-slate-500">Départ
           <input type="date" value={ed.meta.departure_at} onChange={(e) => ed.setMeta({ ...ed.meta, departure_at: e.target.value })} className={editorInputCls} /></label>}
-        links={pzs.length > 0 && <span className="flex flex-wrap items-center gap-1.5 text-slate-500 text-xs">Palettes issues de
-          {pzs.map((p) => <DocChip key={p.code} kind="pallet" to={`/app/palettisations/${p.code}`} code={p.code} title={p.label ?? ''} />)}</span>}
+        links={<>
+          {pzs.length > 0 && <span className="flex flex-wrap items-center gap-1.5 text-slate-500 text-xs">Palettes issues de
+            {pzs.map((p) => <DocChip key={p.code} kind="pallet" to={`/app/palettisations/${p.code}`} code={p.code} title={p.label ?? ''} />)}</span>}
+          <LoadingProof shipmentId={ed.doc.id} status={ed.doc.status} />
+        </>}
         summary={s && `${s.fleet ? 'Flotte' : 'Plan'} : ${s.vehicle} · ${s.packed} colis · ${s.fleet ? 'moy. ' : ''}${pct(s.fill)}${s.unpacked ? ` · ${s.unpacked} non chargé(s)` : ''}${s.edited ? ' · modifié à la main' : ''}`} />
       <LoadOptimizer key={ed.doc.id} workspace={{ initial: initialOf(ed.doc), onChange: ed.onChange, shareUrl }} />
       {quaiOpen && <GuideQrModal url={shareUrlOf(ed.doc)} onClose={() => setQuaiOpen(false)} title={`${ed.doc.code} · plan pas à pas pour le cariste`}
