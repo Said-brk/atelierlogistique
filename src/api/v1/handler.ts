@@ -8,6 +8,9 @@
 //   POST /v1/shipments/{ref}/cancel         annuler
 
 import { parseShipment } from './schema';
+import type { VehicleCatalog } from './schema';
+import { toToolReferences } from '../../shared/references/defaults';
+import type { RefItem } from '../../shared/references/defaults';
 import { computePlan } from './compute';
 import { shipmentOf, listItemOf, type ShipmentRow } from './present';
 
@@ -20,6 +23,20 @@ export interface Db {
   insertShipment(row: Record<string, unknown>): Promise<ShipmentRow>;
   updateShipment(id: string, patch: Record<string, unknown>): Promise<ShipmentRow>;
   listShipments(orgId: string, q: { status?: string[]; updatedSince?: string; limit: number }): Promise<ShipmentRow[]>;
+  /** Tables de référence de l'entreprise (facultatif : sans, véhicules standard). */
+  references?(orgId: string): Promise<RefItem[]>;
+}
+
+/** Véhicules actifs de l'entreprise → catalogue de l'API (null : table absente ou vide). */
+async function catalogOf(db: Db, org: string): Promise<VehicleCatalog | null> {
+  const items = db.references ? await db.references(org).catch(() => []) : [];
+  const vehicles = toToolReferences(items).vehicles.filter((v) => v.active);
+  if (!vehicles.length) return null;
+  return {
+    vehicles: vehicles.map((v) => v.container),
+    costs: Object.fromEntries(vehicles.map((v) => [v.container.id, v.cost])),
+    defaultId: (vehicles.find((v) => v.container.id === 'semi') ?? vehicles[0]).container.id,
+  };
 }
 export interface ApiRequest { method: string; path: string; query: URLSearchParams; headers: Record<string, string | undefined>; body: unknown }
 export interface ApiResponse { status: number; body: unknown }
@@ -57,7 +74,7 @@ export async function handle(req: ApiRequest, db: Db, site = 'https://atelierlog
   try {
     if (parts[0] !== 'shipments') res = err(404, 'not_found', `Route inconnue : ${req.method} /v1${path}`);
     else if (parts.length === 1 && req.method === 'POST') {
-      const parsed = parseShipment(req.body);
+      const parsed = parseShipment(req.body, await catalogOf(db, org));
       if (!parsed.ok) res = err(422, 'invalid_request', 'Chargement invalide : voir details.', parsed.issues);
       else {
         const v = parsed.value;

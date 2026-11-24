@@ -375,3 +375,38 @@ export async function shipmentStatus(id) {
 }
 /** Chargements au quai : contenu figé (le verrou est aussi dans la base). */
 export const DOCK_STATUSES = ['sent', 'partially_loaded', 'loaded'];
+
+// ---------------------------------------------------------------- Tables de référence
+// Véhicules / contenants, supports de palettisation, réglages (arrimage) de l'entreprise.
+
+const REF_COLS = 'id, kind, code, label, data, active, sort';
+
+export async function listReferences(orgId) {
+  const sb = await getSupabase();
+  const { data, error } = await sb.from('reference_items').select(REF_COLS).eq('org_id', orgId).order('sort');
+  fail(error);
+  return data;
+}
+
+/** Création (sans id) ou modification. */
+export async function saveReference(orgId, item) {
+  const sb = await getSupabase();
+  const row = { kind: item.kind, code: item.code.trim(), label: item.label.trim(), data: item.data, active: item.active, sort: Number(item.sort) || 0 };
+  const q = item.id ? sb.from('reference_items').update(row).eq('id', item.id) : sb.from('reference_items').insert({ org_id: orgId, ...row });
+  const { data, error } = await q.select(REF_COLS).single();
+  if (error?.code === '23505') throw new Error(`Le code « ${row.code} » existe déjà.`);
+  fail(error);
+  return data;
+}
+
+export async function deleteReference(id) {
+  const sb = await getSupabase();
+  const { error } = await sb.from('reference_items').delete().eq('id', id);
+  fail(error);
+}
+
+export async function resetReferences(orgId, kind) {
+  const sb = await getSupabase();
+  const { error } = await sb.rpc('reset_reference_items', { p_org: orgId, p_kind: kind });
+  fail(error);
+}

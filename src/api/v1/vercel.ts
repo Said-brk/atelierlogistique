@@ -2,6 +2,7 @@
 // La base est Supabase, avec la clé secrète du serveur (SUPABASE_SERVICE_ROLE_KEY, variable Vercel de type Secret) :
 // l'API vérifie elle-même la clé d'API et n'accède qu'aux données de l'entreprise de cette clé.
 
+import type { RefItem } from '../../shared/references/defaults';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { handle, type Db } from './handler';
 import type { ShipmentRow } from './present';
@@ -36,6 +37,7 @@ export const supabaseDb: Db = {
     const rows = must(await query) as (ShipmentRow & { summary?: Record<string, unknown> })[];
     return rows.map(({ summary, ...r }) => ({ ...r, input: null, result: summary ? { summary } : null }));
   },
+  references: async (org) => must(await sb().from('reference_items').select('kind, code, label, data, active, sort').eq('org_id', org)) as RefItem[],
 };
 
 type Req = { method?: string; url?: string; headers: Record<string, string | string[] | undefined>; body?: unknown; query?: Record<string, string | string[]> };

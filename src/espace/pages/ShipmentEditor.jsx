@@ -11,6 +11,7 @@ import { useLoadingProofs, proofsByTruck, ProofButton, ProofViewer } from '../Lo
 import GuideQrModal from '../../outils/optimiseur-chargement/guide/GuideQrModal';
 import { EditorHeader, DocChip, Btn, editorInputCls, pct } from '../ui';
 import useDocEditor, { initialOf } from '../useDocEditor';
+import useReferences from '../useReferences';
 
 /** /app/chargements/nouveau : crée un chargement vide puis ouvre l'éditeur. */
 export function NewShipment() {
@@ -28,6 +29,7 @@ export function NewShipment() {
 
 export default function ShipmentEditor() {
   const { code } = useParams();
+  const refs = useReferences();
   const ed = useDocEditor({ code, load: getShipment, update: updateShipment, titleOf: (d) => d.label ?? 'Chargement' });
   const [pzs, setPzs] = useState([]);
   const [quaiOpen, setQuaiOpen] = useState(false);
@@ -45,7 +47,7 @@ export default function ShipmentEditor() {
     return () => { clearInterval(t); window.removeEventListener('focus', tick); };
   }, [atDock, ed.doc?.id, refreshStatus]);
 
-  if (ed.doc === undefined) return <div className="p-10 flex justify-center text-slate-400"><Loader2 className="animate-spin" /></div>;
+  if (ed.doc === undefined || refs.items === undefined) return <div className="p-10 flex justify-center text-slate-400"><Loader2 className="animate-spin" /></div>;
   if (ed.doc === null) return <div className="p-10 text-center text-slate-500">Chargement introuvable. <Link to="/app/chargements" className="text-blue-700">Retour à la liste</Link></div>;
 
   const s = ed.summary;
@@ -79,7 +81,7 @@ export default function ShipmentEditor() {
           {proofs.length > 0 && <ProofButton count={proofs.reduce((n, p) => n + p.urls.length, 0)} onClick={() => setProofOf(null)} />}
         </>}
         summary={s && `${s.fleet ? 'Flotte' : 'Plan'} : ${s.vehicle} · ${s.packed} colis · ${s.fleet ? 'moy. ' : ''}${pct(s.fill)}${s.unpacked ? ` · ${s.unpacked} non chargé(s)` : ''}${s.edited ? ' · modifié à la main' : ''}`} />
-      <LoadOptimizer key={ed.doc.id} workspace={{ initial: initialOf(ed.doc), onChange: ed.onChange, shareUrl, locked, trucks, truckPhase: DOCK_STATUSES.includes(ed.doc.status) ? 'todo' : 'plan' }} />
+      <LoadOptimizer key={ed.doc.id} workspace={{ initial: initialOf(ed.doc), references: refs.tools, onChange: ed.onChange, shareUrl, locked, trucks, truckPhase: DOCK_STATUSES.includes(ed.doc.status) ? 'todo' : 'plan' }} />
       {proofOf !== undefined && <ProofViewer proofs={proofs} truck={proofOf} onClose={() => setProofOf(undefined)} />}
       {quaiOpen && <GuideQrModal url={shareUrlOf(ed.doc)} onClose={() => setQuaiOpen(false)} title={`${ed.doc.code} · plan pas à pas pour le cariste`}
         note="Lien permanent : il affiche toujours la dernière version enregistrée. Si vous modifiez le plan, enregistrez : le cariste voit la nouvelle version." />}

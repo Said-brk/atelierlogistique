@@ -10,7 +10,7 @@ const fmtPct = (r) => `${Math.round((r ?? 0) * 100)} %`;
 const dims = (c) => `${(c.length / 1000).toFixed(1)}×${(c.width / 1000).toFixed(2)}×${(c.height / 1000).toFixed(2)} m`;
 
 /** Véhicules proposés : case à cocher + coût par voyage. props : vehicles, onChange */
-export function FleetVehicles({ vehicles, onChange }) {
+export function FleetVehicles({ vehicles, onChange, note = null }) {
   const set = (id, patch) => onChange(vehicles.map((v) => (v.container.id === id ? { ...v, ...patch } : v)));
   return (
     <div className="p-4 space-y-2">
@@ -32,7 +32,7 @@ export function FleetVehicles({ vehicles, onChange }) {
           </label>
         ))}
       </div>
-      <p className="font-jetbrains text-[10px] text-slate-400">{tr('Dimensions, charges utiles et coûts indicatifs : ajustez-les à vos tarifs. Mémorisé dans ce navigateur.')}</p>
+      <p className="font-jetbrains text-[10px] text-slate-400">{note ?? tr('Dimensions, charges utiles et coûts indicatifs : ajustez-les à vos tarifs. Mémorisé dans ce navigateur.')}</p>
     </div>
   );
 }

@@ -11,6 +11,7 @@ import { getPalletization, createPalletization, updatePalletization, createShipm
 import LoadTruckDialog from '../LoadTruckDialog';
 import { EditorHeader, DocChip } from '../ui';
 import useDocEditor, { initialOf } from '../useDocEditor';
+import useReferences from '../useReferences';
 
 export function NewPalletization() {
   const { org } = useEspace();
@@ -29,6 +30,7 @@ export default function PalletizationEditor() {
   const { code } = useParams();
   const { org } = useEspace();
   const navigate = useNavigate();
+  const refs = useReferences();
   const ed = useDocEditor({ code, load: getPalletization, update: updatePalletization, titleOf: (d) => d.label ?? 'Palettisation' });
 
   // Les palettes sont déjà mises de côté pour l'optimiseur (sendHandoff, marquées du n° de la palettisation) :
@@ -41,7 +43,7 @@ export default function PalletizationEditor() {
   const toNew = async () => navigate(`/app/chargements/${await createShipmentForPalletization(org.id, choosing)}`);
   const toExisting = async (s) => navigate(`/app/chargements/${await linkPalletization(choosing, s)}`);
 
-  if (ed.doc === undefined) return <div className="p-10 flex justify-center text-slate-400"><Loader2 className="animate-spin" /></div>;
+  if (ed.doc === undefined || refs.items === undefined) return <div className="p-10 flex justify-center text-slate-400"><Loader2 className="animate-spin" /></div>;
   if (ed.doc === null) return <div className="p-10 text-center text-slate-500">Palettisation introuvable. <Link to="/app/palettisations" className="text-blue-700">Retour à la liste</Link></div>;
 
   const s = ed.summary;
@@ -54,7 +56,7 @@ export default function PalletizationEditor() {
           ? <DocChip kind="shipment" to={`/app/chargements/${ed.doc.shipments.code}`} code={ed.doc.shipments.code} title={ed.doc.shipments.label ?? ''} />
           : <span className="text-slate-400">— choisi au clic sur « Charger le camion »</span>}</span>}
         summary={s && `${s.pallets} palette(s) · ${s.full} complète(s) · ${s.mixed} mixte(s) · ${Math.round(s.weight).toLocaleString('fr-FR')} kg${s.unplaced ? ` · ${s.unplaced} colis non palettisé(s)` : ''}`} />
-      <Palletizer key={ed.doc.id} workspace={{ initial: initialOf(ed.doc), onChange: ed.onChange, origin: ed.doc.code }} onLoadTruck={loadTruck} />
+      <Palletizer key={ed.doc.id} workspace={{ initial: initialOf(ed.doc), references: refs.tools, onChange: ed.onChange, origin: ed.doc.code }} onLoadTruck={loadTruck} />
       {choosing && <LoadTruckDialog orgId={org.id} pz={choosing} onNew={toNew} onExisting={toExisting} onClose={() => setChoosing(null)} />}
     </>
   );
