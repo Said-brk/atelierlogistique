@@ -7,6 +7,7 @@ import {
   WEBHOOK_EVENTS, listWebhooks, createWebhook, updateWebhook, deleteWebhook, testWebhook, listDeliveries,
 } from './data';
 import { Btn, fmtDateTime } from './ui';
+import ResizableTable from './ResizableTable';
 
 const EVENT_LABEL = Object.fromEntries([...WEBHOOK_EVENTS.map((e) => [e.id, e.label]), ['ping', 'Test']]);
 
@@ -103,19 +104,17 @@ export default function WebhooksSection({ orgId }) {
         {deliveries.length > 0 && (
           <div>
             <div className="text-xs font-jetbrains text-slate-400 mb-1.5">DERNIERS ENVOIS</div>
-            <div className="divide-y divide-slate-100 text-sm">
-              {deliveries.map((d) => (
-                <div key={d.id} className="py-1.5 flex flex-wrap items-center gap-x-3 gap-y-0.5">
-                  <StatusIcon d={d} />
-                  <span className="text-slate-800">{EVENT_LABEL[d.event] ?? d.event}</span>
-                  {d.shipment_code && <span className="font-jetbrains text-xs text-slate-500">{d.shipment_code}</span>}
-                  <span className="text-xs text-slate-400">{fmtDateTime(d.created_at)}</span>
-                  <span className="ml-auto text-xs text-slate-500">
+            <div className="rounded-lg border border-slate-200 overflow-hidden">
+              <ResizableTable id="webhook-deliveries" rows={deliveries}
+                theadClass="bg-slate-50 text-left text-xs text-slate-500" thClass="px-3 py-1.5 font-medium" tdClass="px-3 py-1.5 text-slate-600"
+                columns={[
+                  { key: 'event', h: 'Évènement', cell: (d) => <span className="inline-flex items-center gap-1.5 text-slate-800"><StatusIcon d={d} />{EVENT_LABEL[d.event] ?? d.event}</span> },
+                  { key: 'code', h: 'Chargement', cell: (d) => <span className="font-jetbrains text-xs text-slate-500">{d.shipment_code ?? '—'}</span> },
+                  { key: 'date', h: 'Date', tdClass: 'text-xs text-slate-400 whitespace-nowrap', cell: (d) => fmtDateTime(d.created_at) },
+                  { key: 'result', h: 'Résultat', tdClass: 'text-xs', cell: (d) => (<>
                     {d.status === 'ok' ? `HTTP ${d.http_status}` : d.status === 'failed' ? `échec : ${d.error ?? ''}` : d.status === 'pending' ? `nouvel essai ${fmtDateTime(d.next_attempt_at)} (${d.error ?? ''})` : 'envoyé, réponse attendue'}
-                    {d.attempt > 1 && ` · ${d.attempt} essais`}
-                  </span>
-                </div>
-              ))}
+                    {d.attempt > 1 && ` · ${d.attempt} essais`}</>) },
+                ]} />
             </div>
           </div>
         )}

@@ -11,8 +11,10 @@ import {
   ROLES, orgMembers, setMemberRole, removeMember, listInvitations, inviteMember, revokeInvitation, invitationMessage,
 } from '../data';
 import { PageHeader, Btn, fmtDate } from '../ui';
+import ResizableTable from '../ResizableTable';
 
 const cell = 'px-4 py-3';
+const isExpired = (i) => new Date(i.expires_at) < new Date();
 const selectCls = 'rounded-md border border-slate-300 bg-white px-2 py-1 text-sm';
 
 /** Envoyer l'invitation : e-mail, WhatsApp, copier le message. */
@@ -34,6 +36,7 @@ export default function TeamPage({ inSettings = false }) {
   const { org, user, reloadOrgs } = useEspace();
   const navigate = useNavigate();
   const admin = org.role === 'owner' || org.role === 'admin';
+  const canEdit = (m) => admin && m.user_id !== user.id && m.role !== 'owner';
   const [members, setMembers] = useState(null);
   const [invites, setInvites] = useState([]);
   const [email, setEmail] = useState('');
@@ -97,58 +100,46 @@ export default function TeamPage({ inSettings = false }) {
         <section className="rounded-xl bg-white border border-slate-200 overflow-hidden">
           <div className="px-4 py-3 border-b border-slate-200 flex items-center gap-2 font-semibold text-slate-900"><Users size={17} /> Membres {members && <span className="text-slate-400 font-normal">· {members.length}</span>}</div>
           {members === null ? <div className="p-6 flex justify-center text-slate-400"><Loader2 className="animate-spin" /></div> : (
-            <table className="w-full text-sm">
-              <tbody className="divide-y divide-slate-100">
-                {members.map((m) => {
-                  const me = m.user_id === user.id;
-                  const editable = admin && !me && m.role !== 'owner';
-                  return (
-                    <tr key={m.user_id}>
-                      <td className={cell}>
-                        <div className="flex items-center gap-2.5">
-                          <span className="w-7 h-7 rounded-full bg-blue-50 text-blue-700 flex items-center justify-center text-xs font-semibold uppercase">{m.email?.[0]}</span>
-                          <span className="text-slate-900 break-all">{m.email}{me && <span className="text-slate-400"> (vous)</span>}</span>
-                        </div>
-                      </td>
-                      <td className={`${cell} w-44`}>
-                        {editable
-                          ? <select value={m.role} onChange={(e) => run(() => setMemberRole(org.id, m.user_id, e.target.value))} className={selectCls}>
-                            <option value="member">Membre</option><option value="admin">Administrateur</option></select>
-                          : <span className="text-slate-600">{ROLES[m.role]}</span>}
-                      </td>
-                      <td className={`${cell} hidden sm:table-cell text-slate-400 text-xs w-32`}>depuis le {fmtDate(m.created_at)}</td>
-                      <td className={`${cell} w-28 text-right`}>
-                        {editable && <button onClick={() => window.confirm(`Retirer ${m.email} de l’entreprise ?`) && run(() => removeMember(org.id, m.user_id))}
-                          className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-red-700"><Trash2 size={13} /> Retirer</button>}
-                        {me && m.role !== 'owner' && <button onClick={leave} className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-red-700"><LogOut size={13} /> Quitter</button>}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            <ResizableTable id="team-members" rows={members} rowKey={(m) => m.user_id}
+              theadClass="bg-slate-50 text-left text-xs text-slate-500" thClass="px-4 py-2 font-medium" tdClass={cell}
+              columns={[
+                { key: 'email', h: 'Membre', min: 140, cell: (m) => (
+                  <div className="flex items-center gap-2.5">
+                    <span className="w-7 h-7 shrink-0 rounded-full bg-blue-50 text-blue-700 flex items-center justify-center text-xs font-semibold uppercase">{m.email?.[0]}</span>
+                    <span className="text-slate-900 break-all">{m.email}{m.user_id === user.id && <span className="text-slate-400"> (vous)</span>}</span>
+                  </div>) },
+                { key: 'role', h: 'Rôle', cell: (m) => (canEdit(m)
+                  ? <select value={m.role} onChange={(e) => run(() => setMemberRole(org.id, m.user_id, e.target.value))} className={selectCls}>
+                    <option value="member">Membre</option><option value="admin">Administrateur</option></select>
+                  : <span className="text-slate-600">{ROLES[m.role]}</span>) },
+                { key: 'since', h: 'Depuis', tdClass: 'text-slate-400 text-xs whitespace-nowrap', cell: (m) => fmtDate(m.created_at) },
+                { key: 'actions', h: '', tdClass: 'text-right', cell: (m) => (<>
+                  {canEdit(m) && <button onClick={() => window.confirm(`Retirer ${m.email} de l’entreprise ?`) && run(() => removeMember(org.id, m.user_id))}
+                    className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-red-700"><Trash2 size={13} /> Retirer</button>}
+                  {m.user_id === user.id && m.role !== 'owner' && <button onClick={leave} className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-red-700"><LogOut size={13} /> Quitter</button>}
+                </>) },
+              ]} />
           )}
         </section>
 
         {admin && invites.length > 0 && (
           <section className="rounded-xl bg-white border border-slate-200 overflow-hidden">
             <div className="px-4 py-3 border-b border-slate-200 flex items-center gap-2 font-semibold text-slate-900"><Clock size={17} /> Invitations en attente <span className="text-slate-400 font-normal">· {invites.length}</span></div>
-            <div className="divide-y divide-slate-100">
-              {invites.map((i) => {
-                const expired = new Date(i.expires_at) < new Date();
-                return (
-                  <div key={i.id} className="px-4 py-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-                    <span className="text-slate-900 break-all flex-1 min-w-[180px]">{i.email}</span>
-                    <span className="text-slate-500">{ROLES[i.role]}</span>
-                    <span className={`text-xs ${expired ? 'text-red-700' : 'text-slate-400'}`}>{expired ? 'expirée' : `jusqu’au ${fmtDate(i.expires_at)}`}</span>
-                    {expired
+            <ResizableTable id="team-invites" rows={invites}
+              theadClass="bg-slate-50 text-left text-xs text-slate-500" thClass="px-4 py-2 font-medium" tdClass={cell}
+              columns={[
+                { key: 'email', h: 'E-mail', min: 140, cell: (i) => <span className="text-slate-900 break-all">{i.email}</span> },
+                { key: 'role', h: 'Rôle', tdClass: 'text-slate-500', cell: (i) => ROLES[i.role] },
+                { key: 'exp', h: 'Validité', cell: (i) => (isExpired(i) ? <span className="text-xs text-red-700">expirée</span>
+                  : <span className="text-xs text-slate-400 whitespace-nowrap">jusqu’au {fmtDate(i.expires_at)}</span>) },
+                { key: 'actions', h: '', tdClass: 'text-right', cell: (i) => (
+                  <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-1">
+                    {isExpired(i)
                       ? <button onClick={() => run(() => inviteMember(org.id, i.email, i.role))} className="text-xs font-medium text-blue-700 hover:underline">Renouveler</button>
                       : <SendInvite orgName={org.name} email={i.email} compact />}
                     <button onClick={() => run(() => revokeInvitation(i.id))} className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-red-700"><Trash2 size={13} /> Annuler</button>
-                  </div>
-                );
-              })}
-            </div>
+                  </div>) },
+              ]} />
           </section>
         )}
       </div>
