@@ -79,7 +79,7 @@ export default function ShipmentEditor() {
           {proofs.length > 0 && <ProofButton count={proofs.reduce((n, p) => n + p.urls.length, 0)} onClick={() => setProofOf(null)} />}
         </>}
         summary={s && `${s.fleet ? 'Flotte' : 'Plan'} : ${s.vehicle} · ${s.packed} colis · ${s.fleet ? 'moy. ' : ''}${pct(s.fill)}${s.unpacked ? ` · ${s.unpacked} non chargé(s)` : ''}${s.edited ? ' · modifié à la main' : ''}`} />
-      <LoadOptimizer key={ed.doc.id} workspace={{ initial: initialOf(ed.doc), onChange: ed.onChange, shareUrl, locked, trucks }} />
+      <LoadOptimizer key={ed.doc.id} workspace={{ initial: initialOf(ed.doc), onChange: ed.onChange, shareUrl, locked, trucks, truckPhase: DOCK_STATUSES.includes(ed.doc.status) ? 'todo' : 'plan' }} />
       {proofOf !== undefined && <ProofViewer proofs={proofs} truck={proofOf} onClose={() => setProofOf(undefined)} />}
       {quaiOpen && <GuideQrModal url={shareUrlOf(ed.doc)} onClose={() => setQuaiOpen(false)} title={`${ed.doc.code} · plan pas à pas pour le cariste`}
         note="Lien permanent : il affiche toujours la dernière version enregistrée. Si vous modifiez le plan, enregistrez : le cariste voit la nouvelle version." />}

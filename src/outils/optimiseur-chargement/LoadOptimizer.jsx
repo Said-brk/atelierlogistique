@@ -1154,7 +1154,7 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
           {vehicleMode === 'fleet' && fleetStatus === 'done' && fleetPlan && (
             <div ref={fleetRef} className="scroll-mt-20 rounded-xl transition-shadow duration-700"
               style={fleetFlash ? { boxShadow: '0 0 0 3px #F59E0B, 0 10px 30px -10px rgba(245,158,11,0.6)' } : undefined}>
-              <FleetResult plan={fleetPlan} viewing={viewingTruck} onView={viewTruck} trucks={workspace?.trucks} locked={!!locked} />
+              <FleetResult plan={fleetPlan} viewing={viewingTruck} onView={viewTruck} trucks={workspace?.trucks} locked={!!locked} truckPhase={workspace?.truckPhase ?? null} />
             </div>
           )}
 

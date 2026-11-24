@@ -20,6 +20,7 @@ const Message = ({ children }) => (
 );
 
 function TruckPicker({ s, guides, onPick }) {
+  const done = new Set(s.loaded_trucks ?? []);
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900" style={font}>
       <header className="bg-white border-b border-slate-200 px-4 py-3">
@@ -33,7 +34,8 @@ function TruckPicker({ s, guides, onPick }) {
             className="w-full flex items-center gap-3 rounded-xl bg-white border border-slate-200 px-4 py-4 text-left active:bg-blue-50">
             <span className="w-10 h-10 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center shrink-0">{g.index}</span>
             <span className="flex-1 min-w-0"><span className="block font-semibold truncate">{g.label.replace(/^\d+\.\s*/, '')}</span>
-              <span className="block text-sm text-slate-500">{g.units} colis</span></span>
+              <span className="block text-sm text-slate-500">{g.units} colis · {done.has(g.index)
+                ? <b className="text-violet-700">chargé ✓</b> : <b className="text-amber-700">à charger</b>}</span></span>
             <ChevronRight className="text-slate-400" />
           </button>
         ))}
