@@ -22,6 +22,12 @@ describe('schéma Supabase', () => {
     -- Comme Supabase : pgcrypto installé dans le schéma « extensions » (pas dans public).
     create schema extensions; create extension pgcrypto schema extensions; grant usage on schema extensions to anon, authenticated;
     set search_path = public, extensions;
+    -- pg_net simulé : on enregistre les appels HTTP, les réponses sont écrites par le test.
+    create schema net;
+    create table net.calls(id bigserial primary key, url text, body_text text, headers jsonb);
+    create table net._http_response(id bigint primary key, status_code int, error_msg text, timed_out boolean default false);
+    create function net.http_post(url text, body jsonb default '{}', params jsonb default '{}', headers jsonb default '{}', timeout_milliseconds int default 5000)
+      returns bigint language sql as $f$ insert into net.calls(url, body_text, headers) values (url, body::text, headers) returning id $f$;
     `);
     const sql = readdirSync(MIGRATIONS).filter((f) => f.endsWith('.sql')).sort().map((f) => readFileSync(join(MIGRATIONS, f), 'utf8')).join('\n');
     await db.exec(sql);
@@ -113,5 +119,55 @@ describe('schéma Supabase', () => {
     ok(err, 'un membre simple ne peut pas inviter');
     await as(C, `delete from organization_members where user_id = $1`, [C]);
     ok((await as(C, 'select * from organizations')).rows.length === 0, 'Claire peut quitter l’entreprise');
+
+    // Webhooks : abonnement, envoi signé au changement de statut, nouvelles tentatives, cloisonnement.
+    err = null; try { await as(A, `insert into webhooks(org_id, url) values ($1, 'http://wms.a.fr/hook')`, [orgA]); } catch (e) { err = e; }
+    ok(err, 'https obligatoire');
+    err = null; try { await as(A, `insert into webhooks(org_id, url) values ($1, 'https://localhost/hook')`, [orgA]); } catch (e) { err = e; }
+    ok(err, 'adresse locale refusée');
+    const wh = (await as(A, `insert into webhooks(org_id, url) values ($1, 'https://wms.a.fr/hook') returning id, secret`, [orgA])).rows[0];
+    ok(wh.secret.length === 48, 'secret de signature généré');
+    err = null; try { await as(B, `insert into webhooks(org_id, url) values ($1, 'https://pirate.fr/x')`, [orgA]); } catch (e) { err = e; }
+    ok(err && (await as(B, 'select * from webhooks')).rows.length === 0, 'B ne voit ni ne crée de webhook chez A');
+    err = null; try { await as(B, `select webhook_test($1)`, [wh.id]); } catch (e) { err = e; }
+    ok(err, 'B ne peut pas tester le webhook de A');
+    const sh = (await as(A, `insert into shipments(org_id, external_id, label, input, result) values ($1, 'EXP-WH', 'Tournée', '{}', '{"summary":{"packed":12,"unpacked":0,"fill":0.41,"weight":5200},"plan":{"guide":"2Fabc"}}') returning code, share_token`, [orgA])).rows[0];
+    ok((await db.query('select count(*)::int as n from net.calls')).rows[0].n === 0, 'pas de notification à la création');
+    await as(A, `update shipments set status = 'validated' where code = $1`, [sh.code]);
+    const call = (await db.query('select * from net.calls order by id desc limit 1')).rows[0];
+    const payload = JSON.parse(call.body_text);
+    ok(call.url === 'https://wms.a.fr/hook' && payload.event === 'shipment.validated' && call.headers['X-AL-Event'] === 'shipment.validated', 'notification envoyée tout de suite');
+    ok(payload.data.code === sh.code && payload.data.reference === 'EXP-WH' && payload.data.summary.units_loaded === 12 && payload.data.summary.fill_rate_pct === 41, 'contenu : chargement + résumé');
+    ok(payload.data.links.dock.endsWith(sh.share_token) && payload.data.links.api.endsWith('/api/v1/shipments/' + sh.code), 'liens quai et API');
+    const [, t, sig] = call.headers['X-AL-Signature'].match(/^t=(\d+),v1=([0-9a-f]{64})$/);
+    const { createHmac } = await import('node:crypto');
+    ok(createHmac('sha256', wh.secret).update(`${t}.${call.body_text}`).digest('hex') === sig, 'signature HMAC vérifiable');
+    // Échec (500) → nouvel essai planifié ; puis succès.
+    await db.query('insert into net._http_response(id, status_code) values ($1, 500)', [call.id]);
+    await db.query('select webhook_tick()');
+    let dl = (await db.query('select status, attempt, http_status, next_attempt_at > now() as later from webhook_deliveries')).rows[0];
+    ok(dl.status === 'pending' && dl.attempt === 1 && dl.http_status === 500 && dl.later, 'échec : nouvel essai planifié');
+    ok((await as(A, 'select failure_count from webhooks')).rows[0].failure_count === 1, 'échec compté');
+    await db.query(`update webhook_deliveries set next_attempt_at = now() - interval '1 second'`);
+    await db.query('select webhook_tick()');
+    const call2 = (await db.query('select id from net.calls order by id desc limit 1')).rows[0];
+    ok(call2.id !== call.id, 'renvoyé');
+    await db.query('insert into net._http_response(id, status_code) values ($1, 204)', [call2.id]);
+    await db.query('select webhook_tick()');
+    dl = (await db.query('select status, attempt from webhook_deliveries')).rows[0];
+    ok(dl.status === 'ok' && dl.attempt === 2, 'succès au 2e essai');
+    ok((await as(A, 'select failure_count, last_status from webhooks')).rows[0].last_status === 204, 'état du webhook à jour');
+    ok((await as(A, 'select * from webhook_deliveries')).rows.length === 1 && (await as(B, 'select * from webhook_deliveries')).rows.length === 0, 'historique visible par A seulement');
+    // Rouvrir, abonnements, test, désactivation.
+    await as(A, `update shipments set status = 'in_progress' where code = $1`, [sh.code]);
+    ok(JSON.parse((await db.query('select body_text from net.calls order by id desc limit 1')).rows[0].body_text).event === 'shipment.reopened', 'réouverture notifiée');
+    await as(A, `update webhooks set events = array['shipment.sent']`);
+    const before = (await db.query('select count(*)::int as n from net.calls')).rows[0].n;
+    await as(A, `update shipments set status = 'validated' where code = $1`, [sh.code]);
+    ok((await db.query('select count(*)::int as n from net.calls')).rows[0].n === before, 'évènement non abonné : rien envoyé');
+    ok((await as(A, 'select webhook_test($1) as n', [wh.id])).rows[0].n === 1, 'test envoyé');
+    await as(A, `update webhooks set active = false`);
+    await as(A, `update shipments set status = 'sent' where code = $1`, [sh.code]);
+    ok((await db.query('select count(*)::int as n from net.calls')).rows[0].n === before + 1, 'webhook désactivé : plus rien');
   }, 60000);
 });

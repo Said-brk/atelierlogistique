@@ -255,3 +255,51 @@ export async function apiUsage(orgId) {
   fail(all.error); fail(errors.error);
   return { calls: all.count ?? 0, errors: errors.count ?? 0 };
 }
+
+// ---------------------------------------------------------------- Notifications (webhooks)
+export const WEBHOOK_EVENTS = [
+  { id: 'shipment.validated', label: 'Chargement validé' },
+  { id: 'shipment.sent', label: 'Envoyé au quai' },
+  { id: 'shipment.cancelled', label: 'Annulé' },
+  { id: 'shipment.reopened', label: 'Rouvert (après validation)' },
+];
+
+export async function listWebhooks(orgId) {
+  const sb = await getSupabase();
+  const { data, error } = await sb.from('webhooks').select('id, url, description, events, secret, active, created_at, last_status, last_delivery_at, failure_count').eq('org_id', orgId).order('created_at');
+  fail(error);
+  return data;
+}
+
+export async function createWebhook(orgId, url, events, description) {
+  const sb = await getSupabase();
+  const { data, error } = await sb.from('webhooks').insert({ org_id: orgId, url: url.trim(), events, description: description?.trim() || null }).select('id').single();
+  if (error && /check constraint/i.test(error.message)) throw new Error('Adresse refusée : elle doit commencer par https:// et être publique (pas d’adresse locale).');
+  fail(error);
+  return data;
+}
+
+export async function updateWebhook(id, patch) {
+  const sb = await getSupabase();
+  const { error } = await sb.from('webhooks').update(patch).eq('id', id);
+  fail(error);
+}
+
+export async function deleteWebhook(id) {
+  const sb = await getSupabase();
+  const { error } = await sb.from('webhooks').delete().eq('id', id);
+  fail(error);
+}
+
+export async function testWebhook(id) {
+  const sb = await getSupabase();
+  const { error } = await sb.rpc('webhook_test', { p_webhook: id });
+  fail(error);
+}
+
+export async function listDeliveries(orgId, limit = 15) {
+  const sb = await getSupabase();
+  const { data, error } = await sb.from('webhook_deliveries').select('id, webhook_id, event, shipment_code, status, attempt, http_status, error, created_at, next_attempt_at').eq('org_id', orgId).order('created_at', { ascending: false }).limit(limit);
+  fail(error);
+  return data;
+}

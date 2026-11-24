@@ -4,7 +4,7 @@
 import { useEffect, useState } from 'react';
 import ExampleTabs from '../shared/api/ExampleTabs';
 import { createExamples } from '../shared/api/examples';
-import { Copy, Check, KeyRound, Send, Download, ListChecks, Ban, AlertTriangle, Truck, Boxes, FileJson } from 'lucide-react';
+import { Bell, Copy, Check, KeyRound, Send, Download, ListChecks, Ban, AlertTriangle, Truck, Boxes, FileJson } from 'lucide-react';
 
 const BASE = 'https://atelierlogistique.com/api/v1';
 const BLUE = '#0253FC';
@@ -94,6 +94,58 @@ Invoke-RestMethod "${BASE}/shipments?status=validated&updated_since=2026-11-24T0
 # Détail et plan d'un chargement (n° PL-… ou votre référence)
 Invoke-RestMethod "${BASE}/shipments/EXP-2026-0142" -Headers $h`;
 
+const EX_WEBHOOK = `POST https://wms.mon-entreprise.fr/atelier-logistique
+Content-Type: application/json
+X-AL-Event: shipment.validated
+X-AL-Delivery: 5b0c…
+X-AL-Signature: t=1764000000,v1=9f3a…
+
+{
+  "id": "evt_5b0c…",
+  "event": "shipment.validated",
+  "created_at": "2026-11-24T14:02:11Z",
+  "data": {
+    "code": "PL-K4G86R", "reference": "EXP-2026-0142", "label": "Tournée Rhône",
+    "status": "validated", "version": 4, "validated_at": "2026-11-24T14:02:11Z",
+    "summary": { "vehicles": 1, "vehicle": "Semi-remorque standard", "units_loaded": 46,
+                 "units_not_loaded": 0, "fill_rate_pct": 13.9, "weight_kg": 3180 },
+    "links": {
+      "app":  "https://atelierlogistique.com/app/chargements/PL-K4G86R",
+      "api":  "https://atelierlogistique.com/api/v1/shipments/PL-K4G86R",
+      "dock": "https://atelierlogistique.com/q/3f9a1c…"
+    }
+  }
+}`;
+
+const VERIFY = [
+  { id: 'node', label: 'Node.js', code: `import { createHmac, timingSafeEqual } from 'node:crypto';
+
+// corps = texte brut reçu (avant JSON.parse) ; secret = secret du webhook (espace → Clés d'API)
+function signatureValide(corps, entete, secret) {
+  const [, t, v1] = entete.match(/^t=(\\d+),v1=([0-9a-f]{64})$/) ?? [];
+  if (!t || Math.abs(Date.now() / 1000 - Number(t)) > 300) return false; // 5 min max
+  const attendu = createHmac('sha256', secret).update(\`\${t}.\${corps}\`).digest('hex');
+  return timingSafeEqual(Buffer.from(attendu), Buffer.from(v1));
+}` },
+  { id: 'python', label: 'Python', code: `import hmac, hashlib, re, time
+
+def signature_valide(corps: bytes, entete: str, secret: str) -> bool:
+    m = re.fullmatch(r"t=(\\d+),v1=([0-9a-f]{64})", entete or "")
+    if not m or abs(time.time() - int(m[1])) > 300:
+        return False
+    attendu = hmac.new(secret.encode(), m[1].encode() + b"." + corps, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(attendu, m[2])` },
+  { id: 'csharp', label: 'C# (.NET)', code: `using System.Security.Cryptography; using System.Text; using System.Text.RegularExpressions;
+
+static bool SignatureValide(string corps, string entete, string secret) {
+    var m = Regex.Match(entete ?? "", @"^t=(\\d+),v1=([0-9a-f]{64})$");
+    if (!m.Success || Math.Abs(DateTimeOffset.UtcNow.ToUnixTimeSeconds() - long.Parse(m.Groups[1].Value)) > 300) return false;
+    using var h = new HMACSHA256(Encoding.UTF8.GetBytes(secret));
+    var attendu = Convert.ToHexString(h.ComputeHash(Encoding.UTF8.GetBytes(m.Groups[1].Value + "." + corps))).ToLowerInvariant();
+    return CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(attendu), Encoding.UTF8.GetBytes(m.Groups[2].Value));
+}` },
+];
+
 const EX_ERROR = `HTTP 422
 {
   "error": {
@@ -108,7 +160,7 @@ const EX_ERROR = `HTTP 422
 
 const TOC = [
   ['demarrer', 'Démarrer'], ['creer', 'Envoyer un chargement'], ['lignes', 'Lignes'], ['vehicules', 'Véhicules et flotte'],
-  ['reponse', 'Plan renvoyé'], ['lire', 'Lire et suivre'], ['annuler', 'Annuler'], ['erreurs', 'Erreurs'], ['bonnes', 'Bonnes pratiques'],
+  ['reponse', 'Plan renvoyé'], ['lire', 'Lire et suivre'], ['notifications', 'Notifications'], ['annuler', 'Annuler'], ['erreurs', 'Erreurs'], ['bonnes', 'Bonnes pratiques'],
 ];
 
 export default function ApiDocsPage() {
@@ -200,11 +252,29 @@ export default function ApiDocsPage() {
 
           <H2 id="lire" icon={ListChecks}>Lire et suivre</H2>
           <Endpoint method="GET" path="/shipments/{ref}" /> <Endpoint method="GET" path="/shipments?status=…&updated_since=…&limit=50" />
-          <p className="text-slate-700"><code>ref</code> = n° <code>PL-…</code> ou votre référence. Statuts : <code>new</code>, <code>in_progress</code>, <code>validated</code>, <code>sent</code> (envoyé au quai), <code>cancelled</code>. Pour récupérer les plans validés par le planificateur, interrogez la liste régulièrement (toutes les 1 à 5 minutes) avec <code>updated_since</code>.</p>
+          <p className="text-slate-700"><code>ref</code> = n° <code>PL-…</code> ou votre référence. Statuts : <code>new</code>, <code>in_progress</code>, <code>validated</code>, <code>sent</code> (envoyé au quai), <code>cancelled</code>. Pour récupérer les plans validés : <a href="#notifications" className="text-blue-700 underline">notifications automatiques</a> (recommandé), ou interrogez la liste régulièrement (toutes les 1 à 5 minutes) avec <code>updated_since</code>.</p>
           <ExampleTabs examples={[
             { id: 'powershell', label: 'PowerShell (Windows)', code: EX_POLL_PS },
             { id: 'curl', label: 'curl (Mac, Linux)', code: EX_POLL },
           ]} />
+
+          <H2 id="notifications" icon={Bell}>Notifications automatiques (webhooks)</H2>
+          <p className="text-slate-700">Plutôt que d’interroger l’API, déclarez l’adresse de votre WMS / ERP dans votre espace (<b>Clés d’API → Notifications automatiques</b>) : elle reçoit un <code>POST</code> JSON dès qu’un chargement change de statut.</p>
+          <Table>
+            <Field name="shipment.validated" type="">Le planificateur a validé le plan : récupérez-le avec <code>links.api</code>.</Field>
+            <Field name="shipment.sent" type="">Envoyé au quai (QR code cariste).</Field>
+            <Field name="shipment.cancelled" type="">Annulé.</Field>
+            <Field name="shipment.reopened" type="">Rouvert après validation : le plan va changer.</Field>
+            <Field name="ping" type="">Test envoyé depuis l’espace.</Field>
+          </Table>
+          <Code lang="http">{EX_WEBHOOK}</Code>
+          <ul className="list-disc pl-5 space-y-1.5 text-slate-700">
+            <li>Répondez <b>2xx en moins de 10 secondes</b> (traitez ensuite, en arrière-plan). Sinon : nouvel essai après 1 min, 5 min, 30 min, 2 h et 6 h.</li>
+            <li>Un même évènement peut arriver deux fois : dédoublonnez avec <code>id</code> (ou l’en-tête <code>X-AL-Delivery</code>).</li>
+            <li>Le plan détaillé n’est pas dans la notification : appelez <code>links.api</code> avec votre clé.</li>
+            <li><b>Vérifiez la signature</b> : <code>X-AL-Signature: t=&lt;horodatage&gt;,v1=&lt;HMAC-SHA256(secret, "horodatage.corps")&gt;</code>, calculée sur le corps brut reçu.</li>
+          </ul>
+          <ExampleTabs examples={VERIFY} />
 
           <H2 id="annuler" icon={Ban}>Annuler</H2>
           <Endpoint method="POST" path="/shipments/{ref}/cancel" />

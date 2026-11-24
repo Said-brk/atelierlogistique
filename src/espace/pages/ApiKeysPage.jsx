@@ -7,6 +7,7 @@ import { useEspace } from '../useEspace';
 import { listApiKeys, createApiKey, revokeApiKey, apiUsage } from '../data';
 import { PageHeader, Btn, fmtDate, fmtDateTime } from '../ui';
 import ExampleTabs from '../../shared/api/ExampleTabs';
+import WebhooksSection from '../WebhooksSection';
 import { createExamples } from '../../shared/api/examples';
 
 function CopyBtn({ text, label = 'Copier' }) {
@@ -120,6 +121,8 @@ export default function ApiKeysPage() {
               )}
           </section>
         )}
+
+        {admin && <WebhooksSection orgId={org.id} />}
 
         <a href="/api" target="_blank" rel="noreferrer" className="flex items-center gap-3 rounded-xl bg-white border border-slate-200 p-4 hover:border-blue-300">
           <BookOpen size={20} className="text-blue-700" />
