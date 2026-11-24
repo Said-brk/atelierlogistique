@@ -125,9 +125,36 @@ export async function createShipmentForPalletization(orgId, pz) {
     .insert({ org_id: orgId, source: 'web', label: pz.label ? `Chargement — ${pz.label}` : undefined, input: { rows: [] } })
     .select('id, code').single();
   fail(error);
-  const { error: e2 } = await sb.from('palletizations').update({ shipment_id: data.id }).eq('id', pz.id);
-  fail(e2);
-  return data.code;
+  return linkPalletization(pz, data); // eslint-disable-line no-use-before-define
+}
+
+/** Chargements qui peuvent encore recevoir des palettes : Nouveau ou En cours (pas validés, envoyés ni annulés). */
+export const OPEN_STATUSES = ['new', 'in_progress'];
+export async function openShipments(orgId, limit = 50) {
+  const sb = await getSupabase();
+  const { data, error } = await sb.from('shipments').select(LIST_FIELDS).eq('org_id', orgId).in('status', OPEN_STATUSES)
+    .order('updated_at', { ascending: false }).limit(limit);
+  fail(error);
+  return withSummary(data);
+}
+
+/**
+ * Relie une palettisation à un chargement existant. Si elle alimentait un autre chargement encore modifiable,
+ * ses palettes en sont retirées (lignes marquées de son n°) et le plan de ce chargement est à recalculer.
+ */
+export async function linkPalletization(pz, shipment) {
+  const sb = await getSupabase();
+  if (pz.shipment_id && pz.shipment_id !== shipment.id) {
+    const { data: old } = await sb.from('shipments').select('id, status, input').eq('id', pz.shipment_id).maybeSingle();
+    const rows = old?.input?.rows;
+    if (old && OPEN_STATUSES.includes(old.status) && Array.isArray(rows) && rows.some((r) => r.origin === pz.code)) {
+      const { error: e0 } = await sb.from('shipments').update({ input: { ...old.input, rows: rows.filter((r) => r.origin !== pz.code) }, result: null }).eq('id', old.id);
+      fail(e0);
+    }
+  }
+  const { error } = await sb.from('palletizations').update({ shipment_id: shipment.id }).eq('id', pz.id);
+  fail(error);
+  return shipment.code;
 }
 
 // ---------------------------------------------------------------- Lien quai (cariste, sans compte)
