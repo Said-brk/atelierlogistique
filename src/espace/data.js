@@ -450,3 +450,26 @@ export async function consolidateShipments(orgId, list, { rows, plan, summary, f
   }
   return created.code;
 }
+
+// ---------------------------------------------------------------- Calendrier des chargements
+const CAL_FIELDS = `id, code, label, external_id, status, departure_at, ${SUMMARY}, rows:input->rows`;
+
+/** Chargements datés entre deux jours (AAAA-MM-JJ, inclus) + chargements à faire sans date (hors annulés). */
+export async function calendarShipments(orgId, from, to) {
+  const sb = await getSupabase();
+  const [dated, undated] = await Promise.all([
+    sb.from('shipments').select(CAL_FIELDS).eq('org_id', orgId).neq('status', 'cancelled')
+      .gte('departure_at', `${from}T00:00:00Z`).lte('departure_at', `${to}T23:59:59Z`).order('departure_at').limit(500),
+    sb.from('shipments').select(CAL_FIELDS).eq('org_id', orgId).in('status', ['new', 'in_progress', 'validated'])
+      .is('departure_at', null).order('updated_at', { ascending: false }).limit(100),
+  ]);
+  fail(dated.error); fail(undated.error);
+  return { dated: dated.data, undated: undated.data };
+}
+
+/** Change la date de départ (glisser-déposer du calendrier). day = AAAA-MM-JJ ou null. */
+export async function setDeparture(id, day) {
+  const sb = await getSupabase();
+  const { error } = await sb.from('shipments').update({ departure_at: day ? `${day}T00:00:00.000Z` : null }).eq('id', id);
+  fail(error);
+}

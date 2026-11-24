@@ -66,7 +66,8 @@ export interface ToolReferences {
   lashing: LashingParams;
   /** Destinations connues (code = valeur saisie dans les lignes), avec leur tournée et leur rang dans la tournée. */
   agencies: { code: string; label: string; city: string; tour: string | null; order: number }[];
-  tours: { code: string; label: string }[];
+  /** days : jours de préparation / expédition (1 = lundi … 7 = dimanche). */
+  tours: { code: string; label: string; days: number[] }[];
   /** free : regroupement libre ; tour : seulement des chargements d'une même tournée. */
   consolidation: { mode: 'free' | 'tour' };
 }
@@ -96,7 +97,10 @@ export function toToolReferences(items: RefItem[]): ToolReferences {
   });
   const lashingItem = items.find((i) => i.kind === 'setting' && i.code === 'lashing');
   const lashing = { ...DEFAULT_LASHING, ...((lashingItem?.data ?? {}) as Partial<LashingParams>) };
-  const tours = by('tour').filter((i) => i.active).map((i) => ({ code: i.code, label: i.label }));
+  const tours = by('tour').filter((i) => i.active).map((i) => ({
+    code: i.code, label: i.label,
+    days: (Array.isArray(i.data.days) ? (i.data.days as unknown[]) : []).map(Number).filter((d) => d >= 1 && d <= 7).sort(),
+  }));
   const tourCodes = new Set(tours.map((t) => t.code));
   const agencies = by('agency').filter((i) => i.active).map((i) => {
     const d = i.data as { city?: string; tour?: string | null; order?: number };
