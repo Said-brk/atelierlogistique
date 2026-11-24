@@ -41,8 +41,9 @@ export function FleetVehicles({ vehicles, onChange }) {
  * Résultat : véhicules retenus, coût, comparaisons. props : plan, viewing (index), onView(truck)
  * trucks (espace) : { [index]: { loadedAt, by, photos, onProof } } — camions confirmés chargés par le cariste.
  * locked : flotte figée (chargement envoyé au quai / chargé).
+ * truckPhase : statut des camions non confirmés — 'todo' (au quai : À charger) ou 'plan' (En préparation) ; absent = pas de statut.
  */
-export function FleetResult({ plan, viewing, onView, trucks = null, locked = false }) {
+export function FleetResult({ plan, viewing, onView, trucks = null, locked = false, truckPhase = null }) {
   const alt = plan.alternatives.filter((a) => a.cost > plan.totalCost + 0.5).slice(0, 3);
   return (
     <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
@@ -72,8 +73,11 @@ export function FleetResult({ plan, viewing, onView, trucks = null, locked = fal
             <div key={t.index} className="rounded-lg border px-3 py-2.5" style={viewing === t.index ? { borderColor: BLUE, background: '#EFF6FF' } : { borderColor: '#E2E8F0' }}>
               <div className="flex items-center justify-between gap-2">
                 <div className="text-xs font-semibold text-slate-800 flex items-center gap-2">{t.index}. {tText(t.container.label)}
-                  {ld && <span className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium" style={{ background: '#F5F3FF', color: '#6D28D9' }}>
-                    <Check size={10} />{' '}{tr('Chargé')}{' '}{new Date(ld.loadedAt).toLocaleTimeString(numLocale(), { hour: '2-digit', minute: '2-digit' })}</span>}
+                  {ld ? <span className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium" style={{ background: '#F5F3FF', color: '#6D28D9' }}>
+                    <Check size={10} />{' '}{tr('Chargé')}{' '}{new Date(ld.loadedAt).toLocaleTimeString(numLocale(), { hour: '2-digit', minute: '2-digit' })}</span>
+                    : truckPhase === 'todo' ? <span className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium" style={{ background: '#FFFBEB', color: '#B45309' }}>
+                      <span className="w-1.5 h-1.5 rounded-full" style={{ background: '#F59E0B' }} />{' '}{tr('À charger')}</span>
+                      : truckPhase === 'plan' ? <span className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium" style={{ background: '#F1F5F9', color: '#64748B' }}>{tr('En préparation')}</span> : null}
                 </div>
                 <div className="font-jetbrains text-[11px] text-slate-600">{fmtEur(t.cost)}</div>
               </div>

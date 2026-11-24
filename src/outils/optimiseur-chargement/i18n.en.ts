@@ -315,6 +315,8 @@ const en: Record<string, string> = {
   "Prenez une photo du camion chargé, portes ouvertes, comme preuve de chargement.": "Take a photo of the loaded truck, doors open, as proof of loading.",
   "Reprendre la photo": "Retake the photo",
   "Prendre une photo": "Take a photo",
+  "À charger": "To load",
+  "En préparation": "In preparation",
   "figée": "locked",
   "Preuve de chargement": "Proof of loading",
   "Preuve": "Proof",
