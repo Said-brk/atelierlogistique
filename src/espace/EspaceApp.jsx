@@ -1,10 +1,13 @@
-// Espace connecté (/app) : barre de navigation à gauche, pages de travail à droite.
-//   Tableau de bord · Chargements (liste, nouveau, éditeur) · Palettisation · Clés d'API (bientôt) · Paramètres
+// Espace connecté (/app) : barre de navigation à gauche (sections et sous-sections), pages de travail à droite.
+//   Tableau de bord
+//   OPÉRATIONS : Chargements · Palettisations
+//   OUTILS : par famille (sous-sections repliables) — outils locaux du site
+//   Paramètres (en bas) : Entreprise · Équipe · API et notifications · Mon compte
 // Chargé à la demande : les visiteurs des outils publics ne téléchargent rien de tout ça.
 
 import { useState, useEffect } from 'react';
-import { Routes, Route, NavLink, Navigate, useNavigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Truck, Boxes, KeyRound, Settings, Plus, LogOut, Menu, X, ExternalLink, Loader2, Building2, ArrowRight, PanelLeftClose, PanelLeftOpen, Users, Mail, ChevronDown } from 'lucide-react';
+import { Routes, Route, NavLink, Navigate, useNavigate, useLocation, useMatch } from 'react-router-dom';
+import { LayoutDashboard, Truck, Boxes, KeyRound, Settings, Plus, LogOut, Menu, X, ExternalLink, Loader2, Building2, ArrowRight, PanelLeftClose, PanelLeftOpen, Mail, ChevronDown, ChevronRight, Wrench } from 'lucide-react';
 import { EspaceProvider, useEspace } from './useEspace';
 import { I18nProvider } from '../shared/i18n/I18nProvider.jsx';
 import { accountEnabled, passwordStep } from '../shared/account/supabase';
@@ -16,17 +19,68 @@ import ShipmentEditor, { NewShipment } from './pages/ShipmentEditor';
 import Palletizations from './pages/Palletizations';
 import PalletizationEditor, { NewPalletization } from './pages/PalletizationEditor';
 import SettingsPage from './pages/SettingsPage';
-import TeamPage from './pages/TeamPage';
-import ApiKeysPage from './pages/ApiKeysPage';
+import { ToolsHome, ToolInApp } from './pages/ToolsPages';
+import { TOOL_GROUPS } from './tools';
 
+/** Sections de la barre de gauche (les outils et les paramètres sont ajoutés par Sidebar). */
 const NAV = [
-  { to: '/app', end: true, icon: LayoutDashboard, label: 'Tableau de bord' },
-  { to: '/app/chargements', icon: Truck, label: 'Chargements' },
-  { to: '/app/palettisations', icon: Boxes, label: 'Palettisations' },
-  { to: '/app/equipe', icon: Users, label: 'Équipe' },
-  { to: '/app/api', icon: KeyRound, label: 'Clés d’API' },
-  { to: '/app/parametres', icon: Settings, label: 'Paramètres' },
+  { id: 'home', items: [{ to: '/app', end: true, icon: LayoutDashboard, label: 'Tableau de bord' }] },
+  { id: 'operations', label: 'Opérations', items: [
+    { to: '/app/chargements', icon: Truck, label: 'Chargements' },
+    { to: '/app/palettisations', icon: Boxes, label: 'Palettisations' },
+  ] },
 ];
+
+// Sous-sections « Outils » ouvertes, mémorisées dans ce navigateur.
+const GROUPS_KEY = 'al.espace.nav.groups';
+const readGroups = () => { try { return JSON.parse(localStorage.getItem(GROUPS_KEY) ?? 'null'); } catch { return null; } };
+
+const linkCls = (collapsed, sub = false) => ({ isActive }) => `flex items-center gap-3 rounded-lg ${sub ? 'py-1.5 text-[13px]' : 'py-2 text-sm'} transition ${collapsed ? 'justify-center px-0' : sub ? 'pl-9 pr-3' : 'px-3'} ${isActive ? 'bg-white/10 text-white font-medium' : 'hover:bg-white/5 hover:text-white'}`;
+
+function SectionTitle({ label, collapsed }) {
+  return collapsed
+    ? <div className="mx-3 my-2 border-t border-white/10" />
+    : <div className="px-3 pt-4 pb-1 font-jetbrains text-[10px] tracking-widest text-slate-500">{label.toUpperCase()}</div>;
+}
+
+/** OUTILS : « Tous les outils » + une sous-section repliable par famille. Barre réduite : une seule icône. */
+function ToolsNav({ collapsed, onNavigate }) {
+  const active = useMatch('/app/outils/:id');
+  const activeGroup = TOOL_GROUPS.find((g) => g.tools.some((t) => t.id === active?.params.id))?.id;
+  const [open, setOpen] = useState(() => readGroups() ?? []);
+  const isOpen = (id) => open.includes(id) || id === activeGroup;
+  const toggle = (id) => setOpen((o) => {
+    const next = isOpen(id) ? o.filter((x) => x !== id) : [...o, id];
+    try { localStorage.setItem(GROUPS_KEY, JSON.stringify(next)); } catch { /* indisponible */ }
+    return next;
+  });
+  if (collapsed) {
+    return (
+      <NavLink to="/app/outils" onClick={onNavigate} title="Outils" className={linkCls(true)}><Wrench size={17} /></NavLink>
+    );
+  }
+  return (
+    <>
+      <NavLink to="/app/outils" end onClick={onNavigate} className={linkCls(false)}><Wrench size={17} /> Tous les outils</NavLink>
+      {TOOL_GROUPS.map((g) => (
+        <div key={g.id}>
+          <button type="button" onClick={() => toggle(g.id)} aria-expanded={isOpen(g.id)}
+            className="w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-left hover:bg-white/5 hover:text-white">
+            <g.icon size={17} /> <span className="flex-1 truncate">{g.label}</span>
+            <ChevronRight size={14} className={`text-slate-500 transition-transform ${isOpen(g.id) ? 'rotate-90' : ''}`} />
+          </button>
+          {isOpen(g.id) && (
+            <div className="space-y-0.5">
+              {g.tools.map((t) => (
+                <NavLink key={t.id} to={`/app/outils/${t.id}`} onClick={onNavigate} className={linkCls(false, true)}>{t.name}</NavLink>
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
+    </>
+  );
+}
 
 function Logo() {
   return (
@@ -84,22 +138,25 @@ function Sidebar({ onNavigate, collapsed = false, onToggle = null }) {
         )}
       </div>
 
-      <nav className={`flex-1 space-y-0.5 ${collapsed ? 'px-2' : 'px-3'}`}>
-        {NAV.map((n) => (n.to ? (
-          <NavLink key={n.label} to={n.to} end={n.end} onClick={onNavigate} title={collapsed ? n.label : undefined}
-            className={({ isActive }) => `flex items-center gap-3 rounded-lg py-2 text-sm transition ${collapsed ? 'justify-center px-0' : 'px-3'} ${isActive ? 'bg-white/10 text-white font-medium' : 'hover:bg-white/5 hover:text-white'}`}>
-            <n.icon size={17} /> {!collapsed && n.label}
-          </NavLink>
-        ) : (
-          <div key={n.label} title={collapsed ? `${n.label} (bientôt)` : undefined}
-            className={`flex items-center gap-3 rounded-lg py-2 text-sm text-slate-500 cursor-default ${collapsed ? 'justify-center px-0' : 'px-3'}`}>
-            <n.icon size={17} /> {!collapsed && n.label}
-            {!collapsed && <span className="ml-auto text-[10px] font-jetbrains rounded px-1.5 py-0.5 bg-white/5 text-amber-400">bientôt</span>}
+      <nav className={`flex-1 min-h-0 overflow-y-auto space-y-0.5 [scrollbar-width:thin] ${collapsed ? 'px-2' : 'px-3'}`}>
+        {NAV.map((sec) => (
+          <div key={sec.id} className="space-y-0.5">
+            {sec.label && <SectionTitle label={sec.label} collapsed={collapsed} />}
+            {sec.items.map((n) => (
+              <NavLink key={n.to} to={n.to} end={n.end} onClick={onNavigate} title={collapsed ? n.label : undefined} className={linkCls(collapsed)}>
+                <n.icon size={17} /> {!collapsed && n.label}
+              </NavLink>
+            ))}
           </div>
-        )))}
+        ))}
+        <SectionTitle label="Outils" collapsed={collapsed} />
+        <ToolsNav collapsed={collapsed} onNavigate={onNavigate} />
       </nav>
 
-      <div className={`py-4 border-t border-white/10 space-y-1 ${collapsed ? 'px-2' : 'px-3'}`}>
+      <div className={`py-3 border-t border-white/10 space-y-1 ${collapsed ? 'px-2' : 'px-3'}`}>
+        <NavLink to="/app/parametres" onClick={onNavigate} title={collapsed ? 'Paramètres' : undefined} className={linkCls(collapsed)}>
+          <Settings size={17} /> {!collapsed && 'Paramètres'}
+        </NavLink>
         {onToggle && (
           <button onClick={onToggle} title={collapsed ? 'Agrandir la barre' : 'Réduire la barre'}
             className={`w-full flex items-center gap-3 rounded-lg py-2 text-xs hover:bg-white/5 hover:text-white ${collapsed ? 'justify-center px-0' : 'px-3'}`}>
@@ -284,9 +341,11 @@ function Shell() {
           <Route path="palettisations/nouveau" element={<NewPalletization />} />
           <Route path="palettisations/:code" element={<PalletizationEditor />} />
           <Route path="palettisation" element={<Navigate to="/app/palettisations" replace />} />
-          <Route path="equipe" element={<TeamPage />} />
-          <Route path="api" element={<ApiKeysPage />} />
-          <Route path="parametres" element={<SettingsPage />} />
+          <Route path="outils" element={<ToolsHome />} />
+          <Route path="outils/:id" element={<ToolInApp />} />
+          <Route path="parametres/*" element={<SettingsPage />} />
+          <Route path="equipe" element={<Navigate to="/app/parametres/equipe" replace />} />
+          <Route path="api" element={<Navigate to="/app/parametres/api" replace />} />
           <Route path="*" element={<Navigate to="/app" replace />} />
         </Routes>
       </main>

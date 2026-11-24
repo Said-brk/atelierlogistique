@@ -1,4 +1,4 @@
-// /app/equipe : membres de l'entreprise, invitations en attente, inviter un collègue.
+// Paramètres → Équipe (/app/parametres/equipe) : membres de l'entreprise, invitations en attente, inviter un collègue.
 // L'invitation n'envoie pas d'e-mail toute seule (pas de serveur d'e-mails pendant le POC) :
 // l'administrateur envoie le message préparé (e-mail, WhatsApp, copier), le collègue crée son compte
 // avec l'adresse invitée et accepte l'invitation à l'entrée de l'espace.
@@ -30,7 +30,7 @@ function SendInvite({ orgName, email, compact = false }) {
   );
 }
 
-export default function TeamPage() {
+export default function TeamPage({ inSettings = false }) {
   const { org, user, reloadOrgs } = useEspace();
   const navigate = useNavigate();
   const admin = org.role === 'owner' || org.role === 'admin';
@@ -68,8 +68,9 @@ export default function TeamPage() {
 
   return (
     <>
-      <PageHeader title="Équipe" subtitle={`Les personnes qui travaillent dans « ${org.name} » : elles voient et modifient les mêmes chargements et palettisations.`} />
+      {!inSettings && <PageHeader title="Équipe" />}
       <div className="px-5 sm:px-8 py-6 space-y-5 max-w-5xl">
+        <p className="text-sm text-slate-500">Les personnes qui travaillent dans « {org.name} » : elles voient et modifient les mêmes chargements et palettisations.</p>
         {admin && (
           <section className="rounded-xl bg-white border border-slate-200 p-5 space-y-3">
             <div className="flex items-center gap-2 font-semibold text-slate-900"><UserPlus size={17} /> Inviter un collègue</div>
