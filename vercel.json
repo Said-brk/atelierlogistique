@@ -19,6 +19,10 @@
   ],
   "rewrites": [
     {
+      "source": "/api/v1/:path*",
+      "destination": "/api/v1?route=:path*"
+    },
+    {
       "source": "/ressources/incoterms-2020",
       "destination": "/ressources/incoterms-2020.html"
     },
@@ -86,5 +90,10 @@
       "source": "/(.*)",
       "destination": "/index.html"
     }
-  ]
+  ],
+  "functions": {
+    "api/v1.js": {
+      "maxDuration": 60
+    }
+  }
 }

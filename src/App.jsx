@@ -21,6 +21,7 @@ const LoginPage = lazy(() => import('./shared/account/AccountPages.jsx').then((m
 // Espace connecté (mini-ERP) : barre latérale, chargements, palettisation, paramètres.
 const EspaceApp = lazy(() => import('./espace/EspaceApp.jsx'));
 const QuaiGuide = lazy(() => import('./espace/QuaiGuide.jsx'));
+const ApiDocsPage = lazy(() => import('./pages/ApiDocsPage.jsx'));
 import { SITE, toolSeo } from './seo/pages';
 import { toolSeoEn } from './seo/pages-en';
 import { I18nProvider } from './shared/i18n/I18nProvider.jsx';
@@ -219,6 +220,7 @@ export default function App() {
         <Route path="/en/loading" element={<I18nProvider lang="en"><Suspense fallback={null}><LoadingGuide /></Suspense></I18nProvider>} />
         <Route path="/en/:page" element={<EnToolRoute />} />
         <Route path="/connexion" element={<AccountShell><LoginPage /></AccountShell>} />
+        <Route path="/api" element={<AccountShell><ApiDocsPage /></AccountShell>} />
         <Route path="/compte" element={<Navigate to="/app" replace />} />
         <Route path="/app/*" element={<Suspense fallback={<div className="min-h-screen" style={{ background: '#0F172A' }} />}><EspaceApp /></Suspense>} />
         <Route path="*" element={<NotFound />} />
@@ -267,6 +269,7 @@ function SiteFooter() {
         </div>
         <div className="flex items-center gap-5">
           <a href="/#tools" className="hover:text-slate-800 transition-colors">Outils</a>
+          <a href="/api" className="hover:text-slate-800 transition-colors">API</a>
           <Link to="/ressources" className="hover:text-slate-800 transition-colors">Ressources</Link>
           <span>Contact : <a href="mailto:contact@atelierlogistique.com" className="hover:text-slate-800 transition-colors underline-offset-2 hover:underline">contact@atelierlogistique.com</a></span>
         </div>

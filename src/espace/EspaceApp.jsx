@@ -17,13 +17,14 @@ import Palletizations from './pages/Palletizations';
 import PalletizationEditor, { NewPalletization } from './pages/PalletizationEditor';
 import SettingsPage from './pages/SettingsPage';
 import TeamPage from './pages/TeamPage';
+import ApiKeysPage from './pages/ApiKeysPage';
 
 const NAV = [
   { to: '/app', end: true, icon: LayoutDashboard, label: 'Tableau de bord' },
   { to: '/app/chargements', icon: Truck, label: 'Chargements' },
   { to: '/app/palettisations', icon: Boxes, label: 'Palettisations' },
   { to: '/app/equipe', icon: Users, label: 'Équipe' },
-  { to: null, icon: KeyRound, label: 'Clés d’API', soon: true },
+  { to: '/app/api', icon: KeyRound, label: 'Clés d’API' },
   { to: '/app/parametres', icon: Settings, label: 'Paramètres' },
 ];
 
@@ -284,6 +285,7 @@ function Shell() {
           <Route path="palettisations/:code" element={<PalletizationEditor />} />
           <Route path="palettisation" element={<Navigate to="/app/palettisations" replace />} />
           <Route path="equipe" element={<TeamPage />} />
+          <Route path="api" element={<ApiKeysPage />} />
           <Route path="parametres" element={<SettingsPage />} />
           <Route path="*" element={<Navigate to="/app" replace />} />
         </Routes>

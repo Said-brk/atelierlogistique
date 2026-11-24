@@ -223,3 +223,35 @@ export function invitationMessage(orgName, email) {
     + 'Tu as déjà un compte avec cette adresse ? Connecte-toi simplement : l’invitation t’attend.';
   return { url, text, subject: `Invitation à rejoindre ${orgName} sur Atelier Logistique` };
 }
+
+// ---------------------------------------------------------------- Clés d'API
+export async function listApiKeys(orgId) {
+  const sb = await getSupabase();
+  const { data, error } = await sb.from('api_keys').select('id, name, prefix, created_at, last_used_at, revoked_at').eq('org_id', orgId).order('created_at', { ascending: false });
+  fail(error);
+  return data;
+}
+
+/** Crée une clé : renvoyée EN CLAIR une seule fois (la base n'en garde que l'empreinte). */
+export async function createApiKey(orgId, name) {
+  const sb = await getSupabase();
+  const { data, error } = await sb.rpc('create_api_key', { p_org: orgId, p_name: name });
+  fail(error);
+  return data?.[0];
+}
+
+export async function revokeApiKey(id) {
+  const sb = await getSupabase();
+  const { error } = await sb.from('api_keys').update({ revoked_at: new Date().toISOString() }).eq('id', id);
+  fail(error);
+}
+
+/** Appels des 30 derniers jours (total et erreurs). */
+export async function apiUsage(orgId) {
+  const sb = await getSupabase();
+  const since = new Date(Date.now() - 30 * 864e5).toISOString();
+  const q = () => sb.from('usage_events').select('id', { count: 'exact', head: true }).eq('org_id', orgId).gte('created_at', since);
+  const [all, errors] = await Promise.all([q(), q().gte('http_status', 400)]);
+  fail(all.error); fail(errors.error);
+  return { calls: all.count ?? 0, errors: errors.count ?? 0 };
+}
