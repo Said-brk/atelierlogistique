@@ -2,6 +2,8 @@
 // véhicules, flotte, plan renvoyé, erreurs. Spécification OpenAPI : /openapi.json.
 
 import { useEffect, useState } from 'react';
+import ExampleTabs from '../shared/api/ExampleTabs';
+import { createExamples } from '../shared/api/examples';
 import { Copy, Check, KeyRound, Send, Download, ListChecks, Ban, AlertTriangle, Truck, Boxes, FileJson } from 'lucide-react';
 
 const BASE = 'https://atelierlogistique.com/api/v1';
@@ -41,25 +43,6 @@ const Endpoint = ({ method, path }) => (
     <span className={`font-bold ${method === 'GET' ? 'text-emerald-700' : 'text-blue-700'}`}>{method}</span><span className="text-slate-800">{path}</span>
   </div>
 );
-
-const EX_CREATE = `curl -X POST ${BASE}/shipments \\
-  -H "Authorization: Bearer al_live_VOTRE_CLE" \\
-  -H "Content-Type: application/json" \\
-  -d '{
-  "reference": "EXP-2026-0142",
-  "label": "Tournée Rhône",
-  "departure_date": "2026-11-25",
-  "mode": "auto",
-  "vehicle": "semi",
-  "lines": [
-    { "id": "L1", "reference": "PAL-EUR-001", "type": "pallet", "quantity": 6,
-      "length": 120, "width": 80, "height": 150, "weight": 450,
-      "stop": 1, "destination": "Lyon" },
-    { "id": "L2", "reference": "CARTON-A", "quantity": 40,
-      "length": 60, "width": 40, "height": 40, "weight": 12,
-      "stacking": "free", "stop": 2, "destination": "Mâcon" }
-  ]
-}'`;
 
 const EX_RESPONSE = `{
   "code": "PL-K4G86R",
@@ -103,6 +86,13 @@ curl "${BASE}/shipments?status=validated&updated_since=2026-11-24T08:00:00Z" \\
 
 # Détail et plan d'un chargement (n° PL-… ou votre référence)
 curl ${BASE}/shipments/EXP-2026-0142 -H "Authorization: Bearer al_live_VOTRE_CLE"`;
+
+const EX_POLL_PS = `$h = @{ Authorization = "Bearer al_live_VOTRE_CLE" }
+# Plans validés par le planificateur depuis le dernier passage
+Invoke-RestMethod "${BASE}/shipments?status=validated&updated_since=2026-11-24T08:00:00Z" -Headers $h
+
+# Détail et plan d'un chargement (n° PL-… ou votre référence)
+Invoke-RestMethod "${BASE}/shipments/EXP-2026-0142" -Headers $h`;
 
 const EX_ERROR = `HTTP 422
 {
@@ -159,7 +149,7 @@ export default function ApiDocsPage() {
           <H2 id="creer" icon={Send}>Envoyer un chargement</H2>
           <Endpoint method="POST" path="/shipments" />
           <p className="text-slate-700">Crée le chargement, ou le met à jour s’il existe déjà avec la même <code className="font-jetbrains text-[13px]">reference</code> (renvoyer la même expédition ne crée pas de doublon). Réponse <b>201</b> (créé) ou <b>200</b> (mis à jour).</p>
-          <Code lang="bash">{EX_CREATE}</Code>
+          <ExampleTabs examples={createExamples()} />
           <Table>
             <Field name="reference" type="texte" req>Votre référence (n° d’expédition, de commande…) : clé unique dans votre entreprise.</Field>
             <Field name="mode" type="draft | auto"><b>draft</b> (défaut) : le chargement arrive en « Nouveau » dans l’espace, le planificateur vérifie et valide. <b>auto</b> : le plan est calculé tout de suite et renvoyé.</Field>
@@ -211,7 +201,10 @@ export default function ApiDocsPage() {
           <H2 id="lire" icon={ListChecks}>Lire et suivre</H2>
           <Endpoint method="GET" path="/shipments/{ref}" /> <Endpoint method="GET" path="/shipments?status=…&updated_since=…&limit=50" />
           <p className="text-slate-700"><code>ref</code> = n° <code>PL-…</code> ou votre référence. Statuts : <code>new</code>, <code>in_progress</code>, <code>validated</code>, <code>sent</code> (envoyé au quai), <code>cancelled</code>. Pour récupérer les plans validés par le planificateur, interrogez la liste régulièrement (toutes les 1 à 5 minutes) avec <code>updated_since</code>.</p>
-          <Code lang="bash">{EX_POLL}</Code>
+          <ExampleTabs examples={[
+            { id: 'powershell', label: 'PowerShell (Windows)', code: EX_POLL_PS },
+            { id: 'curl', label: 'curl (Mac, Linux)', code: EX_POLL },
+          ]} />
 
           <H2 id="annuler" icon={Ban}>Annuler</H2>
           <Endpoint method="POST" path="/shipments/{ref}/cancel" />

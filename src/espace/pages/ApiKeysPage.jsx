@@ -6,8 +6,8 @@ import { KeyRound, Plus, Copy, Check, Loader2, Ban, BookOpen, Activity, AlertTri
 import { useEspace } from '../useEspace';
 import { listApiKeys, createApiKey, revokeApiKey, apiUsage } from '../data';
 import { PageHeader, Btn, fmtDate, fmtDateTime } from '../ui';
-
-const API = 'https://atelierlogistique.com/api/v1';
+import ExampleTabs from '../../shared/api/ExampleTabs';
+import { createExamples } from '../../shared/api/examples';
 
 function CopyBtn({ text, label = 'Copier' }) {
   const [ok, setOk] = useState(false);
@@ -18,19 +18,6 @@ function CopyBtn({ text, label = 'Copier' }) {
     </button>
   );
 }
-
-const curlOf = (key) => `curl -X POST ${API}/shipments \\
-  -H "Authorization: Bearer ${key}" \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "reference": "EXP-2026-0142",
-    "mode": "auto",
-    "vehicle": "semi",
-    "lines": [
-      { "reference": "PAL-EUR", "type": "pallet", "quantity": 6, "length": 120, "width": 80, "height": 150, "weight": 450, "stop": 1, "destination": "Lyon" },
-      { "reference": "CARTON-A", "quantity": 40, "length": 60, "width": 40, "height": 40, "weight": 12, "stop": 2, "destination": "Mâcon" }
-    ]
-  }'`;
 
 export default function ApiKeysPage() {
   const { org } = useEspace();
@@ -83,10 +70,7 @@ export default function ApiKeysPage() {
             </div>
             <details className="text-sm">
               <summary className="cursor-pointer text-emerald-900 font-medium">Premier appel (exemple prêt à copier)</summary>
-              <div className="mt-2 relative">
-                <pre className="rounded-lg bg-slate-900 text-slate-100 p-4 text-xs overflow-x-auto">{curlOf(created.key)}</pre>
-                <div className="absolute top-2 right-2"><CopyBtn text={curlOf(created.key)} /></div>
-              </div>
+              <ExampleTabs examples={createExamples(created.key)} />
             </details>
             <button onClick={() => setCreated(null)} className="text-sm text-emerald-800 hover:underline">J’ai copié la clé</button>
           </section>
