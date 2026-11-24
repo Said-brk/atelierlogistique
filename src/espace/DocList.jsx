@@ -1,11 +1,12 @@
 // Liste générique de documents de l'espace (chargements, palettisations) : onglets par statut,
-// recherche, tableau cliquable. Les colonnes sont fournies par la page.
+// recherche, tableau cliquable aux colonnes redimensionnables. Les colonnes sont fournies par la page.
 
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Plus, Search, Loader2, Inbox } from 'lucide-react';
 import { STATUS } from './data';
 import { PageHeader, StatusBadge, Btn, fmtDateTime } from './ui';
+import ResizableTable from './ResizableTable';
 
 const TABS = [['', 'Tous'], ['new', 'Nouveaux'], ['in_progress', 'En cours'], ['validated', 'Validés'], ['sent', 'Envoyés'], ['partially_loaded', 'En partie'], ['loaded', 'Chargés']];
 
@@ -27,12 +28,12 @@ export default function DocList({ title, subtitle, newLabel, newPath, basePath, 
 
   const cols = [
     { h: 'N°', cell: (r) => <span className="font-jetbrains text-xs text-blue-700 whitespace-nowrap">{r.code}</span> },
-    { h: 'Libellé', cell: (r) => <span className="font-medium text-slate-900 block max-w-[240px] truncate">{r.label || '—'}</span> },
+    { h: 'Libellé', cell: (r) => <span className="font-medium text-slate-900 block truncate">{r.label || '—'}</span> },
     { h: 'Réf. WMS / ERP', cell: (r) => r.external_id || '—' },
     ...columns,
     { h: 'Mis à jour', cell: (r) => <span className="text-xs text-slate-500 whitespace-nowrap">{fmtDateTime(r.updated_at)}</span> },
     { h: 'Statut', cell: (r) => <StatusBadge status={r.status} /> },
-  ];
+  ].map((c) => ({ key: c.key ?? c.h, ...c }));
 
   return (
     <>
@@ -61,20 +62,7 @@ export default function DocList({ title, subtitle, newLabel, newPath, basePath, 
               <div className="p-10 text-center text-slate-500"><Inbox className="mx-auto text-slate-300" size={32} />
                 <div className="mt-2 text-sm">Rien {status ? `en « ${STATUS[status].label} »` : 'pour l’instant'}</div></div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="bg-slate-50 text-left text-[11px] font-jetbrains text-slate-500 uppercase">
-                    <tr>{cols.map((c) => <th key={c.h} className="px-4 py-2.5 font-medium whitespace-nowrap">{c.h}</th>)}</tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {shown.map((r) => (
-                      <tr key={r.id} className="hover:bg-blue-50/40 cursor-pointer" onClick={() => navigate(`${basePath}/${r.code}`)}>
-                        {cols.map((c) => <td key={c.h} className="px-4 py-3 text-slate-600">{c.cell(r)}</td>)}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <ResizableTable id={basePath} columns={cols} rows={shown} onRowClick={(r) => navigate(`${basePath}/${r.code}`)} />
             )}
           {error && <div className="px-5 py-3 text-sm text-red-700">{error}</div>}
         </div>

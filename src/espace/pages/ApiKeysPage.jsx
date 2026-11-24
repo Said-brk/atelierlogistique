@@ -8,6 +8,7 @@ import { listApiKeys, createApiKey, revokeApiKey, apiUsage } from '../data';
 import { PageHeader, Btn, fmtDate, fmtDateTime } from '../ui';
 import ExampleTabs from '../../shared/api/ExampleTabs';
 import WebhooksSection from '../WebhooksSection';
+import ResizableTable from '../ResizableTable';
 import { createExamples } from '../../shared/api/examples';
 
 function CopyBtn({ text, label = 'Copier' }) {
@@ -99,26 +100,16 @@ export default function ApiKeysPage({ inSettings = false }) {
             <div className="px-4 py-3 border-b border-slate-200 font-semibold text-slate-900">Clés</div>
             {keys === null ? <div className="p-6 flex justify-center text-slate-400"><Loader2 className="animate-spin" /></div>
               : keys.length === 0 ? <div className="p-6 text-sm text-slate-500">Aucune clé pour le moment.</div> : (
-                <table className="w-full text-sm">
-                  <thead className="bg-slate-50 text-xs text-slate-500"><tr>
-                    <th className="text-left font-medium px-4 py-2">Nom</th><th className="text-left font-medium px-4 py-2">Clé</th>
-                    <th className="text-left font-medium px-4 py-2 hidden sm:table-cell">Créée</th><th className="text-left font-medium px-4 py-2">Dernier appel</th><th />
-                  </tr></thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {keys.map((k) => (
-                      <tr key={k.id} className={k.revoked_at ? 'text-slate-400' : ''}>
-                        <td className="px-4 py-3 font-medium">{k.name}</td>
-                        <td className="px-4 py-3 font-jetbrains text-xs">{k.prefix}…</td>
-                        <td className="px-4 py-3 hidden sm:table-cell">{fmtDate(k.created_at)}</td>
-                        <td className="px-4 py-3">{k.last_used_at ? fmtDateTime(k.last_used_at) : 'jamais'}</td>
-                        <td className="px-4 py-3 text-right">
-                          {k.revoked_at ? <span className="text-xs">révoquée le {fmtDate(k.revoked_at)}</span>
-                            : <button onClick={() => revoke(k)} className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-red-700"><Ban size={13} /> Révoquer</button>}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <ResizableTable id="api-keys" rows={keys} rowClass={(k) => (k.revoked_at ? 'text-slate-400' : '')}
+                  theadClass="bg-slate-50 text-left text-xs text-slate-500" thClass="px-4 py-2 font-medium" tdClass="px-4 py-3"
+                  columns={[
+                    { key: 'name', h: 'Nom', cell: (k) => <span className="font-medium">{k.name}</span> },
+                    { key: 'prefix', h: 'Clé', cell: (k) => <span className="font-jetbrains text-xs">{k.prefix}…</span> },
+                    { key: 'created', h: 'Créée', cell: (k) => fmtDate(k.created_at) },
+                    { key: 'last', h: 'Dernier appel', cell: (k) => (k.last_used_at ? fmtDateTime(k.last_used_at) : 'jamais') },
+                    { key: 'actions', h: '', tdClass: 'text-right', cell: (k) => (k.revoked_at ? <span className="text-xs">révoquée le {fmtDate(k.revoked_at)}</span>
+                      : <button onClick={() => revoke(k)} className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-red-700"><Ban size={13} /> Révoquer</button>) },
+                  ]} />
               )}
           </section>
         )}
