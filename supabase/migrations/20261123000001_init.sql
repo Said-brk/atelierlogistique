@@ -173,7 +173,7 @@ create index if not exists api_keys_org_idx on public.api_keys(org_id);
 -- Crée une clé et la renvoie EN CLAIR une seule fois (elle n'est ensuite plus lisible).
 create or replace function public.create_api_key(p_org uuid, p_name text)
 returns table (id uuid, key text, prefix text)
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$  -- pgcrypto est dans « extensions » sur Supabase
 declare v_key text; v_id uuid; v_prefix text;
 begin
   if not public.is_admin(p_org) then raise exception 'Réservé aux administrateurs de l''entreprise'; end if;

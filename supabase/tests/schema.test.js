@@ -19,6 +19,9 @@ describe('schéma Supabase', () => {
     create schema auth; create table auth.users(id uuid primary key, email text);
     create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub', true),'')::uuid $$;
     grant usage on schema auth to anon, authenticated; grant execute on function auth.uid() to anon, authenticated;
+    -- Comme Supabase : pgcrypto installé dans le schéma « extensions » (pas dans public).
+    create schema extensions; create extension pgcrypto schema extensions; grant usage on schema extensions to anon, authenticated;
+    set search_path = public, extensions;
     `);
     const sql = readdirSync(MIGRATIONS).filter((f) => f.endsWith('.sql')).sort().map((f) => readFileSync(join(MIGRATIONS, f), 'utf8')).join('\n');
     await db.exec(sql);
