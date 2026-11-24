@@ -11862,3 +11862,6 @@ function PerfTile({ label, value, sub, accent }) {
     </div>
   );
 }
+
+// Catalogue des outils, réutilisé par l'espace connecté (/app/outils) : mêmes composants, même rendu intégré.
+export { TOOLS, CATEGORIES, TOOL_COMPONENTS, TOOL_EMBED_CSS };

@@ -1,4 +1,4 @@
-// /app/api : clés d'API de l'entreprise (créer, révoquer), consommation, démarrage rapide.
+// Paramètres → API et notifications (/app/parametres/api) : clés d'API (créer, révoquer), consommation, webhooks.
 // La clé n'est affichée qu'une fois, à la création : la base n'en garde que l'empreinte.
 
 import { useCallback, useEffect, useState } from 'react';
@@ -20,7 +20,7 @@ function CopyBtn({ text, label = 'Copier' }) {
   );
 }
 
-export default function ApiKeysPage() {
+export default function ApiKeysPage({ inSettings = false }) {
   const { org } = useEspace();
   const admin = org.role === 'owner' || org.role === 'admin';
   const [keys, setKeys] = useState(null);
@@ -53,8 +53,9 @@ export default function ApiKeysPage() {
   const active = (keys ?? []).filter((k) => !k.revoked_at);
   return (
     <>
-      <PageHeader title="Clés d’API" subtitle="Connectez votre WMS ou votre ERP : il envoie ses chargements, Atelier Logistique renvoie le plan." />
+      {!inSettings && <PageHeader title="Clés d’API" />}
       <div className="px-5 sm:px-8 py-6 space-y-5 max-w-5xl">
+        <p className="text-sm text-slate-500">Connectez votre WMS ou votre ERP : il envoie ses chargements, Atelier Logistique renvoie le plan et le prévient à chaque étape.</p>
         <div className="grid sm:grid-cols-3 gap-3">
           <div className="rounded-xl bg-white border border-slate-200 p-4"><div className="text-xs text-slate-500 flex items-center gap-1.5"><KeyRound size={13} /> Clés actives</div><div className="text-2xl font-bold text-slate-900 mt-1">{keys ? active.length : '…'}</div></div>
           <div className="rounded-xl bg-white border border-slate-200 p-4"><div className="text-xs text-slate-500 flex items-center gap-1.5"><Activity size={13} /> Appels (30 jours)</div><div className="text-2xl font-bold text-slate-900 mt-1">{usage ? usage.calls : '…'}</div></div>
