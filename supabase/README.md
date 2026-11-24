@@ -14,6 +14,7 @@ Fonctions **en plus** du site : comptes, « Mes chargements », API. Les outils 
 | `api_keys` | clés d'API (empreinte SHA-256 seulement, jamais la clé en clair) |
 | `usage_events` | consommation de l'API (appels, durée, nombre d'unités) |
 | `palletizations` | palettisations (n° `PZ-XXXXXX`), reliées au chargement qu'elles alimentent |
+| `webhooks`, `webhook_deliveries` | notifications automatiques (adresse, secret de signature, évènements) et historique des envois (30 jours) |
 | `invitations` | invitations d'un collègue par adresse e-mail (14 jours), acceptées à l'entrée de l'espace |
 
 Statuts d'un chargement : `new` → `in_progress` → `validated` → `sent` (envoyé au quai) · `cancelled`.
@@ -68,3 +69,8 @@ Modèles **Magic Link** et **Confirm signup** (même contenu) :
 <p style="color:#64748B;font-size:13px">Vous n'avez pas demandé ce lien ? Ignorez simplement cet e-mail.</p>
 <p style="color:#64748B;font-size:13px">Atelier Logistique — atelierlogistique.com</p>
 ```
+
+## Notifications automatiques (webhooks)
+
+1. Database → Extensions : activer `pg_net` (et `pg_cron`, déjà utilisé pour la purge).
+2. SQL Editor : exécuter `migrations/20261124000005_webhooks.sql` (il planifie aussi `webhooks-relances`, chaque minute, pour les nouvelles tentatives).
