@@ -1,7 +1,7 @@
 // Mode « Flotte automatique » : choix des véhicules disponibles (avant calcul) et résultat (après).
 // Composants autonomes : le mode standard (un véhicule choisi) ne les utilise pas.
 
-import { Truck, Eye, AlertCircle, Check } from 'lucide-react';
+import { Truck, Eye, AlertCircle, Check, Camera, Lock } from 'lucide-react';
 import { t as tr, tText, numLocale } from '../../../shared/i18n/core';
 
 const BLUE = '#2563EB';
@@ -37,13 +37,18 @@ export function FleetVehicles({ vehicles, onChange }) {
   );
 }
 
-/** Résultat : véhicules retenus, coût, comparaisons. props : plan, viewing (index), onView(truck) */
-export function FleetResult({ plan, viewing, onView }) {
+/**
+ * Résultat : véhicules retenus, coût, comparaisons. props : plan, viewing (index), onView(truck)
+ * trucks (espace) : { [index]: { loadedAt, by, photos, onProof } } — camions confirmés chargés par le cariste.
+ * locked : flotte figée (chargement envoyé au quai / chargé).
+ */
+export function FleetResult({ plan, viewing, onView, trucks = null, locked = false }) {
   const alt = plan.alternatives.filter((a) => a.cost > plan.totalCost + 0.5).slice(0, 3);
   return (
     <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
       <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 flex flex-wrap items-center justify-between gap-2">
-        <span className="font-jetbrains text-xs text-slate-600 flex items-center gap-2"><Truck size={13} />{' '}{tr('FLOTTE PROPOSÉE')}</span>
+        <span className="font-jetbrains text-xs text-slate-600 flex items-center gap-2"><Truck size={13} />{' '}{tr('FLOTTE PROPOSÉE')}
+          {locked && <span className="inline-flex items-center gap-1 text-[10px] text-violet-700"><Lock size={11} />{' '}{tr('figée')}</span>}</span>
         <span className="font-jetbrains text-[10px] text-slate-500">{tr('calcul {v1} s', { v1: Math.max(1, Math.round(plan.computationTimeMs / 100) / 10) })}</span>
       </div>
       <div className="p-4 space-y-3">
@@ -61,10 +66,15 @@ export function FleetResult({ plan, viewing, onView }) {
           </div>
         )}
         <div className="grid sm:grid-cols-2 gap-2">
-          {plan.trucks.map((t) => (
+          {plan.trucks.map((t) => {
+            const ld = trucks?.[t.index];
+            return (
             <div key={t.index} className="rounded-lg border px-3 py-2.5" style={viewing === t.index ? { borderColor: BLUE, background: '#EFF6FF' } : { borderColor: '#E2E8F0' }}>
               <div className="flex items-center justify-between gap-2">
-                <div className="text-xs font-semibold text-slate-800">{t.index}. {tText(t.container.label)}</div>
+                <div className="text-xs font-semibold text-slate-800 flex items-center gap-2">{t.index}. {tText(t.container.label)}
+                  {ld && <span className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium" style={{ background: '#F5F3FF', color: '#6D28D9' }}>
+                    <Check size={10} />{' '}{tr('Chargé')}{' '}{new Date(ld.loadedAt).toLocaleTimeString(numLocale(), { hour: '2-digit', minute: '2-digit' })}</span>}
+                </div>
                 <div className="font-jetbrains text-[11px] text-slate-600">{fmtEur(t.cost)}</div>
               </div>
               <div className="font-jetbrains text-[10px] text-slate-500 mt-0.5">
@@ -75,8 +85,13 @@ export function FleetResult({ plan, viewing, onView }) {
                 style={viewing === t.index ? { background: BLUE, color: '#fff' } : { background: '#F1F5F9', color: '#475569' }}>
                 {viewing === t.index ? <><Check size={11} />{' '}{tr('Plan affiché')}</> : <><Eye size={11} />{' '}{tr('Voir le plan 3D')}</>}
               </button>
+              {ld?.onProof && (
+                <button onClick={ld.onProof} title={tr('Preuve de chargement')} className="ml-3 inline-flex items-center gap-1 font-jetbrains text-[10px] text-slate-400 hover:text-violet-700">
+                  <Camera size={11} />{' '}{tr('Preuve')}{ld.photos > 1 ? ` (${ld.photos})` : ''}</button>
+              )}
             </div>
-          ))}
+            );
+          })}
         </div>
         {plan.unplaced.length > 0 && (
           <div className="flex items-start gap-2 text-[11px] px-3 py-2 rounded-md" style={{ background: '#FEF2F2', color: '#B91C1C', border: '1px solid #FECACA' }}>

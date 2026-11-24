@@ -192,8 +192,14 @@ describe('schéma Supabase', () => {
     // Flotte : chargé quand les deux camions sont confirmés.
     const fl = (await as(A, `insert into shipments(org_id, input, result, status) values ($1, '{}', '{"plan":{"guides":[{"index":1},{"index":2}]}}', 'sent') returning code, share_token`, [orgA])).rows[0];
     await as(null, `select confirm_loading($1, 1, null, '{}')`, [fl.share_token]);
-    ok((await as(A, `select status from shipments where code = $1`, [fl.code])).rows[0].status === 'sent', 'flotte : un camion sur deux, pas encore chargé');
+    ok((await as(A, `select status from shipments where code = $1`, [fl.code])).rows[0].status === 'partially_loaded', 'flotte : un camion sur deux → chargé en partie');
+    err = null; try { await as(A, `update shipments set result = '{}' where code = $1`, [fl.code]); } catch (e) { err = e; }
+    ok(err && /rouvrez-le/.test(err.message), 'au quai : flotte et plan figés');
+    await as(A, `update shipments set label = 'Libellé modifiable' where code = $1`, [fl.code]);
+    ok((await as(A, `select label from shipments where code = $1`, [fl.code])).rows[0].label === 'Libellé modifiable', 'au quai : le libellé reste modifiable');
     await as(null, `select confirm_loading($1, 2, null, '{}')`, [fl.share_token]);
     ok((await as(A, `select status from shipments where code = $1`, [fl.code])).rows[0].status === 'loaded', 'flotte : tous les camions confirmés');
+    await as(A, `update shipments set status = 'in_progress', result = '{"plan":{}}' where code = $1`, [fl.code]);
+    ok((await as(A, `select status from shipments where code = $1`, [fl.code])).rows[0].status === 'in_progress', 'rouvrir : de nouveau modifiable');
   }, 60000);
 });

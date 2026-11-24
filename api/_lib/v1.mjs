@@ -1543,7 +1543,7 @@ async function shipmentOf(s, site) {
 }
 
 // src/api/v1/handler.ts
-var STATUSES = ["new", "in_progress", "validated", "sent", "loaded", "cancelled"];
+var STATUSES = ["new", "in_progress", "validated", "sent", "partially_loaded", "loaded", "cancelled"];
 var err = (status, code, message, details) => ({ status, body: { error: { code, message, ...details ? { details } : {} } } });
 async function sha256Hex(s) {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
@@ -1575,8 +1575,8 @@ async function handle(req, db, site = "https://atelierlogistique.com") {
         const v = parsed.value;
         items = v.units;
         const existing = await db.findShipment(org, v.reference);
-        if (existing && ["validated", "sent", "loaded"].includes(existing.status)) {
-          res = err(409, "already_validated", `Le chargement ${existing.code} (\xAB ${v.reference} \xBB) est d\xE9j\xE0 ${existing.status === "sent" ? "envoy\xE9 au quai" : existing.status === "loaded" ? "charg\xE9" : "valid\xE9"} : rouvrez-le dans l\u2019espace ou envoyez une nouvelle r\xE9f\xE9rence.`);
+        if (existing && ["validated", "sent", "partially_loaded", "loaded"].includes(existing.status)) {
+          res = err(409, "already_validated", `Le chargement ${existing.code} (\xAB ${v.reference} \xBB) est d\xE9j\xE0 ${existing.status === "sent" ? "envoy\xE9 au quai" : existing.status === "loaded" ? "charg\xE9" : existing.status === "partially_loaded" ? "charg\xE9 en partie" : "valid\xE9"} : rouvrez-le dans l\u2019espace ou envoyez une nouvelle r\xE9f\xE9rence.`);
         } else {
           const result = v.mode === "auto" ? await computePlan(v.input) : null;
           const status = v.mode === "auto" ? v.validate ? "validated" : "in_progress" : "new";

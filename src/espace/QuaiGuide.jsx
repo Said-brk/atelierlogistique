@@ -69,7 +69,7 @@ export default function QuaiGuide() {
   }
   const payload = picked ? picked.guide : plan?.guide;
   if (!payload) return notReady;
-  const final = ['validated', 'sent', 'loaded'].includes(s.status);
+  const final = ['validated', 'sent', 'partially_loaded', 'loaded'].includes(s.status);
   const truckNo = picked?.index ?? 1;
   // Fin de chargement : photos réduites puis envoyées, confirmation dans la base (statut « Chargé »).
   const onConfirm = async ({ files, name }) => confirmLoadingWithPhotos(token, truckNo, name, await Promise.all(files.map((f) => shrinkPhoto(f))));

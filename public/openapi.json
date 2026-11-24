@@ -513,6 +513,7 @@
               "in_progress",
               "validated",
               "sent",
+              "partially_loaded",
               "loaded",
               "cancelled"
             ]

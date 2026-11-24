@@ -18,7 +18,7 @@ Fonctions **en plus** du site : comptes, « Mes chargements », API. Les outils 
 | `shipment_loadings` | fins de chargement confirmées par le cariste (camion, nom, photos) ; photos dans le stockage privé `preuves` |
 | `invitations` | invitations d'un collègue par adresse e-mail (14 jours), acceptées à l'entrée de l'espace |
 
-Statuts d'un chargement : `new` → `in_progress` → `validated` → `sent` (envoyé au quai), `loaded` (chargé, confirmé par le cariste) · `cancelled`.
+Statuts d'un chargement : `new` → `in_progress` → `validated` → `sent` (envoyé au quai), `partially_loaded` (flotte : une partie des camions confirmés), `loaded` (chargé, confirmé par le cariste) ; au quai (envoyé, en partie, chargé), contenu figé par la base jusqu'à réouverture · `cancelled`.
 
 Fonctions : `create_organization(nom)`, `create_api_key(org, nom)` (renvoie la clé en clair **une seule fois**),
 `shipment_by_token(jeton)` (plan ouvert par lien, sans compte), `purge_expired_shipments()`,

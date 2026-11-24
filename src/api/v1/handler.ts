@@ -24,7 +24,7 @@ export interface Db {
 export interface ApiRequest { method: string; path: string; query: URLSearchParams; headers: Record<string, string | undefined>; body: unknown }
 export interface ApiResponse { status: number; body: unknown }
 
-const STATUSES = ['new', 'in_progress', 'validated', 'sent', 'loaded', 'cancelled'];
+const STATUSES = ['new', 'in_progress', 'validated', 'sent', 'partially_loaded', 'loaded', 'cancelled'];
 const err = (status: number, code: string, message: string, details?: unknown): ApiResponse => ({ status, body: { error: { code, message, ...(details ? { details } : {}) } } });
 
 async function sha256Hex(s: string) {
@@ -63,8 +63,8 @@ export async function handle(req: ApiRequest, db: Db, site = 'https://atelierlog
         const v = parsed.value;
         items = v.units;
         const existing = await db.findShipment(org, v.reference);
-        if (existing && ['validated', 'sent', 'loaded'].includes(existing.status)) {
-          res = err(409, 'already_validated', `Le chargement ${existing.code} (« ${v.reference} ») est déjà ${existing.status === 'sent' ? 'envoyé au quai' : existing.status === 'loaded' ? 'chargé' : 'validé'} : rouvrez-le dans l’espace ou envoyez une nouvelle référence.`);
+        if (existing && ['validated', 'sent', 'partially_loaded', 'loaded'].includes(existing.status)) {
+          res = err(409, 'already_validated', `Le chargement ${existing.code} (« ${v.reference} ») est déjà ${existing.status === 'sent' ? 'envoyé au quai' : existing.status === 'loaded' ? 'chargé' : existing.status === 'partially_loaded' ? 'chargé en partie' : 'validé'} : rouvrez-le dans l’espace ou envoyez une nouvelle référence.`);
         } else {
           const result = v.mode === 'auto' ? await computePlan(v.input) : null;
           const status = v.mode === 'auto' ? (v.validate ? 'validated' : 'in_progress') : 'new';
