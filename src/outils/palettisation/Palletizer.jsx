@@ -158,7 +158,7 @@ function PrintSheet({ result, colorOf }) {
 
 /** embedded : intégré à l'espace connecté (pas de barre d'outil ni de contenu SEO) ;
  *  onLoadTruck : où aller après « Charger le camion » (par défaut l'optimiseur public) ;
- *  workspace : { initial, onChange, origin } — palettisation enregistrée dans l'espace (pré-remplissage,
+ *  workspace : { initial, onChange, origin, references } — palettisation enregistrée dans l'espace (pré-remplissage,
  *  état courant + résumé renvoyés à chaque changement pour l'enregistrement par la page). */
 export default function Palletizer({ onBack, embedded: embeddedProp = false, onLoadTruck = null, workspace = null }) {
   const embedded = embeddedProp || !!workspace;
@@ -167,7 +167,10 @@ export default function Palletizer({ onBack, embedded: embeddedProp = false, onL
   const init = (workspace ?? draft)?.initial ?? {};
   const navigate = useNavigate();
   const [rows, setRows] = useState(() => (Array.isArray(init.rows) ? init.rows : exampleRows()));
-  const [supports, setSupports] = useState(() => (Array.isArray(init.supports) && init.supports.length ? init.supports : loadSupports()));
+  // Espace : supports de l'entreprise (Paramètres › Tables de référence) ; site public : ceux du navigateur.
+  const refPallets = workspace?.references?.pallets;
+  const [supports, setSupports] = useState(() => (Array.isArray(init.supports) && init.supports.length ? init.supports
+    : refPallets?.length ? refPallets.map((p) => ({ ...p })) : loadSupports()));
   const [fullFirst, setFullFirst] = useState(init.fullFirst ?? true);
   const [separateStops, setSeparateStops] = useState(init.separateStops ?? true);
   const [formatMode, setFormatMode] = useState(init.formatMode ?? 'stop'); // 'stop' | 'shipment' | 'free'
@@ -195,7 +198,7 @@ export default function Palletizer({ onBack, embedded: embeddedProp = false, onL
   const removeRow = (id) => { setRows((rs) => rs.filter((r) => r.id !== id)); invalidate(); };
   const addRow = () => setRows((rs) => [...rs, { ...emptyRow(), rotationMode: 'HORIZONTAL' }]);
 
-  const changeSupports = (next) => { setSupports(next); saveSupports(next); invalidate(); };
+  const changeSupports = (next) => { setSupports(next); if (!workspace) saveSupports(next); invalidate(); };
   const available = useMemo(() => supports.filter((s) => s.available && s.length > 0 && s.width > 0), [supports]);
   const stops = useMemo(() => {
     const m = new Map();
@@ -359,7 +362,8 @@ export default function Palletizer({ onBack, embedded: embeddedProp = false, onL
         {/* 2. Palette + options */}
         <div className="grid grid-cols-1 xl:grid-cols-5 gap-4 sm:gap-5 items-start">
           <div className="xl:col-span-3">
-            <SupportsPanel supports={supports} onChange={changeSupports} />
+            <SupportsPanel supports={supports} onChange={changeSupports}
+              note={refPallets ? 'Choix : moins de palettes, puis moins de place au sol, puis coût. Valeurs proposées : Paramètres › Tables de référence.' : null} />
           </div>
 
           <div className="xl:col-span-2 rounded-xl border border-slate-200 bg-white p-4 space-y-3">

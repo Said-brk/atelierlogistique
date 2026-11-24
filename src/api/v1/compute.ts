@@ -13,7 +13,9 @@ const LOADING = { mode: 'WALLS' as const };
 const labelOf = (c: ContainerDefinition) => c.label;
 
 export function containerOf(input: ParsedShipment['input']): ContainerDefinition {
-  if (input.containerId !== 'custom') return CONTAINER_PRESETS.find((c) => c.id === input.containerId)!;
+  if (input.vehicle && input.vehicle.id === input.containerId) return input.vehicle;
+  const preset = CONTAINER_PRESETS.find((c) => c.id === input.containerId);
+  if (input.containerId !== 'custom' && preset) return preset;
   const c = input.custom;
   return {
     id: 'custom', label: c.label || 'Véhicule', length: Math.round(Number(c.length) * 10), width: Math.round(Number(c.width) * 10),

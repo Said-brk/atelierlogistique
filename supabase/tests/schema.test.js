@@ -6,6 +6,7 @@ import { pgcrypto } from '@electric-sql/pglite/contrib/pgcrypto';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { defaultReferences } from '../../src/shared/references/defaults';
 
 const MIGRATIONS = join(dirname(fileURLToPath(import.meta.url)), '..', 'migrations');
 
@@ -45,6 +46,23 @@ describe('schéma Supabase', () => {
     const orgA = (await as(A, `select public.create_organization('Transports A') as id`)).rows[0].id;
     const orgB = (await as(B, `select public.create_organization('Logistique B') as id`)).rows[0].id;
     ok((await as(A, 'select * from organizations')).rows.length === 1, 'A ne voit que son entreprise');
+    // Tables de référence : pré-remplies à la création, isolées, modifiables par les administrateurs.
+    const refs = (await as(A, `select kind, code, label, data, active, sort from reference_items order by kind, sort`)).rows;
+    const key = (r) => `${r.kind}:${r.code}`;
+    const want = defaultReferences().map(({ kind, code, label, data, active, sort }) => ({ kind, code, label, data, active, sort }));
+    expect(refs.map((r) => ({ ...r })).sort((a, b) => key(a).localeCompare(key(b)))).toEqual(want.sort((a, b) => key(a).localeCompare(key(b))));
+    ok((await as(B, `select * from reference_items where org_id = $1`, [orgA])).rows.length === 0, 'B ne voit pas les références de A');
+    await as(B, `update reference_items set label = 'pirate' where org_id = $1`, [orgA]);
+    await as(A, `update reference_items set data = jsonb_set(data, '{length}', '13620') where org_id = $1 and code = 'semi'`, [orgA]);
+    await as(A, `insert into reference_items(org_id, kind, code, label, data) values ($1, 'pallet', 'cp1', 'CP1 chimie', '{"length":1200,"width":1000}')`, [orgA]);
+    ok((await as(A, `select count(*)::int n from reference_items where label = 'pirate'`)).rows[0].n === 0, 'B ne modifie pas A');
+    await as(A, `select reset_reference_items($1, 'pallet')`, [orgA]);
+    ok((await as(A, `select count(*)::int n from reference_items where kind = 'pallet'`)).rows[0].n === 5, 'retour aux supports par défaut');
+    ok((await as(A, `select data->>'length' l from reference_items where code = 'semi'`)).rows[0].l === '13620', 'les autres tables ne bougent pas');
+    let rerr = null; try { await as(B, `select reset_reference_items($1, 'vehicle')`, [orgA]); } catch (e) { rerr = e; }
+    ok(rerr, 'B ne réinitialise pas A');
+    await db.exec(sql);
+    ok((await as(A, `select data->>'length' l from reference_items where code = 'semi'`)).rows[0].l === '13620', 'ré-exécution du script : modifications conservées');
     const s = (await as(A, `insert into shipments(org_id, external_id, source, input) values ($1, 'EXP-1', 'api', '{"lines":[]}') returning code, version, share_token, expires_at`, [orgA])).rows[0];
     ok(/^PL-[2-9A-HJ-NP-Z]{6}$/.test(s.code), 'code lisible ' + s.code);
     ok(s.version === 1, 'version 1');

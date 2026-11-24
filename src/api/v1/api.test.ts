@@ -101,6 +101,27 @@ describe('API v1', () => {
     expect((await handle(req('GET', '/shipments/inconnu'), db)).status).toBe(404);
   });
 
+  it('véhicules des tables de référence de l’entreprise (codes, coûts, véhicule par défaut)', async () => {
+    const { db, ships } = memoryDb();
+    db.references = async () => [
+      { kind: 'vehicle', code: 'VUL12', label: 'VUL 12 m³', data: { length: 3200, width: 1800, height: 1900, maxWeight: 1200, cost: 180, inFleet: true, axle: null }, active: true, sort: 10 },
+      { kind: 'vehicle', code: 'SEMI-FRIGO', label: 'Semi frigo', data: { length: 13300, width: 2460, height: 2550, maxWeight: 22000, cost: 720, inFleet: true, axle: null }, active: true, sort: 20 },
+      { kind: 'vehicle', code: 'old', label: 'Ancien', data: { length: 1000, width: 1000, height: 1000, maxWeight: 100, cost: 1 }, active: false, sort: 30 },
+    ];
+    const one = await handle(req('POST', '/shipments', { reference: 'R-VUL', vehicle: 'VUL12', mode: 'auto', lines: [LINES[1]] }), db);
+    expect(one.status).toBe(201);
+    expect((ships[0] as any).input.vehicle).toMatchObject({ id: 'VUL12', length: 3200 });
+    expect((ships[0] as any).result.summary.vehicle).toBe('VUL 12 m³');
+    const def = await handle(req('POST', '/shipments', { reference: 'R-DEF', lines: [LINES[1]] }), db);
+    expect((ships[1] as any).input.containerId).toBe('VUL12'); // pas de « semi » : le premier véhicule actif
+    expect(def.status).toBe(201);
+    const bad = await handle(req('POST', '/shipments', { reference: 'R-BAD', vehicle: 'semi', lines: [LINES[1]] }), db);
+    expect((bad.body as any).error.details[0].message).toMatch(/VUL12, SEMI-FRIGO/);
+    expect((bad.body as any).error.details[0].message).not.toMatch(/old/);
+    await handle(req('POST', '/shipments', { reference: 'R-FLEET', fleet: ['VUL12', 'SEMI-FRIGO'], lines: [LINES[1]] }), db);
+    expect((ships[2] as any).input.fleetVehicles.map((v: any) => v.cost)).toEqual([180, 720]);
+  });
+
   it('dimensions en mm et véhicule sur mesure', async () => {
     const { db, ships } = memoryDb();
     const r = await handle(req('POST', '/shipments', { reference: 'EXP-5', units: 'mm', vehicle: { label: 'Caisse mobile', length: 7200, width: 2450, height: 2600, max_weight: 8000 }, lines: [{ reference: 'C', length: 600, width: 400, height: 400, weight: 10 }] }), db);

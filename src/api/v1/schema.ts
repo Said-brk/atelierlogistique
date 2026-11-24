@@ -39,6 +39,8 @@ export interface ParsedShipment {
     rows: ApiRow[]; vehicleMode: 'single' | 'fleet'; deliveryMode: 'STRICT' | 'SOFT'; excludedStops: number[];
     containerId: string; custom: { label: string; length: number | string; width: number | string; height: number | string; maxWeight: number | string };
     fleetVehicles?: { container: ContainerDefinition; cost: number; enabled: boolean }[];
+    /** Véhicule pris dans les tables de référence de l'entreprise (copie, comme à l'écran). */
+    vehicle?: ContainerDefinition;
   };
   units: number; // nombre total de colis / palettes
 }
@@ -56,10 +58,14 @@ function customVehicle(v: Record<string, unknown>, k: number, path: string, issu
   return { id: str(v.id, 40) || 'custom', label: str(v.label, 60) || 'Véhicule', length: Math.round(l * k), width: Math.round(w * k), height: Math.round(h * k), maxWeight: mw };
 }
 
-function vehicleOf(v: unknown, k: number, path: string, issues: Issue[]): ContainerDefinition | null {
+/** Véhicules de l'entreprise (tables de référence) ; sans : véhicules standard. */
+export interface VehicleCatalog { vehicles: ContainerDefinition[]; costs: Record<string, number>; defaultId: string }
+const STANDARD: VehicleCatalog = { vehicles: VEHICLES, costs: DEFAULT_COST, defaultId: 'semi' };
+
+function vehicleOf(v: unknown, k: number, path: string, issues: Issue[], cat: VehicleCatalog): ContainerDefinition | null {
   if (typeof v === 'string') {
-    const found = VEHICLES.find((c) => c.id === v);
-    if (!found) issues.push({ path, message: `Véhicule inconnu « ${v} ». Connus : ${VEHICLES.map((c) => c.id).join(', ')}, ou dimensions sur mesure.` });
+    const found = cat.vehicles.find((c) => c.id === v);
+    if (!found) issues.push({ path, message: `Véhicule inconnu « ${v} ». Connus : ${cat.vehicles.map((c) => c.id).join(', ')}, ou dimensions sur mesure.` });
     return found ?? null;
   }
   if (isObj(v)) return customVehicle(v, k, path, issues);
@@ -68,7 +74,8 @@ function vehicleOf(v: unknown, k: number, path: string, issues: Issue[]): Contai
 }
 
 /** Contrôle et conversion. Renvoie les erreurs (toutes à la fois) ou le chargement prêt à enregistrer. */
-export function parseShipment(body: unknown): { ok: true; value: ParsedShipment } | { ok: false; issues: Issue[] } {
+export function parseShipment(body: unknown, catalog: VehicleCatalog | null = null): { ok: true; value: ParsedShipment } | { ok: false; issues: Issue[] } {
+  const cat = catalog ?? STANDARD;
   const issues: Issue[] = [];
   if (!isObj(body)) return { ok: false, issues: [{ path: '', message: 'Corps JSON attendu (objet).' }] };
 
@@ -100,19 +107,19 @@ export function parseShipment(body: unknown): { ok: true; value: ParsedShipment 
     if (!Array.isArray(body.fleet) || body.fleet.length === 0) issues.push({ path: 'fleet', message: 'Liste non vide de véhicules disponibles.' });
     else {
       const fleet = body.fleet.slice(0, 10).map((f, i) => {
-        const v = vehicleOf(isObj(f) && 'vehicle' in f ? f.vehicle : f, toMm, `fleet[${i}]`, issues);
-        const cost = isObj(f) && f.cost != null ? num(f.cost) : DEFAULT_COST[v?.id ?? ''] ?? 500;
+        const v = vehicleOf(isObj(f) && 'vehicle' in f ? f.vehicle : f, toMm, `fleet[${i}]`, issues, cat);
+        const cost = isObj(f) && f.cost != null ? num(f.cost) : cat.costs[v?.id ?? ''] ?? 500;
         if (!(cost >= 0)) issues.push({ path: `fleet[${i}].cost`, message: 'Coût par voyage ≥ 0.' });
         return v ? { container: v, cost, enabled: true } : null;
       }).filter((x): x is NonNullable<typeof x> => !!x);
       input = { ...input, vehicleMode: 'fleet', fleetVehicles: fleet };
     }
   } else {
-    const v = vehicleOf(body.vehicle ?? 'semi', toMm, 'vehicle', issues);
+    const v = vehicleOf(body.vehicle ?? cat.defaultId, toMm, 'vehicle', issues, cat);
     if (v) {
-      const preset = VEHICLES.find((c) => c.id === v.id && c.length === v.length);
-      input = preset && CONTAINER_PRESETS.some((c) => c.id === v.id)
-        ? { ...input, containerId: v.id }
+      const known = cat.vehicles.find((c) => c.id === v.id && c.length === v.length);
+      input = known && catalog ? { ...input, containerId: v.id, vehicle: known }
+        : known && CONTAINER_PRESETS.some((c) => c.id === v.id) ? { ...input, containerId: v.id }
         : { ...input, containerId: 'custom', custom: { label: v.label, length: v.length / 10, width: v.width / 10, height: v.height / 10, maxWeight: v.maxWeight ?? '' } };
     }
   }

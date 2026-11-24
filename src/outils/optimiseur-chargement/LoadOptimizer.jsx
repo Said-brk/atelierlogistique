@@ -451,6 +451,7 @@ function Kpi({ label, value, sub }) {
  *   onChange : appelé à chaque changement avec l'état, le résumé et le plan, pour l'enregistrement par la page
  *   shareUrl : lien permanent du plan enregistré (/q/…), utilisé pour le QR code et la fiche à la place
  *              du lien qui contient le plan ; à ne fournir que si le plan affiché est celui enregistré.
+ *   references : tables de référence de l'entreprise (véhicules, essieux, arrimage) — voir shared/references.
  *   origin   : n° du document qui envoie des palettes (ex. PZ-…) : ses lignes remplacent ses envois précédents
  *              et s'ajoutent aux autres lignes au lieu de tout remplacer.
  * Sans workspace : page publique (barre d'outil, en-tête SEO, FAQ).
@@ -467,7 +468,14 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
   useDocumentMeta(embedded ? null : seo.title, seo.description);
 
   const [rows, setRows] = useState(() => (Array.isArray(init.rows) ? init.rows : exampleRows()));
-  const [containerId, setContainerId] = useState(init.containerId ?? 'semi');
+  // Espace : véhicules, supports d'essieux et arrimage de l'entreprise (Paramètres › Tables de référence).
+  const refs = workspace?.references ?? null;
+  const vehicleList = useMemo(() => (refs ? refs.vehicles.filter((v) => v.active).map((v) => v.container) : CONTAINER_PRESETS), [refs]);
+  const [containerId, setContainerId] = useState(init.containerId
+    ?? (refs ? ((vehicleList.find((c) => c.id === 'semi') ?? vehicleList[0])?.id ?? 'custom') : 'semi'));
+  // Véhicule choisi dans les tables de référence : copie enregistrée avec le chargement (plan figé au quai
+  // = dimensions du moment, même si la table change ensuite).
+  const [pickedVehicle, setPickedVehicle] = useState(!!init.vehicle);
   const [custom, setCustom] = useState(init.custom ?? { label: tr('Mon contenant'), length: 600, width: 240, height: 240, maxWeight: '' });
   const [highlight, setHighlight] = useState(null);
   const [view3d, setView3d] = useState(true);
@@ -492,10 +500,12 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
   // Mode véhicule : 'single' = standard (l'utilisateur choisit) ; 'fleet' = l'outil propose la flotte.
   const [vehicleMode, setVehicleMode] = useState(init.vehicleMode ?? 'single');
   // Flotte reçue avec le chargement (API) : prioritaire sur les véhicules mémorisés dans ce navigateur.
-  const [fleetVehicles, setFleetVehicles] = useState(() => (Array.isArray(init.fleetVehicles) ? init.fleetVehicles : loadFleet()));
+  const [fleetVehicles, setFleetVehicles] = useState(() => (Array.isArray(init.fleetVehicles) ? init.fleetVehicles
+    : refs ? refs.vehicles.filter((v) => v.active).map((v) => ({ container: v.container, cost: v.cost, enabled: v.inFleet }))
+      : loadFleet()));
+  const [fleetTouched, setFleetTouched] = useState(Array.isArray(init.fleetVehicles));
   const [containerOverride, setContainerOverride] = useState(null); // véhicule de la flotte affiché
-  const container = useMemo(() => {
-    if (containerOverride) return containerOverride;
+  const baseContainer = useMemo(() => {
     if (containerId === 'custom') {
       return {
         id: 'custom', label: custom.label || tr('Mon contenant'),
@@ -503,8 +513,11 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
         maxWeight: custom.maxWeight === '' ? null : Math.max(0, Number(custom.maxWeight) || 0),
       };
     }
-    return CONTAINER_PRESETS.find((c) => c.id === containerId);
-  }, [containerId, custom, containerOverride]);
+    const fromRefs = refs?.vehicles.find((v) => v.container.id === containerId)?.container;
+    const snap = init.vehicle?.id === containerId ? init.vehicle : null;
+    return (locked && snap) || fromRefs || snap || CONTAINER_PRESETS.find((c) => c.id === containerId) || vehicleList[0] || CONTAINER_PRESETS[0];
+  }, [containerId, custom, refs, locked, vehicleList]); // eslint-disable-line react-hooks/exhaustive-deps
+  const container = containerOverride ?? baseContainer;
 
   // Mode « modifier à la main » : le plan modifié remplace le plan calculé partout (stats, fiche, QR, exports).
   const [editMode, setEditMode] = useState(false);
@@ -526,9 +539,9 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
   const [viewingTruck, setViewingTruck] = useState(null);
   const { runFleet, resetFleet, restoreFleet, plan: fleetPlan, status: fleetStatus } = useFleetPlanner();
   const changeFleetVehicles = (next) => {
-    setFleetVehicles(next);
+    setFleetVehicles(next); setFleetTouched(true);
     resetFleet(); setContainerOverride(null); setViewingTruck(null);
-    try { localStorage.setItem(FLEET_KEY, JSON.stringify(Object.fromEntries(next.map((v) => [v.container.id, { cost: v.cost, enabled: v.enabled }])))); } catch { /* stockage indisponible */ }
+    if (!refs) try { localStorage.setItem(FLEET_KEY, JSON.stringify(Object.fromEntries(next.map((v) => [v.container.id, { cost: v.cost, enabled: v.enabled }])))); } catch { /* stockage indisponible */ }
   };
   const switchVehicleMode = (m) => {
     if (m === vehicleMode) return;
@@ -616,14 +629,20 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
   // Répartition des charges & arrimage : réglages pré-remplis par véhicule, mémorisés.
   const BAL_KEY = 'al_balance_v1';
   const [balanceCfg, setBalanceCfg] = useState(() => {
+    if (refs) return {}; // espace : réglages de l'entreprise, retouches limitées à cet écran
     try { return JSON.parse(localStorage.getItem(BAL_KEY) || '{}'); } catch { return {}; }
   });
-  useEffect(() => { try { localStorage.setItem(BAL_KEY, JSON.stringify(balanceCfg)); } catch { /* stockage indisponible */ } }, [balanceCfg]);
+  useEffect(() => { if (!refs) try { localStorage.setItem(BAL_KEY, JSON.stringify(balanceCfg)); } catch { /* stockage indisponible */ } }, [balanceCfg, refs]);
   const [balanceOpen, setBalanceOpen] = useState(false);
 
 
-  const axleProfile = useMemo(() => ({ ...defaultAxleProfile(container), ...(balanceCfg.axles?.[container.id] ?? {}) }), [container, balanceCfg]);
-  const lashingParams = useMemo(() => ({ ...DEFAULT_LASHING, ...(balanceCfg.lashing ?? {}) }), [balanceCfg]);
+  const axleProfile = useMemo(() => {
+    const ref = refs?.vehicles.find((v) => v.container.id === container.id);
+    // Table de référence : essieux renseignés, ou aucun = conteneur (contrôle du centre de gravité).
+    const base = ref ? (ref.axle ?? defaultAxleProfile({ ...container, id: '' })) : defaultAxleProfile(container);
+    return { ...base, ...(balanceCfg.axles?.[container.id] ?? {}) };
+  }, [container, balanceCfg, refs]);
+  const lashingParams = useMemo(() => ({ ...DEFAULT_LASHING, ...(refs?.lashing ?? {}), ...(balanceCfg.lashing ?? {}) }), [balanceCfg, refs]);
   const setAxle = (key, value) => setBalanceCfg((c) => ({
     ...c, axles: { ...(c.axles ?? {}), [container.id]: { ...(c.axles?.[container.id] ?? {}), [key]: value } },
   }));
@@ -912,7 +931,8 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
     const byVehicle = fleetDone ? Object.entries(fleetPlan.trucks.reduce((m, t) => { const l = tText(t.container.label); m[l] = (m[l] ?? 0) + 1; return m; }, {})) : [];
     onWorkspaceChange?.({
       rows, containerId, custom, vehicleMode, deliveryMode, excludedStops,
-      ...(Array.isArray(init.fleetVehicles) ? { fleetVehicles } : {}),
+      ...(fleetTouched ? { fleetVehicles } : {}),
+      ...(refs && pickedVehicle && containerId !== 'custom' ? { vehicle: baseContainer } : {}),
       summary: fleetDone ? {
         vehicle: byVehicle.map(([l, n]) => `${n} × ${l}`).join(' + '), fleet: fleetPlan.trucks.length,
         packed: fleetPlan.trucks.reduce((s, t) => s + t.units, 0), unpacked: fleetPlan.unplaced.reduce((s, u) => s + u.quantity, 0),
@@ -930,7 +950,7 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
         : done && vehicleMode === 'single' && !containerOverride && !restoring
           ? { base: rawResult, manual: manual.snapshot, guide: encodedGuideLink?.split('#')[1] ?? null } : null,
     });
-  }, [rows, containerId, custom, vehicleMode, deliveryMode, excludedStops, result, rawResult, status, container, containerOverride, manual.edited, manual.snapshot, encodedGuideLink, fleetPlan, fleetStatus, fleetGuideList, fleetVehicles, onWorkspaceChange]);
+  }, [rows, containerId, custom, vehicleMode, deliveryMode, excludedStops, result, rawResult, status, container, containerOverride, manual.edited, manual.snapshot, encodedGuideLink, fleetPlan, fleetStatus, fleetGuideList, fleetVehicles, fleetTouched, pickedVehicle, baseContainer, onWorkspaceChange]);
 
   return (
     <div className={`${embedded ? '' : 'min-h-screen'} text-slate-900`} style={{ background: '#F8FAFC', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
@@ -1020,11 +1040,12 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
                     ))}
                   </div>
                 </div>
-                {vehicleMode === 'fleet' && <FleetVehicles vehicles={fleetVehicles} onChange={changeFleetVehicles} />}
+                {vehicleMode === 'fleet' && <FleetVehicles vehicles={fleetVehicles} onChange={changeFleetVehicles}
+                  note={refs ? 'Véhicules, dimensions et coûts proposés : Paramètres › Tables de référence. Les changements faits ici ne valent que pour ce chargement.' : null} />}
                 {vehicleMode === 'single' && (<>
                 <div className="p-4 grid grid-cols-2 md:grid-cols-3 gap-2">
-                  {CONTAINER_PRESETS.map((c) => (
-                    <button key={c.id} onClick={() => { setContainerId(c.id); reset(); }}
+                  {vehicleList.map((c) => (
+                    <button key={c.id} onClick={() => { setContainerId(c.id); setPickedVehicle(true); reset(); }}
                       className="text-left px-3 py-2.5 rounded-lg font-jetbrains transition-all"
                       style={containerId === c.id ? { background: BLUE, color: '#fff' } : { background: '#F8FAFC', color: '#475569', border: '1px solid #E2E8F0' }}>
                       <div className="text-[11px] font-semibold leading-tight">{tText(c.label)}</div>

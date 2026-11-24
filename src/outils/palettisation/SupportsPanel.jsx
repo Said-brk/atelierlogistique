@@ -26,8 +26,8 @@ const FIELDS = [
   { key: 'cost', label: N_('Coût'), unit: '€', step: '0.5' },
 ];
 
-/** props : supports (SupportItem[]), onChange(nextSupports) */
-export default function SupportsPanel({ supports, onChange }) {
+/** props : supports (SupportItem[]), onChange(nextSupports), note (facultatif : remplace la mention « navigateur ») */
+export default function SupportsPanel({ supports, onChange, note = null }) {
   const set = (id, patch) => onChange(supports.map((s) => (s.id === id ? { ...s, ...patch } : s)));
   const setField = (id, f, v) => {
     const n = Math.max(0, Number(v) || 0);
@@ -108,7 +108,7 @@ export default function SupportsPanel({ supports, onChange }) {
       <div className="px-4 py-3 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <button onClick={add} className="flex items-center justify-center gap-1.5 font-jetbrains text-xs px-3 py-2 rounded-md" style={{ background: '#F1F5F9', color: '#475569' }}>
           <Plus size={13} />{' '}{t('Support personnalisé')}</button>
-        <span className="font-jetbrains text-[10px] text-slate-400 sm:text-right">{t('Choix : moins de palettes, puis moins de place au sol, puis coût. Mémorisé dans ce navigateur.')}{count === 0 && <span style={{ color: BLUE }}>{' '}{t('Cochez au moins un support.')}</span>}
+        <span className="font-jetbrains text-[10px] text-slate-400 sm:text-right">{note ?? t('Choix : moins de palettes, puis moins de place au sol, puis coût. Mémorisé dans ce navigateur.')}{count === 0 && <span style={{ color: BLUE }}>{' '}{t('Cochez au moins un support.')}</span>}
         </span>
       </div>
     </div>

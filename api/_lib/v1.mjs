@@ -58,17 +58,19 @@ function customVehicle(v, k, path, issues) {
   if (mw != null && !(mw > 0)) issues.push({ path: `${path}.max_weight`, message: "Charge utile > 0 (kg)." });
   return { id: str(v.id, 40) || "custom", label: str(v.label, 60) || "V\xE9hicule", length: Math.round(l * k), width: Math.round(w * k), height: Math.round(h * k), maxWeight: mw };
 }
-function vehicleOf(v, k, path, issues) {
+var STANDARD = { vehicles: VEHICLES, costs: DEFAULT_COST, defaultId: "semi" };
+function vehicleOf(v, k, path, issues, cat) {
   if (typeof v === "string") {
-    const found = VEHICLES.find((c) => c.id === v);
-    if (!found) issues.push({ path, message: `V\xE9hicule inconnu \xAB ${v} \xBB. Connus : ${VEHICLES.map((c) => c.id).join(", ")}, ou dimensions sur mesure.` });
+    const found = cat.vehicles.find((c) => c.id === v);
+    if (!found) issues.push({ path, message: `V\xE9hicule inconnu \xAB ${v} \xBB. Connus : ${cat.vehicles.map((c) => c.id).join(", ")}, ou dimensions sur mesure.` });
     return found ?? null;
   }
   if (isObj(v)) return customVehicle(v, k, path, issues);
   issues.push({ path, message: 'V\xE9hicule : identifiant (ex. "semi") ou objet { length, width, height, max_weight }.' });
   return null;
 }
-function parseShipment(body) {
+function parseShipment(body, catalog = null) {
+  const cat = catalog ?? STANDARD;
   const issues = [];
   if (!isObj(body)) return { ok: false, issues: [{ path: "", message: "Corps JSON attendu (objet)." }] };
   const reference = str(body.reference, 80);
@@ -93,18 +95,18 @@ function parseShipment(body) {
     if (!Array.isArray(body.fleet) || body.fleet.length === 0) issues.push({ path: "fleet", message: "Liste non vide de v\xE9hicules disponibles." });
     else {
       const fleet = body.fleet.slice(0, 10).map((f, i) => {
-        const v = vehicleOf(isObj(f) && "vehicle" in f ? f.vehicle : f, toMm, `fleet[${i}]`, issues);
-        const cost = isObj(f) && f.cost != null ? num(f.cost) : DEFAULT_COST[v?.id ?? ""] ?? 500;
+        const v = vehicleOf(isObj(f) && "vehicle" in f ? f.vehicle : f, toMm, `fleet[${i}]`, issues, cat);
+        const cost = isObj(f) && f.cost != null ? num(f.cost) : cat.costs[v?.id ?? ""] ?? 500;
         if (!(cost >= 0)) issues.push({ path: `fleet[${i}].cost`, message: "Co\xFBt par voyage \u2265 0." });
         return v ? { container: v, cost, enabled: true } : null;
       }).filter((x) => !!x);
       input = { ...input, vehicleMode: "fleet", fleetVehicles: fleet };
     }
   } else {
-    const v = vehicleOf(body.vehicle ?? "semi", toMm, "vehicle", issues);
+    const v = vehicleOf(body.vehicle ?? cat.defaultId, toMm, "vehicle", issues, cat);
     if (v) {
-      const preset2 = VEHICLES.find((c) => c.id === v.id && c.length === v.length);
-      input = preset2 && CONTAINER_PRESETS.some((c) => c.id === v.id) ? { ...input, containerId: v.id } : { ...input, containerId: "custom", custom: { label: v.label, length: v.length / 10, width: v.width / 10, height: v.height / 10, maxWeight: v.maxWeight ?? "" } };
+      const known = cat.vehicles.find((c) => c.id === v.id && c.length === v.length);
+      input = known && catalog ? { ...input, containerId: v.id, vehicle: known } : known && CONTAINER_PRESETS.some((c) => c.id === v.id) ? { ...input, containerId: v.id } : { ...input, containerId: "custom", custom: { label: v.label, length: v.length / 10, width: v.width / 10, height: v.height / 10, maxWeight: v.maxWeight ?? "" } };
     }
   }
   if (!Array.isArray(body.lines) || body.lines.length === 0) issues.push({ path: "lines", message: "Liste non vide de lignes (colis ou palettes)." });
@@ -176,6 +178,61 @@ function parseShipment(body) {
   };
 }
 
+// src/outils/optimiseur-chargement/engine/balance.ts
+var DEFAULT_LASHING = { mu: 0.3, stfDaN: 400, angleDeg: 90, forwardBlocked: true };
+
+// src/outils/palettisation/engine/presets.ts
+var PALLET_PRESETS = [
+  { id: "eur", label: N_("EUR / EPAL 120\xD780"), length: 1200, width: 800, deckHeight: 144, tare: 25, maxTotalHeight: 1800, maxLoad: 1e3 },
+  { id: "eur3", label: N_("EUR3 / ISO 120\xD7100"), length: 1200, width: 1e3, deckHeight: 144, tare: 30, maxTotalHeight: 1800, maxLoad: 1e3 },
+  { id: "half", label: N_("Demi-palette 80\xD760"), length: 800, width: 600, deckHeight: 144, tare: 10, maxTotalHeight: 1200, maxLoad: 500 },
+  { id: "gma", label: N_("US GMA 48\xD740 in"), length: 1219, width: 1016, deckHeight: 140, tare: 23, maxTotalHeight: 1800, maxLoad: 1e3 },
+  { id: "asia", label: N_("Asie 110\xD7110"), length: 1100, width: 1100, deckHeight: 144, tare: 25, maxTotalHeight: 1800, maxLoad: 1e3 }
+];
+var DEFAULT_PALLET = PALLET_PRESETS[0];
+
+// src/shared/references/defaults.ts
+var n = (v, d = 0) => Number.isFinite(Number(v)) ? Number(v) : d;
+function toToolReferences(items) {
+  const by = (k) => items.filter((i) => i.kind === k).sort((a, b) => a.sort - b.sort || a.label.localeCompare(b.label));
+  const vehicles = by("vehicle").map((i) => {
+    const d = i.data;
+    const container = {
+      id: i.code,
+      label: i.label,
+      length: n(d.length),
+      width: n(d.width),
+      height: n(d.height),
+      maxWeight: d.maxWeight == null || d.maxWeight === "" ? null : n(d.maxWeight)
+    };
+    return {
+      container,
+      cost: n(d.cost),
+      inFleet: !!d.inFleet,
+      active: i.active,
+      axle: d.axle ? { ...d.axle, kind: "TWO_SUPPORTS" } : null
+    };
+  });
+  const pallets = by("pallet").map((i) => {
+    const d = i.data;
+    return {
+      id: i.code,
+      label: i.label,
+      length: n(d.length),
+      width: n(d.width),
+      deckHeight: n(d.deckHeight),
+      tare: n(d.tare),
+      maxTotalHeight: n(d.maxTotalHeight),
+      maxLoad: n(d.maxLoad),
+      ...d.cost != null && d.cost !== "" ? { cost: n(d.cost) } : {},
+      available: i.active
+    };
+  });
+  const lashingItem = items.find((i) => i.kind === "setting" && i.code === "lashing");
+  const lashing = { ...DEFAULT_LASHING, ...lashingItem?.data ?? {} };
+  return { vehicles, pallets, lashing };
+}
+
 // src/outils/optimiseur-chargement/constants/engine-config.ts
 var MIN_SUPPORT_RATIO = 0.8;
 var EPS = 1e-6;
@@ -196,8 +253,8 @@ var DELIVERY = {
 // src/outils/optimiseur-chargement/engine/delivery.ts
 var DEFAULT_STOP = 1;
 function normalizeStop(stop) {
-  const n = Math.round(Number(stop));
-  return Number.isFinite(n) && n >= 1 ? n : DEFAULT_STOP;
+  const n2 = Math.round(Number(stop));
+  return Number.isFinite(n2) && n2 >= 1 ? n2 : DEFAULT_STOP;
 }
 function overlapYZ(a, b) {
   return Math.min(a.y + a.width, b.y + b.width) - Math.max(a.y, b.y) > EPS && Math.min(a.z + a.height, b.z + b.height) - Math.max(a.z, b.z) > EPS;
@@ -215,9 +272,9 @@ function countBlockers(box, later, laterMaxX) {
   if (box.x >= laterMaxX - EPS) {
     return 0;
   }
-  let n = 0;
-  for (const p of later) if (blocks(p, box)) n++;
-  return n;
+  let n2 = 0;
+  for (const p of later) if (blocks(p, box)) n2++;
+  return n2;
 }
 function findBlockedItems(placed) {
   const out = [];
@@ -391,8 +448,8 @@ var STRATEGIES = [
 
 // src/outils/optimiseur-chargement/engine/loading.ts
 var positiveOrNull = (v) => {
-  const n = Number(v);
-  return v === null || v === void 0 || !Number.isFinite(n) || n <= 0 ? null : n;
+  const n2 = Number(v);
+  return v === null || v === void 0 || !Number.isFinite(n2) || n2 <= 0 ? null : n2;
 };
 function autoWallDepth(items) {
   let d = 0;
@@ -862,8 +919,8 @@ function cheapestFor(segs, vehicles, ctx) {
   return best;
 }
 function partitionSegments(segments, vehicles, ctx) {
-  const n = segments.length;
-  if (n === 0) return { trucks: [], cost: 0, count: 0, gaps: 0 };
+  const n2 = segments.length;
+  if (n2 === 0) return { trucks: [], cost: 0, count: 0, gaps: 0 };
   const truckOf = (segs, v, r) => summarize(segs.flatMap((s) => s.defs), v, r, segs.some((s) => s.partial));
   const maxW = Math.max(...vehicles.map((v) => v.container.maxWeight ?? Infinity));
   const maxV = Math.max(...vehicles.map((v) => capVol(v.container)));
@@ -871,7 +928,7 @@ function partitionSegments(segments, vehicles, ctx) {
   const vol = segments.map((s) => s.defs.reduce((a, d) => a + volOf(d), 0));
   let result = better(contiguous(segments, vehicles, ctx, truckOf), firstFit(segments, vehicles, ctx, truckOf, w));
   const deadline = now() + ctx.budgetMs;
-  if (n <= 10) try {
+  if (n2 <= 10) try {
     const memo = /* @__PURE__ */ new Map();
     const groupCache = /* @__PURE__ */ new Map();
     const segsOf = (mask) => segments.filter((_, i) => mask & 1 << i);
@@ -879,7 +936,7 @@ function partitionSegments(segments, vehicles, ctx) {
       if (!groupCache.has(mask)) {
         if (now() > deadline) throw new Error("budget");
         let sw = 0, sv = 0;
-        for (let i = 0; i < n; i++) if (mask & 1 << i) {
+        for (let i = 0; i < n2; i++) if (mask & 1 << i) {
           sw += w[i];
           sv += vol[i];
         }
@@ -908,16 +965,16 @@ function partitionSegments(segments, vehicles, ctx) {
       memo.set(rest, best);
       return best;
     };
-    result = better(result, solveMask((1 << n) - 1));
+    result = better(result, solveMask((1 << n2) - 1));
   } catch {
   }
   return result;
 }
 function contiguous(segments, vehicles, ctx, truckOf) {
-  const n = segments.length;
-  const best = Array.from({ length: n + 1 }, () => null);
+  const n2 = segments.length;
+  const best = Array.from({ length: n2 + 1 }, () => null);
   best[0] = { trucks: [], cost: 0, count: 0, gaps: 0 };
-  for (let j = 1; j <= n; j++) {
+  for (let j = 1; j <= n2; j++) {
     for (let i = j; i >= 1; i--) {
       if (!best[i - 1]) continue;
       const segs = segments.slice(i - 1, j);
@@ -927,7 +984,7 @@ function contiguous(segments, vehicles, ctx, truckOf) {
       best[j] = better(best[j], { trucks: [...prev.trucks, truckOf(segs, g.v, g.r)], cost: prev.cost + g.v.cost, count: prev.count + 1, gaps: prev.gaps });
     }
   }
-  return best[n];
+  return best[n2];
 }
 function firstFit(segments, vehicles, ctx, truckOf, w) {
   const order = segments.map((_, i) => i).sort((a, b) => w[b] - w[a]);
@@ -1028,14 +1085,14 @@ function b32Decode(str2) {
   return new Uint8Array(out);
 }
 var PERMS = [[0, 1, 2], [0, 2, 1], [1, 0, 2], [1, 2, 0], [2, 0, 1], [2, 1, 0]];
-var zig = (n) => n < 0 ? -n * 2 - 1 : n * 2;
-var unzig = (n) => n & 1 ? -(n + 1) / 2 : n / 2;
-function pushVarint(out, n) {
-  while (n > 127) {
-    out.push(n & 127 | 128);
-    n = Math.floor(n / 128);
+var zig = (n2) => n2 < 0 ? -n2 * 2 - 1 : n2 * 2;
+var unzig = (n2) => n2 & 1 ? -(n2 + 1) / 2 : n2 / 2;
+function pushVarint(out, n2) {
+  while (n2 > 127) {
+    out.push(n2 & 127 | 128);
+    n2 = Math.floor(n2 / 128);
   }
-  out.push(n);
+  out.push(n2);
 }
 async function encodePlan(container, placed, unitIdOf = () => null, lang = "fr") {
   const ordered = [...placed].sort((a, b) => a.sequence - b.sequence);
@@ -1114,14 +1171,14 @@ function decodeV2(raw) {
   const head = JSON.parse(new TextDecoder().decode(raw.slice(0, zero)));
   let pos = zero + 1;
   const read = () => {
-    let n = 0, mul = 1, b;
+    let n2 = 0, mul = 1, b;
     do {
       b = raw[pos++];
       if (b === void 0) throw new Error("Lien de chargement invalide");
-      n += (b & 127) * mul;
+      n2 += (b & 127) * mul;
       mul *= 128;
     } while (b & 128);
-    return n;
+    return n2;
   };
   const N = head.N;
   const cols = {};
@@ -1340,7 +1397,9 @@ function rowsToDefinitions(rows) {
 var LOADING = { mode: "WALLS" };
 var labelOf = (c) => c.label;
 function containerOf(input) {
-  if (input.containerId !== "custom") return CONTAINER_PRESETS.find((c2) => c2.id === input.containerId);
+  if (input.vehicle && input.vehicle.id === input.containerId) return input.vehicle;
+  const preset2 = CONTAINER_PRESETS.find((c2) => c2.id === input.containerId);
+  if (input.containerId !== "custom" && preset2) return preset2;
   const c = input.custom;
   return {
     id: "custom",
@@ -1363,17 +1422,17 @@ async function computePlan(input) {
       const label = `${t2.index}. ${labelOf(t2.container)}`;
       guides.push({ index: t2.index, label, units: r.placedItems.length, guide: await encodePlan({ ...t2.container, label }, r.placedItems) });
     }
-    const n = fleet.trucks.length;
+    const n2 = fleet.trucks.length;
     const byVehicle = Object.entries(fleet.trucks.reduce((m, t2) => {
       m[t2.container.label] = (m[t2.container.label] ?? 0) + 1;
       return m;
     }, {}));
-    const summary = n ? {
+    const summary = n2 ? {
       vehicle: byVehicle.map(([l, k]) => `${k} \xD7 ${l}`).join(" + "),
-      fleet: n,
+      fleet: n2,
       packed: fleet.trucks.reduce((s, t2) => s + t2.units, 0),
       unpacked: fleet.unplaced.reduce((s, u) => s + u.quantity, 0),
-      fill: fleet.trucks.reduce((s, t2) => s + t2.volumeUtilization, 0) / n,
+      fill: fleet.trucks.reduce((s, t2) => s + t2.volumeUtilization, 0) / n2,
       weight: fleet.trucks.reduce((s, t2) => s + t2.weight, 0),
       edited: false
     } : { vehicle: "\u2014", fleet: 0, packed: 0, unpacked: fleet.unplaced.reduce((s, u) => s + u.quantity, 0), fill: 0, weight: 0, edited: false };
@@ -1543,6 +1602,16 @@ async function shipmentOf(s, site) {
 }
 
 // src/api/v1/handler.ts
+async function catalogOf(db, org) {
+  const items = db.references ? await db.references(org).catch(() => []) : [];
+  const vehicles = toToolReferences(items).vehicles.filter((v) => v.active);
+  if (!vehicles.length) return null;
+  return {
+    vehicles: vehicles.map((v) => v.container),
+    costs: Object.fromEntries(vehicles.map((v) => [v.container.id, v.cost])),
+    defaultId: (vehicles.find((v) => v.container.id === "semi") ?? vehicles[0]).container.id
+  };
+}
 var STATUSES = ["new", "in_progress", "validated", "sent", "partially_loaded", "loaded", "cancelled"];
 var err = (status, code, message, details) => ({ status, body: { error: { code, message, ...details ? { details } : {} } } });
 async function sha256Hex(s) {
@@ -1569,7 +1638,7 @@ async function handle(req, db, site = "https://atelierlogistique.com") {
   try {
     if (parts[0] !== "shipments") res = err(404, "not_found", `Route inconnue : ${req.method} /v1${path}`);
     else if (parts.length === 1 && req.method === "POST") {
-      const parsed = parseShipment(req.body);
+      const parsed = parseShipment(req.body, await catalogOf(db, org));
       if (!parsed.ok) res = err(422, "invalid_request", "Chargement invalide : voir details.", parsed.issues);
       else {
         const v = parsed.value;
@@ -1651,7 +1720,8 @@ var supabaseDb = {
     if (q.updatedSince) query = query.gt("updated_at", q.updatedSince);
     const rows = must(await query);
     return rows.map(({ summary, ...r }) => ({ ...r, input: null, result: summary ? { summary } : null }));
-  }
+  },
+  references: async (org) => must(await sb().from("reference_items").select("kind, code, label, data, active, sort").eq("org_id", org))
 };
 async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");

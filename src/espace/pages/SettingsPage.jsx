@@ -1,18 +1,20 @@
 // /app/parametres : tout le paramétrage, en onglets.
-//   Entreprise · Équipe · API et notifications · Mon compte
+//   Entreprise · Tables de référence · Équipe · API et notifications · Mon compte
 
 import { useEffect, useState } from 'react';
 import { NavLink, Navigate, Route, Routes, useNavigate } from 'react-router-dom';
-import { Building2, UserRound, LogOut, Save, Loader2, Users, KeyRound } from 'lucide-react';
+import { Building2, UserRound, LogOut, Save, Loader2, Users, KeyRound, Database } from 'lucide-react';
 import { useEspace } from '../useEspace';
 import { renameOrganization, signOut, ROLES } from '../data';
 import { PageHeader, Btn } from '../ui';
 import PasswordForm, { hasPassword } from '../PasswordForm';
 import TeamPage from './TeamPage';
 import ApiKeysPage from './ApiKeysPage';
+import ReferencesPage from './ReferencesPage';
 
 export const SETTINGS_TABS = [
   { to: '/app/parametres', end: true, icon: Building2, label: 'Entreprise' },
+  { to: '/app/parametres/references', icon: Database, label: 'Tables de référence' },
   { to: '/app/parametres/equipe', icon: Users, label: 'Équipe' },
   { to: '/app/parametres/api', icon: KeyRound, label: 'API et notifications' },
   { to: '/app/parametres/compte', icon: UserRound, label: 'Mon compte' },
@@ -73,6 +75,7 @@ export default function SettingsPage() {
       </PageHeader>
       <Routes>
         <Route index element={<div className="px-5 sm:px-8 py-6"><CompanyTab /></div>} />
+        <Route path="references/*" element={<ReferencesPage />} />
         <Route path="equipe" element={<TeamPage inSettings />} />
         <Route path="api" element={<ApiKeysPage inSettings />} />
         <Route path="compte" element={<div className="px-5 sm:px-8 py-6"><AccountTab /></div>} />
