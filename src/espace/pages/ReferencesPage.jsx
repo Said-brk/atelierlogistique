@@ -97,9 +97,13 @@ const AGENCY_FIELDS = [
   { key: 'active', label: 'Proposée dans les listes de destinations', type: 'bool' },
 ];
 
+export const WEEKDAYS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+const daysText = (days) => (days?.length ? [...days].sort().map((d) => WEEKDAYS[d - 1]).join(', ') : '—');
+
 const TOUR_FIELDS = [
   { key: 'code', label: 'Code', type: 'text', hint: 'Ex. T-NORD, 69-01.' },
   { key: 'label', label: 'Nom de la tournée', type: 'text', wide: true },
+  { key: 'days', label: 'Jours de préparation / expédition', type: 'days', wide: true, hint: 'Affichés dans le calendrier des chargements.' },
   { key: 'sort', label: 'Ordre d’affichage', type: 'num' },
   { key: 'active', label: 'Active', type: 'bool' },
 ];
@@ -119,6 +123,7 @@ const TOUR_COLUMNS = (admin, patch, items) => [
   { key: 'code', h: 'Code', cell: (i) => <span className="font-jetbrains text-xs text-blue-700">{i.code}</span> },
   { key: 'label', h: 'Tournée', min: 120, cell: (i) => <span className="font-medium text-slate-900">{i.label}</span> },
   { key: 'stops', h: 'Agences, dans l’ordre de livraison', min: 160, cell: (i) => { const a = agenciesOf(items, i.code); return a.length ? <span className="text-xs">{a.map((x) => x.code).join(' → ')}</span> : <span className="text-xs text-slate-400">aucune : rattachez des agences (onglet Agences)</span>; } },
+  { key: 'days', h: 'Jours', cell: (i) => <span className="text-xs whitespace-nowrap">{daysText(i.data.days)}</span> },
   { key: 'n', h: 'Agences', cell: (i) => agenciesOf(items, i.code).length },
   { key: 'active', h: 'Active', cell: (i) => toggle(i.active, () => patch(i, { active: !i.active }), !admin, 'Active') },
 ];
@@ -157,7 +162,7 @@ function formOf(item, fields) {
   for (const f of fields) {
     if (f.key === 'axleMode') continue;
     const raw = TOP.includes(f.key) ? item[f.key] : f.key.startsWith('axle.') ? axle[f.key.slice(5)] : item.data?.[f.key];
-    v[f.key] = f.type === 'bool' ? !!raw : raw == null ? '' : f.type === 'cm' ? String(Math.round(raw) / 10) : String(raw);
+    v[f.key] = f.type === 'days' ? (Array.isArray(raw) ? raw : []) : f.type === 'bool' ? !!raw : raw == null ? '' : f.type === 'cm' ? String(Math.round(raw) / 10) : String(raw);
   }
   return v;
 }
@@ -196,6 +201,24 @@ function itemOf(base, form, fields) {
 
 function Field({ f, value, onChange, error, disabled, items = [] }) {
   const options = typeof f.options === 'function' ? f.options(items) : f.options;
+  if (f.type === 'days') {
+    const set = new Set(value ?? []);
+    return (
+      <div className="sm:col-span-2 text-xs text-slate-500">{f.label}
+        <div className="mt-1 flex flex-wrap gap-1.5">
+          {WEEKDAYS.map((d, i) => {
+            const on = set.has(i + 1);
+            return (
+              <button key={d} type="button" disabled={disabled}
+                onClick={() => { const n = new Set(set); if (on) n.delete(i + 1); else n.add(i + 1); onChange([...n].sort()); }}
+                className={`w-12 py-1.5 rounded-lg border text-sm ${on ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-slate-300 text-slate-600'} disabled:opacity-60`}>{d}</button>
+            );
+          })}
+        </div>
+        {f.hint && <span className="block mt-0.5 text-slate-400">{f.hint}</span>}
+      </div>
+    );
+  }
   if (f.type === 'bool') {
     return (
       <label className="sm:col-span-2 flex items-center gap-2 text-sm text-slate-700">

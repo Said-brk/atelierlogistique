@@ -230,7 +230,11 @@ function toToolReferences(items) {
   });
   const lashingItem = items.find((i) => i.kind === "setting" && i.code === "lashing");
   const lashing = { ...DEFAULT_LASHING, ...lashingItem?.data ?? {} };
-  const tours = by("tour").filter((i) => i.active).map((i) => ({ code: i.code, label: i.label }));
+  const tours = by("tour").filter((i) => i.active).map((i) => ({
+    code: i.code,
+    label: i.label,
+    days: (Array.isArray(i.data.days) ? i.data.days : []).map(Number).filter((d) => d >= 1 && d <= 7).sort()
+  }));
   const tourCodes = new Set(tours.map((t2) => t2.code));
   const agencies = by("agency").filter((i) => i.active).map((i) => {
     const d = i.data;

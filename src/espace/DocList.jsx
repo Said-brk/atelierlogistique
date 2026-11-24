@@ -10,7 +10,7 @@ import ResizableTable from './ResizableTable';
 
 const TABS = [['', 'Tous'], ['new', 'Nouveaux'], ['in_progress', 'En cours'], ['validated', 'Validés'], ['sent', 'Envoyés'], ['partially_loaded', 'En partie'], ['loaded', 'Chargés']];
 
-export default function DocList({ title, subtitle, newLabel, newPath, basePath, fetch, columns, docTitle, searchFields = ['code', 'label', 'external_id'] }) {
+export default function DocList({ title, subtitle, newLabel, newPath, basePath, fetch, columns, docTitle, searchFields = ['code', 'label', 'external_id'], headerExtra = null }) {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const status = params.get('statut') ?? '';
@@ -37,7 +37,7 @@ export default function DocList({ title, subtitle, newLabel, newPath, basePath, 
 
   return (
     <>
-      <PageHeader title={title} subtitle={subtitle} actions={<Btn onClick={() => navigate(newPath)}><Plus size={15} /> {newLabel}</Btn>}>
+      <PageHeader title={title} subtitle={subtitle} actions={<>{headerExtra}<Btn onClick={() => navigate(newPath)}><Plus size={15} /> {newLabel}</Btn></>}>
         <div className="px-5 sm:px-8 flex gap-1 overflow-x-auto">
           {TABS.map(([v, l]) => {
             const n = v ? rows?.filter((r) => r.status === v).length : rows?.length;
