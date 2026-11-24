@@ -6,6 +6,7 @@ import {
   RotateCcw, Check, ArrowRight, Boxes, Upload, Download,
   MapPin, Undo2, Printer, Scale, ChevronDown,
   QrCode as QrCodeIcon, Pencil,
+  Lock,
 } from 'lucide-react';
 
 const LoadView3D = lazy(() => import('./LoadView3D.jsx'));
@@ -456,6 +457,8 @@ function Kpi({ label, value, sub }) {
  */
 export default function LoadOptimizer({ onBack, workspace = null }) {
   const embedded = !!workspace;
+  // Espace : chargement envoyé au quai / chargé → saisie, flotte et plan figés (message affiché), rouvrir pour modifier.
+  const locked = workspace?.locked ?? null;
   // Sans compte : brouillon dans ce navigateur (saisie + dernier plan), retrouvé en revenant sur la page.
   const draft = useLocalDraft('al.draft.chargement', !workspace);
   const init = (workspace ?? draft)?.initial ?? {};
@@ -516,6 +519,7 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
   );
   useEffect(() => { if (!rawResult) setEditMode(false); }, [rawResult]);
   const startEdit = () => {
+    if (locked) return;
     setEditMode(true); setView3d(true); setShiftMm(0); setLoadedUpToWall(null); setUnloadedUpTo(0); setHighlight(null);
     track('load_optimizer_manual_edit');
   };
@@ -785,7 +789,7 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
   };
 
   const optimize = () => {
-    if (!valid) return;
+    if (!valid || locked) return;
     if (vehicleMode === 'fleet') { optimizeFleet(); return; }
     track('load_optimizer_calculation_started', { references: rows.length, units: totals.units, container: containerId, stops: stops.length });
     runWith(excludedStops);
@@ -957,7 +961,13 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
       <div className={`max-w-[1600px] mx-auto px-4 sm:px-6 py-4 ${status !== 'done' ? 'pb-24 xl:pb-4' : ''}`}>
         <div className="space-y-4 sm:space-y-5">
 
-          {/* 1. Marchandises : pleine largeur */}
+          {locked && (
+            <div className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm text-violet-900 flex items-start gap-2">
+              <Lock size={16} className="mt-0.5 shrink-0" /><span>{locked}</span>
+            </div>
+          )}
+          {/* 1. Marchandises : pleine largeur (figées une fois le chargement envoyé au quai) */}
+          <fieldset disabled={!!locked} className="min-w-0 disabled:opacity-70">
           <div className="rounded-xl border border-slate-200 overflow-hidden bg-white">
             <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <button type="button" onClick={() => setGoodsOpen((o) => !o)} aria-expanded={goodsOpen}
@@ -993,9 +1003,11 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
             )}
             {goodsOpen && <ColisTable rows={rows} updateRow={updateRow} updateStacking={updateStacking} removeRow={removeRow} addRow={addRow} />}
           </div>
+          </fieldset>
 
 
           {/* 2. Véhicule + récapitulatif / action */}
+          <fieldset disabled={!!locked} className="min-w-0 disabled:opacity-70">
           <div className="grid grid-cols-1 xl:grid-cols-5 gap-4 sm:gap-5 items-start">
             <div className="xl:col-span-3">
               <div className="rounded-xl border border-slate-200 overflow-hidden bg-white">
@@ -1136,12 +1148,13 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
 
             </div>
           </div>
+          </fieldset>
 
           {/* Flotte proposée (mode Flotte automatique) */}
           {vehicleMode === 'fleet' && fleetStatus === 'done' && fleetPlan && (
             <div ref={fleetRef} className="scroll-mt-20 rounded-xl transition-shadow duration-700"
               style={fleetFlash ? { boxShadow: '0 0 0 3px #F59E0B, 0 10px 30px -10px rgba(245,158,11,0.6)' } : undefined}>
-              <FleetResult plan={fleetPlan} viewing={viewingTruck} onView={viewTruck} />
+              <FleetResult plan={fleetPlan} viewing={viewingTruck} onView={viewTruck} trucks={workspace?.trucks} locked={!!locked} />
             </div>
           )}
 
@@ -1155,11 +1168,11 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
                       <span className="flex items-center gap-2 shrink-0"><Box size={13} />{' '}{tr('PLAN')}<span className="hidden sm:inline">{' '}{tr('DE CHARGEMENT')}</span></span>
                       {/* Téléphone : actions sous le titre, alignées à gauche ; écran large : à droite du titre. */}
                       <div className="w-full sm:w-auto flex flex-wrap items-center gap-1.5 sm:gap-2 sm:justify-end">
-                        <button onClick={() => (editMode ? setEditMode(false) : startEdit())}
+                        {!locked && <button onClick={() => (editMode ? setEditMode(false) : startEdit())}
                           className="flex items-center gap-1 font-jetbrains text-[10px] px-2 py-1 rounded-md"
                           style={editMode ? { background: '#F59E0B', color: '#0F172A', fontWeight: 600 } : { background: '#FEF3C7', color: '#92400E' }}
                           title={tr('Déplacer, pivoter ou retirer des colis à la main')}>
-                          <Pencil size={11} />{' '}{editMode ? tr('Terminer') : manual.edited ? tr('Modifié · reprendre') : tr('Modifier')}</button>
+                          <Pencil size={11} />{' '}{editMode ? tr('Terminer') : manual.edited ? tr('Modifié · reprendre') : tr('Modifier')}</button>}
                         <button onClick={printSheet} className="flex items-center gap-1 font-jetbrains text-[10px] px-2 py-1 rounded-md" style={{ background: BLUE_LIGHT, color: BLUE }} title={tr('Imprimer ou enregistrer en PDF la fiche de chargement (ordre de chargement, arrêt par arrêt)')}><Printer size={11} />{' '}{tr('Fiche')}</button>
                         {multiStopResult && (
                           <div className="flex items-center gap-0.5 p-0.5 rounded-md" style={{ background: '#F1F5F9' }} title={tr('Couleur des colis — Réf. : par produit · Arrêt : par destination · Les 2 : remplissage = produit, contour = destination')}>
@@ -1298,7 +1311,7 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
                         </button>
                         <button onClick={printSheet} className="flex items-center justify-center gap-1.5 py-2 rounded-lg font-jetbrains text-xs" style={{ background: BLUE_LIGHT, color: BLUE }}>
                           <Printer size={13} />{' '}{tr('Fiche PDF')}</button>
-                        <button onClick={optimize} className="flex items-center justify-center gap-1.5 py-2 rounded-lg font-jetbrains text-xs text-slate-600 border border-slate-200 bg-white hover:text-slate-900">
+                        <button onClick={optimize} disabled={!!locked} className="flex items-center justify-center gap-1.5 py-2 rounded-lg font-jetbrains text-xs text-slate-600 border border-slate-200 bg-white hover:text-slate-900 disabled:opacity-40">
                           <RotateCcw size={13} />{' '}{tr('Relancer')}</button>
                       </div>
                     </div>

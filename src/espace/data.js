@@ -8,6 +8,7 @@ export const STATUS = {
   in_progress: { label: 'En cours', color: '#B45309', bg: '#FFFBEB' },
   validated: { label: 'Validé', color: '#15803D', bg: '#F0FDF4' },
   sent: { label: 'Envoyé', color: '#0F766E', bg: '#F0FDFA' },
+  partially_loaded: { label: 'Chargé en partie', color: '#7C3AED', bg: '#FAF5FF' },
   loaded: { label: 'Chargé', color: '#6D28D9', bg: '#F5F3FF' },
   cancelled: { label: 'Annulé', color: '#64748B', bg: '#F1F5F9' },
 };
@@ -288,6 +289,7 @@ export async function apiUsage(orgId) {
 export const WEBHOOK_EVENTS = [
   { id: 'shipment.validated', label: 'Chargement validé' },
   { id: 'shipment.sent', label: 'Envoyé au quai' },
+  { id: 'shipment.partially_loaded', label: 'Chargé en partie (flotte)' },
   { id: 'shipment.loaded', label: 'Chargé (photo du cariste)' },
   { id: 'shipment.cancelled', label: 'Annulé' },
   { id: 'shipment.reopened', label: 'Rouvert (après validation)' },
@@ -363,3 +365,13 @@ export async function loadingProofs(shipmentId) {
   const urlOf = Object.fromEntries((signed ?? []).map((x) => [x.path, x.signedUrl]));
   return data.map((l) => ({ ...l, urls: l.photos.map((p) => urlOf[p]).filter(Boolean) }));
 }
+
+/** Statut seul (léger) : suivi du chargement au quai pendant que la page est ouverte. */
+export async function shipmentStatus(id) {
+  const sb = await getSupabase();
+  const { data, error } = await sb.from('shipments').select('status, loaded_at, version, updated_at').eq('id', id).maybeSingle();
+  fail(error);
+  return data;
+}
+/** Chargements au quai : contenu figé (le verrou est aussi dans la base). */
+export const DOCK_STATUSES = ['sent', 'partially_loaded', 'loaded'];

@@ -127,5 +127,12 @@ export default function useDocEditor({ code, load, update, titleOf, autosaveMs =
   // En quittant l'éditeur (autre page de l'espace) : on enregistre ce qui restait.
   useEffect(() => () => { if (dirtyRef.current) saveRef.current(); }, []);
 
-  return { doc, meta, setMeta, saving, error, dirty, savedAt, summary, onChange, save };
+  /** Met à jour le statut seul (fetchStatus → { status, loaded_at, version, updated_at }), sans toucher à la saisie. */
+  const refreshStatus = useCallback(async (fetchStatus) => {
+    if (inFlight.current) return;
+    const st = await fetchStatus().catch(() => null);
+    if (st && docRef.current && st.status !== docRef.current.status) setDoc((d) => (d ? { ...d, ...st } : d));
+  }, []);
+
+  return { doc, meta, setMeta, saving, error, dirty, savedAt, summary, onChange, save, refreshStatus };
 }
