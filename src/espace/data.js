@@ -410,3 +410,43 @@ export async function resetReferences(orgId, kind) {
   const { error } = await sb.rpc('reset_reference_items', { p_org: orgId, p_kind: kind });
   fail(error);
 }
+
+// ---------------------------------------------------------------- Regroupement de chargements
+/** Statuts regroupables : pas encore au quai ni annulés. */
+export const CONSOLIDABLE = ['new', 'in_progress', 'validated'];
+
+/** Chargements datés à venir (depuis hier), avec leurs lignes, pour l'analyse des regroupements. */
+export async function datedShipments(orgId) {
+  const sb = await getSupabase();
+  const since = new Date(Date.now() - 864e5).toISOString().slice(0, 10);
+  const { data, error } = await sb.from('shipments').select(`id, code, label, external_id, status, departure_at, input, ${SUMMARY}`)
+    .eq('org_id', orgId).in('status', CONSOLIDABLE).gte('departure_at', since).order('departure_at').limit(300);
+  fail(error);
+  return data;
+}
+
+/**
+ * Regroupe des chargements : crée le chargement commun (lignes fusionnées, flotte déjà calculée), y rattache
+ * leurs palettisations, puis annule les chargements d'origine (libellé « → regroupé dans PL-… »). Renvoie le n°.
+ */
+export async function consolidateShipments(orgId, list, { rows, plan, summary, fleetVehicles }) {
+  const sb = await getSupabase();
+  const { data: created, error } = await sb.from('shipments').insert({
+    org_id: orgId, source: 'web', status: 'in_progress',
+    label: `Regroupement ${list.map((s) => s.code).join(' + ')}`,
+    departure_at: list[0].departure_at,
+    input: { rows, vehicleMode: 'fleet', deliveryMode: 'STRICT', excludedStops: [], containerId: 'semi',
+      custom: { label: 'Mon contenant', length: 600, width: 240, height: 240, maxWeight: '' }, fleetVehicles },
+    result: { summary, plan: { fleet: plan, guides: null } },
+  }).select('id, code').single();
+  fail(error);
+  const ids = list.map((s) => s.id);
+  const { error: e1 } = await sb.from('palletizations').update({ shipment_id: created.id }).in('shipment_id', ids);
+  fail(e1);
+  for (const s of list) {
+    const label = `${s.label ?? s.code} → regroupé dans ${created.code}`.slice(0, 200);
+    const { error: e2 } = await sb.from('shipments').update({ status: 'cancelled', label }).eq('id', s.id);
+    fail(e2);
+  }
+  return created.code;
+}
