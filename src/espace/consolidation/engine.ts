@@ -3,7 +3,10 @@
 // de l'entreprise). Une proposition n'apparaît que si le calcul « ensemble » coûte moins cher : l'écart compare
 // deux calculs réels de l'outil, jamais une situation supposée.
 //
-// Ensemble = une tournée : arrêts du premier chargement, puis ceux du second (ordre modifiable ensuite).
+// Ensemble = une tournée : arrêts dans l'ordre des agences de la tournée (tables de référence) quand toutes les
+// destinations sont des agences connues ; sinon ceux du premier chargement puis du second. Même agence = même arrêt.
+// Mode « par tournée » (Paramètres) : seuls des chargements dont toutes les destinations sont dans la même
+// tournée sont comparés.
 
 import { planFleet, type FleetPlan, type FleetVehicle } from '../../outils/optimiseur-chargement/engine/fleet';
 import { rowsToDefinitions } from '../../outils/optimiseur-chargement/uiHelpers';
@@ -27,7 +30,27 @@ export interface Suggestion {
   rows: Row[];                // lignes fusionnées (tournée A puis B)
   plan: FleetPlan;            // flotte calculée ensemble
 }
-export interface Analysis { separate: Record<string, Evaluation>; suggestions: Suggestion[]; skipped: string[] }
+export interface Analysis {
+  separate: Record<string, Evaluation>; suggestions: Suggestion[]; skipped: string[];
+  /** Tournée de chaque chargement : code, null (destination hors tournée) ou '*' (plusieurs tournées). */
+  tours: Record<string, string | null>;
+}
+export interface Agency { code: string; tour: string | null; order: number }
+export interface AnalyzeOptions {
+  maxPairs?: number;
+  mode?: 'free' | 'tour';
+  agencies?: Agency[];
+  onProgress?: (done: number, total: number) => void;
+}
+
+const destOf = (r: Row) => String(r.destination ?? '').trim();
+
+/** Tournée d'un chargement : toutes ses destinations dans la même tournée, sinon null / '*'. */
+export function tourOf(s: DayShipment, agencies: Map<string, Agency>): string | null {
+  const tours = new Set(validRows(s).map((r) => agencies.get(destOf(r))?.tour ?? null));
+  if (tours.has(null) || tours.size === 0) return null;
+  return tours.size === 1 ? [...tours][0] : '*';
+}
 
 const OPTS = { deliveryMode: 'STRICT' as const, loading: { mode: 'WALLS' as const } };
 const validRows = (s: DayShipment) => (s.input?.rows ?? []).filter((r) => r.reference?.trim() && r.quantity > 0 && r.length > 0 && r.width > 0 && r.height > 0);
@@ -36,19 +59,23 @@ const kg = (rows: Row[]) => rows.reduce((t, r) => t + (Number(r.weight) || 0) * 
 const capM3 = (c: ContainerDefinition) => (c.length * c.width * c.height) / 1e9;
 
 /** Lignes de plusieurs chargements en une tournée : ids préfixés, arrêts renumérotés à la suite. */
-export function mergeRows(list: DayShipment[]): Row[] {
-  const out: Row[] = [];
-  let offset = 0;
-  for (const s of list) {
-    const rows = validRows(s);
-    const stops = [...new Set(rows.map((r) => r.stop ?? 1))].sort((a, b) => a - b);
-    const map = new Map(stops.map((st, i) => [st, offset + i + 1]));
-    for (const r of rows) {
-      out.push({ ...r, id: `${s.code}:${r.id}`, stop: map.get(r.stop ?? 1)!, destination: r.destination || s.label || s.code, fromShipment: s.code });
-    }
-    offset += stops.length;
-  }
-  return out;
+export function mergeRows(list: DayShipment[], agencies: Map<string, Agency> = new Map()): Row[] {
+  // Clé d'arrêt : l'agence si elle est connue (même agence = même arrêt), sinon l'arrêt du chargement.
+  const keyOf = (s: DayShipment, r: Row) => (agencies.has(destOf(r)) ? `A:${destOf(r)}` : `S:${s.code}:${r.stop ?? 1}`);
+  const groups = new Map<string, { rank: number; ship: number; stop: number }>();
+  list.forEach((s, si) => validRows(s).forEach((r) => {
+    const k = keyOf(s, r);
+    if (groups.has(k)) return;
+    const a = agencies.get(destOf(r));
+    groups.set(k, { rank: a?.tour ? a.order : Number.MAX_SAFE_INTEGER, ship: si, stop: r.stop ?? 1 });
+  }));
+  // Ordre de la tournée si toutes les destinations y sont, sinon chargement par chargement.
+  const allRanked = [...groups.values()].every((g) => g.rank !== Number.MAX_SAFE_INTEGER);
+  const order = [...groups.entries()].sort(([, x], [, y]) => (allRanked ? x.rank - y.rank || x.ship - y.ship : x.ship - y.ship || x.stop - y.stop));
+  const stopOf = new Map(order.map(([k], i) => [k, i + 1]));
+  return list.flatMap((s) => validRows(s).map((r) => ({
+    ...r, id: `${s.code}:${r.id}`, stop: stopOf.get(keyOf(s, r))!, destination: r.destination || s.label || s.code, fromShipment: s.code,
+  })));
 }
 
 export function evaluate(rows: Row[], vehicles: FleetVehicle[]): { ev: Evaluation; plan: FleetPlan } {
@@ -69,8 +96,10 @@ export function evaluate(rows: Row[], vehicles: FleetVehicle[]): { ev: Evaluatio
  */
 export function analyzeDay(
   shipments: DayShipment[], vehicles: FleetVehicle[],
-  { maxPairs = 24, onProgress }: { maxPairs?: number; onProgress?: (done: number, total: number) => void } = {},
+  { maxPairs = 24, mode = 'free', agencies = [], onProgress }: AnalyzeOptions = {},
 ): Analysis {
+  const agencyMap = new Map(agencies.map((a) => [a.code, a]));
+  const tours = Object.fromEntries(shipments.map((s) => [s.code, tourOf(s, agencyMap)]));
   const usable = shipments.filter((s) => validRows(s).length > 0);
   const skipped = shipments.filter((s) => !usable.includes(s)).map((s) => s.code);
   const biggest = vehicles.reduce((m, v) => Math.max(m, capM3(v.container)), 0);
@@ -80,6 +109,10 @@ export function analyzeDay(
   const pairs: [DayShipment, DayShipment, number][] = [];
   for (let i = 0; i < usable.length; i++) {
     for (let j = i + 1; j < usable.length; j++) {
+      if (mode === 'tour') {
+        const t = tours[usable[i].code];
+        if (!t || t === '*' || t !== tours[usable[j].code]) continue;
+      }
       const rows = [...validRows(usable[i]), ...validRows(usable[j])];
       const v = volM3(rows);
       if (v <= biggest * 0.95 && kg(rows) <= heaviest) pairs.push([usable[i], usable[j], v / biggest]);
@@ -101,7 +134,7 @@ export function analyzeDay(
   const found: Suggestion[] = [];
   for (const [a, b] of tried) {
     const sa = separate[a.code]; const sb = separate[b.code];
-    const rows = mergeRows([a, b]);
+    const rows = mergeRows([a, b], agencyMap);
     const { ev, plan } = evaluate(rows, vehicles);
     onProgress?.(++done, total);
     if (!sa.ok || !sb.ok || !ev.ok) continue;
@@ -119,5 +152,5 @@ export function analyzeDay(
     s.codes.forEach((c) => used.add(c));
     return true;
   });
-  return { separate, suggestions, skipped };
+  return { separate, suggestions, skipped, tours };
 }

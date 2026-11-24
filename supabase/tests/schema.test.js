@@ -56,6 +56,9 @@ describe('schéma Supabase', () => {
     await as(A, `update reference_items set data = jsonb_set(data, '{length}', '13620') where org_id = $1 and code = 'semi'`, [orgA]);
     await as(A, `insert into reference_items(org_id, kind, code, label, data) values ($1, 'pallet', 'cp1', 'CP1 chimie', '{"length":1200,"width":1000}')`, [orgA]);
     ok((await as(A, `select count(*)::int n from reference_items where label = 'pirate'`)).rows[0].n === 0, 'B ne modifie pas A');
+    await as(A, `insert into reference_items(org_id, kind, code, label) values ($1, 'tour', 'T-NORD', 'Tournée Nord')`, [orgA]);
+    await as(A, `insert into reference_items(org_id, kind, code, label, data) values ($1, 'agency', 'LYO01', 'Agence Lyon', '{"tour":"T-NORD","order":1}')`, [orgA]);
+    ok((await as(A, `select count(*)::int n from reference_items where kind in ('agency', 'tour')`)).rows[0].n === 2, 'agences et tournées');
     await as(A, `select reset_reference_items($1, 'pallet')`, [orgA]);
     ok((await as(A, `select count(*)::int n from reference_items where kind = 'pallet'`)).rows[0].n === 5, 'retour aux supports par défaut');
     ok((await as(A, `select data->>'length' l from reference_items where code = 'semi'`)).rows[0].l === '13620', 'les autres tables ne bougent pas');

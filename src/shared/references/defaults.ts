@@ -1,5 +1,5 @@
 // Tables de référence d'une entreprise (espace connecté) : véhicules / contenants, supports de palettisation,
-// réglages d'arrimage. Valeurs par défaut = celles des outils publics ; elles sont copiées dans chaque
+// agences (destinations) et tournées, réglages (arrimage, regroupement). Valeurs par défaut = celles des outils publics ; elles sont copiées dans chaque
 // nouvelle entreprise (script SQL 20261124000008, vérifié par le test du schéma) puis modifiables.
 // Unités stockées : mm, kg, €.
 
@@ -11,7 +11,7 @@ import type { ContainerDefinition } from '../../outils/optimiseur-chargement/eng
 import { PALLET_PRESETS } from '../../outils/palettisation/engine/presets';
 import type { PalletSpec } from '../../outils/palettisation/engine/types';
 
-export type RefKind = 'vehicle' | 'pallet' | 'setting';
+export type RefKind = 'vehicle' | 'pallet' | 'agency' | 'tour' | 'setting';
 
 export interface RefItem {
   id?: string;
@@ -54,6 +54,8 @@ export function defaultReferences(): RefItem[] {
     out.push({ kind: 'pallet', code: id, label, data: { ...data }, active: PALLET_AVAILABLE.has(id), sort: (i + 1) * 10 });
   });
   out.push({ kind: 'setting', code: 'lashing', label: 'Arrimage', data: { ...DEFAULT_LASHING }, active: true, sort: 10 });
+  out.push({ kind: 'setting', code: 'consolidation', label: 'Regroupement', data: { mode: 'free' }, active: true, sort: 20 });
+  // Agences et tournées : propres à chaque entreprise, aucune valeur par défaut.
   return out;
 }
 
@@ -62,6 +64,11 @@ export interface ToolReferences {
   vehicles: { container: ContainerDefinition; cost: number; inFleet: boolean; active: boolean; axle: AxleProfile | null }[];
   pallets: (PalletSpec & { available: boolean })[];
   lashing: LashingParams;
+  /** Destinations connues (code = valeur saisie dans les lignes), avec leur tournée et leur rang dans la tournée. */
+  agencies: { code: string; label: string; city: string; tour: string | null; order: number }[];
+  tours: { code: string; label: string }[];
+  /** free : regroupement libre ; tour : seulement des chargements d'une même tournée. */
+  consolidation: { mode: 'free' | 'tour' };
 }
 
 const n = (v: unknown, d = 0) => (Number.isFinite(Number(v)) ? Number(v) : d);
@@ -89,5 +96,12 @@ export function toToolReferences(items: RefItem[]): ToolReferences {
   });
   const lashingItem = items.find((i) => i.kind === 'setting' && i.code === 'lashing');
   const lashing = { ...DEFAULT_LASHING, ...((lashingItem?.data ?? {}) as Partial<LashingParams>) };
-  return { vehicles, pallets, lashing };
+  const tours = by('tour').filter((i) => i.active).map((i) => ({ code: i.code, label: i.label }));
+  const tourCodes = new Set(tours.map((t) => t.code));
+  const agencies = by('agency').filter((i) => i.active).map((i) => {
+    const d = i.data as { city?: string; tour?: string | null; order?: number };
+    return { code: i.code, label: i.label, city: d.city ?? '', tour: d.tour && tourCodes.has(d.tour) ? d.tour : null, order: n(d.order) };
+  });
+  const cons = items.find((i) => i.kind === 'setting' && i.code === 'consolidation')?.data as { mode?: string } | undefined;
+  return { vehicles, pallets, lashing, agencies, tours, consolidation: { mode: cons?.mode === 'tour' ? 'tour' : 'free' } };
 }

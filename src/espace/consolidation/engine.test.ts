@@ -30,4 +30,21 @@ describe('regroupement de chargements', () => {
     const a = analyzeDay([ship('PL-A', [pal('1', 30, 'Lyon')]), ship('PL-B', [pal('1', 30, 'Paris')])], vehicles);
     expect(a.suggestions).toHaveLength(0);
   }, 60000);
+
+  it('par tournée : seulement des chargements de la même tournée, arrêts dans l’ordre des agences', () => {
+    const agencies = [{ code: 'LYO', tour: 'NORD', order: 2 }, { code: 'VIL', tour: 'NORD', order: 1 }, { code: 'GRE', tour: 'SUD', order: 1 }];
+    const day = [ship('PL-A', [pal('1', 5, 'LYO')]), ship('PL-B', [pal('1', 5, 'VIL')]), ship('PL-C', [pal('1', 5, 'GRE')])];
+    const a = analyzeDay(day, vehicles, { mode: 'tour', agencies });
+    expect(a.tours).toEqual({ 'PL-A': 'NORD', 'PL-B': 'NORD', 'PL-C': 'SUD' });
+    expect(a.suggestions.map((s) => s.codes)).toEqual([['PL-A', 'PL-B']]);
+    // Villefranche (rang 1) livrée avant Lyon (rang 2), même si PL-A est le premier chargement.
+    expect(a.suggestions[0].rows.map((r) => [r.destination, r.stop])).toEqual([['LYO', 2], ['VIL', 1]]);
+    // Libre : C peut aussi être regroupé avec un autre.
+    expect(analyzeDay(day, vehicles, { mode: 'free', agencies }).suggestions.length).toBeGreaterThanOrEqual(1);
+  }, 60000);
+
+  it('même agence dans deux chargements = un seul arrêt', () => {
+    const rows = mergeRows([ship('PL-A', [pal('1', 2, 'LYO')]), ship('PL-B', [pal('1', 2, 'LYO')])], new Map([['LYO', { code: 'LYO', tour: 'NORD', order: 1 }]]));
+    expect(rows.map((r) => r.stop)).toEqual([1, 1]);
+  });
 });

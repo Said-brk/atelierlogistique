@@ -29,7 +29,7 @@ const trucksText = (ev) => {
   return Object.entries(n).map(([l, c]) => `${c} × ${l}`).join(' + ');
 };
 
-function SuggestionCard({ s, byCode, onMerge, onIgnore, busy }) {
+function SuggestionCard({ s, byCode, onMerge, onIgnore, busy, tour, destLabel }) {
   const [a, b] = s.codes.map((c) => byCode[c]);
   const fill = s.together.trucks.reduce((t, x) => t + x.fill, 0) / s.together.trucks.length;
   return (
@@ -43,6 +43,7 @@ function SuggestionCard({ s, byCode, onMerge, onIgnore, busy }) {
           </span>
         ))}
         <span className="flex-1" />
+        {tour && <span className="rounded-full bg-violet-50 text-violet-700 text-xs font-medium px-2.5 py-1">{tour}</span>}
         <span className="rounded-full bg-emerald-50 text-emerald-700 text-sm font-semibold px-3 py-1">−{eur(s.saving)}</span>
       </div>
       <div className="px-4 py-3 grid sm:grid-cols-[1fr_auto_1fr] gap-3 items-center text-sm">
@@ -57,7 +58,7 @@ function SuggestionCard({ s, byCode, onMerge, onIgnore, busy }) {
         </div>
       </div>
       <div className="px-4 py-2.5 bg-slate-50 text-xs text-slate-500 flex flex-wrap items-center gap-x-4 gap-y-2">
-        <span className="flex-1 min-w-[200px]">Tournée : {[...dests(a), ...dests(b)].join(' → ') || 'destinations non renseignées'}</span>
+        <span className="flex-1 min-w-[200px]">Arrêts : {[...new Map([...s.rows].sort((x, y) => x.stop - y.stop).map((r) => [r.stop, destLabel(r.destination)])).values()].join(' → ') || 'destinations non renseignées'}</span>
         <button onClick={onIgnore} className="inline-flex items-center gap-1 hover:text-slate-800"><X size={13} /> Ignorer</button>
         <Btn onClick={onMerge} disabled={busy}>{busy ? <Loader2 size={15} className="animate-spin" /> : <Combine size={15} />} Regrouper</Btn>
       </div>
@@ -79,6 +80,10 @@ export default function ConsolidationPage() {
   useEffect(() => { document.title = 'Regrouper des chargements | Atelier Logistique'; }, []);
   useEffect(() => { datedShipments(org.id).then(setShips).catch((e) => { setError(e.message); setShips([]); }); }, [org.id]);
 
+  const mode = refs.tools?.consolidation.mode ?? 'free';
+  const agencies = useMemo(() => (refs.tools?.agencies ?? []).map(({ code, tour, order }) => ({ code, tour, order })), [refs.tools]);
+  const tourName = useMemo(() => Object.fromEntries((refs.tools?.tours ?? []).map((t) => [t.code, t.label])), [refs.tools]);
+  const agencyLabel = useMemo(() => Object.fromEntries((refs.tools?.agencies ?? []).map((a) => [a.code, a.label])), [refs.tools]);
   const vehicles = useMemo(() => {
     if (refs.items === undefined) return null;
     return (refs.tools ?? toToolReferences(defaultReferences())).vehicles.filter((v) => v.active).map((v) => ({ container: v.container, cost: v.cost }));
@@ -109,9 +114,10 @@ export default function ConsolidationPage() {
       else if (e.data.ok) setRun({ status: 'done', progress: [1, 1], analysis: e.data.analysis });
       else setRun({ status: 'error', progress: [0, 0], analysis: null, error: e.data.error });
     };
-    w.postMessage({ shipments: list.map(({ id, code, label, status, departure_at, input }) => ({ id, code, label, status, departure_at, input })), vehicles });
+    w.postMessage({ shipments: list.map(({ id, code, label, status, departure_at, input }) => ({ id, code, label, status, departure_at, input })), vehicles, mode, agencies });
     return () => w.terminate();
-  }, [list, vehicles]);
+  }, [list, vehicles, mode, agencies]);
+  const tourText = (code) => { const t = run.analysis?.tours?.[code]; return t === '*' ? 'plusieurs tournées' : t ? (tourName[t] ?? t) : null; };
 
   const suggestions = (run.analysis?.suggestions ?? []).filter((s) => !ignored.has(s.codes.join('+')));
   const totalSaving = suggestions.reduce((t, s) => t + s.saving, 0);
@@ -142,6 +148,7 @@ export default function ConsolidationPage() {
     { key: 'code', h: 'N°', cell: (s) => <Link to={`/app/chargements/${s.code}`} onClick={(e) => e.stopPropagation()} className="font-jetbrains text-xs text-blue-700 hover:underline">{s.code}</Link> },
     { key: 'label', h: 'Libellé', min: 120, cell: (s) => <span className="text-slate-900">{s.label || '—'}</span> },
     { key: 'dest', h: 'Destinations', cell: (s) => <span className="text-xs">{dests(s).join(', ') || '—'}</span> },
+    { key: 'tour', h: 'Tournée', cell: (s) => { const t = tourText(s.code); return t ? <span className="text-xs">{t}</span> : <span className="text-xs text-slate-400">{run.analysis ? 'hors tournée' : '…'}</span>; } },
     { key: 'vol', h: 'Volume', cell: (s) => `${m3(s).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} m³` },
     { key: 'kg', h: 'Poids', cell: (s) => `${Math.round(kg(s)).toLocaleString('fr-FR')} kg` },
     { key: 'sep', h: 'Seul (calcul)', cell: (s) => { const ev = run.analysis?.separate?.[s.code]; return ev?.ok ? <span className="text-xs">{trucksText(ev)} · {eur(ev.cost)}</span> : <span className="text-xs text-slate-400">{run.status === 'running' ? '…' : rowsOf(s).length ? 'trop gros pour un regroupement' : 'aucune ligne'}</span>; } },
@@ -168,6 +175,9 @@ export default function ConsolidationPage() {
             ))}
           </div>
 
+          <div className="text-xs text-slate-500">Regroupement : <b>{mode === 'tour' ? 'par tournée' : 'libre'}</b>
+            {mode === 'tour' ? ' — seuls les chargements dont toutes les destinations sont dans la même tournée sont comparés.' : ' — tous les chargements du jour sont comparés.'}
+            {' '}<Link to="/app/parametres/references/regroupement" className="text-blue-700 hover:underline">Modifier</Link></div>
           {list.length < 2 ? <div className="rounded-xl bg-white border border-slate-200 p-5 text-sm text-slate-500">Un seul chargement ce jour-là : rien à regrouper.</div>
             : run.status === 'running' ? (
               <div className="rounded-xl bg-white border border-slate-200 p-5 text-sm text-slate-600 space-y-2">
@@ -182,6 +192,8 @@ export default function ConsolidationPage() {
                   <div className="text-sm text-slate-700"><b>{suggestions.length} regroupement{suggestions.length > 1 ? 's' : ''} possible{suggestions.length > 1 ? 's' : ''}</b> · jusqu’à <b className="text-emerald-700">{eur(totalSaving)}</b> de transport en moins ce jour-là</div>
                   {suggestions.map((s) => (
                     <SuggestionCard key={s.codes.join('+')} s={s} byCode={byCode} busy={busy === s.codes.join('+')}
+                      tour={mode === 'tour' || run.analysis?.tours?.[s.codes[0]] === run.analysis?.tours?.[s.codes[1]] ? tourText(s.codes[0]) : null}
+                      destLabel={(d) => (agencyLabel[d] ? `${d} · ${agencyLabel[d]}` : d)}
                       onMerge={() => merge(s)} onIgnore={() => setIgnored((x) => new Set([...x, s.codes.join('+')]))} />
                   ))}
                 </div>
@@ -195,7 +207,7 @@ export default function ConsolidationPage() {
           </section>
           <p className="text-xs text-slate-400 flex gap-1.5"><Info size={14} className="shrink-0" />
             Les deux montants sont calculés par l’outil (même moteur 3D, véhicules et coûts de vos tables de référence), pour les chargements {Object.values(STATUS).slice(0, 3).map((x) => x.label.toLowerCase()).join(', ')}.
-            Vérifiez que les destinations se suivent bien : la tournée proposée livre le premier chargement puis le second, ordre modifiable ensuite.</p>
+            Ordre des arrêts : celui des agences dans la tournée (Paramètres › Tables de référence) quand toutes les destinations en font partie, sinon le premier chargement puis le second ; modifiable ensuite.</p>
         </>)}
       </div>
     </>
