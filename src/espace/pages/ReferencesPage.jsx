@@ -297,10 +297,13 @@ function LashingSection() {
   );
 }
 
+// Chemins absolus : dans une route « references/* », un lien relatif part de l'adresse complète
+// (…/vehicules + « supports » = …/vehicules/supports → boucle de redirections).
+const BASE = '/app/parametres/references';
 const SUB = [
-  { to: 'vehicules', label: 'Véhicules et contenants', icon: Truck },
-  { to: 'supports', label: 'Supports de palettisation', icon: Package },
-  { to: 'arrimage', label: 'Arrimage', icon: Link2 },
+  { to: `${BASE}/vehicules`, label: 'Véhicules et contenants', icon: Truck },
+  { to: `${BASE}/supports`, label: 'Supports de palettisation', icon: Package },
+  { to: `${BASE}/arrimage`, label: 'Arrimage', icon: Link2 },
 ];
 
 export default function ReferencesPage() {
@@ -317,11 +320,11 @@ export default function ReferencesPage() {
         ))}
       </nav>
       <Routes>
-        <Route index element={<Navigate to="vehicules" replace />} />
+        <Route index element={<Navigate to={`${BASE}/vehicules`} replace />} />
         <Route path="vehicules" element={<RefTable kind="vehicle" />} />
         <Route path="supports" element={<RefTable kind="pallet" />} />
         <Route path="arrimage" element={<LashingSection />} />
-        <Route path="*" element={<Navigate to="vehicules" replace />} />
+        <Route path="*" element={<Navigate to={`${BASE}/vehicules`} replace />} />
       </Routes>
     </div>
   );
