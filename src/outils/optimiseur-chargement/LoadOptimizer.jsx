@@ -6,7 +6,7 @@ import {
   RotateCcw, Check, ArrowRight, Boxes, Upload, Download,
   MapPin, Undo2, Printer, Scale, ChevronDown,
   QrCode as QrCodeIcon, Pencil,
-  Lock,
+  Lock, Ruler,
 } from 'lucide-react';
 
 const LoadView3D = lazy(() => import('./LoadView3D.jsx'));
@@ -1268,6 +1268,19 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
                       ) : (
                         <Schematic2D container={container} placed={visiblePlaced} colorOf={colorOf} isDimmed={isDimmed} blockedIds={blockedIds} />
                       )}
+                      {(() => {
+                        // Plancher de ce qui est affiché : suit le curseur de chargement et les arrêts déchargés.
+                        const fm = floorMeters(editMode ? manual.placed : visiblePlaced, container);
+                        return (
+                          <div title={tr('Plancher occupé · mètres plancher (surface au sol ÷ 2,4 m)')}
+                            className={`absolute ${!view3d && !editMode ? 'top-0.5 right-3 sm:top-1.5 sm:right-5' : 'top-3 left-3 sm:top-5 sm:left-5'} z-10 pointer-events-none inline-flex items-center gap-1.5 rounded-md bg-white/90 border border-slate-200 px-2 py-0.5 font-jetbrains text-[10px] text-slate-600 shadow-sm`}>
+                            <Ruler size={11} className="text-slate-400" />
+                            <span><b className="text-slate-800">{fmt1(fm.occupiedLength)}</b> / {fmt1(fm.containerLength)} m</span>
+                            <span className="text-slate-300">·</span>
+                            <span><b className="text-slate-800">{fmt1(fm.ldm)}</b> MPL</span>
+                          </div>
+                        );
+                      })()}
                       {hovered && (
                         <div className="absolute bottom-3 left-3 bg-white/95 border border-slate-200 rounded-lg px-3 py-2 font-jetbrains text-[11px] shadow-sm pointer-events-none">
                           <div className="font-semibold text-slate-800">{hovered.reference}</div>

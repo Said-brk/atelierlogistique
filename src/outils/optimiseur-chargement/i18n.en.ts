@@ -3,6 +3,7 @@
 // {x} = valeur insérée à l'affichage : la garder telle quelle dans la traduction.
 
 const en: Record<string, string> = {
+  "Plancher occupé · mètres plancher (surface au sol ÷ 2,4 m)": "Floor length used · loading meters (floor area ÷ 2.4 m)",
   "{v1} mètres plancher": "{v1} loading meters",
   "≤ {v1} MPL sans gerbage": "≤ {v1} LDM without stacking",
   "Plancher occupé {v1} / {v2} m · {v3} MPL": "Floor used {v1} / {v2} m · {v3} LDM",
