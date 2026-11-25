@@ -184,11 +184,23 @@ export const ARTICLE_PAGES = [
 
 export const HOME_PAGE = {
   path: '/',
-  title: 'Atelier Logistique : outils gratuits pour la supply chain et le transport',
-  description: 'Outils web gratuits pour la logistique : optimiseur de chargement 3D camion et conteneur, palettisation 3D, codes-barres GS1, étiquettes ZPL, stock de sécurité, DDMRP, Incoterms, CMR.',
+  title: 'Atelier Logistique : optimiseur de chargement et palettisation 3D gratuits',
+  description: 'Plan de chargement 3D camion et conteneur, palettisation 3D, mètres plancher : outils logistiques gratuits, sans compte. Et aussi codes-barres GS1, ZPL, stock de sécurité, DDMRP, CMR.',
   h1: 'La boîte à outils des pros de la supply chain',
   intro: 'Des outils web gratuits, sans installation ni compte : vos données restent dans votre navigateur.',
 };
+
+/** Page « Tous les outils » : cible du lien Outils (menu, fil d'Ariane) et des liens annexes Google. */
+export const ALL_TOOLS_PAGE = {
+  path: '/outils',
+  title: 'Tous les outils logistiques gratuits | Atelier Logistique',
+  description: 'Les outils gratuits d’Atelier Logistique : optimiseur de chargement 3D, palettisation 3D, codes-barres GS1, étiquettes ZPL, stock de sécurité, DDMRP, Incoterms, CMR, OTIF.',
+  h1: 'Tous les outils',
+  intro: 'Des outils web gratuits pour la logistique et le transport, sans installation ni compte.',
+};
+
+/** Outils mis en avant (accueil, liens annexes Google). */
+export const FEATURED_TOOLS = ['optimiseur-chargement', 'pallet'];
 
 export const RESSOURCES_PAGE = {
   path: '/ressources',

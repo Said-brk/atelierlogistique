@@ -55,6 +55,10 @@
       "destination": "/ressources/index.html"
     },
     {
+      "source": "/outils",
+      "destination": "/outils/index.html"
+    },
+    {
       "source": "/outils/:id",
       "destination": "/outils/:id/index.html"
     },

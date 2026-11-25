@@ -22,7 +22,7 @@ const LoginPage = lazy(() => import('./shared/account/AccountPages.jsx').then((m
 const EspaceApp = lazy(() => import('./espace/EspaceApp.jsx'));
 const QuaiGuide = lazy(() => import('./espace/QuaiGuide.jsx'));
 const ApiDocsPage = lazy(() => import('./pages/ApiDocsPage.jsx'));
-import { SITE, toolSeo } from './seo/pages';
+import { SITE, toolSeo, ALL_TOOLS_PAGE, FEATURED_TOOLS } from './seo/pages';
 import { toolSeoEn } from './seo/pages-en';
 import { I18nProvider } from './shared/i18n/I18nProvider.jsx';
 import { TOOL_PATHS, toolFromEnPath } from './shared/i18n/paths';
@@ -218,7 +218,7 @@ export default function App() {
       <ScrollToTop />
       <Routes>
         <Route path="/" element={<Landing />} />
-        <Route path="/outils" element={<Navigate to="/#tools" replace />} />
+        <Route path="/outils" element={<AllToolsPage />} />
         <Route path="/outils/:id" element={<ToolRoute />} />
         <Route path="/ressources" element={<Ressources />} />
         <Route path="/chargement" element={<I18nProvider lang="fr"><Suspense fallback={null}><LoadingGuide /></Suspense></I18nProvider>} />
@@ -277,7 +277,7 @@ function SiteFooter() {
           <span>ATELIER LOGISTIQUE © 2026 — La boîte à outils des pros de la supply chain</span>
         </div>
         <div className="flex items-center gap-5">
-          <a href="/#tools" className="hover:text-slate-800 transition-colors">Outils</a>
+          <Link to="/outils" className="hover:text-slate-800 transition-colors">Outils</Link>
           <a href="/api" className="hover:text-slate-800 transition-colors">API</a>
           <Link to="/ressources" className="hover:text-slate-800 transition-colors">Ressources</Link>
           <span>Contact : <a href="mailto:contact@atelierlogistique.com" className="hover:text-slate-800 transition-colors underline-offset-2 hover:underline">contact@atelierlogistique.com</a></span>
@@ -303,7 +303,7 @@ function ToolTopBar({ id, lang = 'fr' }) {
             </span>
           </a>
           <ChevronRight size={12} className="text-slate-300 shrink-0 hidden sm:block" />
-          <a href={en ? '/en' : '/#tools'} className="hover:text-slate-900 shrink-0 hidden sm:inline">{en ? 'Tools' : 'Outils'}</a>
+          <a href={en ? '/en' : '/outils'} className="hover:text-slate-900 shrink-0 hidden sm:inline">{en ? 'Tools' : 'Outils'}</a>
           <ChevronRight size={12} className="text-slate-300 shrink-0" />
           {/* Outils sans titre principal propre : le nom dans le fil d'Ariane sert de <h1> (SEO). */}
           {!en && toolSeo(id) && !toolSeo(id).ownH1
@@ -410,7 +410,7 @@ function NotFound() {
         <p className="text-slate-600 mb-8">Cette adresse n'existe pas (ou plus). Reprenez depuis l'atelier.</p>
         <div className="flex flex-wrap items-center justify-center gap-3 font-jetbrains text-xs">
           <Link to="/" className="px-5 py-3 rounded-md font-medium text-white" style={{ background: BLUE }}>RETOUR À L'ACCUEIL</Link>
-          <a href="/#tools" className="px-5 py-3 rounded-md font-medium border border-slate-300 text-slate-700 hover:bg-slate-50">VOIR LES OUTILS</a>
+          <a href="/outils" className="px-5 py-3 rounded-md font-medium border border-slate-300 text-slate-700 hover:bg-slate-50">VOIR LES OUTILS</a>
           <Link to="/ressources" className="px-5 py-3 rounded-md font-medium border border-slate-300 text-slate-700 hover:bg-slate-50">RESSOURCES</Link>
         </div>
       </div>
@@ -480,7 +480,7 @@ function Ressources() {
           </div>
           <div className="flex flex-wrap gap-3 shrink-0 font-jetbrains text-xs">
             <button onClick={() => navigate('/outils/audit')} className="px-5 py-3 rounded-md font-semibold" style={{ background: '#F59E0B', color: '#0F172A' }}>DÉMARRER L'AUDIT</button>
-            <a href="/#tools" className="px-5 py-3 rounded-md font-medium text-white border border-slate-600 hover:bg-slate-800 transition-colors">VOIR LES 9 OUTILS</a>
+            <a href="/outils" className="px-5 py-3 rounded-md font-medium text-white border border-slate-600 hover:bg-slate-800 transition-colors">VOIR LES 9 OUTILS</a>
           </div>
         </div>
       </section>
@@ -493,6 +493,84 @@ function Ressources() {
 // ============================================================
 // LANDING
 // ============================================================
+// Catalogue des outils par famille : accueil (#tools) et page « Tous les outils » (/outils).
+function ToolsCatalog({ onLaunch, title = null, asH1 = false }) {
+  const H = asH1 ? 'h1' : 'h2';
+  return (
+    <section id="tools" className="border-t border-slate-200">
+      <div className="max-w-7xl mx-auto px-6 md:px-10 py-20">
+        <div className="flex items-baseline justify-between mb-12">
+          <div>
+            <div className="font-jetbrains text-xs text-slate-500 mb-3 tracking-wider">{asH1 ? 'L’ÉTABLI COMPLET' : '03 / L’ÉTABLI'}</div>
+            <H className="font-bricolage font-semibold text-3xl md:text-4xl tracking-tight">
+              {title ?? <>{TOOLS.length} outils, <span style={{ color: BLUE }}>4 familles</span></>}
+            </H>
+          </div>
+          <div className="hidden md:block font-jetbrains text-xs text-slate-500 text-right">
+            <span style={{ color: BLUE }} className="font-medium">{TOOLS.filter(t => t.status === 'live').length}</span> disponible<br />
+            {TOOLS.filter(t => t.status === 'soon').length} en préparation
+          </div>
+        </div>
+
+        <div className="space-y-12">
+          {CATEGORIES.map((cat) => {
+            const Icon = cat.icon;
+            const tools = TOOLS.filter(t => t.cat === cat.id);
+            return (
+              <div key={cat.id}>
+                <div className="flex items-center gap-3 mb-5 pb-3 border-b border-slate-200">
+                  <div className="w-8 h-8 rounded-md flex items-center justify-center" style={{ background: BLUE_LIGHT }}>
+                    <Icon size={15} style={{ color: BLUE }} strokeWidth={2} />
+                  </div>
+                  <span className="font-jetbrains text-xs text-slate-400">{cat.num}</span>
+                  <h3 className="font-bricolage font-semibold text-lg text-slate-900">{cat.label}</h3>
+                  <span className="font-jetbrains text-[10px] text-slate-400 ml-auto">{tools.length} outil{tools.length > 1 ? 's' : ''}</span>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {tools.map((tool) => (
+                    <ToolCard key={tool.id} tool={tool} onLaunch={() => tool.status === 'live' && onLaunch(tool.id)} />
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// Page « Tous les outils » : /outils (pré-rendue pour Google, cible du lien Outils).
+function AllToolsPage() {
+  const navigate = useNavigate();
+  useSeoMeta(ALL_TOOLS_PAGE, ALL_TOOLS_PAGE.path);
+  return (
+    <div className="min-h-screen text-slate-900" style={{ background: '#FFFFFF', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+      <FontsAndStyles />
+      <SiteHeader />
+      {/* Outils phares mis en avant */}
+      <section className="max-w-7xl mx-auto px-6 md:px-10 pt-14 grid grid-cols-1 md:grid-cols-2 gap-4">
+        {FEATURED_TOOLS.map((id) => TOOLS.find((t) => t.id === id)).filter(Boolean).map((t) => {
+          const Icon = t.icon;
+          return (
+            <Link key={t.id} to={`/outils/${t.id}`} className="group flex items-center gap-4 rounded-xl p-5 text-white transition-all hover:-translate-y-0.5 hover:shadow-lg" style={{ background: t.id === 'pallet' ? '#1E293B' : BLUE }}>
+              <span className="w-12 h-12 rounded-lg flex items-center justify-center bg-white/15 shrink-0"><Icon size={22} /></span>
+              <span className="min-w-0">
+                <span className="block font-bricolage font-semibold text-xl">{t.name}</span>
+                <span className="block text-sm text-white/80 truncate">{t.desc}</span>
+              </span>
+              <ArrowRight size={18} className="ml-auto shrink-0 transition-transform group-hover:translate-x-1" />
+            </Link>
+          );
+        })}
+      </section>
+      <ToolsCatalog onLaunch={(id) => navigate(`/outils/${id}`)}
+        asH1 title={<>{ALL_TOOLS_PAGE.h1} · <span style={{ color: BLUE }}>{TOOLS.length} outils gratuits</span></>} />
+      <SiteFooter />
+    </div>
+  );
+}
+
 function Landing() {
   const navigate = useNavigate();
   const onLaunch = (id) => navigate(`/outils/${id}`);
@@ -717,46 +795,7 @@ function Landing() {
         </div>
       </section>
 
-      <section id="tools" className="border-t border-slate-200">
-        <div className="max-w-7xl mx-auto px-6 md:px-10 py-20">
-          <div className="flex items-baseline justify-between mb-12">
-            <div>
-              <div className="font-jetbrains text-xs text-slate-500 mb-3 tracking-wider">03 / L'ÉTABLI</div>
-              <h2 className="font-bricolage font-semibold text-3xl md:text-4xl tracking-tight">
-                {TOOLS.length} outils, <span style={{ color: BLUE }}>4 familles</span>
-              </h2>
-            </div>
-            <div className="hidden md:block font-jetbrains text-xs text-slate-500 text-right">
-              <span style={{ color: BLUE }} className="font-medium">{TOOLS.filter(t => t.status === 'live').length}</span> disponible<br />
-              {TOOLS.filter(t => t.status === 'soon').length} en préparation
-            </div>
-          </div>
-
-          <div className="space-y-12">
-            {CATEGORIES.map((cat) => {
-              const Icon = cat.icon;
-              const tools = TOOLS.filter(t => t.cat === cat.id);
-              return (
-                <div key={cat.id}>
-                  <div className="flex items-center gap-3 mb-5 pb-3 border-b border-slate-200">
-                    <div className="w-8 h-8 rounded-md flex items-center justify-center" style={{ background: BLUE_LIGHT }}>
-                      <Icon size={15} style={{ color: BLUE }} strokeWidth={2} />
-                    </div>
-                    <span className="font-jetbrains text-xs text-slate-400">{cat.num}</span>
-                    <h3 className="font-bricolage font-semibold text-lg text-slate-900">{cat.label}</h3>
-                    <span className="font-jetbrains text-[10px] text-slate-400 ml-auto">{tools.length} outil{tools.length > 1 ? 's' : ''}</span>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {tools.map((tool) => (
-                      <ToolCard key={tool.id} tool={tool} onLaunch={() => tool.status === 'live' && onLaunch(tool.id)} />
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
+      <ToolsCatalog onLaunch={onLaunch} />
 
       {/* Audit Flash : en bas, juste avant les guides */}
       <AuditBanner onLaunch={onLaunch} />
