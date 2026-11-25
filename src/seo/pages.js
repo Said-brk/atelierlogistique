@@ -45,7 +45,7 @@ export const TOOL_PAGES = [
     ],
     faq: OPTIMIZER_FAQ,
     related: ['pallet', 'units', 'cmr'],
-    articles: ['plan-de-chargement-camion', 'arrimage-des-charges'],
+    articles: ['plan-de-chargement-camion', 'repartition-des-charges-camion', 'arrimage-des-charges'],
   },
   {
     id: 'pallet',
@@ -175,6 +175,7 @@ export const TOOL_PAGES = [
 export const ARTICLE_PAGES = [
   { slug: 'audit-supply-chain', title: 'Audit Supply Chain gratuit : diagnostic en 5 minutes' },
   { slug: 'plan-de-chargement-camion', title: 'Plan de chargement camion : méthode et tournées multi-arrêts' },
+  { slug: 'repartition-des-charges-camion', title: 'Répartition des charges d’un camion : charge à l’essieu et calcul' },
   { slug: 'arrimage-des-charges', title: 'Arrimage des charges : combien de sangles et qui est responsable' },
   { slug: 'ddmrp', title: 'DDMRP : méthode complète et calcul des buffers' },
   { slug: 'incoterms-2020', title: 'Incoterms 2020 : les 11 règles expliquées' },

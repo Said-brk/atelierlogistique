@@ -43,6 +43,10 @@
       "destination": "/ressources/plan-de-chargement-camion.html"
     },
     {
+      "source": "/ressources/repartition-des-charges-camion",
+      "destination": "/ressources/repartition-des-charges-camion.html"
+    },
+    {
       "source": "/ressources/arrimage-des-charges",
       "destination": "/ressources/arrimage-des-charges.html"
     },

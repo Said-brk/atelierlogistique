@@ -144,6 +144,15 @@ const ARTICLES = [
     cta: 'optimiseur-chargement',
   },
   {
+    slug: 'repartition-des-charges-camion',
+    tag: 'Guide',
+    title: 'Répartition des charges d’un camion : charge à l’essieu et calcul',
+    desc: 'Sous le PTAC mais en surcharge sur un essieu : limites légales (13 t, 12 t, tridem 27 t), calcul par la règle du levier, deux exemples chiffrés et 7 règles de chargement.',
+    icon: Truck,
+    color: '#15803D', light: '#F0FDF4', border: '#BBF7D0',
+    cta: 'optimiseur-chargement',
+  },
+  {
     slug: 'arrimage-des-charges',
     tag: 'Guide',
     title: 'Arrimage des charges : combien de sangles et qui est responsable',
