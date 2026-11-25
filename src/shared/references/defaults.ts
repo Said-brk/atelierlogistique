@@ -3,6 +3,7 @@
 // nouvelle entreprise (script SQL 20261124000008, vérifié par le test du schéma) puis modifiables.
 // Unités stockées : mm, kg, €.
 
+import type { CarrierData } from '../carriers/pricing';
 import { CONTAINER_PRESETS } from '../../outils/optimiseur-chargement/constants/containers';
 import { DEFAULT_FLEET } from '../../outils/optimiseur-chargement/constants/fleet';
 import { defaultAxleProfile, DEFAULT_LASHING } from '../../outils/optimiseur-chargement/engine/balance';
@@ -11,7 +12,7 @@ import type { ContainerDefinition } from '../../outils/optimiseur-chargement/eng
 import { PALLET_PRESETS } from '../../outils/palettisation/engine/presets';
 import type { PalletSpec } from '../../outils/palettisation/engine/types';
 
-export type RefKind = 'vehicle' | 'pallet' | 'agency' | 'tour' | 'setting';
+export type RefKind = 'vehicle' | 'pallet' | 'agency' | 'tour' | 'carrier' | 'setting';
 
 export interface RefItem {
   id?: string;
@@ -67,7 +68,9 @@ export interface ToolReferences {
   /** Destinations connues (code = valeur saisie dans les lignes), avec leur tournée et leur rang dans la tournée. */
   agencies: { code: string; label: string; city: string; tour: string | null; order: number }[];
   /** days : jours de préparation / expédition (1 = lundi … 7 = dimanche). */
-  tours: { code: string; label: string; days: number[] }[];
+  tours: { code: string; label: string; days: number[]; carrier: string | null }[];
+  /** Transporteurs actifs et leur grille (src/shared/carriers/pricing.ts). */
+  carriers: { code: string; label: string; data: CarrierData }[];
   /** free : regroupement libre ; tour : seulement des chargements d'une même tournée. */
   consolidation: { mode: 'free' | 'tour' };
 }
@@ -100,12 +103,14 @@ export function toToolReferences(items: RefItem[]): ToolReferences {
   const tours = by('tour').filter((i) => i.active).map((i) => ({
     code: i.code, label: i.label,
     days: (Array.isArray(i.data.days) ? (i.data.days as unknown[]) : []).map(Number).filter((d) => d >= 1 && d <= 7).sort(),
+    carrier: typeof i.data.carrier === 'string' && i.data.carrier ? i.data.carrier : null,
   }));
+  const carriers = by('carrier').filter((i) => i.active).map((i) => ({ code: i.code, label: i.label, data: i.data as unknown as CarrierData }));
   const tourCodes = new Set(tours.map((t) => t.code));
   const agencies = by('agency').filter((i) => i.active).map((i) => {
     const d = i.data as { city?: string; tour?: string | null; order?: number };
     return { code: i.code, label: i.label, city: d.city ?? '', tour: d.tour && tourCodes.has(d.tour) ? d.tour : null, order: n(d.order) };
   });
   const cons = items.find((i) => i.kind === 'setting' && i.code === 'consolidation')?.data as { mode?: string } | undefined;
-  return { vehicles, pallets, lashing, agencies, tours, consolidation: { mode: cons?.mode === 'tour' ? 'tour' : 'free' } };
+  return { vehicles, pallets, lashing, agencies, tours, carriers, consolidation: { mode: cons?.mode === 'tour' ? 'tour' : 'free' } };
 }

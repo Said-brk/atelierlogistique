@@ -6,13 +6,14 @@
 
 import { useMemo, useState } from 'react';
 import { NavLink, Navigate, Route, Routes } from 'react-router-dom';
-import { Truck, Package, Link2, Plus, Pencil, Trash2, RotateCcw, Loader2, X, Save, Check, MapPin, Route as RouteIcon, Combine } from 'lucide-react';
+import { Truck, Package, Link2, Plus, Pencil, Trash2, RotateCcw, Loader2, X, Save, Check, MapPin, Route as RouteIcon, Combine, Receipt } from 'lucide-react';
 import { useEspace } from '../useEspace';
 import useReferences from '../useReferences';
 import { saveReference, deleteReference, resetReferences } from '../data';
 import { Btn } from '../ui';
 import ResizableTable from '../ResizableTable';
 import { defaultReferences } from '../../shared/references/defaults';
+import { BILLING_LABELS, RATE_UNIT } from '../../shared/carriers/pricing';
 
 const inputCls = 'w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:bg-slate-50';
 const fmt = (v, d = 0) => (v == null || v === '' ? '—' : Number(v).toLocaleString('fr-FR', { maximumFractionDigits: d }));
@@ -104,8 +105,44 @@ const TOUR_FIELDS = [
   { key: 'code', label: 'Code', type: 'text', hint: 'Ex. T-NORD, 69-01.' },
   { key: 'label', label: 'Nom de la tournée', type: 'text', wide: true },
   { key: 'days', label: 'Jours de préparation / expédition', type: 'days', wide: true, hint: 'Affichés dans le calendrier des chargements.' },
+  { key: 'carrier', label: 'Transporteur par défaut', type: 'select', optional: true, hint: 'Proposé quand on choisit cette tournée sur un chargement.',
+    options: (items) => [['', '— aucun'], ...items.filter((i) => i.kind === 'carrier').map((c) => [c.code, `${c.code} · ${c.label}`])] },
   { key: 'sort', label: 'Ordre d’affichage', type: 'num' },
   { key: 'active', label: 'Active', type: 'bool' },
+];
+
+// ---------------------------------------------------------------- Transporteurs
+const CARRIER_FIELDS = [
+  { key: 'code', label: 'Code', type: 'text', hint: 'Ex. GEODIS, TRANS-SUD.' },
+  { key: 'label', label: 'Raison sociale', type: 'text', wide: true },
+  { key: 'billing', label: 'Mode de facturation', type: 'select', wide: true, options: Object.entries(BILLING_LABELS) },
+  { key: 'rate', label: 'Tarif', type: 'num', if: (f) => f.billing !== 'ftl', unitOf: (f) => RATE_UNIT[f.billing], hint: 'Tarif moyen ; les grilles par zone viendront ensuite.' },
+  { key: 'kgPerM3', label: 'Équivalence volume', unit: 'kg/m³', type: 'num', if: (f) => f.billing === 'weight', hint: 'Souvent 250 à 333.' },
+  { key: 'kgPerLdm', label: 'Équivalence plancher', unit: 'kg/MPL', type: 'num', if: (f) => f.billing === 'weight', hint: 'Souvent 1 500 à 1 850.' },
+  { key: 'prices', label: 'Forfait par véhicule', type: 'prices', if: (f) => f.billing === 'ftl', wide: true, hint: 'Laissez vide un véhicule que ce transporteur ne fournit pas.' },
+  { key: 'minCharge', label: 'Minimum de perception', unit: '€', type: 'num', optional: true },
+  { key: 'fuelPct', label: 'Surcharge gazole', unit: '%', type: 'num', optional: true, hint: 'Indexation gazole du mois.' },
+  { key: 'sort', label: 'Ordre d’affichage', type: 'num' },
+  { key: 'active', label: 'Proposé sur les chargements', type: 'bool' },
+];
+
+const money = (v) => (v == null || v === '' ? '—' : `${fmt(Number(v), 2)} €`);
+const tariffText = (d) => {
+  if (d.billing === 'ftl') {
+    const p = Object.entries(d.prices ?? {}).filter(([, v]) => v != null && v !== '');
+    return p.length ? `${p.length} forfait${p.length > 1 ? 's' : ''} véhicule` : 'aucun forfait';
+  }
+  return d.rate == null ? '—' : `${fmt(Number(d.rate), 2)} ${RATE_UNIT[d.billing] ?? ''}`;
+};
+
+const CARRIER_COLUMNS = (admin, patch) => [
+  { key: 'code', h: 'Code', cell: (i) => <span className="font-jetbrains text-xs text-blue-700">{i.code}</span> },
+  { key: 'label', h: 'Transporteur', min: 120, cell: (i) => <span className="font-medium text-slate-900">{i.label}</span> },
+  { key: 'billing', h: 'Facturation', cell: (i) => <span className="text-xs">{BILLING_LABELS[i.data.billing] ?? '—'}</span> },
+  { key: 'rate', h: 'Tarif', cell: (i) => <span className="text-xs whitespace-nowrap">{tariffText(i.data)}</span> },
+  { key: 'min', h: 'Minimum', cell: (i) => money(i.data.minCharge) },
+  { key: 'fuel', h: 'Gazole', cell: (i) => (i.data.fuelPct == null || i.data.fuelPct === '' ? '—' : `${fmt(Number(i.data.fuelPct), 1)} %`) },
+  { key: 'active', h: 'Proposé', cell: (i) => toggle(i.active, () => patch(i, { active: !i.active }), !admin, 'Proposé sur les chargements') },
 ];
 
 const agenciesOf = (items, tour) => items.filter((i) => i.kind === 'agency' && i.data?.tour === tour).sort((a, b) => (a.data.order ?? 0) - (b.data.order ?? 0));
@@ -124,6 +161,7 @@ const TOUR_COLUMNS = (admin, patch, items) => [
   { key: 'label', h: 'Tournée', min: 120, cell: (i) => <span className="font-medium text-slate-900">{i.label}</span> },
   { key: 'stops', h: 'Agences, dans l’ordre de livraison', min: 160, cell: (i) => { const a = agenciesOf(items, i.code); return a.length ? <span className="text-xs">{a.map((x) => x.code).join(' → ')}</span> : <span className="text-xs text-slate-400">aucune : rattachez des agences (onglet Agences)</span>; } },
   { key: 'days', h: 'Jours', cell: (i) => <span className="text-xs whitespace-nowrap">{daysText(i.data.days)}</span> },
+  { key: 'carrier', h: 'Transporteur', cell: (i) => i.data.carrier || '—' },
   { key: 'n', h: 'Agences', cell: (i) => agenciesOf(items, i.code).length },
   { key: 'active', h: 'Active', cell: (i) => toggle(i.active, () => patch(i, { active: !i.active }), !admin, 'Active') },
 ];
@@ -149,6 +187,11 @@ const TABLES = {
     intro: 'Vos tournées habituelles. Elles servent au regroupement des chargements (mode « par tournée ») et à l’ordre des arrêts ; la saisie reste libre ailleurs.',
     blank: () => ({ kind: 'tour', code: '', label: '', active: true, sort: 100, data: {} }),
   },
+  carrier: {
+    title: 'Transporteurs', icon: Receipt, fields: CARRIER_FIELDS, columns: CARRIER_COLUMNS, noun: 'transporteur', noReset: true,
+    intro: 'Vos transporteurs et leur mode de facturation. Choisis sur un chargement, ils donnent son coût théorique (mètres plancher, palettes, poids taxable ou forfait).',
+    blank: () => ({ kind: 'carrier', code: '', label: '', active: true, sort: 100, data: { billing: 'ldm', rate: null, minCharge: null, kgPerM3: 333, kgPerLdm: 1750, prices: {}, fuelPct: null } }),
+  },
 };
 
 // ---------------------------------------------------------------- Lecture / écriture d'un champ
@@ -162,6 +205,7 @@ function formOf(item, fields) {
   for (const f of fields) {
     if (f.key === 'axleMode') continue;
     const raw = TOP.includes(f.key) ? item[f.key] : f.key.startsWith('axle.') ? axle[f.key.slice(5)] : item.data?.[f.key];
+    if (f.type === 'prices') { v[f.key] = Object.fromEntries(Object.entries(raw ?? {}).map(([k, x]) => [k, x == null ? '' : String(x)])); continue; }
     v[f.key] = f.type === 'days' ? (Array.isArray(raw) ? raw : []) : f.type === 'bool' ? !!raw : raw == null ? '' : f.type === 'cm' ? String(Math.round(raw) / 10) : String(raw);
   }
   return v;
@@ -176,6 +220,16 @@ function itemOf(base, form, fields) {
     if (f.key === 'axleMode' || (f.if && !f.if(form))) continue;
     let val = form[f.key];
     if (f.type === 'select') val = val === '' ? null : val;
+    if (f.type === 'prices') {
+      const out2 = {};
+      for (const [k, x] of Object.entries(val ?? {})) {
+        const t = String(x ?? '').trim().replace(',', '.');
+        if (t === '') continue;
+        const n = Number(t);
+        if (!Number.isFinite(n) || n < 0) errors[f.key] = 'Nombre invalide'; else out2[k] = n;
+      }
+      val = out2;
+    }
     if (f.type === 'text') {
       val = String(val ?? '').trim();
       if (!val && !f.optional) errors[f.key] = 'Obligatoire';
@@ -196,10 +250,12 @@ function itemOf(base, form, fields) {
   if (out.kind === 'vehicle') out.data.axle = form.axleMode === 'axles' ? axle : null;
   if (out.kind === 'vehicle' && !(out.data.length > 0 && out.data.width > 0 && out.data.height > 0)) errors.length = errors.length ?? 'Dimensions > 0';
   if (out.kind === 'pallet' && !(out.data.length > 0 && out.data.width > 0)) errors.length = errors.length ?? 'Dimensions > 0';
+  if (out.kind === 'carrier' && out.data.billing === 'ftl' && !Object.keys(out.data.prices ?? {}).length) errors.prices = 'Au moins un forfait';
   return { item: out, errors };
 }
 
-function Field({ f, value, onChange, error, disabled, items = [] }) {
+function Field({ f, value, onChange, error, disabled, items = [], form = {} }) {
+  const unit = f.unitOf ? f.unitOf(form) : f.unit;
   const options = typeof f.options === 'function' ? f.options(items) : f.options;
   if (f.type === 'days') {
     const set = new Set(value ?? []);
@@ -219,6 +275,24 @@ function Field({ f, value, onChange, error, disabled, items = [] }) {
       </div>
     );
   }
+  if (f.type === 'prices') {
+    const vehicles = items.filter((i) => i.kind === 'vehicle').sort((a, b) => a.sort - b.sort);
+    const val = value ?? {};
+    return (
+      <div className="sm:col-span-2 text-xs text-slate-500">{f.label} <span className="text-slate-400">(€ par véhicule)</span>
+        <div className="mt-1 grid sm:grid-cols-2 gap-x-4 gap-y-1.5">
+          {vehicles.map((v) => (
+            <label key={v.code} className="flex items-center gap-2">
+              <span className="flex-1 text-sm text-slate-700 truncate">{v.label}</span>
+              <span className="w-28 shrink-0"><input value={val[v.code] ?? ''} onChange={(e) => onChange({ ...val, [v.code]: e.target.value })} disabled={disabled} inputMode="decimal"
+                placeholder="—" className={`${inputCls} font-jetbrains text-right`} /></span>
+            </label>
+          ))}
+        </div>
+        {error ? <span className="block mt-0.5 text-red-700">{error}</span> : f.hint && <span className="block mt-0.5 text-slate-400">{f.hint}</span>}
+      </div>
+    );
+  }
   if (f.type === 'bool') {
     return (
       <label className="sm:col-span-2 flex items-center gap-2 text-sm text-slate-700">
@@ -228,7 +302,7 @@ function Field({ f, value, onChange, error, disabled, items = [] }) {
   }
   return (
     <label className={`block text-xs text-slate-500 ${f.wide ? 'sm:col-span-2' : ''}`}>
-      {f.label}{f.unit && <span className="text-slate-400"> ({f.unit})</span>}
+      {f.label}{unit && <span className="text-slate-400"> ({unit})</span>}
       {f.type === 'select' ? (
         <select value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled} className={`mt-1 ${inputCls}`}>
           {options.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
@@ -267,7 +341,7 @@ function EditDialog({ table, item, admin, onClose, onSaved, items }) {
         </div>
         <div className="p-5 grid sm:grid-cols-2 gap-x-4 gap-y-3">
           {table.fields.filter((f) => !f.if || f.if(form)).map((f) => (
-            <Field key={f.key} f={f} value={form[f.key]} error={errors[f.key]} disabled={!admin} items={items}
+            <Field key={f.key} f={f} value={form[f.key]} error={errors[f.key]} disabled={!admin} items={items} form={form}
               onChange={(v) => setForm((x) => ({ ...x, [f.key]: v }))} />
           ))}
         </div>
@@ -399,6 +473,7 @@ const SUB = [
   { to: `${BASE}/supports`, label: 'Supports de palettisation', icon: Package },
   { to: `${BASE}/agences`, label: 'Agences et destinations', icon: MapPin },
   { to: `${BASE}/tournees`, label: 'Tournées', icon: RouteIcon },
+  { to: `${BASE}/transporteurs`, label: 'Transporteurs', icon: Receipt },
   { to: `${BASE}/regroupement`, label: 'Regroupement', icon: Combine },
   { to: `${BASE}/arrimage`, label: 'Arrimage', icon: Link2 },
 ];
@@ -422,6 +497,7 @@ export default function ReferencesPage() {
         <Route path="supports" element={<RefTable kind="pallet" />} />
         <Route path="agences" element={<RefTable kind="agency" />} />
         <Route path="tournees" element={<RefTable kind="tour" />} />
+        <Route path="transporteurs" element={<RefTable kind="carrier" />} />
         <Route path="regroupement" element={<SettingSection key="consolidation" code="consolidation" />} />
         <Route path="arrimage" element={<SettingSection key="lashing" code="lashing" />} />
         <Route path="*" element={<Navigate to={`${BASE}/vehicules`} replace />} />

@@ -51,6 +51,8 @@ export default function Shipments() {
         { h: 'Origine', cell: (r) => SOURCE[r.source] ?? r.source },
         { h: 'Départ', cell: (r) => <span className="whitespace-nowrap">{fmtDate(r.departure_at)}</span> },
         { h: 'Tournée', cell: (r) => r.tour ?? '—' },
+        { h: 'Transporteur', cell: (r) => r.carrier ?? '—' },
+        { h: 'Coût théorique', cell: (r) => (r.carrier_cost == null ? '—' : <span className="font-jetbrains text-xs whitespace-nowrap">{Number(r.carrier_cost).toLocaleString('fr-FR', { maximumFractionDigits: 2 })} €</span>) },
         { h: 'Véhicule', cell: (r) => <span className="whitespace-nowrap">{r.result?.summary?.vehicle ?? '—'}</span> },
         { h: 'Remplissage', cell: (r) => pct(r.result?.summary?.fill) },
         { h: 'Palettes de', cell: (r) => (r.palletizations?.length

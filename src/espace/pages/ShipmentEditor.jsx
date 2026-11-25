@@ -13,6 +13,7 @@ import { EditorHeader, DocChip, Btn, editorInputCls, pct, ConflictBanner, Refere
 import useDocEditor, { initialOf } from '../useDocEditor';
 import useReferences from '../useReferences';
 import { tourTitle, isAutoTitle } from '../tourCheck';
+import { quote, factsOf } from '../../shared/carriers/pricing';
 
 /** /app/chargements/nouveau : crée un chargement vide puis ouvre l'éditeur. */
 export function NewShipment() {
@@ -28,11 +29,38 @@ export function NewShipment() {
   return <div className="p-10 flex justify-center text-slate-400">{error ? <span className="text-red-700 text-sm">{error}</span> : <Loader2 className="animate-spin" />}</div>;
 }
 
+/** Devis d'un transporteur pour un résumé de plan (null sans plan). */
+function quoteOf(c, summary) {
+  const f = factsOf(summary);
+  if (!f) return null;
+  return { carrier: c.code, label: c.label, ...quote(f, c.data) };
+}
+const eur = (v) => `${v.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} €`;
+/** Détail lisible d'un devis (infobulle). */
+function quoteDetail(q) {
+  if (!q || q.error) return q?.error ?? '';
+  const lines = [];
+  if (q.lines) q.lines.forEach((l) => lines.push(`${l.count} × ${l.label} à ${eur(l.price)}`));
+  else lines.push(`${q.qty.toLocaleString('fr-FR')} ${q.unit} → ${eur(q.base)}`);
+  if (q.taxable) lines.push(`Poids taxable : ${q.taxable.kg.toLocaleString('fr-FR')} kg (${{ real: 'poids réel', volume: 'volume', floor: 'plancher' }[q.taxable.by]})`);
+  if (q.minApplied) lines.push('Minimum de perception appliqué');
+  if (q.fuel) lines.push(`Surcharge gazole : ${eur(q.fuel)}`);
+  return lines.join('\n');
+}
+
 export default function ShipmentEditor() {
   const { code } = useParams();
   const refs = useReferences();
   const navigate = useNavigate();
-  const ed = useDocEditor({ code, load: getShipment, update: updateShipment, titleOf: (d) => d.label ?? 'Chargement' });
+  // Coût théorique du transporteur : recalculé à chaque enregistrement, figé une fois au quai.
+  const carriers = refs.tools?.carriers ?? [];
+  const derive = (patch, base) => {
+    if (!('carrier_cost' in base) || DOCK_STATUSES.includes(base.status)) return {};
+    const c = carriers.find((x) => x.code === patch.carrier);
+    const q = c ? quoteOf(c, patch.result?.summary) : null;
+    return { carrier_cost: q && !q.error ? q.amount : null, carrier_quote: q };
+  };
+  const ed = useDocEditor({ code, load: getShipment, update: updateShipment, titleOf: (d) => d.label ?? 'Chargement', derive });
   const [pzs, setPzs] = useState([]);
   const [quaiOpen, setQuaiOpen] = useState(false);
   const [proofOf, setProofOf] = useState(undefined); // undefined = fermé ; null = toutes ; n = camion n
@@ -83,10 +111,16 @@ export default function ShipmentEditor() {
   // Tournée ou date changée : le titre suit (« Tournée T01 – 25/11/2026 ») tant qu'il n'a pas été saisi à la main.
   const setHeader = (patch) => {
     const m = { ...ed.meta, ...patch };
+    // Tournée choisie : son transporteur par défaut, si aucun n'est encore choisi.
+    if (patch.tour && !m.carrier) m.carrier = tours.find((t) => t.code === patch.tour)?.carrier ?? '';
     const auto = isAutoTitle(ed.meta.label) ? tourTitle([m.tour], m.departure_at) : null;
     ed.setMeta(auto ? { ...m, label: auto } : m);
   };
   const tourMissing = !!tour && !tours.some((t) => t.code === tour);
+  const carrier = ed.meta.carrier;
+  const carrierMissing = !!carrier && !carriers.some((c) => c.code === carrier);
+  // Au quai : coût figé (enregistré) ; sinon calcul en direct sur le plan affiché.
+  const liveQuote = locked ? ed.doc.carrier_quote : (carriers.find((c) => c.code === carrier) ? quoteOf(carriers.find((c) => c.code === carrier), s) : null);
   const duplicate = async () => {
     const d = ed.dirty ? await ed.save() : ed.doc;
     if (d) navigate(`/app/chargements/${await duplicateShipment(d)}`);
@@ -125,6 +159,20 @@ export default function ShipmentEditor() {
                 {tours.map((t) => <option key={t.code} value={t.code}>{t.code} · {t.label}</option>)}
                 {tourMissing && <option value={tour}>{tour} (inconnue)</option>}
               </select></label>
+          )}
+          {'carrier' in ed.doc && (carriers.length > 0 || carrier) && (
+            <span className="flex items-center gap-2 text-slate-500">
+              <label className="flex items-center gap-2">Transporteur
+                <select value={carrier} onChange={(e) => ed.setMeta({ ...ed.meta, carrier: e.target.value })} disabled={!!locked} className={`${editorInputCls} max-w-[11rem]`}>
+                  <option value="">— Aucun —</option>
+                  {carriers.map((c) => <option key={c.code} value={c.code}>{c.label}</option>)}
+                  {carrierMissing && <option value={carrier}>{carrier} (inconnu)</option>}
+                </select></label>
+              {liveQuote && (liveQuote.error
+                ? <span className="text-xs text-amber-700" title={liveQuote.error}>coût : —</span>
+                : <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-1 font-jetbrains text-xs text-slate-800 whitespace-pre" title={quoteDetail(liveQuote)}>
+                    ≈ {eur(liveQuote.amount)}{locked && <span className="ml-1 text-slate-400">figé</span>}</span>)}
+            </span>
           )}
         </>}
         links={<>
