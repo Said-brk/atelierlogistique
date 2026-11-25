@@ -729,6 +729,9 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
   const pendingManual = useRef(false); // retouches enregistrées en cours de rechargement
   // Données envoyées par un autre outil (ex. palettes de la palettisation 3D).
   useEffect(() => {
+    // Espace : les palettes arrivent déjà écrites dans le chargement (base) ; on ne lit jamais un envoi
+    // resté dans le navigateur (il pourrait venir d'une autre palettisation ou du site public).
+    if (workspace) return;
     const env = consumeHandoff('optimiseur-chargement', COLIS_SCHEMA.id);
     if (!env) return;
     const origin = typeof env.extra?.origin === 'string' ? env.extra.origin : null;

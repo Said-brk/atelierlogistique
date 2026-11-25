@@ -264,14 +264,18 @@ export default function Palletizer({ onBack, embedded: embeddedProp = false, onL
 
   const sendToTruck = () => {
     if (!result || result.pallets.length === 0) return;
+    const records = palletsToLoadRecords(result.pallets, result.specs, stacking);
+    track('pallet_sent_to_load_optimizer', { pallets: result.pallets.length });
+    // Espace : les palettes sont remises à l'éditeur, qui les écrit dans le chargement choisi (en base).
+    // Rien n'est mis en attente dans le navigateur (sinon elles finiraient dans le prochain chargement ouvert).
+    if (workspace && onLoadTruck) { onLoadTruck({ records }); return; }
     sendHandoff('optimiseur-chargement', {
       schemaId: COLIS_SCHEMA.id,
       schemaVersion: COLIS_SCHEMA.version,
       source: { tool: 'pallet', label: t('Palettisation 3D') },
-      records: palletsToLoadRecords(result.pallets, result.specs, stacking),
+      records,
       extra: { unitLabel: t('palette(s)'), ...(workspace?.origin ? { origin: workspace.origin } : {}) },
     });
-    track('pallet_sent_to_load_optimizer', { pallets: result.pallets.length });
     if (onLoadTruck) onLoadTruck(); else navigate(toolHref('optimiseur-chargement', getCurrentLang()));
   };
 
