@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Répartition des charges camion : charge à l’essieu et calcul · Atelier Logistique</title>
+  <meta name="description" content="Un camion peut être sous son poids total et quand même en surcharge sur un essieu. Limites légales (13 t, 12 t, tridem 27 t), calcul par la règle du levier, exemples chiffrés et amendes. Calcul 3D gratuit." />
+  <meta name="keywords" content="répartition des charges camion, charge à l'essieu, surcharge essieu, calcul charge essieu, charge sellette semi-remorque, poids par essieu camion, surcharge camion amende, centre de gravité chargement, plan de chargement" />
+  <link rel="canonical" href="https://atelierlogistique.com/ressources/repartition-des-charges-camion" />
+
+  <meta property="og:title" content="Répartition des charges d’un camion : la charge à l’essieu expliquée" />
+  <meta property="og:description" content="Limites légales, calcul en trois lignes, exemples chiffrés et calcul 3D gratuit." />
+  <meta property="og:type" content="article" />
+  <meta property="og:url" content="https://atelierlogistique.com/ressources/repartition-des-charges-camion" />
+  <meta property="og:site_name" content="Atelier Logistique" />
+  <meta property="og:locale" content="fr_FR" />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Répartition des charges : sous le PTAC, mais en surcharge" />
+  <meta name="twitter:description" content="Charge à l’essieu : limites, calcul, exemples et calcul 3D gratuit." />
+
+  <meta name="twitter:description" content="Remplir un camion sans rien oublier : volume, poids, empilage et tournées multi-arrêts." />
+
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="icon" type="image/png" href="/favicon_atelierlogistique.png" />
+  <link rel="apple-touch-icon" href="/favicon_atelierlogistique.png" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=JetBrains+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = { theme: { extend: { fontFamily: {
+      bricolage: ['Bricolage Grotesque', 'sans-serif'],
+      sans: ['DM Sans', 'sans-serif'],
+      jetbrains: ['JetBrains Mono', 'monospace'],
+    } } } };
+  </script>
+
+  <style>
+    body { font-family: 'DM Sans', system-ui, sans-serif; }
+    .font-bricolage { font-family: 'Bricolage Grotesque', sans-serif; letter-spacing: -0.02em; }
+    .font-jetbrains { font-family: 'JetBrains Mono', monospace; }
+    h1, h2, h3, h4 { font-family: 'Bricolage Grotesque', sans-serif; letter-spacing: -0.02em; }
+    .prose-content p { margin-bottom: 1rem; line-height: 1.75; }
+    .prose-content ul, .prose-content ol { padding-left: 1.5rem; margin-bottom: 1rem; }
+    .prose-content ul { list-style: disc; }
+    .prose-content ol { list-style: decimal; }
+    .prose-content li { margin-bottom: 0.5rem; line-height: 1.65; }
+    .prose-content a { color: #2563EB; text-decoration: underline; text-underline-offset: 2px; }
+    @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+    .pulse-dot { animation: pulse-dot 2s ease-in-out infinite; }
+    details summary { list-style: none; }
+    details summary::-webkit-details-marker { display: none; }
+  </style>
+
+  <script type="application/ld+json">
+  {"@context": "https://schema.org", "@type": "Article", "headline": "Répartition des charges d’un camion : charge à l’essieu, calcul et erreurs à éviter", "description": "Un camion peut être sous son poids total et quand même en surcharge sur un essieu. Limites légales (13 t, 12 t, tridem 27 t), calcul par la règle du levier, exemples chiffrés et amendes. Calcul 3D gratuit.", "author": {"@type": "Person", "name": "Saïd BARKAM", "jobTitle": "Consultant ERP & Supply Chain"}, "publisher": {"@type": "Organization", "name": "Atelier Logistique"}, "datePublished": "2026-11-25", "dateModified": "2026-11-25", "mainEntityOfPage": "https://atelierlogistique.com/ressources/repartition-des-charges-camion", "inLanguage": "fr-FR", "about": ["Répartition des charges", "Charge à l’essieu", "Plan de chargement"]}
+  </script>
+
+  <script type="application/ld+json">
+  {"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "Optimiseur de chargement 3D", "applicationCategory": "BusinessApplication", "operatingSystem": "Web", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "EUR"}, "description": "Plan de chargement 3D de camion et conteneur, avec répartition des charges sur la sellette et les essieux et calcul des sangles d’arrimage. Gratuit, sans compte.", "url": "https://atelierlogistique.com/outils/optimiseur-chargement"}
+  </script>
+
+  <script type="application/ld+json">
+  {"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "Atelier Logistique", "item": "https://atelierlogistique.com/"}, {"@type": "ListItem", "position": 2, "name": "Ressources", "item": "https://atelierlogistique.com/ressources"}, {"@type": "ListItem", "position": 3, "name": "Répartition des charges", "item": "https://atelierlogistique.com/ressources/repartition-des-charges-camion"}]}
+  </script>
+
+  <script type="application/ld+json">
+  {"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "Quelle est la charge maximale autorisée par essieu en France ?", "acceptedAnswer": {"@type": "Answer", "text": "L’essieu le plus chargé ne doit pas dépasser 13 tonnes. Cette limite descend à 12 tonnes pour un ensemble articulé ou un camion avec remorque qui circule à plus de 40 tonnes, et un groupe de trois essieux (tridem) de semi-remorque est alors limité à 27 tonnes (articles R312-5 et R312-6 du code de la route)."}}, {"@type": "Question", "name": "Un camion sous son PTAC peut-il être en surcharge ?", "acceptedAnswer": {"@type": "Answer", "text": "Oui. Le poids total peut être respecté alors qu’un essieu dépasse sa limite, parce que la charge est mal répartie : marchandise lourde concentrée à l’avant d’une semi-remorque (surcharge de la sellette et de l’essieu moteur du tracteur) ou à l’arrière d’un porteur (surcharge de l’essieu arrière). Le contrôle porte sur les deux : poids total et poids par essieu."}}, {"@type": "Question", "name": "Comment calculer la charge sur chaque essieu ?", "acceptedAnswer": {"@type": "Answer", "text": "On applique la règle du levier. Pour une charge Q dont le centre de gravité est à la distance x de l’appui avant, avec un empattement L entre les appuis avant et arrière : charge reprise par l’appui arrière = Q × x ÷ L, charge reprise par l’appui avant = Q − charge arrière. On additionne ensuite la tare du véhicule sur chaque essieu (fiche de pesée ou carte grise)."}}, {"@type": "Question", "name": "Quelle amende pour une surcharge à l’essieu ?", "acceptedAnswer": {"@type": "Answer", "text": "En France, une contravention de 4e classe (135 € en amende forfaitaire) par tranche de 300 kg de dépassement sur chaque essieu, cumulable avec la surcharge sur le poids total (par tranche d’une tonne au-delà de 3,5 t de PTAC). Au-delà de 5 % de dépassement, le véhicule peut être immobilisé jusqu’à la mise en conformité."}}, {"@type": "Question", "name": "Où placer les palettes lourdes dans une semi-remorque ?", "acceptedAnswer": {"@type": "Answer", "text": "Au plus près du centre de la longueur de chargement, réparties sur la largeur, et jamais toutes à l’avant ni toutes à l’arrière. Le centre de gravité de la marchandise doit tomber entre la sellette et les essieux de la remorque, à la position qui ne dépasse ni la charge sellette admise ni celle du groupe d’essieux. Dans une tournée multi-arrêts, vérifier aussi la répartition après chaque livraison."}}, {"@type": "Question", "name": "Existe-t-il un outil gratuit pour vérifier la répartition des charges ?", "acceptedAnswer": {"@type": "Answer", "text": "Oui. L’optimiseur de chargement 3D d’Atelier Logistique calcule le plan de chargement puis la charge sur la sellette et les essieux, signale les dépassements et estime le nombre de sangles d’arrimage. Il est gratuit, sans compte et fonctionne dans le navigateur."}}]}
+  </script>
+</head>
+
+<body class="bg-white text-slate-900">
+
+  <!-- HEADER -->
+  <nav class="border-b border-slate-200 sticky top-0 z-20 bg-white/90 backdrop-blur-sm">
+    <div class="max-w-7xl mx-auto px-6 md:px-10 py-4 flex items-center justify-between">
+      <a href="/" class="flex items-center gap-3">
+        <svg viewBox="0 0 120 120" width="40" height="40" xmlns="http://www.w3.org/2000/svg" class="w-10 h-10 shrink-0" role="img" aria-label="Atelier Logistique"><path d="M16 104 L60 16 L104 104" fill="none" stroke="#0F172A" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/><line x1="38" y1="72" x2="82" y2="72" stroke="#2563EB" stroke-width="7" stroke-linecap="round" stroke-dasharray="2 12"/><circle cx="16" cy="104" r="11" fill="#2563EB"/><circle cx="104" cy="104" r="11" fill="#2563EB"/><circle cx="60" cy="16" r="11" fill="#F59E0B"/></svg>
+        <div>
+          <div class="font-bricolage font-bold text-lg tracking-tight text-slate-900">ATELIER LOGISTIQUE</div>
+          <div class="font-jetbrains text-[10px] text-slate-500 -mt-1 tracking-wider">LA BOÎTE À OUTILS DES PROS DE LA SUPPLY CHAIN</div>
+        </div>
+      </a>
+      <div class="hidden md:flex items-center gap-5 font-jetbrains text-xs text-slate-500">
+        <a href="/#tools" class="hover:text-slate-900 transition-colors">Outils</a>
+        <a href="/#how" class="hover:text-slate-900 transition-colors">Comment ça marche</a>
+        <a href="/ressources" class="hover:text-slate-900 transition-colors">Ressources</a>
+        <span class="text-slate-300">|</span>
+        <span class="flex items-center gap-2" style="color: #2563EB;">
+          <span class="w-1.5 h-1.5 rounded-full pulse-dot" style="background: #2563EB;"></span>
+          EN LIGNE
+        </span>
+      </div>
+    </div>
+  </nav>
+
+
+  <!-- BREADCRUMB -->
+  <nav class="max-w-7xl mx-auto px-6 md:px-10 py-3 font-jetbrains text-[11px] text-slate-500" aria-label="Fil d'Ariane">
+    <a href="/" class="hover:text-slate-900 transition-colors">ATELIER</a>
+    <span class="mx-2 text-slate-300">/</span>
+    <a href="/ressources" class="hover:text-slate-900 transition-colors">RESSOURCES</a>
+    <span class="mx-2 text-slate-300">/</span>
+    <span class="text-slate-800">RÉPARTITION DES CHARGES</span>
+  </nav>
+
+  <!-- HERO -->
+  <section class="relative max-w-7xl mx-auto px-6 md:px-10 pt-12 md:pt-16 pb-16 md:pb-20">
+    <div class="font-jetbrains text-xs mb-6 flex items-center gap-2 tracking-wider" style="color: #2563EB;">
+      <span>●</span>
+      <span>TRANSPORT & EXPÉDITION — GUIDE PRATIQUE</span>
+    </div>
+    <h1 class="font-bricolage font-bold text-4xl md:text-6xl lg:text-7xl leading-[0.95] mb-6 tracking-tight max-w-4xl text-slate-900">
+      Répartition des charges :
+      <br /><em class="italic font-normal text-slate-400">le camion n’est pas plein,</em>
+      <br /><span style="color: #2563EB;">il est en surcharge.</span>
+    </h1>
+    <p class="text-slate-600 text-lg md:text-xl max-w-3xl leading-relaxed">
+      Un camion peut respecter son poids total et être verbalisé quand même : sur un essieu. Les limites légales,
+      le calcul de la charge sur chaque essieu en trois lignes, deux exemples chiffrés et les erreurs de chargement
+      qui coûtent cher.
+    </p>
+    <div class="flex flex-wrap items-center gap-3 mt-10 font-jetbrains text-xs">
+      <a href="/outils/optimiseur-chargement" class="px-5 py-3 rounded-md font-medium transition-all hover:translate-y-[-1px] flex items-center gap-2 text-white" style="background: #2563EB;">
+        CALCULEZ-LE EN 3D, GRATUITEMENT
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </a>
+      <a href="#calcul" class="px-5 py-3 rounded-md font-medium border border-slate-300 text-slate-700 hover:bg-slate-50 transition-all">
+        LA FORMULE
+      </a>
+    </div>
+  </section>
+
+  <!-- CONTENU PRINCIPAL -->
+  <main class="max-w-3xl mx-auto px-6 md:px-10 py-12 prose-content text-slate-700 text-base">
+
+    <nav class="mb-12 rounded-lg border border-slate-200 p-5" style="background: #F8FAFC;" aria-label="Sommaire">
+      <div class="font-jetbrains text-[10px] tracking-widest mb-3 text-slate-500">SOMMAIRE</div>
+      <ol class="text-sm space-y-1 mb-0">
+        <li><a href="#pourquoi">Pourquoi un camion « léger » peut être en surcharge</a></li>
+        <li><a href="#limites">Les limites légales à connaître</a></li>
+        <li><a href="#calcul">Calculer la charge sur chaque essieu</a></li>
+        <li><a href="#semi">Exemple 1 : la semi chargée à l’avant</a></li>
+        <li><a href="#porteur">Exemple 2 : le porteur chargé à l’arrière</a></li>
+        <li><a href="#tournee">Le piège des tournées multi-arrêts</a></li>
+        <li><a href="#regles">7 règles de chargement</a></li>
+        <li><a href="#sanctions">Ce que coûte une surcharge</a></li>
+        <li><a href="#faq">FAQ</a></li>
+      </ol>
+    </nav>
+
+    <section id="pourquoi" class="mb-12">
+      <div class="font-jetbrains text-[10px] tracking-widest mb-2" style="color: #2563EB;">01 · LE PROBLÈME</div>
+      <h2 class="font-bricolage font-bold text-3xl mb-4 text-slate-900">Pourquoi un camion « léger » peut être en surcharge</h2>
+      <p>
+        Sur la bascule, le contrôleur ne regarde pas seulement le <strong>poids total</strong> du véhicule. Il pèse
+        aussi chaque <strong>essieu</strong>. Or la marchandise ne pèse pas « sur le camion » de façon uniforme : elle
+        se répartit entre les appuis (essieux, sellette) selon <strong>l’endroit où se trouve son centre de gravité</strong>.
+      </p>
+      <p>
+        Résultat : 16 tonnes de palettes concentrées contre la face avant d’une semi-remorque peuvent surcharger la
+        sellette et l’essieu moteur du tracteur, alors que l’ensemble est loin de ses 40 ou 44 tonnes. À l’inverse,
+        un porteur chargé seulement à l’arrière déleste son essieu avant : le camion freine et braque mal.
+        La <strong>répartition des charges</strong> fait donc partie du plan de chargement, au même titre que le volume
+        et le <a href="/ressources/plan-de-chargement-camion">nombre de palettes</a>.
+      </p>
+    </section>
+
+    <section id="limites" class="mb-12">
+      <div class="font-jetbrains text-[10px] tracking-widest mb-2" style="color: #2563EB;">02 · RÉGLEMENTATION</div>
+      <h2 class="font-bricolage font-bold text-3xl mb-4 text-slate-900">Les limites légales à connaître (France)</h2>
+      <div class="my-6 rounded-lg overflow-hidden border border-slate-200 overflow-x-auto">
+        <table class="w-full text-xs min-w-[560px]">
+          <thead style="background: #F8FAFC;"><tr><th class="text-left p-3 font-jetbrains text-[10px] text-slate-500 tracking-wider">CE QUI EST LIMITÉ</th><th class="text-left p-3 font-jetbrains text-[10px] text-slate-500 tracking-wider">LIMITE</th><th class="text-left p-3 font-jetbrains text-[10px] text-slate-500 tracking-wider">RÉFÉRENCE</th></tr></thead>
+          <tbody>
+            <tr class="border-t border-slate-200"><td class="p-3 font-semibold">Essieu le plus chargé</td><td class="p-3"><strong>13 t</strong></td><td class="p-3 font-jetbrains">R312-5</td></tr>
+            <tr class="border-t border-slate-200" style="background: #FAFAFA;"><td class="p-3 font-semibold">Essieu le plus chargé, ensemble à plus de 40 t</td><td class="p-3"><strong>12 t</strong></td><td class="p-3 font-jetbrains">R312-5</td></tr>
+            <tr class="border-t border-slate-200"><td class="p-3 font-semibold">Groupe de 3 essieux (tridem), ensemble à plus de 40 t</td><td class="p-3"><strong>27 t</strong></td><td class="p-3 font-jetbrains">R312-6</td></tr>
+            <tr class="border-t border-slate-200" style="background: #FAFAFA;"><td class="p-3 font-semibold">Porteur 2 essieux / 3 essieux</td><td class="p-3"><strong>19 t / 26 t</strong> (PTAC)</td><td class="p-3 font-jetbrains">R312-4</td></tr>
+            <tr class="border-t border-slate-200"><td class="p-3 font-semibold">Ensemble articulé de plus de 4 essieux</td><td class="p-3"><strong>40 t</strong>, <strong>44 t</strong> en transport national</td><td class="p-3 font-jetbrains">R312-4</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        Ces valeurs sont les plafonds du code de la route. Le véhicule lui-même a souvent des limites plus basses :
+        <strong>charge admissible sur la sellette</strong>, charge technique par essieu, inscrites sur la plaque
+        constructeur. C’est la plus petite des deux qui s’applique. Hors de France, les limites diffèrent : vérifiez la
+        réglementation du pays traversé.
+      </p>
+    </section>
+
+    <section id="calcul" class="mb-12">
+      <div class="font-jetbrains text-[10px] tracking-widest mb-2" style="color: #2563EB;">03 · LA FORMULE</div>
+      <h2 class="font-bricolage font-bold text-3xl mb-4 text-slate-900">Calculer la charge sur chaque essieu</h2>
+      <p>
+        On modélise le plateau comme une poutre posée sur deux appuis : l’appui avant (la sellette pour une semi,
+        l’essieu avant pour un porteur) et l’appui arrière (le groupe d’essieux). Pour une marchandise de poids
+        <strong>Q</strong> dont le centre de gravité est à la distance <strong>x</strong> de l’appui avant, et un écart
+        <strong>L</strong> entre les deux appuis :
+      </p>
+      <div class="my-6 rounded-lg border border-slate-200 p-5 font-jetbrains text-sm text-slate-800" style="background: #F8FAFC;">
+        charge sur l’appui arrière = Q × x ÷ L<br />
+        charge sur l’appui avant = Q − charge sur l’appui arrière
+      </div>
+      <figure class="my-8">
+  <svg viewBox="0 0 720 260" class="w-full h-auto" role="img" aria-label="Semi-remorque vue de côté : la charge Q, placée à x de la sellette, se répartit entre la sellette (avant) et le groupe d’essieux de la remorque (arrière), écartés de L.">
+    <rect x="40" y="60" width="600" height="110" rx="6" fill="#EFF6FF" stroke="#2563EB" stroke-width="2"/>
+    <rect x="120" y="88" width="70" height="82" fill="#BFDBFE" stroke="#1D4ED8"/><rect x="200" y="88" width="70" height="82" fill="#BFDBFE" stroke="#1D4ED8"/>
+    <rect x="280" y="104" width="70" height="66" fill="#BFDBFE" stroke="#1D4ED8"/><rect x="360" y="104" width="70" height="66" fill="#BFDBFE" stroke="#1D4ED8"/>
+    <rect x="440" y="120" width="70" height="50" fill="#DBEAFE" stroke="#1D4ED8"/>
+    <circle cx="300" cy="125" r="9" fill="#F59E0B"/><text x="300" y="52" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="13" fill="#B45309">Q (centre de gravité)</text>
+    <line x1="300" y1="58" x2="300" y2="114" stroke="#B45309" stroke-width="2" stroke-dasharray="4 4"/>
+    <rect x="70" y="170" width="40" height="14" fill="#0F172A"/><text x="90" y="205" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="12" fill="#0F172A">sellette</text>
+    <circle cx="500" cy="190" r="16" fill="#0F172A"/><circle cx="540" cy="190" r="16" fill="#0F172A"/><circle cx="580" cy="190" r="16" fill="#0F172A"/>
+    <text x="540" y="228" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="12" fill="#0F172A">tridem</text>
+    <line x1="90" y1="244" x2="540" y2="244" stroke="#64748B" stroke-width="1.5"/><text x="315" y="257" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="12" fill="#475569">L (empattement)</text>
+    <line x1="90" y1="232" x2="300" y2="232" stroke="#B45309" stroke-width="1.5"/><text x="195" y="226" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="12" fill="#B45309">x</text>
+    <path d="M90 150 v-40 M82 118 l8 -10 l8 10" stroke="#16A34A" stroke-width="3" fill="none"/>
+  </svg>
+  <figcaption class="text-xs text-slate-500 text-center mt-2">Charge arrière = Q × x ÷ L · charge avant (sellette) = Q − charge arrière.</figcaption>
+</figure>
+      <p>
+        Le centre de gravité de la marchandise se calcule de la même façon : la moyenne des positions de chaque palette
+        (son milieu), pondérée par son poids. On ajoute ensuite la <strong>tare</strong> du véhicule sur chaque essieu
+        (fiche de pesée à vide), puis on compare aux limites. Si x est négatif ou supérieur à L, la charge est en porte-à-faux :
+        un appui est délesté et l’autre reprend plus que le poids de la marchandise.
+      </p>
+    </section>
+
+    <section id="semi" class="mb-12">
+      <div class="font-jetbrains text-[10px] tracking-widest mb-2" style="color: #2563EB;">04 · EXEMPLE CHIFFRÉ</div>
+      <h2 class="font-bricolage font-bold text-3xl mb-4 text-slate-900">Exemple 1 : la semi-remorque chargée à l’avant</h2>
+      <p>
+        Semi-remorque de 13,60 m, sellette à 1,0 m de la face avant, centre du tridem à 9,0 m : <strong>L = 8,0 m</strong>.
+        On charge 16 palettes de 1 000 kg (16 t) au fond de la remorque, sur les 6,8 premiers mètres, pour les sortir en
+        dernier. Leur centre de gravité est à 3,4 m de la face avant, soit <strong>x = 2,4 m</strong> de la sellette.
+      </p>
+      <ul>
+        <li>Tridem : 16 × 2,4 ÷ 8,0 = <strong>4,8 t</strong> de marchandise ;</li>
+        <li>Sellette : 16 − 4,8 = <strong>11,2 t</strong> de marchandise.</li>
+      </ul>
+      <p>
+        11,2 tonnes de marchandise sur la sellette, plus la part de tare de la remorque : la sellette et l’essieu moteur
+        du tracteur dépassent leurs limites, alors que l’ensemble pèse moins de 32 t. Les mêmes 16 palettes
+        réparties sur toute la longueur (x = 5,8 m) donnent 11,6 t sur le tridem et 4,4 t sur la sellette : aucune surcharge.
+      </p>
+    </section>
+
+    <section id="porteur" class="mb-12">
+      <div class="font-jetbrains text-[10px] tracking-widest mb-2" style="color: #2563EB;">05 · EXEMPLE CHIFFRÉ</div>
+      <h2 class="font-bricolage font-bold text-3xl mb-4 text-slate-900">Exemple 2 : le porteur chargé à l’arrière</h2>
+      <p>
+        Porteur 19 t, caisse de 7,30 m : l’essieu avant est 1,3 m devant la caisse, l’essieu arrière à 4,9 m de la face
+        avant de la caisse, donc <strong>L = 6,2 m</strong>. On charge 5 t de palettes dans les 2 derniers mètres
+        (centre à 6,3 m de la face avant, soit <strong>x = 7,6 m</strong> de l’essieu avant, au-delà de l’essieu arrière).
+      </p>
+      <ul>
+        <li>Essieu arrière : 5 × 7,6 ÷ 6,2 = <strong>6,1 t</strong>, soit plus que la marchandise elle-même ;</li>
+        <li>Essieu avant : 5 − 6,1 = <strong>−1,1 t</strong> : la charge soulage l’essieu avant.</li>
+      </ul>
+      <p>
+        L’essieu arrière peut passer en surcharge, et surtout l’essieu avant perd de l’adhérence : direction et freinage
+        sont dégradés. C’est le cas typique du porteur dont on a déjà livré les premiers arrêts côté cabine.
+      </p>
+    </section>
+
+    <section id="tournee" class="mb-12">
+      <div class="font-jetbrains text-[10px] tracking-widest mb-2" style="color: #2563EB;">06 · MULTI-ARRÊTS</div>
+      <h2 class="font-bricolage font-bold text-3xl mb-4 text-slate-900">Le piège des tournées multi-arrêts</h2>
+      <p>
+        Un camion bien réparti au départ ne l’est plus forcément après la première livraison. Dans une tournée chargée en
+        <strong>LIFO</strong> (premier livré côté portes), on décharge d’abord l’arrière : le centre de gravité avance vers la
+        cabine à chaque arrêt. Pour une semi, c’est la sellette qui se charge ; pour un porteur, l’inverse peut arriver si les
+        premiers arrêts étaient côté cabine.
+      </p>
+      <p>
+        La bonne pratique : vérifier la répartition <strong>au départ et après chaque arrêt</strong>, pas seulement au quai.
+        C’est fastidieux à la main, immédiat avec un calcul automatique.
+      </p>
+    </section>
+
+    <section id="regles" class="mb-12">
+      <div class="font-jetbrains text-[10px] tracking-widest mb-2" style="color: #2563EB;">07 · BONNES PRATIQUES</div>
+      <h2 class="font-bricolage font-bold text-3xl mb-4 text-slate-900">7 règles de chargement pour répartir les charges</h2>
+      <ol>
+        <li><strong>Lourd au milieu, léger aux extrémités</strong> : le centre de gravité doit tomber entre les appuis, à une position qui respecte à la fois la charge sellette et celle du groupe d’essieux.</li>
+        <li><strong>Jamais toute la charge contre la face avant</strong> d’une semi, même pour « la caler ».</li>
+        <li><strong>Pas de lourd en porte-à-faux arrière</strong> sur un porteur : au-delà de l’essieu arrière, la charge déleste l’avant.</li>
+        <li><strong>Répartir aussi en largeur</strong> : une file de palettes lourdes d’un seul côté charge une roue et fait pencher la caisse.</li>
+        <li><strong>Lourd en bas, léger en haut</strong> : un centre de gravité haut augmente le risque de renversement en virage.</li>
+        <li><strong>Recalculer à chaque arrêt</strong> d’une tournée, et si besoin modifier l’ordre de chargement.</li>
+        <li><strong>Bloquer et arrimer</strong> : une charge bien répartie qui glisse au freinage ne l’est plus. Voir le guide <a href="/ressources/arrimage-des-charges">arrimage des charges</a>.</li>
+      </ol>
+    </section>
+
+    <section id="sanctions" class="mb-12">
+      <div class="font-jetbrains text-[10px] tracking-widest mb-2" style="color: #2563EB;">08 · RISQUES</div>
+      <h2 class="font-bricolage font-bold text-3xl mb-4 text-slate-900">Ce que coûte une surcharge</h2>
+      <p>
+        En France, il n’y a pas de tolérance : la surcharge à l’essieu est une contravention de 4e classe (135 € en
+        amende forfaitaire) <strong>par tranche de 300 kg</strong> de dépassement, sur chaque essieu, qui s’ajoute à la
+        surcharge sur le poids total (par tranche d’une tonne pour un véhicule de plus de 3,5 t). Au-delà de
+        <strong>5 % de dépassement</strong>, le véhicule peut être immobilisé jusqu’à la remise en conformité : déchargement
+        partiel, second camion, client livré en retard.
+      </p>
+      <p>
+        L’expéditeur n’est pas à l’abri : fournir une fausse déclaration de poids qui provoque un dépassement est aussi
+        sanctionné. Et au-delà de l’amende, la surcharge use freins, pneus et suspensions et dégrade les chaussées.
+      </p>
+    </section>
+
+    <section id="faq" class="mb-12">
+      <div class="font-jetbrains text-[10px] tracking-widest mb-2" style="color: #2563EB;">09 · FAQ</div>
+      <h2 class="font-bricolage font-bold text-3xl mb-6 text-slate-900">Questions fréquentes</h2>
+      <div class="space-y-3">
+        <details class="rounded-lg border border-slate-200 p-4 group">
+          <summary class="font-bricolage font-semibold text-slate-900 cursor-pointer flex items-center justify-between">
+            <span>Quelle est la charge maximale autorisée par essieu en France ?</span>
+            <svg class="w-4 h-4 transition-transform group-open:rotate-180 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </summary>
+          <p class="mt-3 text-sm text-slate-600 leading-relaxed">L’essieu le plus chargé ne doit pas dépasser 13 tonnes. Cette limite descend à 12 tonnes pour un ensemble articulé ou un camion avec remorque qui circule à plus de 40 tonnes, et un groupe de trois essieux (tridem) de semi-remorque est alors limité à 27 tonnes (articles R312-5 et R312-6 du code de la route).</p>
+        </details>
+
+        <details class="rounded-lg border border-slate-200 p-4 group">
+          <summary class="font-bricolage font-semibold text-slate-900 cursor-pointer flex items-center justify-between">
+            <span>Un camion sous son PTAC peut-il être en surcharge ?</span>
+            <svg class="w-4 h-4 transition-transform group-open:rotate-180 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </summary>
+          <p class="mt-3 text-sm text-slate-600 leading-relaxed">Oui. Le poids total peut être respecté alors qu’un essieu dépasse sa limite, parce que la charge est mal répartie : marchandise lourde concentrée à l’avant d’une semi-remorque (surcharge de la sellette et de l’essieu moteur du tracteur) ou à l’arrière d’un porteur (surcharge de l’essieu arrière). Le contrôle porte sur les deux : poids total et poids par essieu.</p>
+        </details>
+
+        <details class="rounded-lg border border-slate-200 p-4 group">
+          <summary class="font-bricolage font-semibold text-slate-900 cursor-pointer flex items-center justify-between">
+            <span>Comment calculer la charge sur chaque essieu ?</span>
+            <svg class="w-4 h-4 transition-transform group-open:rotate-180 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </summary>
+          <p class="mt-3 text-sm text-slate-600 leading-relaxed">On applique la règle du levier. Pour une charge Q dont le centre de gravité est à la distance x de l’appui avant, avec un empattement L entre les appuis avant et arrière : charge reprise par l’appui arrière = Q × x ÷ L, charge reprise par l’appui avant = Q − charge arrière. On additionne ensuite la tare du véhicule sur chaque essieu (fiche de pesée ou carte grise).</p>
+        </details>
+
+        <details class="rounded-lg border border-slate-200 p-4 group">
+          <summary class="font-bricolage font-semibold text-slate-900 cursor-pointer flex items-center justify-between">
+            <span>Quelle amende pour une surcharge à l’essieu ?</span>
+            <svg class="w-4 h-4 transition-transform group-open:rotate-180 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </summary>
+          <p class="mt-3 text-sm text-slate-600 leading-relaxed">En France, une contravention de 4e classe (135 € en amende forfaitaire) par tranche de 300 kg de dépassement sur chaque essieu, cumulable avec la surcharge sur le poids total (par tranche d’une tonne au-delà de 3,5 t de PTAC). Au-delà de 5 % de dépassement, le véhicule peut être immobilisé jusqu’à la mise en conformité.</p>
+        </details>
+
+        <details class="rounded-lg border border-slate-200 p-4 group">
+          <summary class="font-bricolage font-semibold text-slate-900 cursor-pointer flex items-center justify-between">
+            <span>Où placer les palettes lourdes dans une semi-remorque ?</span>
+            <svg class="w-4 h-4 transition-transform group-open:rotate-180 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </summary>
+          <p class="mt-3 text-sm text-slate-600 leading-relaxed">Au plus près du centre de la longueur de chargement, réparties sur la largeur, et jamais toutes à l’avant ni toutes à l’arrière. Le centre de gravité de la marchandise doit tomber entre la sellette et les essieux de la remorque, à la position qui ne dépasse ni la charge sellette admise ni celle du groupe d’essieux. Dans une tournée multi-arrêts, vérifier aussi la répartition après chaque livraison.</p>
+        </details>
+
+        <details class="rounded-lg border border-slate-200 p-4 group">
+          <summary class="font-bricolage font-semibold text-slate-900 cursor-pointer flex items-center justify-between">
+            <span>Existe-t-il un outil gratuit pour vérifier la répartition des charges ?</span>
+            <svg class="w-4 h-4 transition-transform group-open:rotate-180 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </summary>
+          <p class="mt-3 text-sm text-slate-600 leading-relaxed">Oui. L’optimiseur de chargement 3D d’Atelier Logistique calcule le plan de chargement puis la charge sur la sellette et les essieux, signale les dépassements et estime le nombre de sangles d’arrimage. Il est gratuit, sans compte et fonctionne dans le navigateur.</p>
+        </details>
+      </div>
+    </section>
+
+    <p class="text-xs text-slate-400 mb-10">Sources : code de la route, articles R312-2, R312-4, R312-5 et R312-6 (Légifrance). Valeurs indicatives pour la France au 25 novembre 2026 ; les limites du véhicule (plaque constructeur) priment si elles sont plus basses.</p>
+
+    <!-- À LIRE AUSSI -->
+    <section class="mb-4">
+      <div class="font-jetbrains text-[10px] tracking-widest mb-3 text-slate-500">À LIRE AUSSI</div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3 not-prose">
+        <a href="/ressources/plan-de-chargement-camion" class="block rounded-lg border border-slate-200 p-4 hover:bg-slate-50 transition-colors" style="text-decoration: none;">
+          <div class="font-jetbrains text-[10px] tracking-widest mb-1" style="color: #0369A1;">GUIDE</div>
+          <div class="font-bricolage font-semibold text-slate-900">Plan de chargement camion : méthode et tournées multi-arrêts</div>
+        </a>
+        <a href="/ressources/arrimage-des-charges" class="block rounded-lg border border-slate-200 p-4 hover:bg-slate-50 transition-colors" style="text-decoration: none;">
+          <div class="font-jetbrains text-[10px] tracking-widest mb-1" style="color: #B45309;">GUIDE</div>
+          <div class="font-bricolage font-semibold text-slate-900">Arrimage des charges : combien de sangles et qui est responsable</div>
+        </a>
+        <a href="/capacite" class="block rounded-lg border border-slate-200 p-4 hover:bg-slate-50 transition-colors md:col-span-2" style="text-decoration: none;">
+          <div class="font-jetbrains text-[10px] tracking-widest mb-1" style="color: #2563EB;">TABLEAU</div>
+          <div class="font-bricolage font-semibold text-slate-900">Combien de palettes par camion et par conteneur ?</div>
+        </a>
+      </div>
+    </section>
+    <!-- À PROPOS DE L'AUTEUR (bloc commun : /ressources/auteur.js) -->
+    <div id="auteur"></div>
+  </main>
+
+  <!-- CTA OUTIL -->
+  <section class="border-t border-slate-200" style="background: #F8FAFC;">
+    <div class="max-w-3xl mx-auto px-6 md:px-10 py-14 text-center">
+      <div class="font-jetbrains text-[10px] tracking-widest mb-3" style="color: #2563EB;">OUTIL EN LIGNE · GRATUIT · SANS COMPTE</div>
+      <h2 class="font-bricolage font-bold text-3xl md:text-4xl mb-4 text-slate-900 tracking-tight">Votre chargement est-il bien réparti ?</h2>
+      <p class="text-slate-600 mb-8 max-w-xl mx-auto leading-relaxed">Saisissez ou importez vos palettes, choisissez le véhicule : l’optimiseur calcule le plan en 3D, la charge sur la sellette et chaque essieu, signale les dépassements arrêt par arrêt et estime le nombre de sangles d’arrimage.</p>
+      <a href="/outils/optimiseur-chargement" class="inline-flex items-center gap-2 px-6 py-3.5 rounded-md font-jetbrains text-xs font-medium shadow-lg transition-transform hover:translate-y-[-1px] text-white" style="background: #2563EB;">
+        CALCULEZ-LE EN 3D, GRATUITEMENT
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </a>
+    </div>
+  </section>
+
+  <!-- CTA AUDIT FLASH -->
+  <section class="text-white" style="background: linear-gradient(135deg, #0F172A 0%, #1E3A8A 70%, #B45309 100%);">
+    <div class="max-w-3xl mx-auto px-6 md:px-10 py-14">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
+        <div class="md:col-span-2">
+          <div class="font-jetbrains text-[10px] tracking-widest mb-2" style="color: #F59E0B;">AUDIT FLASH SUPPLY CHAIN</div>
+          <div class="font-bricolage font-bold text-2xl md:text-3xl mb-3 leading-tight tracking-tight">Auditez votre supply chain en 5 minutes</div>
+          <div class="text-slate-300 text-sm leading-relaxed">L'Audit Flash analyse vos ventes et votre stock pour identifier les chantiers prioritaires : stock dormant chiffré, OTIF achat et client, déséquilibres inter-magasins, articles à risque. Diagnostic gratuit avec rapport PDF.</div>
+        </div>
+        <div>
+          <a href="/outils/audit" class="inline-flex items-center justify-center gap-2 w-full px-5 py-3 rounded-md font-jetbrains text-xs font-bold shadow-lg" style="background: #F59E0B; color: #0F172A;">
+            LANCER L'AUDIT FLASH
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="border-t border-slate-200 bg-white">
+    <div class="max-w-7xl mx-auto px-6 md:px-10 py-8 flex flex-col md:flex-row md:items-center md:justify-between gap-3 font-jetbrains text-[11px] text-slate-500">
+      <div>ATELIER LOGISTIQUE © 2026 — La boîte à outils des pros de la supply chain</div>
+      <div class="flex items-center gap-5">
+        <a href="/" class="hover:text-slate-900">Tous les outils</a>
+        <a href="/outils/optimiseur-chargement" class="hover:text-slate-900">Optimiseur 3D</a>
+        <a href="/outils/audit" class="hover:text-slate-900">Audit Flash</a>
+        <a href="mailto:contact@atelierlogistique.com" class="hover:text-slate-900">Contact</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="/ressources/auteur.js" defer></script>
+</body>
+</html>
+
