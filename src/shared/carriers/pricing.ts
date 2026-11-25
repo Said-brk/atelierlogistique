@@ -23,11 +23,22 @@ export interface CarrierData {
   fuelPct?: number | null;
   /** Surcharge gazole publiée chaque mois par le transporteur : { "2026-11": 12.4 } (%). */
   fuelByMonth?: Record<string, number | null> | null;
-  /** Grille par zone (département ou zone tarifaire des agences) : remplace le tarif de base. */
-  zones?: { zone: string; rate: number | null }[] | null;
+  /**
+   * Grille : chaque ligne vise une agence, une tournée ou une zone tarifaire (choisies dans les listes) et remplace
+   * le tarif de base. Priorité pour une destination : agence > tournée > zone > tarif de base.
+   * (Anciennes lignes { zone, rate } = portée « zone ».)
+   */
+  zones?: GridLine[] | null;
   /** Frais par arrêt supplémentaire (€), au-delà du premier. */
   stopFee?: number | null;
 }
+
+export type Scope = 'agency' | 'tour' | 'zone';
+export interface GridLine { scope?: Scope; key?: string; zone?: string; rate: number | null }
+export const SCOPE_LABELS: Record<Scope, string> = { agency: 'Agence', tour: 'Tournée', zone: 'Zone' };
+
+/** Une destination du chargement : agence, sa tournée et sa zone tarifaire. */
+export interface Dest { agency: string; tour: string | null; zone: string | null }
 
 /** Ce qu'il faut savoir du chargement (résumé du plan). */
 export interface LoadFacts {
@@ -36,7 +47,9 @@ export interface LoadFacts {
   volumeM3: number;
   units: number;
   vehicles: { code: string; label: string; count: number }[];
-  /** Zones tarifaires des destinations (agences) ; vide = inconnues. */
+  /** Destinations (agences) avec tournée et zone ; vide = inconnues. */
+  dests?: Dest[];
+  /** Zones seules (compatibilité). */
   zones?: string[];
   /** Nombre d'arrêts (destinations distinctes). */
   stops?: number;
@@ -57,7 +70,7 @@ export interface Quote {
   taxable?: { kg: number; by: 'real' | 'volume' | 'floor' };
   /** Mode « ftl » : détail par véhicule. */
   lines?: { label: string; count: number; price: number }[];
-  /** Tarif retenu et zone qui le fixe (grille par zone). */
+  /** Tarif retenu et ligne de grille qui le fixe (« Tournée T01 », « Zone 69 »…). */
   rate?: number;
   zone?: string | null;
   /** Frais d'arrêts supplémentaires. */
@@ -82,20 +95,32 @@ const r2 = (v: number) => Math.round(v * 100) / 100;
 /** Arrondi supérieur au pas (évite 2,1000000001 → 2,2). */
 const ceilTo = (v: number, step: number) => Math.ceil(Math.round((v / step) * 1e6) / 1e6) * step;
 
-/** Tarif applicable : zone la plus chère parmi les destinations (grille), sinon tarif de base. */
-export function rateFor(c: CarrierData, zones: string[] = []): { rate: number; zone: string | null } | { error: string } {
-  const grid = new Map((c.zones ?? []).filter((z) => z.zone && z.rate != null).map((z) => [z.zone.trim().toUpperCase(), Number(z.rate)]));
+const up = (v: unknown) => String(v ?? '').trim().toUpperCase();
+const lineOf = (l: GridLine): { scope: Scope; key: string } => ({ scope: l.scope ?? 'zone', key: up(l.key ?? l.zone) });
+
+/** Tarif d'une destination : agence > tournée > zone > tarif de base. */
+function destRate(grid: Map<string, number>, base: number | null, d: Dest): { rate: number; via: string | null } | null {
+  for (const [scope, key] of [['agency', d.agency], ['tour', d.tour], ['zone', d.zone]] as [Scope, string | null][]) {
+    const r = key ? grid.get(`${scope}:${up(key)}`) : undefined;
+    if (r != null) return { rate: r, via: `${SCOPE_LABELS[scope]} ${up(key)}` };
+  }
+  return base == null ? null : { rate: base, via: null };
+}
+
+/** Tarif applicable : la destination la plus chère (grille), sinon tarif de base. */
+export function rateFor(c: CarrierData, dests: Dest[] = []): { rate: number; zone: string | null } | { error: string } {
+  const grid = new Map<string, number>();
+  for (const l of c.zones ?? []) { const { scope, key } = lineOf(l); if (key && l.rate != null && Number.isFinite(Number(l.rate))) grid.set(`${scope}:${key}`, Number(l.rate)); }
   const base = c.rate == null || (c.rate as unknown) === '' ? null : Number(c.rate);
   if (!grid.size) return base == null ? { error: 'Tarif manquant pour ce transporteur.' } : { rate: base, zone: null };
   let best: { rate: number; zone: string | null } | null = null;
-  const known = [...new Set(zones.map((z) => z.trim().toUpperCase()).filter(Boolean))];
-  for (const z of known) {
-    const r = grid.get(z) ?? base;
-    if (r == null) return { error: `Zone ${z} absente de la grille de ce transporteur.` };
-    if (!best || r > best.rate) best = { rate: r, zone: grid.has(z) ? z : null };
+  for (const d of dests) {
+    const r = destRate(grid, base, d);
+    if (!r) return { error: `${d.agency} : ni agence, ni tournée, ni zone dans la grille de ce transporteur.` };
+    if (!best || r.rate > best.rate) best = { rate: r.rate, zone: r.via };
   }
   if (best) return best;
-  return base == null ? { error: 'Destinations sans zone tarifaire (Paramètres › Agences).' } : { rate: base, zone: null };
+  return base == null ? { error: 'Destinations inconnues : choisissez les agences dans les lignes.' } : { rate: base, zone: null };
 }
 
 /** Surcharge gazole du mois (ou du dernier mois publié avant), sinon le taux par défaut. */
@@ -111,7 +136,7 @@ export function fuelFor(c: CarrierData, month?: string | null): { pct: number; m
 export function quote(facts: LoadFacts, c: CarrierData): QuoteResult {
   let rate = 0; let zone: string | null = null;
   if (c.billing !== 'ftl') {
-    const rf = rateFor(c, facts.zones);
+    const rf = rateFor(c, facts.dests ?? (facts.zones ?? []).map((z) => ({ agency: z, tour: null, zone: z })));
     if ('error' in rf) return rf;
     ({ rate, zone } = rf);
   }
@@ -169,16 +194,16 @@ export function factsOf(summary: Record<string, unknown> | null | undefined, ext
     volumeM3: num(summary.volume),
     units: num(summary.packed),
     vehicles: Array.isArray(summary.vehicles) ? (summary.vehicles as LoadFacts['vehicles']) : [],
-    zones: extra.zones ?? [], stops: extra.stops ?? 1, month: extra.month ?? null,
+    dests: extra.dests ?? [], stops: extra.stops ?? 1, month: extra.month ?? null,
   };
 }
 
 /** Zones et arrêts d'un chargement d'après ses lignes (destination = code agence). */
-export function routeOf(rows: { destination?: string | null; quantity?: number }[] | null | undefined, agencies: { code: string; zone?: string | null }[]) {
-  const dests = [...new Set((rows ?? []).filter((r) => (r.quantity ?? 1) > 0).map((r) => String(r.destination ?? '').trim()).filter(Boolean))];
+export function routeOf(rows: { destination?: string | null; quantity?: number }[] | null | undefined, agencies: { code: string; zone?: string | null; tour?: string | null }[]) {
+  const codes = [...new Set((rows ?? []).filter((r) => (r.quantity ?? 1) > 0).map((r) => String(r.destination ?? '').trim()).filter(Boolean))];
   const by = new Map(agencies.map((a) => [a.code.toUpperCase(), a]));
-  const zones = dests.map((d) => by.get(d.toUpperCase())?.zone ?? '').filter(Boolean) as string[];
-  return { zones, stops: Math.max(1, dests.length) };
+  const dests: Dest[] = codes.map((c) => { const a = by.get(c.toUpperCase()); return { agency: a?.code ?? c, tour: a?.tour ?? null, zone: a?.zone ?? null }; });
+  return { dests, stops: Math.max(1, codes.length) };
 }
 
 /** Devis de tous les transporteurs, du moins cher au plus cher (erreurs en dernier). */

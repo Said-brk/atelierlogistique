@@ -13,7 +13,7 @@ import { saveReference, deleteReference, resetReferences } from '../data';
 import { Btn } from '../ui';
 import ResizableTable from '../ResizableTable';
 import { defaultReferences } from '../../shared/references/defaults';
-import { BILLING_LABELS, RATE_UNIT, fuelFor } from '../../shared/carriers/pricing';
+import { BILLING_LABELS, RATE_UNIT, SCOPE_LABELS, fuelFor } from '../../shared/carriers/pricing';
 
 const inputCls = 'w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:bg-slate-50';
 const fmt = (v, d = 0) => (v == null || v === '' ? '—' : Number(v).toLocaleString('fr-FR', { maximumFractionDigits: d }));
@@ -117,9 +117,9 @@ const CARRIER_FIELDS = [
   { key: 'code', label: 'Code', type: 'text', hint: 'Ex. GEODIS, TRANS-SUD.' },
   { key: 'label', label: 'Raison sociale', type: 'text', wide: true },
   { key: 'billing', label: 'Mode de facturation', type: 'select', wide: true, options: Object.entries(BILLING_LABELS) },
-  { key: 'rate', label: 'Tarif de base', type: 'num', optional: true, if: (f) => f.billing !== 'ftl', unitOf: (f) => RATE_UNIT[f.billing], hint: 'Appliqué aux zones absentes de la grille (vide = zones de la grille seulement).' },
-  { key: 'zones', label: 'Grille par zone', type: 'zones', if: (f) => f.billing !== 'ftl', wide: true, unitOf: (f) => RATE_UNIT[f.billing],
-    hint: 'Zone = celle des agences (Paramètres › Agences). Plusieurs destinations : la zone la plus chère s’applique.' },
+  { key: 'rate', label: 'Tarif de base', type: 'num', optional: true, if: (f) => f.billing !== 'ftl', unitOf: (f) => RATE_UNIT[f.billing], hint: 'Pour les destinations absentes de la grille (vide = grille seulement).' },
+  { key: 'zones', label: 'Grille tarifaire', type: 'zones', if: (f) => f.billing !== 'ftl', wide: true, unitOf: (f) => RATE_UNIT[f.billing],
+    hint: 'Par agence, par tournée ou par zone (Paramètres › Agences). Priorité : agence, puis tournée, puis zone. Plusieurs destinations : la plus chère s’applique.' },
   { key: 'kgPerM3', label: 'Équivalence volume', unit: 'kg/m³', type: 'num', if: (f) => f.billing === 'weight', hint: 'Souvent 250 à 333.' },
   { key: 'kgPerLdm', label: 'Équivalence plancher', unit: 'kg/MPL', type: 'num', if: (f) => f.billing === 'weight', hint: 'Souvent 1 500 à 1 850.' },
   { key: 'prices', label: 'Forfait par véhicule', type: 'prices', if: (f) => f.billing === 'ftl', wide: true, hint: 'Laissez vide un véhicule que ce transporteur ne fournit pas.' },
@@ -139,7 +139,7 @@ const tariffText = (d) => {
   }
   const z = (d.zones ?? []).length;
   const baseTxt = d.rate == null ? '' : `${fmt(Number(d.rate), 2)} ${RATE_UNIT[d.billing] ?? ''}`;
-  return [baseTxt, z ? `${z} zone${z > 1 ? 's' : ''}` : ''].filter(Boolean).join(' · ') || '—';
+  return [baseTxt, z ? `grille ${z} ligne${z > 1 ? 's' : ''}` : ''].filter(Boolean).join(' · ') || '—';
 };
 
 const CARRIER_COLUMNS = (admin, patch) => [
@@ -213,7 +213,7 @@ function formOf(item, fields) {
   for (const f of fields) {
     if (f.key === 'axleMode') continue;
     const raw = TOP.includes(f.key) ? item[f.key] : f.key.startsWith('axle.') ? axle[f.key.slice(5)] : item.data?.[f.key];
-    if (f.type === 'zones') { v[f.key] = (Array.isArray(raw) ? raw : []).map((z) => ({ zone: z.zone ?? '', rate: z.rate == null ? '' : String(z.rate) })); continue; }
+    if (f.type === 'zones') { v[f.key] = (Array.isArray(raw) ? raw : []).map((z) => ({ scope: z.scope ?? 'zone', key: z.key ?? z.zone ?? '', rate: z.rate == null ? '' : String(z.rate) })); continue; }
     if (f.type === 'months') { v[f.key] = Object.entries(raw ?? {}).sort(([a], [b]) => b.localeCompare(a)).map(([month, x]) => ({ month, pct: x == null ? '' : String(x) })); continue; }
     if (f.type === 'prices') { v[f.key] = Object.fromEntries(Object.entries(raw ?? {}).map(([k, x]) => [k, x == null ? '' : String(x)])); continue; }
     v[f.key] = f.type === 'days' ? (Array.isArray(raw) ? raw : []) : f.type === 'bool' ? !!raw : raw == null ? '' : f.type === 'cm' ? String(Math.round(raw) / 10) : String(raw);
@@ -233,12 +233,13 @@ function itemOf(base, form, fields) {
     if (f.type === 'zones') {
       const seen = new Set(); const list = [];
       for (const z of val ?? []) {
-        const zone = String(z.zone ?? '').trim().toUpperCase(); const t = String(z.rate ?? '').trim().replace(',', '.');
-        if (!zone && !t) continue;
+        const scope = z.scope || 'zone'; const key = String(z.key ?? '').trim(); const t = String(z.rate ?? '').trim().replace(',', '.');
+        if (!key && !t) continue;
         const n = Number(t);
-        if (!zone || t === '' || !Number.isFinite(n) || n < 0) { errors[f.key] = 'Chaque ligne : une zone et un tarif'; continue; }
-        if (seen.has(zone)) { errors[f.key] = `Zone ${zone} en double`; continue; }
-        seen.add(zone); list.push({ zone, rate: n });
+        if (!key || t === '' || !Number.isFinite(n) || n < 0) { errors[f.key] = 'Chaque ligne : une agence, une tournée ou une zone, et un tarif'; continue; }
+        const id = `${scope}:${key.toUpperCase()}`;
+        if (seen.has(id)) { errors[f.key] = `${SCOPE_LABELS[scope]} ${key} en double`; continue; }
+        seen.add(id); list.push({ scope, key, rate: n });
       }
       val = list;
     }
@@ -309,25 +310,57 @@ function Field({ f, value, onChange, error, disabled, items = [], form = {} }) {
       </div>
     );
   }
-  if (f.type === 'zones' || f.type === 'months') {
-    const zonesT = f.type === 'zones';
+  if (f.type === 'zones') {
+    const list = value ?? [];
+    const set = (i, patch) => onChange(list.map((r, j) => (j === i ? { ...r, ...patch } : r)));
+    const opts = {
+      agency: items.filter((i) => i.kind === 'agency').sort((a, b) => a.code.localeCompare(b.code)).map((a) => [a.code, `${a.code} · ${a.label}`]),
+      tour: items.filter((i) => i.kind === 'tour').sort((a, b) => a.sort - b.sort).map((t) => [t.code, `${t.code} · ${t.label}`]),
+      zone: [...new Set(items.filter((i) => i.kind === 'agency' && i.data?.zone).map((a) => String(a.data.zone).trim()))].sort().map((z) => [z, z]),
+    };
+    return (
+      <div className="sm:col-span-2 text-xs text-slate-500">{f.label}{unit && <span className="text-slate-400"> ({unit})</span>}
+        <div className="mt-1 space-y-1.5">
+          {list.map((r, i) => {
+            const o = opts[r.scope] ?? [];
+            const missing = r.key && !o.some(([v]) => v === r.key);
+            return (
+              <div key={i} className="flex items-center gap-2">
+                <span className="w-28 shrink-0"><select value={r.scope} onChange={(e) => set(i, { scope: e.target.value, key: '' })} disabled={disabled} className={inputCls}>
+                  {Object.entries(SCOPE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                </select></span>
+                <select value={r.key} onChange={(e) => set(i, { key: e.target.value })} disabled={disabled} className={`${inputCls} min-w-0`}>
+                  <option value="">{o.length ? '— choisir —' : r.scope === 'zone' ? '— aucune zone sur les agences —' : '— aucune —'}</option>
+                  {o.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                  {missing && <option value={r.key}>{r.key} (inconnue)</option>}
+                </select>
+                <span className="w-28 shrink-0"><input value={r.rate} onChange={(e) => set(i, { rate: e.target.value })} disabled={disabled} inputMode="decimal"
+                  placeholder="Tarif" className={`${inputCls} font-jetbrains text-right`} /></span>
+                {!disabled && <button type="button" onClick={() => onChange(list.filter((_, j) => j !== i))} className="p-1 text-slate-400 hover:text-red-700" aria-label="Retirer"><X size={15} /></button>}
+              </div>
+            );
+          })}
+          {!disabled && <button type="button" onClick={() => onChange([...list, { scope: list.at(-1)?.scope ?? 'tour', key: '', rate: '' }])} className="inline-flex items-center gap-1 text-sm text-blue-700 hover:underline"><Plus size={14} /> Ajouter une ligne</button>}
+        </div>
+        {error ? <span className="block mt-0.5 text-red-700">{error}</span> : f.hint && <span className="block mt-0.5 text-slate-400">{f.hint}</span>}
+      </div>
+    );
+  }
+  if (f.type === 'months') {
     const list = value ?? [];
     const set = (i, k, x) => onChange(list.map((r, j) => (j === i ? { ...r, [k]: x } : r)));
-    const blank = zonesT ? { zone: '', rate: '' } : { month: new Date().toISOString().slice(0, 7), pct: '' };
     return (
-      <div className="sm:col-span-2 text-xs text-slate-500">{f.label}{zonesT && unit && <span className="text-slate-400"> ({unit})</span>}
+      <div className="sm:col-span-2 text-xs text-slate-500">{f.label}
         <div className="mt-1 space-y-1.5">
           {list.map((r, i) => (
             <div key={i} className="flex items-center gap-2">
-              {zonesT
-                ? <input value={r.zone} onChange={(e) => set(i, 'zone', e.target.value)} disabled={disabled} placeholder="Zone (ex. 69)" className={`${inputCls} font-jetbrains`} />
-                : <input type="month" value={r.month} onChange={(e) => set(i, 'month', e.target.value)} disabled={disabled} className={inputCls} />}
-              <span className="w-32 shrink-0"><input value={zonesT ? r.rate : r.pct} onChange={(e) => set(i, zonesT ? 'rate' : 'pct', e.target.value)} disabled={disabled} inputMode="decimal"
-                placeholder={zonesT ? 'Tarif' : '%'} className={`${inputCls} font-jetbrains text-right`} /></span>
+              <input type="month" value={r.month} onChange={(e) => set(i, 'month', e.target.value)} disabled={disabled} className={inputCls} />
+              <span className="w-32 shrink-0"><input value={r.pct} onChange={(e) => set(i, 'pct', e.target.value)} disabled={disabled} inputMode="decimal"
+                placeholder="%" className={`${inputCls} font-jetbrains text-right`} /></span>
               {!disabled && <button type="button" onClick={() => onChange(list.filter((_, j) => j !== i))} className="p-1 text-slate-400 hover:text-red-700" aria-label="Retirer"><X size={15} /></button>}
             </div>
           ))}
-          {!disabled && <button type="button" onClick={() => onChange([...list, blank])} className="inline-flex items-center gap-1 text-sm text-blue-700 hover:underline"><Plus size={14} /> {zonesT ? 'Ajouter une zone' : 'Ajouter un mois'}</button>}
+          {!disabled && <button type="button" onClick={() => onChange([...list, { month: new Date().toISOString().slice(0, 7), pct: '' }])} className="inline-flex items-center gap-1 text-sm text-blue-700 hover:underline"><Plus size={14} /> Ajouter un mois</button>}
         </div>
         {error ? <span className="block mt-0.5 text-red-700">{error}</span> : f.hint && <span className="block mt-0.5 text-slate-400">{f.hint}</span>}
       </div>
