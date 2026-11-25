@@ -1,7 +1,7 @@
 // Éditeur d'un chargement : en-tête commun + optimiseur de chargement intégré, pré-rempli.
 // Liens : palettisations qui alimentent ce chargement (chargement → palettes).
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Loader2, QrCode, PackageCheck, X, Copy, Trash2 } from 'lucide-react';
 import LoadOptimizer from '../../outils/optimiseur-chargement/LoadOptimizer.jsx';
@@ -13,7 +13,7 @@ import { EditorHeader, DocChip, Btn, editorInputCls, pct, ConflictBanner, Refere
 import useDocEditor, { initialOf } from '../useDocEditor';
 import useReferences from '../useReferences';
 import { tourTitle, isAutoTitle } from '../tourCheck';
-import { quote, factsOf } from '../../shared/carriers/pricing';
+import { quote, factsOf, routeOf, rankCarriers } from '../../shared/carriers/pricing';
 
 /** /app/chargements/nouveau : crée un chargement vide puis ouvre l'éditeur. */
 export function NewShipment() {
@@ -30,10 +30,13 @@ export function NewShipment() {
 }
 
 /** Devis d'un transporteur pour un résumé de plan (null sans plan). */
-function quoteOf(c, summary) {
-  const f = factsOf(summary);
-  if (!f) return null;
-  return { carrier: c.code, label: c.label, ...quote(f, c.data) };
+/** Faits d'un chargement pour la tarification : résumé du plan + zones / arrêts des destinations + mois de départ. */
+function factsFor(summary, rows, agencies, departure) {
+  return factsOf(summary, { ...routeOf(rows, agencies), month: departure ? String(departure).slice(0, 7) : new Date().toISOString().slice(0, 7) });
+}
+function quoteOf(c, facts) {
+  if (!facts) return null;
+  return { carrier: c.code, label: c.label, ...quote(facts, c.data) };
 }
 const eur = (v) => `${v.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} €`;
 /** Détail lisible d'un devis (infobulle). */
@@ -57,10 +60,14 @@ export default function ShipmentEditor() {
   const derive = (patch, base) => {
     if (!('carrier_cost' in base) || DOCK_STATUSES.includes(base.status)) return {};
     const c = carriers.find((x) => x.code === patch.carrier);
-    const q = c ? quoteOf(c, patch.result?.summary) : null;
+    const q = c ? quoteOf(c, factsFor(patch.result?.summary, patch.input?.rows, refs.tools?.agencies ?? [], patch.departure_at)) : null;
     return { carrier_cost: q && !q.error ? q.amount : null, carrier_quote: q };
   };
   const ed = useDocEditor({ code, load: getShipment, update: updateShipment, titleOf: (d) => d.label ?? 'Chargement', derive });
+  // Lignes en cours de saisie (destinations → zones tarifaires et arrêts).
+  const liveRows = useRef(null);
+  const [, bump] = useState(0);
+  const onToolChange = useCallback((snap) => { if (snap?.rows !== liveRows.current) { liveRows.current = snap?.rows ?? null; bump((x) => x + 1); } ed.onChange(snap); }, [ed.onChange]); // eslint-disable-line react-hooks/exhaustive-deps
   const [pzs, setPzs] = useState([]);
   const [quaiOpen, setQuaiOpen] = useState(false);
   const [proofOf, setProofOf] = useState(undefined); // undefined = fermé ; null = toutes ; n = camion n
@@ -121,7 +128,12 @@ export default function ShipmentEditor() {
   const carrierMissing = !!carrier && !carriers.some((c) => c.code === carrier);
   // Au quai : coût figé (enregistré) ; sinon calcul en direct sur le plan affiché.
   const invoiced = (() => { const t = String(ed.meta.invoiced_amount ?? '').replace(/[€\s\u00a0]/g, '').replace(',', '.'); return t === '' ? null : Number(t); })();
-  const liveQuote = locked ? ed.doc.carrier_quote : (carriers.find((c) => c.code === carrier) ? quoteOf(carriers.find((c) => c.code === carrier), s) : null);
+  const facts = factsFor(s, liveRows.current ?? ed.doc.input?.rows, refs.tools?.agencies ?? [], ed.meta.departure_at);
+  const liveQuote = locked ? ed.doc.carrier_quote : (carriers.find((c) => c.code === carrier) ? quoteOf(carriers.find((c) => c.code === carrier), facts) : null);
+  // Transporteur le moins cher pour ce plan (comparaison des grilles).
+  const ranking = !locked && facts && carriers.length > 1 ? rankCarriers(facts, carriers).filter((x) => !('error' in x.q)) : [];
+  const cheapest = ranking[0];
+  const saving = cheapest && cheapest.code !== carrier && liveQuote && !liveQuote.error ? Math.round((liveQuote.amount - cheapest.q.amount) * 100) / 100 : null;
   // Écart facture / coût théorique.
   const invoiceGap = invoiced != null && Number.isFinite(invoiced) && liveQuote && !liveQuote.error && liveQuote.amount
     ? (() => { const g = invoiced - liveQuote.amount; const pct = (g / liveQuote.amount) * 100; return { pct, text: `${g >= 0 ? '+' : ''}${pct.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} %` }; })()
@@ -177,6 +189,13 @@ export default function ShipmentEditor() {
                 ? <span className="text-xs text-amber-700" title={liveQuote.error}>coût : —</span>
                 : <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-1 font-jetbrains text-xs text-slate-800 whitespace-pre" title={quoteDetail(liveQuote)}>
                     ≈ {eur(liveQuote.amount)}{locked && <span className="ml-1 text-slate-400">figé</span>}</span>)}
+              {(saving > 0 || (!carrier && cheapest)) && (
+                <button type="button" onClick={() => ed.setMeta({ ...ed.meta, carrier: cheapest.code })}
+                  title={ranking.map((x) => `${x.label} : ${eur(x.q.amount)}`).join('\n')}
+                  className="inline-flex items-center gap-1 rounded-md bg-emerald-50 border border-emerald-200 px-2 py-1 text-xs font-medium text-emerald-800 hover:bg-emerald-100">
+                  {carrier ? `${cheapest.label} : −${eur(saving)}` : `Moins cher : ${cheapest.label} ${eur(cheapest.q.amount)}`}
+                </button>
+              )}
               {'invoiced_amount' in ed.doc && carrier && (
                 <label className="flex items-center gap-1.5" title="Montant de la facture du transporteur (contrôle transport)">Facturé
                   <input value={ed.meta.invoiced_amount} onChange={(e) => ed.setMeta({ ...ed.meta, invoiced_amount: e.target.value })} inputMode="decimal" placeholder="—"
@@ -201,7 +220,7 @@ export default function ShipmentEditor() {
         </div>
       )}
       <ConflictBanner conflict={ed.conflict} saving={ed.saving} onReload={ed.reload} onOverwrite={ed.overwrite} />
-      <LoadOptimizer key={`${ed.doc.id}:${ed.instance}`} workspace={{ initial: initialOf(ed.doc), references: refs.tools, agencies, onChange: ed.onChange, shareUrl, locked, trucks, truckPhase: DOCK_STATUSES.includes(ed.doc.status) ? 'todo' : 'plan' }} />
+      <LoadOptimizer key={`${ed.doc.id}:${ed.instance}`} workspace={{ initial: initialOf(ed.doc), references: refs.tools, agencies, onChange: onToolChange, shareUrl, locked, trucks, truckPhase: DOCK_STATUSES.includes(ed.doc.status) ? 'todo' : 'plan' }} />
       {proofOf !== undefined && <ProofViewer proofs={proofs} truck={proofOf} onClose={() => setProofOf(undefined)} />}
       {quaiOpen && <GuideQrModal url={shareUrlOf(ed.doc)} onClose={() => setQuaiOpen(false)} title={`${ed.doc.code} · plan pas à pas pour le cariste`}
         note="Lien permanent : il affiche toujours la dernière version enregistrée. Si vous modifiez le plan, enregistrez : le cariste voit la nouvelle version." />}
