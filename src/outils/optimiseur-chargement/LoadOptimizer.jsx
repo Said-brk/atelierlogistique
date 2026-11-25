@@ -701,6 +701,7 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
     const fm = floorMeters(result.placedItems, container);
     return { maxLdm, occupied: fm.occupiedLength, length: fm.containerLength, ldm: fm.ldm };
   })();
+  const floorLdm = headerFloor.ldm == null ? null : Math.round(headerFloor.ldm * 100) / 100;
   const overweight = container.maxWeight != null && totals.weight > container.maxWeight;
 
   // Analytics anonyme (uniquement si un système existe sur le site)
@@ -967,6 +968,11 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
     const restoring = !!savedPlan.current || pendingManual.current;
     const fleetDone = vehicleMode === 'fleet' && fleetStatus === 'done' && fleetPlan?.trucks.length > 0;
     const byVehicle = fleetDone ? Object.entries(fleetPlan.trucks.reduce((m, t) => { const l = tText(t.container.label); m[l] = (m[l] ?? 0) + 1; return m; }, {})) : [];
+    // Véhicules par code (coût transporteur au forfait) ; mètres plancher et volume (coût au MPL / aux 100 kg).
+    const vehicles = fleetDone
+      ? Object.values(fleetPlan.trucks.reduce((m, t) => { const c = t.container.id ?? t.vehicleId; m[c] = m[c] ?? { code: c, label: tText(t.container.label), count: 0 }; m[c].count += 1; return m; }, {}))
+      : [{ code: container.id ?? containerId, label: tText(container.label), count: 1 }];
+    const facts = { ldm: floorLdm, volume: Math.round(totals.volume / 1e6) / 1e3, vehicles };
     onWorkspaceChange?.({
       rows, containerId, custom, vehicleMode, deliveryMode, excludedStops,
       ...(fleetTouched ? { fleetVehicles } : {}),
@@ -975,10 +981,10 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
         vehicle: byVehicle.map(([l, n]) => `${n} × ${l}`).join(' + '), fleet: fleetPlan.trucks.length,
         packed: fleetPlan.trucks.reduce((s, t) => s + t.units, 0), unpacked: fleetPlan.unplaced.reduce((s, u) => s + u.quantity, 0),
         fill: fleetPlan.trucks.reduce((s, t) => s + t.volumeUtilization, 0) / fleetPlan.trucks.length,
-        weight: fleetPlan.trucks.reduce((s, t) => s + t.weight, 0), edited: false,
+        weight: fleetPlan.trucks.reduce((s, t) => s + t.weight, 0), edited: false, ...facts,
       } : done ? {
         vehicle: tText(container.label), packed: result.packedItems, unpacked: result.unpackedCount,
-        fill: result.volumeUtilization, weight: result.usedWeight, edited: manual.edited,
+        fill: result.volumeUtilization, weight: result.usedWeight, edited: manual.edited, ...facts,
       } : null,
       // Plan 3D (un véhicule) : calcul + retouches, pour le rouvrir à l'identique.
       // (rien tant que le plan enregistré est en cours de réaffichage, pour ne pas le voir comme une modification)
@@ -988,7 +994,7 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
         : done && vehicleMode === 'single' && !containerOverride && !restoring
           ? { base: rawResult, manual: manual.snapshot, guide: encodedGuideLink?.split('#')[1] ?? null } : null,
     });
-  }, [rows, containerId, custom, vehicleMode, deliveryMode, excludedStops, result, rawResult, status, container, containerOverride, manual.edited, manual.snapshot, encodedGuideLink, fleetPlan, fleetStatus, fleetGuideList, fleetVehicles, fleetTouched, pickedVehicle, baseContainer, onWorkspaceChange]);
+  }, [rows, containerId, custom, vehicleMode, deliveryMode, excludedStops, result, rawResult, status, container, containerOverride, manual.edited, manual.snapshot, encodedGuideLink, fleetPlan, fleetStatus, fleetGuideList, fleetVehicles, fleetTouched, pickedVehicle, baseContainer, onWorkspaceChange, floorLdm, totals.volume]);
 
   return (
     <div className={`${embedded ? '' : 'min-h-screen'} text-slate-900`} style={{ background: '#F8FAFC', fontFamily: "'DM Sans', system-ui, sans-serif" }}>

@@ -18,9 +18,13 @@ const planSig = (p) => (p?.base || p?.fleet ? stable({ base: p.base ?? null, man
 /** initialOf(doc) : état de départ de l'outil intégré (saisie + plan enregistré). */
 export const initialOf = (d) => ({ rows: [], ...(d.input ?? {}), plan: d.result?.plan ?? null });
 
-export default function useDocEditor({ code, load, update, titleOf, autosaveMs = 2000 }) {
+/**
+ * derive(patch, base) : champs calculés ajoutés à l'enregistrement (ex. coût transporteur d'un chargement).
+ */
+export default function useDocEditor({ code, load, update, titleOf, autosaveMs = 2000, derive = null }) {
+  const deriveRef = useRef(derive); deriveRef.current = derive;
   const [doc, setDoc] = useState(undefined);
-  const [meta, setMetaState] = useState({ label: '', external_id: '', departure_at: '', tour: '' });
+  const [meta, setMetaState] = useState({ label: '', external_id: '', departure_at: '', tour: '', carrier: '' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [dirty, setDirty] = useState(false);
@@ -44,7 +48,7 @@ export default function useDocEditor({ code, load, update, titleOf, autosaveMs =
   const apply = (d, keepMeta = false) => {
     setDoc(d);
     if (!d) return;
-    if (!keepMeta) setMetaState({ label: d.label ?? '', external_id: d.external_id ?? '', departure_at: toDateInput(d.departure_at), tour: d.tour ?? '' });
+    if (!keepMeta) setMetaState({ label: d.label ?? '', external_id: d.external_id ?? '', departure_at: toDateInput(d.departure_at), tour: d.tour ?? '', carrier: d.carrier ?? '' });
     savedInput.current = stable(d.input ?? {});
     savedPlan.current = planSig(d.result?.plan);
     savedGuide.current = hasGuide(d.result?.plan);
@@ -104,6 +108,8 @@ export default function useDocEditor({ code, load, update, titleOf, autosaveMs =
         ...extra,
       };
       if ('tour' in base) patch.tour = usedMeta.tour || null;
+      if ('carrier' in base) patch.carrier = usedMeta.carrier || null;
+      Object.assign(patch, deriveRef.current?.(patch, base) ?? {});
       if ('departure_at' in base) patch.departure_at = usedMeta.departure_at ? new Date(usedMeta.departure_at).toISOString() : null;
       // Garder mes modifications : on écrase la version en base vue dans le conflit.
       const expected = force && conflictRef.current ? conflictRef.current.updated_at : base.updated_at;

@@ -42,7 +42,7 @@ export async function renameOrganization(id, name) {
   fail(error);
 }
 
-const LIST_FIELDS = `id, code, label, external_id, source, status, version, departure_at, tour, created_at, updated_at, ${SUMMARY}, palletizations(code)`;
+const LIST_FIELDS = `id, code, label, external_id, source, status, version, departure_at, tour, carrier, carrier_cost, created_at, updated_at, ${SUMMARY}, palletizations(code)`;
 
 export async function listShipments(orgId, { status = null, limit = 200 } = {}) {
   const sb = await getSupabase();
@@ -563,6 +563,7 @@ async function duplicate(table, doc) {
     input: { ...(doc.input ?? {}), rows: (doc.input?.rows ?? []).map(({ origin, fromShipment, ...r }) => r) },
     result: doc.result ?? null,
     ...(doc.tour ? { tour: doc.tour } : {}),
+    ...(doc.carrier ? { carrier: doc.carrier } : {}),
   }).select('code').single();
   fail(error);
   return data.code;

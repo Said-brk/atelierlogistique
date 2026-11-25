@@ -9,7 +9,7 @@ import type { ShipmentRow } from './present';
 
 // Toutes les colonnes : merged_into (regroupement) n'existe qu'après le script 20261125000010.
 const SHIPMENT_FIELDS = '*';
-const LIST_FIELDS = 'id, org_id, code, external_id, label, status, version, source, departure_at, tour, created_at, updated_at, validated_at, share_token, summary:result->summary';
+const LIST_FIELDS = 'id, org_id, code, external_id, label, status, version, source, departure_at, tour, carrier, carrier_cost, created_at, updated_at, validated_at, share_token, summary:result->summary';
 
 let client: SupabaseClient | null = null;
 function sb() {

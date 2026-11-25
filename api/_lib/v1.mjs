@@ -234,15 +234,17 @@ function toToolReferences(items) {
   const tours = by("tour").filter((i) => i.active).map((i) => ({
     code: i.code,
     label: i.label,
-    days: (Array.isArray(i.data.days) ? i.data.days : []).map(Number).filter((d) => d >= 1 && d <= 7).sort()
+    days: (Array.isArray(i.data.days) ? i.data.days : []).map(Number).filter((d) => d >= 1 && d <= 7).sort(),
+    carrier: typeof i.data.carrier === "string" && i.data.carrier ? i.data.carrier : null
   }));
+  const carriers = by("carrier").filter((i) => i.active).map((i) => ({ code: i.code, label: i.label, data: i.data }));
   const tourCodes = new Set(tours.map((t2) => t2.code));
   const agencies = by("agency").filter((i) => i.active).map((i) => {
     const d = i.data;
     return { code: i.code, label: i.label, city: d.city ?? "", tour: d.tour && tourCodes.has(d.tour) ? d.tour : null, order: n(d.order) };
   });
   const cons = items.find((i) => i.kind === "setting" && i.code === "consolidation")?.data;
-  return { vehicles, pallets, lashing, agencies, tours, consolidation: { mode: cons?.mode === "tour" ? "tour" : "free" } };
+  return { vehicles, pallets, lashing, agencies, tours, carriers, consolidation: { mode: cons?.mode === "tour" ? "tour" : "free" } };
 }
 
 // src/outils/optimiseur-chargement/constants/engine-config.ts
@@ -1530,6 +1532,8 @@ function listItemOf(s, site) {
     source: s.source,
     departure_date: s.departure_at,
     tour: s.tour ?? null,
+    carrier: s.carrier ?? null,
+    carrier_cost: s.carrier_cost == null ? null : Number(s.carrier_cost),
     created_at: s.created_at,
     updated_at: s.updated_at,
     summary: summaryOf(s),
@@ -1707,7 +1711,7 @@ async function handle(req, db, site = "https://atelierlogistique.com") {
 
 // src/api/v1/vercel.ts
 var SHIPMENT_FIELDS = "*";
-var LIST_FIELDS = "id, org_id, code, external_id, label, status, version, source, departure_at, tour, created_at, updated_at, validated_at, share_token, summary:result->summary";
+var LIST_FIELDS = "id, org_id, code, external_id, label, status, version, source, departure_at, tour, carrier, carrier_cost, created_at, updated_at, validated_at, share_token, summary:result->summary";
 var client = null;
 function sb() {
   const url = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL;

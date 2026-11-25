@@ -287,6 +287,16 @@
             "type": "string",
             "description": "Code de la tournée (tables de référence de l'entreprise)"
           },
+          "carrier": {
+            "type": "string",
+            "description": "Code du transporteur (tables de référence)",
+            "readOnly": true
+          },
+          "carrier_cost": {
+            "type": "number",
+            "description": "Coût théorique (€) d'après la grille du transporteur, figé à l'envoi au quai",
+            "readOnly": true
+          },
           "mode": {
             "type": "string",
             "enum": [
