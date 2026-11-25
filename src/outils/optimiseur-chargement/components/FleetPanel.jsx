@@ -43,7 +43,11 @@ export function FleetVehicles({ vehicles, onChange, note = null }) {
  * locked : flotte figée (chargement envoyé au quai / chargé).
  * truckPhase : statut des camions non confirmés — 'todo' (au quai : À charger) ou 'plan' (En préparation) ; absent = pas de statut.
  */
-export function FleetResult({ plan, viewing, onView, trucks = null, locked = false, truckPhase = null }) {
+/** floors (facultatif) : { [n° camion]: FloorMeters } — plancher occupé et mètres plancher de chaque véhicule. */
+export function FleetResult({ plan, viewing, onView, trucks = null, locked = false, truckPhase = null, floors = null }) {
+  const fmt1 = (v) => v.toLocaleString(numLocale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  const allFloors = floors && plan.trucks.every((tk) => floors[tk.index]);
+  const totalLdm = allFloors ? plan.trucks.reduce((s, tk) => s + floors[tk.index].ldm, 0) : null;
   const alt = plan.alternatives.filter((a) => a.cost > plan.totalCost + 0.5).slice(0, 3);
   return (
     <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
@@ -57,6 +61,7 @@ export function FleetResult({ plan, viewing, onView, trucks = null, locked = fal
           <div className="flex flex-wrap items-end gap-x-6 gap-y-2">
             <div><div className="font-jetbrains text-[10px] text-slate-500">{tr('VÉHICULES')}</div><div className="font-bricolage font-bold text-3xl text-slate-900">{plan.trucks.length}</div></div>
             <div><div className="font-jetbrains text-[10px] text-slate-500">{tr('COÛT TOTAL')}</div><div className="font-bricolage font-bold text-3xl" style={{ color: BLUE }}>{fmtEur(plan.totalCost)}</div></div>
+            {totalLdm != null && <div><div className="font-jetbrains text-[10px] text-slate-500">{tr('MÈTRES PLANCHER')}</div><div className="font-bricolage font-bold text-3xl text-slate-900">{fmt1(totalLdm)}</div></div>}
             {alt.length > 0 && (
               <div className="text-[11px] text-slate-600 space-y-0.5">
                 {alt.map((a) => (
@@ -85,6 +90,9 @@ export function FleetResult({ plan, viewing, onView, trucks = null, locked = fal
                 {t.stops.length > 1 ? tr('Arrêts {v1} à {v2}', { v1: t.stops[0], v2: t.stops[t.stops.length - 1] }) : tr('Arrêt {v1}', { v1: t.stops[0] })}{t.destinations.length ? ` · ${t.destinations.slice(0, 3).join(', ')}${t.destinations.length > 3 ? '…' : ''}` : ''}{t.split ? tr(' · arrêt partagé') : ''}
               </div>
               <div className="font-jetbrains text-[10px] text-slate-500">{tr('{units} colis · {v1} kg · volume {v2}{v3}', { units: t.units, v1: t.weight.toLocaleString(numLocale()), v2: fmtPct(t.volumeUtilization), v3: t.weightUtilization != null ? tr(' · poids {v1}', { v1: fmtPct(t.weightUtilization) }) : '' })}</div>
+              {floors && (floors[t.index]
+                ? <div className="font-jetbrains text-[10px] text-slate-500">{tr('Plancher occupé {v1} / {v2} m · {v3} MPL', { v1: fmt1(floors[t.index].occupiedLength), v2: fmt1(floors[t.index].containerLength), v3: fmt1(floors[t.index].ldm) })}</div>
+                : <div className="font-jetbrains text-[10px] text-slate-400">{tr('Plancher : calcul…')}</div>)}
               <button onClick={() => onView(t)} className="mt-2 inline-flex items-center gap-1.5 font-jetbrains text-[11px] px-2.5 py-1.5 rounded-md"
                 style={viewing === t.index ? { background: BLUE, color: '#fff' } : { background: '#F1F5F9', color: '#475569' }}>
                 {viewing === t.index ? <><Check size={11} />{' '}{tr('Plan affiché')}</> : <><Eye size={11} />{' '}{tr('Voir le plan 3D')}</>}
