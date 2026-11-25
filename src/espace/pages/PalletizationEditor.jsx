@@ -4,13 +4,13 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Copy, Trash2 } from 'lucide-react';
 import Palletizer from '../../outils/palettisation/Palletizer.jsx';
 import { useEspace } from '../useEspace';
-import { getPalletization, createPalletization, updatePalletization, createShipmentForPalletization, linkPalletization, getShipment, palletRows, SOURCE } from '../data';
+import { getPalletization, createPalletization, updatePalletization, createShipmentForPalletization, linkPalletization, getShipment, palletRows, deletePalletization, duplicatePalletization, SOURCE } from '../data';
 import { tourWarning } from '../tourCheck';
 import LoadTruckDialog from '../LoadTruckDialog';
-import { EditorHeader, DocChip, ConflictBanner, ReferencesError } from '../ui';
+import { EditorHeader, DocChip, ConflictBanner, ReferencesError, DocMenu } from '../ui';
 import useDocEditor, { initialOf } from '../useDocEditor';
 import useReferences from '../useReferences';
 
@@ -62,11 +62,25 @@ export default function PalletizationEditor() {
   if (ed.doc === null) return <div className="p-10 text-center text-slate-500">Palettisation introuvable. <Link to="/app/palettisations" className="text-blue-700">Retour à la liste</Link></div>;
 
   const s = ed.summary;
+  const duplicate = async () => {
+    const d = ed.dirty ? await ed.save() : ed.doc;
+    if (d) navigate(`/app/palettisations/${await duplicatePalletization(d)}`);
+  };
+  const remove = async () => {
+    const sh = ed.doc.shipments;
+    const msg = `Supprimer définitivement ${ed.doc.code} ?${sh ? `\n\nSes palettes seront retirées du chargement ${sh.code} (plan à recalculer).` : ''}\n\nCette action est irréversible.`;
+    if (!window.confirm(msg)) return;
+    try { await deletePalletization(ed.doc.id); ed.discard(); navigate('/app/palettisations', { replace: true }); } catch (e) { alert(e.message); } // eslint-disable-line no-alert
+  };
   return (
     <>
       <EditorHeader backTo="/app/palettisations" backTitle="Retour aux palettisations" doc={ed.doc} kindColor="#7C3AED" kindBg="#F5F3FF"
         meta={ed.meta} onMeta={ed.setMeta} dirty={ed.dirty} savedAt={ed.savedAt} saving={ed.saving} onSave={ed.save} canValidate={!!s}
         validateHint="Lancez d’abord le calcul" sourceLabel={SOURCE[ed.doc.source]} error={ed.error}
+        menu={<DocMenu disabled={ed.saving} items={[
+          { label: 'Dupliquer', icon: Copy, onClick: duplicate },
+          { label: 'Supprimer…', icon: Trash2, danger: true, onClick: remove },
+        ]} />}
         links={<span className="flex items-center gap-1.5 text-slate-500 text-xs">Chargement {ed.doc.shipments?.code
           ? <DocChip kind="shipment" to={`/app/chargements/${ed.doc.shipments.code}`} code={ed.doc.shipments.code} title={ed.doc.shipments.label ?? ''} />
           : <span className="text-slate-400">— choisi au clic sur « Charger le camion »</span>}</span>}

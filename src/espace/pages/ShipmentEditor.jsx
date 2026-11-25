@@ -3,13 +3,13 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { Loader2, QrCode, PackageCheck, X } from 'lucide-react';
+import { Loader2, QrCode, PackageCheck, X, Copy, Trash2 } from 'lucide-react';
 import LoadOptimizer from '../../outils/optimiseur-chargement/LoadOptimizer.jsx';
 import { useEspace } from '../useEspace';
-import { getShipment, createShipment, updateShipment, palletizationsOfShipment, shareUrlOf, shipmentStatus, DOCK_STATUSES, SOURCE } from '../data';
+import { getShipment, createShipment, updateShipment, palletizationsOfShipment, shareUrlOf, shipmentStatus, deleteShipment, duplicateShipment, mergedCount, DOCK_STATUSES, SOURCE } from '../data';
 import { useLoadingProofs, proofsByTruck, ProofButton, ProofViewer } from '../LoadingProof';
 import GuideQrModal from '../../outils/optimiseur-chargement/guide/GuideQrModal';
-import { EditorHeader, DocChip, Btn, editorInputCls, pct, ConflictBanner, ReferencesError } from '../ui';
+import { EditorHeader, DocChip, Btn, editorInputCls, pct, ConflictBanner, ReferencesError, DocMenu } from '../ui';
 import useDocEditor, { initialOf } from '../useDocEditor';
 import useReferences from '../useReferences';
 
@@ -30,6 +30,7 @@ export function NewShipment() {
 export default function ShipmentEditor() {
   const { code } = useParams();
   const refs = useReferences();
+  const navigate = useNavigate();
   const ed = useDocEditor({ code, load: getShipment, update: updateShipment, titleOf: (d) => d.label ?? 'Chargement' });
   const [pzs, setPzs] = useState([]);
   const [quaiOpen, setQuaiOpen] = useState(false);
@@ -71,6 +72,23 @@ export default function ShipmentEditor() {
     if (ready(d?.result?.plan)) setQuaiOpen(true);
     else if (d) alert('Le plan n’est pas prêt : lancez l’optimisation, attendez la fin du calcul, puis renvoyez.'); // eslint-disable-line no-alert
   };
+  const duplicate = async () => {
+    const d = ed.dirty ? await ed.save() : ed.doc;
+    if (d) navigate(`/app/chargements/${await duplicateShipment(d)}`);
+  };
+  const remove = async () => {
+    const merged = await mergedCount(ed.doc.org_id, ed.doc.code).catch(() => 0);
+    const photos = proofs.reduce((n, p) => n + p.urls.length, 0);
+    const deps = [
+      pzs.length && `${pzs.length} palettisation(s) : ${pzs.map((p) => p.code).join(', ')}`,
+      merged && `${merged} chargement(s) d’origine regroupé(s) dans celui-ci`,
+      photos && `${photos} photo(s) de preuve de chargement`,
+    ].filter(Boolean);
+    const msg = `Supprimer définitivement ${ed.doc.code} ?${deps.length ? `\n\nSeront aussi supprimés :\n• ${deps.join('\n• ')}` : ''}`
+      + `${ed.doc.external_id ? `\n\nVotre WMS / ERP sera prévenu (annulé) pour ${ed.doc.external_id}.` : ''}\n\nCette action est irréversible.`;
+    if (!window.confirm(msg)) return;
+    try { await deleteShipment(ed.doc.id); ed.discard(); navigate('/app/chargements', { replace: true }); } catch (e) { alert(e.message); } // eslint-disable-line no-alert
+  };
   return (
     <>
       <EditorHeader backTo="/app/chargements" backTitle="Retour aux chargements" doc={ed.doc} meta={ed.meta} onMeta={ed.setMeta}
@@ -78,6 +96,10 @@ export default function ShipmentEditor() {
         sourceLabel={SOURCE[ed.doc.source]} error={ed.error}
         actions={<Btn variant="amber" onClick={sendToDock} disabled={ed.saving || !s} title={s ? 'QR code et lien du plan pour le cariste, sans compte' : 'Lancez d’abord l’optimisation'}>
           <QrCode size={15} /> {sent ? 'QR quai' : <><span className="sm:hidden">Quai</span><span className="hidden sm:inline">Envoyer au quai</span></>}</Btn>}
+        menu={<DocMenu disabled={ed.saving} items={[
+          { label: 'Dupliquer', icon: Copy, onClick: duplicate },
+          { label: 'Supprimer…', icon: Trash2, danger: true, onClick: remove },
+        ]} />}
         extraFields={<label className="flex items-center gap-2 text-slate-500">Départ
           <input type="date" value={ed.meta.departure_at} onChange={(e) => ed.setMeta({ ...ed.meta, departure_at: e.target.value })} className={editorInputCls} /></label>}
         links={<>

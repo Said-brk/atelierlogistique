@@ -233,6 +233,21 @@ describe('schéma Supabase', () => {
     await db.exec(`update shipments set expires_at = now() + interval '1 day'`);
     await as(A, `update shipments set label = 'Toujours actif' where code = $1`, [fl.code]);
     ok((await as(A, `select expires_at > now() + interval '30 days' as ok from shipments where code = $1`, [fl.code])).rows[0].ok, 'expiration repoussée à chaque modification');
+    // Suppression définitive : chargement + palettisations + originaux regroupés ; palettisation seule.
+    const dSh = (await as(A, `insert into shipments(org_id, status, input) values ($1, 'in_progress', '{"rows":[{"origin":"PZ-X1"},{"reference":"A"}]}') returning id, code`, [orgA])).rows[0];
+    const dPz = (await as(A, `insert into palletizations(org_id, shipment_id) values ($1, $2) returning id, code`, [orgA, dSh.id])).rows[0];
+    await as(A, `update shipments set input = jsonb_build_object('rows', jsonb_build_array(jsonb_build_object('origin', $2::text), jsonb_build_object('reference', 'A'))) where id = $1`, [dSh.id, dPz.code]);
+    ok(/introuvable/.test(await (async () => { try { await as(B, 'select delete_palletization($1)', [dPz.id]); return ''; } catch (e) { return e.message; } })()), 'suppression : interdite à une autre entreprise');
+    const rp = (await as(A, 'select delete_palletization($1) as r', [dPz.id])).rows[0].r;
+    ok(rp.removed_rows === 1 && (await as(A, `select jsonb_array_length(input->'rows') as n from shipments where id = $1`, [dSh.id])).rows[0].n === 1, 'palettisation supprimée : ses palettes retirées du chargement');
+    const dPz2 = (await as(A, `insert into palletizations(org_id, shipment_id) values ($1, $2) returning id`, [orgA, dSh.id])).rows[0];
+    await as(A, `insert into shipments(org_id, status, merged_into) values ($1, 'cancelled', $2)`, [orgA, dSh.code]);
+    await as(A, `update shipments set status = 'sent' where id = $1`, [dSh.id]);
+    ok(/au quai/.test(await (async () => { try { await as(A, 'select delete_palletization($1)', [dPz2.id]); return ''; } catch (e) { return e.message; } })()), 'palettisation d’un chargement au quai : refusée');
+    const rs = (await as(A, 'select delete_shipment($1) as r', [dSh.id])).rows[0].r;
+    ok(rs.palletizations === 1 && rs.merged === 1, 'chargement supprimé avec ses palettisations et les originaux regroupés');
+    ok((await as(A, `select count(*)::int n from shipments where id = $1 or merged_into = $2`, [dSh.id, dSh.code])).rows[0].n === 0
+      && (await as(A, `select count(*)::int n from palletizations where id = $1`, [dPz2.id])).rows[0].n === 0, 'plus rien en base');
     // Regroupement : tout ou rien, revérifié (statut, version lue), réservé à l'entreprise.
     const mk = async (st) => (await as(A, `insert into shipments(org_id, status, input) values ($1, $2, '{"rows":[1]}') returning id, code, updated_at`, [orgA, st])).rows[0];
     const [g1, g2, g3] = [await mk('in_progress'), await mk('validated'), await mk('sent')];

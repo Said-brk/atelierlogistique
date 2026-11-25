@@ -147,6 +147,8 @@ export default function useDocEditor({ code, load, update, titleOf, autosaveMs =
     apply(remote);
     setInstance((n) => n + 1);
   };
+  /** Document supprimé : plus rien à enregistrer (ni en quittant la page). */
+  const discard = () => { dirtyRef.current = false; setDirty(false); snapshot.current = null; };
   /** Conflit → Garder mes modifications : enregistre en écrasant la version en base. */
   const overwrite = () => save(undefined, {}, { force: true });
 
@@ -157,5 +159,5 @@ export default function useDocEditor({ code, load, update, titleOf, autosaveMs =
     if (st && docRef.current && st.status !== docRef.current.status) setDoc((d) => (d ? { ...d, ...st } : d));
   }, []);
 
-  return { doc, meta, setMeta, saving, error, dirty, savedAt, summary, onChange, save, refreshStatus, conflict, reload, overwrite, instance };
+  return { doc, meta, setMeta, saving, error, dirty, savedAt, summary, onChange, save, refreshStatus, conflict, reload, overwrite, instance, discard };
 }

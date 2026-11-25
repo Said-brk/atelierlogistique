@@ -1,6 +1,7 @@
 // Petits éléments d'interface communs aux pages de l'espace.
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Save, CheckCircle2, RotateCcw, Loader2, Truck, Package, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Save, CheckCircle2, RotateCcw, Loader2, Truck, Package, AlertTriangle, MoreHorizontal } from 'lucide-react';
 import { STATUS } from './data';
 
 export function PageHeader({ title, subtitle, actions, children }) {
@@ -46,7 +47,7 @@ const inputCls = 'rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text
  */
 export function EditorHeader({
   backTo, backTitle, doc, kindColor = '#1D4ED8', kindBg = '#EFF6FF', meta, onMeta, dirty, saving, onSave,
-  canValidate, validateHint, extraFields = null, links = null, summary = null, error = '', sourceLabel = '', actions = null, savedAt = null,
+  canValidate, validateHint, extraFields = null, links = null, summary = null, error = '', sourceLabel = '', actions = null, menu = null, savedAt = null,
 }) {
   const validated = ['validated', 'sent', 'partially_loaded', 'loaded'].includes(doc.status);
   return (
@@ -72,6 +73,7 @@ export function EditorHeader({
           {validated
             ? <Btn variant="ghost" onClick={() => onSave('in_progress')} disabled={saving}><RotateCcw size={15} /> Rouvrir</Btn>
             : <Btn variant="success" onClick={() => onSave('validated')} disabled={saving || !canValidate} title={canValidate ? '' : validateHint}><CheckCircle2 size={15} /> Valider</Btn>}
+          {menu && <div className="flex-none">{menu}</div>}
         </div>
       </div>
       <div className="px-4 sm:px-8 pb-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
@@ -123,6 +125,34 @@ export function ReferencesError({ error, onRetry }) {
       <div className="flex items-center gap-2 font-semibold"><AlertTriangle size={16} /> Impossible de lire vos tables de référence</div>
       <p>Véhicules, supports et tournées de l’entreprise n’ont pas pu être chargés ({error}). Pour éviter un calcul avec de mauvaises valeurs, l’éditeur reste fermé.</p>
       <Btn onClick={onRetry}><RotateCcw size={14} /> Réessayer</Btn>
+    </div>
+  );
+}
+
+/** Menu « … » d'un document : items = [{ label, icon, onClick, danger }]. */
+export function DocMenu({ items, disabled = false }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!open) return undefined;
+    const close = (e) => { if (!ref.current?.contains(e.target)) setOpen(false); };
+    const esc = (e) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', close); document.addEventListener('keydown', esc);
+    return () => { document.removeEventListener('mousedown', close); document.removeEventListener('keydown', esc); };
+  }, [open]);
+  return (
+    <div ref={ref} className="relative">
+      <Btn variant="ghost" onClick={() => setOpen((o) => !o)} disabled={disabled} aria-label="Plus d’actions" title="Plus d’actions"><MoreHorizontal size={16} /></Btn>
+      {open && (
+        <div className="absolute right-0 top-full mt-1 z-40 w-52 rounded-xl border border-slate-200 bg-white shadow-lg py-1">
+          {items.map((it) => (
+            <button key={it.label} onClick={() => { setOpen(false); it.onClick(); }}
+              className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-slate-50 ${it.danger ? 'text-red-700' : 'text-slate-700'}`}>
+              <it.icon size={15} /> {it.label}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
