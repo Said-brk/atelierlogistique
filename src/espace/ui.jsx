@@ -115,3 +115,14 @@ export function ConflictBanner({ conflict, saving, onReload, onOverwrite }) {
     </div>
   );
 }
+
+/** Tables de référence illisibles : on ne laisse pas calculer avec des valeurs par défaut à leur place. */
+export function ReferencesError({ error, onRetry }) {
+  return (
+    <div className="m-6 rounded-xl border border-red-200 bg-red-50 p-5 text-sm text-red-800 space-y-3 max-w-xl">
+      <div className="flex items-center gap-2 font-semibold"><AlertTriangle size={16} /> Impossible de lire vos tables de référence</div>
+      <p>Véhicules, supports et tournées de l’entreprise n’ont pas pu être chargés ({error}). Pour éviter un calcul avec de mauvaises valeurs, l’éditeur reste fermé.</p>
+      <Btn onClick={onRetry}><RotateCcw size={14} /> Réessayer</Btn>
+    </div>
+  );
+}
