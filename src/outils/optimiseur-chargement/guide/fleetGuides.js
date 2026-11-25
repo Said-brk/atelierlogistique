@@ -4,6 +4,7 @@
 
 import { optimizeWithInsights } from '../engine/optimizer';
 import { encodePlan } from './planLink';
+import { floorMeters } from '../engine/floorMeters';
 
 /** Un calcul de plan dans un worker jetable (repli synchrone si les workers sont indisponibles). */
 function computePlan(container, definitions, options) {
@@ -21,8 +22,18 @@ function computePlan(container, definitions, options) {
   });
 }
 
+/** Mètres plancher de chaque véhicule d'une flotte (plan 3D calculé véhicule par véhicule) : { [index]: FloorMeters }. */
+export async function fleetFloors(plan, options) {
+  const out = {};
+  for (const t of plan.trucks) {
+    const r = await computePlan(t.container, t.definitions, options);
+    out[t.index] = floorMeters(r.placedItems, t.container);
+  }
+  return out;
+}
+
 /**
- * Guides compacts de tous les véhicules d'une flotte : [{ index, label, units, guide }].
+ * Guides compacts de tous les véhicules d'une flotte : [{ index, label, units, guide, floor }].
  * labelOf : libellé affiché du véhicule (traduit). Les options sont celles de « Voir le plan 3D ».
  */
 export async function fleetGuides(plan, options, labelOf, lang = 'fr') {
@@ -30,7 +41,8 @@ export async function fleetGuides(plan, options, labelOf, lang = 'fr') {
   for (const t of plan.trucks) {
     const r = await computePlan(t.container, t.definitions, options);
     const label = `${t.index}. ${labelOf(t.container)}`;
-    out.push({ index: t.index, label, units: r.placedItems.length, guide: await encodePlan({ ...t.container, label }, r.placedItems, () => null, lang) });
+    out.push({ index: t.index, label, units: r.placedItems.length, floor: floorMeters(r.placedItems, t.container),
+      guide: await encodePlan({ ...t.container, label }, r.placedItems, () => null, lang) });
   }
   return out;
 }

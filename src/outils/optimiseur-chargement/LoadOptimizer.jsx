@@ -36,13 +36,13 @@ import { OPTIMIZER_FAQ, toolSeo } from '../../seo/pages';
 import { LOAD_FAQ_EN, toolSeoEn } from '../../seo/pages-en';
 import ColisTable from './components/ColisTable';
 import FloorMetersCard from './components/FloorMetersCard';
-import { DEFAULT_TAXABLE } from './engine/floorMeters';
+import { DEFAULT_TAXABLE, floorMeters } from './engine/floorMeters';
 import { FleetVehicles, FleetResult } from './components/FleetPanel';
 import { useFleetPlanner } from './useFleetPlanner';
 import { encodePlan, guideUrl, qrTextOf } from './guide/planLink';
 import QrCode, { qrModules, QR_MAX_MODULES } from './guide/QrCode';
 import GuideQrModal from './guide/GuideQrModal';
-import { fleetGuides } from './guide/fleetGuides';
+import { fleetGuides, fleetFloors } from './guide/fleetGuides';
 import { DEFAULT_FLEET } from './constants/fleet';
 
 // Mode « Flotte automatique » : véhicules proposés, mémorisés (coûts, cases cochées).
@@ -922,12 +922,21 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
 
   // Flotte (espace) : plan pas à pas de chaque véhicule, pour le lien quai permanent (un QR, choix du camion).
   const [fleetGuideList, setFleetGuideList] = useState(null);
+  // Mètres plancher par véhicule de la flotte ({ [n° camion]: FloorMeters }), calculés en arrière-plan.
+  const [fleetFloorMap, setFleetFloorMap] = useState(null);
   useEffect(() => {
     setFleetGuideList(null);
-    if (!embedded || fleetStatus !== 'done' || !fleetPlan?.trucks.length) return undefined;
+    setFleetFloorMap(null);
+    if (fleetStatus !== 'done' || !fleetPlan?.trucks.length) return undefined;
     let alive = true;
-    fleetGuides(fleetPlan, { deliveryMode, loading: { mode: LOADING_DEFAULTS.mode } }, (c) => tText(c.label), lang)
-      .then((g) => { if (alive) setFleetGuideList(g); }).catch(() => {});
+    const opts = { deliveryMode, loading: { mode: LOADING_DEFAULTS.mode } };
+    // Espace : guides du quai (ils portent aussi les mètres plancher) ; site public : mètres plancher seuls.
+    if (embedded) {
+      fleetGuides(fleetPlan, opts, (c) => tText(c.label), lang)
+        .then((g) => { if (alive) { setFleetGuideList(g); setFleetFloorMap(Object.fromEntries(g.map((x) => [x.index, x.floor]))); } }).catch(() => {});
+    } else {
+      fleetFloors(fleetPlan, opts).then((m) => { if (alive) setFleetFloorMap(m); }).catch(() => {});
+    }
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fleetPlan, fleetStatus]);
@@ -1186,7 +1195,8 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
           {vehicleMode === 'fleet' && fleetStatus === 'done' && fleetPlan && (
             <div ref={fleetRef} className="scroll-mt-20 rounded-xl transition-shadow duration-700"
               style={fleetFlash ? { boxShadow: '0 0 0 3px #F59E0B, 0 10px 30px -10px rgba(245,158,11,0.6)' } : undefined}>
-              <FleetResult plan={fleetPlan} viewing={viewingTruck} onView={viewTruck} trucks={workspace?.trucks} locked={!!locked} truckPhase={workspace?.truckPhase ?? null} />
+              <FleetResult plan={fleetPlan} viewing={viewingTruck} onView={viewTruck} trucks={workspace?.trucks} locked={!!locked} truckPhase={workspace?.truckPhase ?? null}
+                floors={fleetFloorMap ?? Object.fromEntries((fleetGuideList ?? []).filter((g) => g.floor).map((g) => [g.index, g.floor]))} />
             </div>
           )}
 
@@ -1322,6 +1332,15 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
                         <div><div className="font-jetbrains text-[10px] text-slate-500">{tr('Remplissage')}</div><div className="font-bricolage font-bold text-xl text-slate-800">{formatPct(result.volumeUtilization)} %</div></div>
                         <div><div className="font-jetbrains text-[10px] text-slate-500">{tr('Poids')}</div><div className="font-bricolage font-bold text-xl text-slate-800">{formatKg(result.usedWeight)} kg</div></div>
                       </div>
+                      {(() => {
+                        const fm = floorMeters(result.placedItems, container);
+                        return (
+                          <div className="mb-3 font-jetbrains text-[11px] text-slate-600 flex flex-wrap gap-x-3">
+                            <span>{tr('Plancher occupé')} <b className="text-slate-800">{fm.occupiedLength.toLocaleString(numLocale(), { maximumFractionDigits: 1, minimumFractionDigits: 1 })} / {fm.containerLength.toLocaleString(numLocale(), { maximumFractionDigits: 1, minimumFractionDigits: 1 })} m</b></span>
+                            <span>{fm.ldm.toLocaleString(numLocale(), { maximumFractionDigits: 1, minimumFractionDigits: 1 })} MPL</span>
+                          </div>
+                        );
+                      })()}
                       <div className="flex flex-wrap gap-1.5 mb-3">
                         {analysisTabs.map((t) => (
                           <button key={t.id} onClick={() => openTab(t.id)} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md font-jetbrains text-[11px]"

@@ -3,6 +3,9 @@
 // {x} = valeur insérée à l'affichage : la garder telle quelle dans la traduction.
 
 const en: Record<string, string> = {
+  "Plancher occupé {v1} / {v2} m · {v3} MPL": "Floor used {v1} / {v2} m · {v3} LDM",
+  "Plancher : calcul…": "Floor: computing…",
+  "MÈTRES PLANCHER": "LOADING METERS",
   "Poids réel": "Actual weight",
   "Poids volumique": "Volumetric weight",
   "Poids plancher": "Loading-meter weight",
