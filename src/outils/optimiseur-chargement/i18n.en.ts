@@ -4,6 +4,7 @@
 
 const en: Record<string, string> = {
   "Plancher occupé · mètres plancher (surface au sol ÷ 2,4 m)": "Floor length used · loading meters (floor area ÷ 2.4 m)",
+  "À propos de cet outil : fonctionnement, guides et questions fréquentes": "About this tool: how it works, guides and FAQ",
   "{v1} mètres plancher": "{v1} loading meters",
   "≤ {v1} MPL sans gerbage": "≤ {v1} LDM without stacking",
   "Plancher occupé {v1} / {v2} m · {v3} MPL": "Floor used {v1} / {v2} m · {v3} LDM",
