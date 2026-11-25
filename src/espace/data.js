@@ -577,3 +577,34 @@ export async function mergedCount(orgId, code) {
   const { count } = await sb.from('shipments').select('id', { count: 'exact', head: true }).eq('org_id', orgId).eq('merged_into', code);
   return count ?? 0;
 }
+
+// ---------------------------------------------------------------- Contrôle transport
+const CONTROL_FIELDS = `id, code, label, external_id, status, departure_at, created_at, tour, carrier, carrier_cost, carrier_quote,
+  invoiced_amount, invoiced_qty, invoice_ref, invoiced_on, ${SUMMARY}`;
+
+/** Chargements d'un mois (date de départ, sinon de création) ayant un transporteur ; annulés et regroupés exclus. */
+export async function controlShipments(orgId, month) {
+  const sb = await getSupabase();
+  const [y, m] = month.split('-').map(Number);
+  const from = new Date(Date.UTC(y, m - 1, 1)).toISOString();
+  const to = new Date(Date.UTC(y, m, 1)).toISOString();
+  const { data, error } = await sb.from('shipments').select(CONTROL_FIELDS)
+    .eq('org_id', orgId).not('carrier', 'is', null).neq('status', 'cancelled').is('merged_into', null)
+    .or(`and(departure_at.gte.${from},departure_at.lt.${to}),and(departure_at.is.null,created_at.gte.${from},created_at.lt.${to})`)
+    .order('departure_at', { ascending: true, nullsFirst: false }).limit(1000);
+  fail(error);
+  return data;
+}
+
+/** Facture transporteur d'un chargement (montant, quantité, n°) : colonnes hors verrou du quai. */
+export async function saveInvoice(id, { invoiced_amount, invoiced_qty, invoice_ref }) {
+  const sb = await getSupabase();
+  const patch = {};
+  if (invoiced_amount !== undefined) patch.invoiced_amount = invoiced_amount;
+  if (invoiced_qty !== undefined) patch.invoiced_qty = invoiced_qty;
+  if (invoice_ref !== undefined) patch.invoice_ref = invoice_ref || null;
+  patch.invoiced_on = patch.invoiced_amount == null && invoiced_amount !== undefined ? null : new Date().toISOString().slice(0, 10);
+  const { data, error } = await sb.from('shipments').update(patch).eq('id', id).select(CONTROL_FIELDS).single();
+  fail(error);
+  return data;
+}
