@@ -120,7 +120,12 @@ export default function ShipmentEditor() {
   const carrier = ed.meta.carrier;
   const carrierMissing = !!carrier && !carriers.some((c) => c.code === carrier);
   // Au quai : coût figé (enregistré) ; sinon calcul en direct sur le plan affiché.
+  const invoiced = (() => { const t = String(ed.meta.invoiced_amount ?? '').replace(/[€\s\u00a0]/g, '').replace(',', '.'); return t === '' ? null : Number(t); })();
   const liveQuote = locked ? ed.doc.carrier_quote : (carriers.find((c) => c.code === carrier) ? quoteOf(carriers.find((c) => c.code === carrier), s) : null);
+  // Écart facture / coût théorique.
+  const invoiceGap = invoiced != null && Number.isFinite(invoiced) && liveQuote && !liveQuote.error && liveQuote.amount
+    ? (() => { const g = invoiced - liveQuote.amount; const pct = (g / liveQuote.amount) * 100; return { pct, text: `${g >= 0 ? '+' : ''}${pct.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} %` }; })()
+    : null;
   const duplicate = async () => {
     const d = ed.dirty ? await ed.save() : ed.doc;
     if (d) navigate(`/app/chargements/${await duplicateShipment(d)}`);
@@ -172,6 +177,13 @@ export default function ShipmentEditor() {
                 ? <span className="text-xs text-amber-700" title={liveQuote.error}>coût : —</span>
                 : <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-1 font-jetbrains text-xs text-slate-800 whitespace-pre" title={quoteDetail(liveQuote)}>
                     ≈ {eur(liveQuote.amount)}{locked && <span className="ml-1 text-slate-400">figé</span>}</span>)}
+              {'invoiced_amount' in ed.doc && carrier && (
+                <label className="flex items-center gap-1.5" title="Montant de la facture du transporteur (contrôle transport)">Facturé
+                  <input value={ed.meta.invoiced_amount} onChange={(e) => ed.setMeta({ ...ed.meta, invoiced_amount: e.target.value })} inputMode="decimal" placeholder="—"
+                    className={`${editorInputCls} w-24 text-right font-jetbrains`} />
+                  {invoiceGap && <span className={`text-xs font-semibold ${invoiceGap.pct > 3 ? 'text-red-700' : invoiceGap.pct < -3 ? 'text-amber-700' : 'text-emerald-700'}`}>{invoiceGap.text}</span>}
+                </label>
+              )}
             </span>
           )}
         </>}

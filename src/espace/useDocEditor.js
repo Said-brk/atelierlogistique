@@ -24,7 +24,7 @@ export const initialOf = (d) => ({ rows: [], ...(d.input ?? {}), plan: d.result?
 export default function useDocEditor({ code, load, update, titleOf, autosaveMs = 2000, derive = null }) {
   const deriveRef = useRef(derive); deriveRef.current = derive;
   const [doc, setDoc] = useState(undefined);
-  const [meta, setMetaState] = useState({ label: '', external_id: '', departure_at: '', tour: '', carrier: '' });
+  const [meta, setMetaState] = useState({ label: '', external_id: '', departure_at: '', tour: '', carrier: '', invoiced_amount: '' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [dirty, setDirty] = useState(false);
@@ -48,7 +48,7 @@ export default function useDocEditor({ code, load, update, titleOf, autosaveMs =
   const apply = (d, keepMeta = false) => {
     setDoc(d);
     if (!d) return;
-    if (!keepMeta) setMetaState({ label: d.label ?? '', external_id: d.external_id ?? '', departure_at: toDateInput(d.departure_at), tour: d.tour ?? '', carrier: d.carrier ?? '' });
+    if (!keepMeta) setMetaState({ label: d.label ?? '', external_id: d.external_id ?? '', departure_at: toDateInput(d.departure_at), tour: d.tour ?? '', carrier: d.carrier ?? '', invoiced_amount: d.invoiced_amount == null ? '' : String(d.invoiced_amount).replace('.', ',') });
     savedInput.current = stable(d.input ?? {});
     savedPlan.current = planSig(d.result?.plan);
     savedGuide.current = hasGuide(d.result?.plan);
@@ -109,6 +109,16 @@ export default function useDocEditor({ code, load, update, titleOf, autosaveMs =
       };
       if ('tour' in base) patch.tour = usedMeta.tour || null;
       if ('carrier' in base) patch.carrier = usedMeta.carrier || null;
+      if ('invoiced_amount' in base) {
+        const t = String(usedMeta.invoiced_amount ?? '').replace(/[€\s\u00a0]/g, '').replace(',', '.');
+        const a = t === '' ? null : Number(t);
+        if (a === null || (Number.isFinite(a) && a >= 0)) {
+          const v = a === null ? null : Math.round(a * 100) / 100;
+          if (v !== (base.invoiced_amount == null ? null : Number(base.invoiced_amount))) {
+            patch.invoiced_amount = v; patch.invoiced_on = v == null ? null : new Date().toISOString().slice(0, 10);
+          }
+        }
+      }
       Object.assign(patch, deriveRef.current?.(patch, base) ?? {});
       if ('departure_at' in base) patch.departure_at = usedMeta.departure_at ? new Date(usedMeta.departure_at).toISOString() : null;
       // Garder mes modifications : on écrase la version en base vue dans le conflit.
