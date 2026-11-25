@@ -1,6 +1,7 @@
 // Palettisation 3D : des colis aux palettes, puis envoi en un clic vers l'optimiseur de chargement.
 // Réutilise : le tableau colis, l'assistant d'import et le moteur 3D de l'optimiseur.
 
+import SeoFold from '../../shared/ui/SeoFold';
 import { useState, useMemo, useEffect, lazy, Suspense, Component } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
@@ -524,7 +525,7 @@ export default function Palletizer({ onBack, embedded: embeddedProp = false, onL
       </div>
 
       {/* Contenu SEO (aussi pré-rendu en HTML : src/seo/pages.js) */}
-      {!embedded && <div className="max-w-3xl mx-auto px-4 sm:px-6 py-12 space-y-8 print:hidden">
+      {!embedded && <SeoFold>
         <p className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">{t('Une fois les palettes prêtes, calculez le')}{' '}<a href={toolHref('optimiseur-chargement', getCurrentLang())} className="font-medium underline underline-offset-2" style={{ color: BLUE }}>{t('plan de chargement du camion ou du conteneur')}</a>{t('. Méthode complète :')}{' '}<a href="/ressources/plan-de-chargement-camion" className="font-medium underline underline-offset-2" style={{ color: BLUE }}>{t('comment faire un plan de chargement')}</a>.
         </p>
         <section>
@@ -542,7 +543,7 @@ export default function Palletizer({ onBack, embedded: embeddedProp = false, onL
             ))}
           </div>
         </section>
-      </div>}
+      </SeoFold>}
 
       {result && createPortal(
         <div className="pz-print-root"><PrintSheet result={result} colorOf={colorOf} /></div>,

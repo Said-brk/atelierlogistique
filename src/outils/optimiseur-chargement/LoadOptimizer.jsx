@@ -35,6 +35,7 @@ import { track } from './analytics';
 import { OPTIMIZER_FAQ, toolSeo } from '../../seo/pages';
 import { LOAD_FAQ_EN, toolSeoEn } from '../../seo/pages-en';
 import ColisTable from './components/ColisTable';
+import SeoFold from '../../shared/ui/SeoFold';
 import FloorMetersCard from './components/FloorMetersCard';
 import { DEFAULT_TAXABLE, floorMeters } from './engine/floorMeters';
 import { FleetVehicles, FleetResult } from './components/FleetPanel';
@@ -1662,8 +1663,8 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
         </div>
       )}
 
-      {/* Contenu SEO */}
-      {!embedded && <div className="max-w-3xl mx-auto px-4 sm:px-6 py-12 space-y-8">
+      {/* Contenu SEO, replié par défaut */}
+      {!embedded && <SeoFold>
         <p className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">{tr('Guide complet :')}{' '}<a href="/ressources/plan-de-chargement-camion" className="font-medium underline underline-offset-2" style={{ color: BLUE }}>{tr('comment faire un plan de chargement de camion ou de conteneur')}</a>{' '}{tr('(dimensions utiles, palettes, tournées multi-arrêts) et')}{' '}<a href="/ressources/arrimage-des-charges" className="font-medium underline underline-offset-2" style={{ color: BLUE }}>{tr('combien de sangles poser pour l\'arrimage')}</a>.
         </p>
         <section>
@@ -1697,7 +1698,7 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
           <a href={lang === 'en' ? homeHref('en') : '/#tools'} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg font-jetbrains text-sm font-medium text-white" style={{ background: BLUE }}>{tr('Découvrir les autres outils')}{' '}<ArrowRight size={15} />
           </a>
         </section>
-      </div>}
+      </SeoFold>}
 
       {result && status === 'done' && (
         createPortal(
