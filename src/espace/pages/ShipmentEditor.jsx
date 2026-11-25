@@ -58,7 +58,8 @@ export default function ShipmentEditor() {
   const plan = ed.doc.result?.plan;
   const locked = DOCK_STATUSES.includes(ed.doc.status)
     ? `Chargement ${ed.doc.status === 'sent' ? 'envoyé au quai' : ed.doc.status === 'loaded' ? 'chargé' : 'chargé en partie'} : marchandises, véhicules et plan sont figés. « Rouvrir » pour les modifier.` : null;
-  const byTruck = proofsByTruck(proofs);
+  // Camions confirmés depuis le dernier envoi au quai (un renvoi après réouverture repart de zéro).
+  const byTruck = proofsByTruck(proofs.filter((p) => !ed.doc.sent_at || new Date(p.created_at) >= new Date(ed.doc.sent_at)));
   const trucks = Object.fromEntries(Object.entries(byTruck).map(([k, v]) => [k, { ...v, onProof: () => setProofOf(Number(k)) }]));
   const sent = DOCK_STATUSES.includes(ed.doc.status); // au quai (envoyé, chargé en partie, chargé) : on ne rétrograde pas le statut
   // Le lien permanent ne sert que si le plan affiché est celui enregistré (sinon : lien avec le plan dedans).
