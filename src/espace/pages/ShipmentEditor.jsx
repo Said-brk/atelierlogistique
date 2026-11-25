@@ -31,8 +31,11 @@ export function NewShipment() {
 
 /** Devis d'un transporteur pour un résumé de plan (null sans plan). */
 /** Faits d'un chargement pour la tarification : résumé du plan + zones / arrêts des destinations + mois de départ. */
-function factsFor(summary, rows, agencies, departure) {
-  return factsOf(summary, { ...routeOf(rows, agencies), month: departure ? String(departure).slice(0, 7) : new Date().toISOString().slice(0, 7) });
+function factsFor(summary, rows, agencies, departure, tour) {
+  const route = routeOf(rows, agencies);
+  // Destination sans tournée : celle choisie sur le chargement.
+  const dests = route.dests.map((d) => (d.tour || !tour ? d : { ...d, tour }));
+  return factsOf(summary, { ...route, dests: dests.length || !tour ? dests : [{ agency: '', tour, zone: null }], month: departure ? String(departure).slice(0, 7) : new Date().toISOString().slice(0, 7) });
 }
 function quoteOf(c, facts) {
   if (!facts) return null;
@@ -60,7 +63,7 @@ export default function ShipmentEditor() {
   const derive = (patch, base) => {
     if (!('carrier_cost' in base) || DOCK_STATUSES.includes(base.status)) return {};
     const c = carriers.find((x) => x.code === patch.carrier);
-    const q = c ? quoteOf(c, factsFor(patch.result?.summary, patch.input?.rows, refs.tools?.agencies ?? [], patch.departure_at)) : null;
+    const q = c ? quoteOf(c, factsFor(patch.result?.summary, patch.input?.rows, refs.tools?.agencies ?? [], patch.departure_at, patch.tour)) : null;
     return { carrier_cost: q && !q.error ? q.amount : null, carrier_quote: q };
   };
   const ed = useDocEditor({ code, load: getShipment, update: updateShipment, titleOf: (d) => d.label ?? 'Chargement', derive });
@@ -128,7 +131,7 @@ export default function ShipmentEditor() {
   const carrierMissing = !!carrier && !carriers.some((c) => c.code === carrier);
   // Au quai : coût figé (enregistré) ; sinon calcul en direct sur le plan affiché.
   const invoiced = (() => { const t = String(ed.meta.invoiced_amount ?? '').replace(/[€\s\u00a0]/g, '').replace(',', '.'); return t === '' ? null : Number(t); })();
-  const facts = factsFor(s, liveRows.current ?? ed.doc.input?.rows, refs.tools?.agencies ?? [], ed.meta.departure_at);
+  const facts = factsFor(s, liveRows.current ?? ed.doc.input?.rows, refs.tools?.agencies ?? [], ed.meta.departure_at, ed.meta.tour);
   const liveQuote = locked ? ed.doc.carrier_quote : (carriers.find((c) => c.code === carrier) ? quoteOf(carriers.find((c) => c.code === carrier), facts) : null);
   // Transporteur le moins cher pour ce plan (comparaison des grilles).
   const ranking = !locked && facts && carriers.length > 1 ? rankCarriers(facts, carriers).filter((x) => !('error' in x.q)) : [];

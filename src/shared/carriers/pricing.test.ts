@@ -37,7 +37,7 @@ describe('grille par zone, gazole mensuel, arrêts, comparaison', () => {
     const { quote } = await import('./pricing');
     const c = { billing: 'ldm' as const, rate: 90, zones: [{ zone: '69', rate: 100 }, { zone: '13', rate: 130 }] };
     expect((quote({ ...facts, ldm: 5, zones: ['69'] }, c) as any).amount).toBe(500);
-    expect((quote({ ...facts, ldm: 5, zones: ['69', '13'] }, c) as any)).toMatchObject({ amount: 650, zone: '13' });
+    expect((quote({ ...facts, ldm: 5, zones: ['69', '13'] }, c) as any)).toMatchObject({ amount: 650, zone: 'Zone 13' });
     expect((quote({ ...facts, ldm: 5, zones: ['75'] }, c) as any).amount).toBe(450);
     expect(quote({ ...facts, ldm: 5, zones: ['75'] }, { ...c, rate: null })).toHaveProperty('error');
   });
@@ -56,7 +56,23 @@ describe('grille par zone, gazole mensuel, arrêts, comparaison', () => {
       { code: 'C', label: 'C', data: { billing: 'ldm', rate: 100 } },
     ]);
     expect(r.map((x) => x.code)).toEqual(['C', 'A', 'B']);
-    expect(routeOf([{ destination: 'LYO', quantity: 2 }, { destination: 'mar', quantity: 1 }, { destination: 'LYO' }], [{ code: 'LYO', zone: '69' }, { code: 'MAR', zone: '13' }]))
-      .toEqual({ zones: ['69', '13'], stops: 2 });
+    expect(routeOf([{ destination: 'LYO', quantity: 2 }, { destination: 'mar', quantity: 1 }, { destination: 'LYO' }], [{ code: 'LYO', zone: '69', tour: 'T1' }, { code: 'MAR', zone: '13' }]))
+      .toEqual({ dests: [{ agency: 'LYO', tour: 'T1', zone: '69' }, { agency: 'MAR', tour: null, zone: '13' }], stops: 2 });
+  });
+});
+
+describe('grille par agence / tournée / zone', () => {
+  it('priorité agence > tournée > zone > base, puis destination la plus chère', async () => {
+    const { quote } = await import('./pricing');
+    const c = { billing: 'ldm' as const, rate: 90, zones: [
+      { scope: 'zone' as const, key: '69', rate: 100 }, { scope: 'tour' as const, key: 'T1', rate: 120 }, { scope: 'agency' as const, key: 'LYO', rate: 105 },
+    ] };
+    const f = (dests: any[]) => ({ ...facts, ldm: 10, dests });
+    expect(quote(f([{ agency: 'LYO', tour: 'T1', zone: '69' }]), c)).toMatchObject({ rate: 105, zone: 'Agence LYO' });
+    expect(quote(f([{ agency: 'VIL', tour: 'T1', zone: '69' }]), c)).toMatchObject({ rate: 120, zone: 'Tournée T1' });
+    expect(quote(f([{ agency: 'VIL', tour: null, zone: '69' }]), c)).toMatchObject({ rate: 100, zone: 'Zone 69' });
+    expect(quote(f([{ agency: 'X', tour: null, zone: null }]), c)).toMatchObject({ rate: 90, zone: null });
+    expect(quote(f([{ agency: 'LYO', tour: 'T1', zone: '69' }, { agency: 'VIL', tour: 'T1', zone: null }]), c)).toMatchObject({ rate: 120 });
+    expect(quote(f([{ agency: 'X', tour: null, zone: null }]), { ...c, rate: null })).toHaveProperty('error');
   });
 });
