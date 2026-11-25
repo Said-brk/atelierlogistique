@@ -80,7 +80,9 @@ export async function handle(req: ApiRequest, db: Db, site = 'https://atelierlog
         const v = parsed.value;
         items = v.units;
         const existing = await db.findShipment(org, v.reference);
-        if (existing && ['validated', 'sent', 'partially_loaded', 'loaded'].includes(existing.status)) {
+        if (existing?.merged_into) {
+          res = err(409, 'merged', `Le chargement ${existing.code} (« ${v.reference} ») a été regroupé dans ${existing.merged_into} : modifiez ${existing.merged_into} dans l’espace, ou envoyez une nouvelle référence.`);
+        } else if (existing && ['validated', 'sent', 'partially_loaded', 'loaded'].includes(existing.status)) {
           res = err(409, 'already_validated', `Le chargement ${existing.code} (« ${v.reference} ») est déjà ${existing.status === 'sent' ? 'envoyé au quai' : existing.status === 'loaded' ? 'chargé' : existing.status === 'partially_loaded' ? 'chargé en partie' : 'validé'} : rouvrez-le dans l’espace ou envoyez une nouvelle référence.`);
         } else {
           const result = v.mode === 'auto' ? await computePlan(v.input) : null;
@@ -109,8 +111,12 @@ export async function handle(req: ApiRequest, db: Db, site = 'https://atelierlog
       if (!s) res = err(404, 'not_found', `Aucun chargement « ${ref} » (n° PL-… ou référence WMS).`);
       else if (parts.length === 2 && req.method === 'GET') res = { status: 200, body: await shipmentOf(s, site) };
       else if (parts.length === 3 && parts[2] === 'cancel' && req.method === 'POST') {
-        const row = s.status === 'cancelled' ? s : await db.updateShipment(s.id, { status: 'cancelled' });
-        res = { status: 200, body: await shipmentOf(row, site) };
+        if (s.status === 'loaded' || s.status === 'partially_loaded') {
+          res = err(409, 'already_loaded', `Le chargement ${s.code} est déjà ${s.status === 'loaded' ? 'chargé' : 'chargé en partie'} : annulation impossible.`);
+        } else {
+          const row = s.status === 'cancelled' ? s : await db.updateShipment(s.id, { status: 'cancelled' });
+          res = { status: 200, body: await shipmentOf(row, site) };
+        }
       } else res = err(405, 'method_not_allowed', `${req.method} non pris en charge sur cette route.`);
     } else res = err(405, 'method_not_allowed', `${req.method} non pris en charge sur cette route.`);
   } catch (e) {

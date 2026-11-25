@@ -122,6 +122,21 @@ describe('API v1', () => {
     expect((ships[2] as any).input.fleetVehicles.map((v: any) => v.cost)).toEqual([180, 720]);
   });
 
+  it('regroupé : renvoi refusé ; chargé : annulation refusée', async () => {
+    const { db, ships } = memoryDb();
+    await handle(req('POST', '/shipments', { reference: 'R-M', lines: [LINES[1]] }), db);
+    Object.assign(ships[0], { status: 'cancelled', merged_into: 'PL-GROUP1' });
+    const again = await handle(req('POST', '/shipments', { reference: 'R-M', lines: [LINES[1]] }), db);
+    expect(again.status).toBe(409);
+    expect((again.body as any).error.code).toBe('merged');
+    expect((await handle(req('GET', '/shipments/R-M'), db)).body).toMatchObject({ status: 'cancelled', merged_into: 'PL-GROUP1' });
+    await handle(req('POST', '/shipments', { reference: 'R-L', lines: [LINES[1]] }), db);
+    ships[1].status = 'loaded';
+    const cancel = await handle(req('POST', '/shipments/R-L/cancel'), db);
+    expect(cancel.status).toBe(409);
+    expect(ships[1].status).toBe('loaded');
+  });
+
   it('dimensions en mm et véhicule sur mesure', async () => {
     const { db, ships } = memoryDb();
     const r = await handle(req('POST', '/shipments', { reference: 'EXP-5', units: 'mm', vehicle: { label: 'Caisse mobile', length: 7200, width: 2450, height: 2600, max_weight: 8000 }, lines: [{ reference: 'C', length: 600, width: 400, height: 400, weight: 10 }] }), db);

@@ -1524,6 +1524,7 @@ function listItemOf(s, site) {
     reference: s.external_id,
     label: s.label,
     status: s.status,
+    ...s.merged_into ? { merged_into: s.merged_into } : {},
     version: s.version,
     source: s.source,
     departure_date: s.departure_at,
@@ -1655,7 +1656,9 @@ async function handle(req, db, site = "https://atelierlogistique.com") {
         const v = parsed.value;
         items = v.units;
         const existing = await db.findShipment(org, v.reference);
-        if (existing && ["validated", "sent", "partially_loaded", "loaded"].includes(existing.status)) {
+        if (existing?.merged_into) {
+          res = err(409, "merged", `Le chargement ${existing.code} (\xAB ${v.reference} \xBB) a \xE9t\xE9 regroup\xE9 dans ${existing.merged_into} : modifiez ${existing.merged_into} dans l\u2019espace, ou envoyez une nouvelle r\xE9f\xE9rence.`);
+        } else if (existing && ["validated", "sent", "partially_loaded", "loaded"].includes(existing.status)) {
           res = err(409, "already_validated", `Le chargement ${existing.code} (\xAB ${v.reference} \xBB) est d\xE9j\xE0 ${existing.status === "sent" ? "envoy\xE9 au quai" : existing.status === "loaded" ? "charg\xE9" : existing.status === "partially_loaded" ? "charg\xE9 en partie" : "valid\xE9"} : rouvrez-le dans l\u2019espace ou envoyez une nouvelle r\xE9f\xE9rence.`);
         } else {
           const result = v.mode === "auto" ? await computePlan(v.input) : null;
@@ -1682,8 +1685,12 @@ async function handle(req, db, site = "https://atelierlogistique.com") {
       if (!s) res = err(404, "not_found", `Aucun chargement \xAB ${ref} \xBB (n\xB0 PL-\u2026 ou r\xE9f\xE9rence WMS).`);
       else if (parts.length === 2 && req.method === "GET") res = { status: 200, body: await shipmentOf(s, site) };
       else if (parts.length === 3 && parts[2] === "cancel" && req.method === "POST") {
-        const row = s.status === "cancelled" ? s : await db.updateShipment(s.id, { status: "cancelled" });
-        res = { status: 200, body: await shipmentOf(row, site) };
+        if (s.status === "loaded" || s.status === "partially_loaded") {
+          res = err(409, "already_loaded", `Le chargement ${s.code} est d\xE9j\xE0 ${s.status === "loaded" ? "charg\xE9" : "charg\xE9 en partie"} : annulation impossible.`);
+        } else {
+          const row = s.status === "cancelled" ? s : await db.updateShipment(s.id, { status: "cancelled" });
+          res = { status: 200, body: await shipmentOf(row, site) };
+        }
       } else res = err(405, "method_not_allowed", `${req.method} non pris en charge sur cette route.`);
     } else res = err(405, "method_not_allowed", `${req.method} non pris en charge sur cette route.`);
   } catch (e) {
@@ -1697,7 +1704,7 @@ async function handle(req, db, site = "https://atelierlogistique.com") {
 }
 
 // src/api/v1/vercel.ts
-var SHIPMENT_FIELDS = "id, org_id, code, external_id, label, status, version, source, departure_at, created_at, updated_at, validated_at, loaded_at, share_token, input, result";
+var SHIPMENT_FIELDS = "*";
 var LIST_FIELDS = "id, org_id, code, external_id, label, status, version, source, departure_at, created_at, updated_at, validated_at, share_token, summary:result->summary";
 var client = null;
 function sb() {
