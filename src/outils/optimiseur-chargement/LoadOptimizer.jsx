@@ -35,6 +35,8 @@ import { track } from './analytics';
 import { OPTIMIZER_FAQ, toolSeo } from '../../seo/pages';
 import { LOAD_FAQ_EN, toolSeoEn } from '../../seo/pages-en';
 import ColisTable from './components/ColisTable';
+import FloorMetersCard from './components/FloorMetersCard';
+import { DEFAULT_TAXABLE } from './engine/floorMeters';
 import { FleetVehicles, FleetResult } from './components/FleetPanel';
 import { useFleetPlanner } from './useFleetPlanner';
 import { encodePlan, guideUrl, qrTextOf } from './guide/planLink';
@@ -628,6 +630,7 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
 
   // Répartition des charges & arrimage : réglages pré-remplis par véhicule, mémorisés.
   const BAL_KEY = 'al_balance_v1';
+  const TAX_KEY = 'al.load.taxable';
   const [balanceCfg, setBalanceCfg] = useState(() => {
     if (refs) return {}; // espace : réglages de l'entreprise, retouches limitées à cet écran
     try { return JSON.parse(localStorage.getItem(BAL_KEY) || '{}'); } catch { return {}; }
@@ -642,6 +645,11 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
     const base = ref ? (ref.axle ?? defaultAxleProfile({ ...container, id: '' })) : defaultAxleProfile(container);
     return { ...base, ...(balanceCfg.axles?.[container.id] ?? {}) };
   }, [container, balanceCfg, refs]);
+  // Poids taxable : facteurs du transporteur (kg/m³, kg/MPL), mémorisés dans ce navigateur.
+  const [taxFactors, setTaxFactors] = useState(() => {
+    try { return { ...DEFAULT_TAXABLE, ...JSON.parse(localStorage.getItem(TAX_KEY) || '{}') }; } catch { return { ...DEFAULT_TAXABLE }; }
+  });
+  useEffect(() => { try { localStorage.setItem(TAX_KEY, JSON.stringify(taxFactors)); } catch { /* stockage indisponible */ } }, [taxFactors]);
   const lashingParams = useMemo(() => ({ ...DEFAULT_LASHING, ...(refs?.lashing ?? {}), ...(balanceCfg.lashing ?? {}) }), [balanceCfg, refs]);
   const setAxle = (key, value) => setBalanceCfg((c) => ({
     ...c, axles: { ...(c.axles ?? {}), [container.id]: { ...(c.axles?.[container.id] ?? {}), [key]: value } },
@@ -1363,6 +1371,9 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
                             <Bar label={tr('Poids utilisé')} value={result.usedWeight} max={result.maxWeight ?? result.usedWeight} unit="kg" format={formatKg} />
                             <Bar label={tr('Volume utilisé')} value={mm3ToM3(result.usedVolume)} max={mm3ToM3(result.containerVolume)} unit="m³" format={(v) => v.toLocaleString(numLocale(), { maximumFractionDigits: 1 })} />
                           </div>
+
+                          <FloorMetersCard placed={result.placedItems} container={container} weightKg={result.usedWeight}
+                            volumeM3={mm3ToM3(result.usedVolume)} factors={taxFactors} onFactorsChange={setTaxFactors} />
 
                           {result.loadingViolationIds.length === 0 ? (
                             <div className="rounded-xl border px-4 py-3 text-[11px] flex items-start gap-1.5" style={{ color: '#15803D', background: '#F0FDF4', borderColor: '#BBF7D0' }}>
