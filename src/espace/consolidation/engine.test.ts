@@ -48,3 +48,13 @@ describe('regroupement de chargements', () => {
     expect(rows.map((r) => r.stop)).toEqual([1, 1]);
   });
 });
+
+describe('tourOf', () => {
+  it('la tournée choisie sur le chargement prime sur celle déduite des destinations', async () => {
+    const { tourOf } = await import('./engine');
+    const agencies = new Map([['A1', { code: 'A1', label: 'A1', tour: 'T01', order: 1 }]]) as any;
+    const s = { input: { rows: [{ reference: 'X', quantity: 1, length: 1, width: 1, height: 1, destination: 'A1' }] } } as any;
+    expect(tourOf(s, agencies)).toBe('T01');
+    expect(tourOf({ ...s, tour: 'T09' }, agencies)).toBe('T09');
+  });
+});

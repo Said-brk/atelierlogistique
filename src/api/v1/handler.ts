@@ -87,7 +87,7 @@ export async function handle(req: ApiRequest, db: Db, site = 'https://atelierlog
         } else {
           const result = v.mode === 'auto' ? await computePlan(v.input) : null;
           const status = v.mode === 'auto' ? (v.validate ? 'validated' : 'in_progress') : 'new';
-          const fields = { label: v.label, departure_at: v.departureAt, input: v.input, result, status, source: 'api' };
+          const fields = { label: v.label, departure_at: v.departureAt, ...(v.tour !== undefined ? { tour: v.tour } : {}), input: v.input, result, status, source: 'api' };
           const row = existing
             ? await db.updateShipment(existing.id, fields)
             : await db.insertShipment({ ...fields, org_id: org, external_id: v.reference });

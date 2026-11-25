@@ -212,6 +212,7 @@ export default function ApiDocsPage() {
             <Field name="units" type="cm | mm | m">Unité des dimensions (défaut <b>cm</b>). Poids toujours en <b>kg</b>.</Field>
             <Field name="label" type="texte">Libellé affiché dans l’espace.</Field>
             <Field name="departure_date" type="date ISO">Date de départ.</Field>
+            <Field name="tour" type="texte">Code de la tournée (Paramètres › Tables de référence › Tournées).</Field>
             <Field name="lines" type="liste" req>Colis et palettes (2 000 lignes, 5 000 unités au maximum).</Field>
           </Table>
 

@@ -11,6 +11,7 @@ import { useEspace } from '../useEspace';
 import useReferences from '../useReferences';
 import { calendarShipments, setDeparture, createShipment, STATUS, DOCK_STATUSES } from '../data';
 import { tourOf } from '../consolidation/engine';
+import { tourTitle } from '../tourCheck';
 
 const WEEKDAYS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 const TOUR_COLORS = ['#7C3AED', '#0891B2', '#DB2777', '#EA580C', '#16A34A', '#2563EB', '#CA8A04', '#9333EA'];
@@ -78,7 +79,7 @@ export default function ShipmentsCalendar() {
   const tourColor = useMemo(() => Object.fromEntries(tours.map((t, i) => [t.code, TOUR_COLORS[i % TOUR_COLORS.length]])), [tours]);
   const agencyMap = useMemo(() => new Map((tools?.agencies ?? []).map((a) => [a.code, a])), [tools]);
   const withTour = useCallback((s) => {
-    const t = tourOf({ input: { rows: s.rows ?? [] } }, agencyMap);
+    const t = tourOf({ tour: s.tour, input: { rows: s.rows ?? [] } }, agencyMap);
     return { ...s, tour: t && t !== '*' ? t : null };
   }, [agencyMap]);
   const byDay = useMemo(() => {
@@ -101,7 +102,7 @@ export default function ShipmentsCalendar() {
   const createFor = async (day, tour) => {
     setBusy(true);
     try {
-      const code = await createShipment(org.id, { label: `${tour ? tour.label : 'Chargement'} — ${fmt(day, { weekday: 'long', day: 'numeric', month: 'long' })}`, departure_at: `${day}T00:00:00.000Z` });
+      const code = await createShipment(org.id, { label: tourTitle(tour ? [tour.code] : [], day) ?? `Chargement du ${fmt(day, { day: 'numeric', month: 'long' })}`, departure_at: `${day}T00:00:00.000Z`, ...(tour ? { tour: tour.code } : {}) });
       navigate(`/app/chargements/${code}`);
     } catch (e) { setError(e.message); setBusy(false); }
   };

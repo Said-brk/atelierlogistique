@@ -24,3 +24,20 @@ describe('arrêt d’après la tournée', () => {
     expect(agencyStop('XXX', ag)).toBeNull();
   });
 });
+
+describe('titre d’un chargement par tournée', () => {
+  it('codes de tournée séparés par /, puis la date de départ', async () => {
+    const { tourTitle } = await import('./tourCheck');
+    expect(tourTitle(['T01'], '2026-11-25')).toBe('Tournée T01 – 25/11/2026');
+    expect(tourTitle(['T01', 'T02', 'T01'], '2026-11-25')).toBe('Tournée T01/T02 – 25/11/2026');
+    expect(tourTitle(['T01'], '')).toBe('Tournée T01');
+    expect(tourTitle([], '2026-11-25')).toBeNull();
+  });
+  it('remplace un titre généré, jamais un titre saisi', async () => {
+    const { isAutoTitle } = await import('./tourCheck');
+    expect(isAutoTitle('')).toBe(true);
+    expect(isAutoTitle('Chargement du 25 novembre')).toBe(true);
+    expect(isAutoTitle('Tournée T01 – 24/11/2026')).toBe(true);
+    expect(isAutoTitle('Client Dupont urgent')).toBe(false);
+  });
+});

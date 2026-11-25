@@ -42,7 +42,7 @@ export async function renameOrganization(id, name) {
   fail(error);
 }
 
-const LIST_FIELDS = `id, code, label, external_id, source, status, version, departure_at, created_at, updated_at, ${SUMMARY}, palletizations(code)`;
+const LIST_FIELDS = `id, code, label, external_id, source, status, version, departure_at, tour, created_at, updated_at, ${SUMMARY}, palletizations(code)`;
 
 export async function listShipments(orgId, { status = null, limit = 200 } = {}) {
   const sb = await getSupabase();
@@ -471,7 +471,7 @@ export const CONSOLIDABLE = ['new', 'in_progress', 'validated'];
 export async function datedShipments(orgId) {
   const sb = await getSupabase();
   const since = new Date(Date.now() - 864e5).toISOString().slice(0, 10);
-  const { data, error } = await sb.from('shipments').select(`id, code, label, external_id, status, departure_at, updated_at, input, ${SUMMARY}`)
+  const { data, error } = await sb.from('shipments').select(`id, code, label, external_id, status, departure_at, tour, updated_at, input, ${SUMMARY}`)
     .eq('org_id', orgId).in('status', CONSOLIDABLE).gte('departure_at', since).order('departure_at').limit(300);
   fail(error);
   return data;
@@ -483,12 +483,12 @@ export async function datedShipments(orgId) {
  * dans PL-… »). La base revérifie que chaque original est encore regroupable et inchangé depuis l'analyse
  * (updated_at) ; sinon rien n'est fait. Renvoie le n° du nouveau chargement.
  */
-export async function consolidateShipments(orgId, list, { rows, plan, summary, fleetVehicles }) {
+export async function consolidateShipments(orgId, list, { rows, plan, summary, fleetVehicles, label, tour }) {
   const sb = await getSupabase();
   const { data, error } = await sb.rpc('consolidate_shipments', {
     p_org: orgId,
     p_sources: list.map((s) => ({ id: s.id, updated_at: s.updated_at })),
-    p_label: `Regroupement ${list.map((s) => s.code).join(' + ')}`,
+    p_label: label || `Regroupement ${list.map((s) => s.code).join(' + ')}`,
     p_departure: list[0].departure_at,
     p_input: { rows, vehicleMode: 'fleet', deliveryMode: 'STRICT', excludedStops: [], containerId: 'semi',
       custom: { label: 'Mon contenant', length: 600, width: 240, height: 240, maxWeight: '' }, fleetVehicles },
@@ -498,11 +498,13 @@ export async function consolidateShipments(orgId, list, { rows, plan, summary, f
     throw new Error('Regroupement indisponible : exécutez le script SQL 20261125000010 dans Supabase.');
   }
   fail(error);
+  // Tournée commune aux chargements regroupés : reportée sur le nouveau chargement.
+  if (tour) await sb.from('shipments').update({ tour }).eq('org_id', orgId).eq('code', data);
   return data;
 }
 
 // ---------------------------------------------------------------- Calendrier des chargements
-const CAL_FIELDS = `id, code, label, external_id, status, departure_at, ${SUMMARY}, rows:input->rows`;
+const CAL_FIELDS = `id, code, label, external_id, status, departure_at, tour, ${SUMMARY}, rows:input->rows`;
 
 /** Chargements datés entre deux jours (AAAA-MM-JJ, inclus) + chargements à faire sans date (hors annulés). */
 export async function calendarShipments(orgId, from, to) {
@@ -560,6 +562,7 @@ async function duplicate(table, doc) {
     // Les lignes ne sont plus « reçues » d'une palettisation : la copie est indépendante.
     input: { ...(doc.input ?? {}), rows: (doc.input?.rows ?? []).map(({ origin, fromShipment, ...r }) => r) },
     result: doc.result ?? null,
+    ...(doc.tour ? { tour: doc.tour } : {}),
   }).select('code').single();
   fail(error);
   return data.code;

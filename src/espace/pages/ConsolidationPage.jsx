@@ -7,6 +7,7 @@ import { Combine, Loader2, ArrowRight, Truck, CalendarDays, Info, X } from 'luci
 import { useEspace } from '../useEspace';
 import useReferences from '../useReferences';
 import { datedShipments, consolidateShipments, STATUS } from '../data';
+import { tourTitle } from '../tourCheck';
 import { toToolReferences, defaultReferences } from '../../shared/references/defaults';
 import { PageHeader, Btn, StatusBadge, ReferencesError } from '../ui';
 import ResizableTable from '../ResizableTable';
@@ -114,7 +115,7 @@ export default function ConsolidationPage() {
       else if (e.data.ok) setRun({ status: 'done', progress: [1, 1], analysis: e.data.analysis });
       else setRun({ status: 'error', progress: [0, 0], analysis: null, error: e.data.error });
     };
-    w.postMessage({ shipments: list.map(({ id, code, label, status, departure_at, input }) => ({ id, code, label, status, departure_at, input })), vehicles, mode, agencies });
+    w.postMessage({ shipments: list.map(({ id, code, label, status, departure_at, tour, input }) => ({ id, code, label, status, departure_at, tour, input })), vehicles, mode, agencies });
     return () => w.terminate();
   }, [list, vehicles, mode, agencies]);
   const tourText = (code) => { const t = run.analysis?.tours?.[code]; return t === '*' ? 'plusieurs tournées' : t ? (tourName[t] ?? t) : null; };
@@ -139,7 +140,12 @@ export default function ConsolidationPage() {
         packed: t.reduce((a, x) => a + x.units, 0), unpacked: 0,
         fill: t.reduce((a, x) => a + x.volumeUtilization, 0) / t.length, weight: t.reduce((a, x) => a + x.weight, 0), edited: false,
       };
-      const code = await consolidateShipments(org.id, items, { rows: s.rows, plan: s.plan, summary, fleetVehicles: vehicles.map((v) => ({ ...v, enabled: true })) });
+      // Titre « Tournée T01/T02 – date » d'après les tournées des chargements regroupés.
+      const tourCodes = [...new Set(items.map((x) => x.tour || run.analysis?.tours?.[x.code]).filter((t) => t && t !== '*'))];
+      const code = await consolidateShipments(org.id, items, {
+        rows: s.rows, plan: s.plan, summary, fleetVehicles: vehicles.map((v) => ({ ...v, enabled: true })),
+        label: tourTitle(tourCodes, items[0].departure_at), tour: tourCodes.length === 1 ? tourCodes[0] : null,
+      });
       navigate(`/app/chargements/${code}`);
     } catch (e) {
       setError(e.message); setBusy(null);

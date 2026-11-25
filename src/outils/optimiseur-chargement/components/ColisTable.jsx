@@ -67,9 +67,9 @@ function DestinationField({ value, onChange, agencies, className, placeholder, m
     <>
       <input list={AGENCY_LIST} value={value ?? ''} onChange={(e) => onChange(e.target.value)} placeholder="Agence…"
         onBlur={(e) => { const r = resolveAgency(e.target.value, agencies); if (r !== (value ?? '')) onChange(r); }}
-        title={known ? `${known.code} · ${known.label}` : unknown ? 'Destination inconnue : choisissez une agence de la liste' : 'Code ou description de l’agence'}
+        title={known ? `${known.code} · ${known.label}` : unknown ? 'Destination hors liste (inconnue ou hors tournée) : choisissez une agence de la liste' : 'Code ou description de l’agence'}
         className={className} style={unknown ? { borderColor: '#FCA5A5', background: '#FEF2F2' } : undefined} />
-      {mobile && (known || unknown) && <span className={`block text-[10px] mt-0.5 ${unknown ? 'text-red-500' : 'text-slate-500'}`}>{known ? known.label : 'Agence inconnue'}</span>}
+      {mobile && (known || unknown) && <span className={`block text-[10px] mt-0.5 ${unknown ? 'text-red-500' : 'text-slate-500'}`}>{known ? known.label : 'Hors liste'}</span>}
     </>
   );
 }

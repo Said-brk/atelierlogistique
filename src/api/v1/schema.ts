@@ -32,6 +32,8 @@ export interface ParsedShipment {
   reference: string;
   label: string | null;
   departureAt: string | null;
+  /** Code de la tournée (tables de référence) ; undefined = non envoyé (inchangé). */
+  tour?: string | null;
   mode: 'draft' | 'auto';
   validate: boolean;
   /** État de l'outil (même format que l'écran « chargement ») */
@@ -169,7 +171,8 @@ export function parseShipment(body: unknown, catalog: VehicleCatalog | null = nu
   return {
     ok: true,
     value: {
-      reference, label: str(body.label, 120) || null, departureAt, mode: mode as 'draft' | 'auto',
+      reference, label: str(body.label, 120) || null, departureAt,
+      ...(body.tour !== undefined ? { tour: str(body.tour, 40) || null } : {}), mode: mode as 'draft' | 'auto',
       validate: body.validate === true, input: { ...input, rows }, units: total,
     },
   };

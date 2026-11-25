@@ -14,6 +14,7 @@ export interface ShipmentRow {
   input: Record<string, unknown> | null; result: { summary?: Record<string, unknown>; plan?: Record<string, any> } | null;
   /** Regroupé dans ce chargement (annulé). */
   merged_into?: string | null;
+  tour?: string | null;
 }
 
 const pct = (v: unknown) => (typeof v === 'number' ? Math.round(v * 1000) / 10 : null);
@@ -27,7 +28,7 @@ export function summaryOf(s: ShipmentRow) {
 export function listItemOf(s: ShipmentRow, site: string) {
   return {
     code: s.code, reference: s.external_id, label: s.label, status: s.status, ...(s.merged_into ? { merged_into: s.merged_into } : {}), version: s.version, source: s.source,
-    departure_date: s.departure_at, created_at: s.created_at, updated_at: s.updated_at,
+    departure_date: s.departure_at, tour: s.tour ?? null, created_at: s.created_at, updated_at: s.updated_at,
     summary: summaryOf(s), links: { app: `${site}/app/chargements/${s.code}` },
   };
 }
