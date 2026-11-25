@@ -222,5 +222,19 @@ describe('schéma Supabase', () => {
     ok((await as(A, `select status from shipments where code = $1`, [fl.code])).rows[0].status === 'loaded', 'flotte : tous les camions confirmés');
     await as(A, `update shipments set status = 'in_progress', result = '{"plan":{}}' where code = $1`, [fl.code]);
     ok((await as(A, `select status from shipments where code = $1`, [fl.code])).rows[0].status === 'in_progress', 'rouvrir : de nouveau modifiable');
+    // Regroupement : tout ou rien, revérifié (statut, version lue), réservé à l'entreprise.
+    const mk = async (st) => (await as(A, `insert into shipments(org_id, status, input) values ($1, $2, '{"rows":[1]}') returning id, code, updated_at`, [orgA, st])).rows[0];
+    const [g1, g2, g3] = [await mk('in_progress'), await mk('validated'), await mk('sent')];
+    const pzG = (await as(A, `insert into palletizations(org_id, shipment_id) values ($1, $2) returning id`, [orgA, g1.id])).rows[0];
+    const src = (list) => JSON.stringify(list.map((x) => ({ id: x.id, updated_at: x.updated_at })));
+    const tryCons = async (who, list) => { try { await as(who, `select consolidate_shipments($1, $2::jsonb, 'Regroupement', null, '{"rows":[]}', null)`, [orgA, src(list)]); return null; } catch (e) { return e; } };
+    ok(/plus regroupable/.test((await tryCons(A, [g1, g3]))?.message), 'regroupement : refusé si un chargement est au quai');
+    ok(/modifié depuis/.test((await tryCons(A, [g1, { ...g2, updated_at: '2020-01-01T00:00:00Z' }]))?.message), 'regroupement : refusé si modifié depuis le calcul');
+    ok(await tryCons(B, [g1, g2]), 'regroupement : interdit à une autre entreprise');
+    ok((await as(A, `select count(*)::int n from shipments where id in ($1, $2) and status <> 'cancelled'`, [g1.id, g2.id])).rows[0].n === 2, 'échec : rien n’a changé');
+    const newCode = (await as(A, `select consolidate_shipments($1, $2::jsonb, 'Regroupement', null, '{"rows":[]}', null) as c`, [orgA, src([g1, g2])])).rows[0].c;
+    const after = (await as(A, `select status, merged_into from shipments where id in ($1, $2)`, [g1.id, g2.id])).rows;
+    ok(after.every((x) => x.status === 'cancelled' && x.merged_into === newCode), 'originaux annulés et rattachés au regroupement');
+    ok((await as(A, `select s.code from palletizations p join shipments s on s.id = p.shipment_id where p.id = $1`, [pzG.id])).rows[0].code === newCode, 'palettisations rattachées au regroupement');
   }, 60000);
 });

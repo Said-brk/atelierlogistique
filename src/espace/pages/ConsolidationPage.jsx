@@ -141,7 +141,11 @@ export default function ConsolidationPage() {
       };
       const code = await consolidateShipments(org.id, items, { rows: s.rows, plan: s.plan, summary, fleetVehicles: vehicles.map((v) => ({ ...v, enabled: true })) });
       navigate(`/app/chargements/${code}`);
-    } catch (e) { setError(e.message); setBusy(null); }
+    } catch (e) {
+      setError(e.message); setBusy(null);
+      // Un chargement a changé depuis l'analyse : on relit la liste (l'analyse repart sur les données à jour).
+      if (/Relancez l.analyse/.test(e.message)) datedShipments(org.id).then(setShips).catch(() => {});
+    }
   };
 
   const columns = [
