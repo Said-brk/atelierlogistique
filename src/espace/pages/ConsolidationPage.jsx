@@ -8,7 +8,7 @@ import { useEspace } from '../useEspace';
 import useReferences from '../useReferences';
 import { datedShipments, consolidateShipments, STATUS } from '../data';
 import { toToolReferences, defaultReferences } from '../../shared/references/defaults';
-import { PageHeader, Btn, StatusBadge } from '../ui';
+import { PageHeader, Btn, StatusBadge, ReferencesError } from '../ui';
 import ResizableTable from '../ResizableTable';
 
 const eur = (v) => `${Math.round(v).toLocaleString('fr-FR')} €`;
@@ -164,7 +164,7 @@ export default function ConsolidationPage() {
       <PageHeader title="Regrouper des chargements"
         subtitle="Les chargements d’un même jour qui coûtent moins cher dans les mêmes véhicules." />
       <div className="px-5 sm:px-8 py-5 space-y-4">
-        {ships === null || vehicles === null ? <div className="p-10 flex justify-center text-slate-400"><Loader2 className="animate-spin" /></div> : days.length === 0 ? (
+        {refs.error ? <ReferencesError error={refs.error} onRetry={refs.reload} /> : ships === null || vehicles === null ? <div className="p-10 flex justify-center text-slate-400"><Loader2 className="animate-spin" /></div> : days.length === 0 ? (
           <div className="rounded-xl bg-white border border-slate-200 p-8 text-center text-slate-500">
             <CalendarDays className="mx-auto text-slate-300" size={32} />
             <div className="mt-2 text-sm">Aucun chargement daté à venir. Renseignez la date de départ de vos chargements : ceux du même jour sont comparés ici.</div>

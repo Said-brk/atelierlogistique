@@ -10,7 +10,7 @@ import { useEspace } from '../useEspace';
 import { getPalletization, createPalletization, updatePalletization, createShipmentForPalletization, linkPalletization, getShipment, palletRows, SOURCE } from '../data';
 import { tourWarning } from '../tourCheck';
 import LoadTruckDialog from '../LoadTruckDialog';
-import { EditorHeader, DocChip, ConflictBanner } from '../ui';
+import { EditorHeader, DocChip, ConflictBanner, ReferencesError } from '../ui';
 import useDocEditor, { initialOf } from '../useDocEditor';
 import useReferences from '../useReferences';
 
@@ -57,6 +57,7 @@ export default function PalletizationEditor() {
     open(await linkPalletization(choosing.pz, s, choosing.rows));
   };
 
+  if (refs.error) return <ReferencesError error={refs.error} onRetry={refs.reload} />;
   if (ed.doc === undefined || refs.items === undefined) return <div className="p-10 flex justify-center text-slate-400"><Loader2 className="animate-spin" /></div>;
   if (ed.doc === null) return <div className="p-10 text-center text-slate-500">Palettisation introuvable. <Link to="/app/palettisations" className="text-blue-700">Retour à la liste</Link></div>;
 

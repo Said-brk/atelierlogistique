@@ -72,12 +72,14 @@ export default function QuaiGuide() {
   const payload = picked ? picked.guide : plan?.guide;
   if (!payload) return notReady;
   const final = ['validated', 'sent', 'partially_loaded', 'loaded'].includes(s.status);
+  // Confirmation de fin de chargement : seulement pour un chargement au quai (pas rouvert au bureau).
+  const atDock = ['sent', 'partially_loaded', 'loaded'].includes(s.status);
   const truckNo = picked?.index ?? 1;
   // Fin de chargement : photos réduites puis envoyées, confirmation dans la base (statut « Chargé »).
   const onConfirm = async ({ files, name }) => confirmLoadingWithPhotos(token, truckNo, name, await Promise.all(files.map((f) => shrinkPhoto(f))));
   const confirmedAt = (s.loaded_trucks ?? []).includes(truckNo) ? (s.loaded_at ?? new Date().toISOString()) : null;
   const truck = picked ? ` · camion ${picked.index}/${guides.length}` : '';
-  const notice = `${s.code}${s.label ? ` · ${s.label}` : ''}${truck} · v${s.version}${final ? '' : ' · plan pas encore validé, il peut encore changer'}`;
+  const notice = `${s.code}${s.label ? ` · ${s.label}` : ''}${truck} · v${s.version}${atDock ? '' : final ? ' · pas encore envoyé au quai : confirmation possible une fois envoyé' : ' · en cours de modification au bureau : attendez qu’il soit renvoyé au quai'}`;
   return (
     <I18nProvider lang={payloadLang(payload) ?? 'fr'}>
       {picked && guides.length > 1 && (
@@ -86,7 +88,7 @@ export default function QuaiGuide() {
         </button>
       )}
       {/* La progression est mémorisée par plan (donc par camion) sur ce téléphone. */}
-      <LoadingGuide key={`${token}-${s.version}-${picked?.index ?? 0}`} payload={payload} notice={notice} warn={!final} onConfirm={onConfirm} confirmedAt={confirmedAt} />
+      <LoadingGuide key={`${token}-${s.version}-${picked?.index ?? 0}`} payload={payload} notice={notice} warn={!atDock} onConfirm={atDock ? onConfirm : null} confirmedAt={confirmedAt} />
     </I18nProvider>
   );
 }

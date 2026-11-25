@@ -222,6 +222,17 @@ describe('schéma Supabase', () => {
     ok((await as(A, `select status from shipments where code = $1`, [fl.code])).rows[0].status === 'loaded', 'flotte : tous les camions confirmés');
     await as(A, `update shipments set status = 'in_progress', result = '{"plan":{}}' where code = $1`, [fl.code]);
     ok((await as(A, `select status from shipments where code = $1`, [fl.code])).rows[0].status === 'in_progress', 'rouvrir : de nouveau modifiable');
+    // Lien quai fiabilisé : pas de confirmation sur un chargement rouvert ni pour un camion inexistant.
+    const quaiErr = async (truck) => { try { await as(null, `select confirm_loading($1, $2, null, '{}')`, [fl.share_token, truck]); return null; } catch (e) { return e; } };
+    ok(/en cours de modification/.test((await quaiErr(1))?.message), 'quai : confirmation refusée sur un chargement rouvert');
+    await as(A, `update shipments set status = 'sent', result = '{"plan":{"guides":[{"index":1},{"index":2}]}}' where code = $1`, [fl.code]);
+    ok((await as(null, 'select loaded_trucks from shipment_by_token($1)', [fl.share_token])).rows[0].loaded_trucks.length === 0, 'quai : renvoi au quai = nouveau tour de confirmations');
+    ok(/Camion 3 inconnu/.test((await quaiErr(3))?.message), 'quai : n° de camion hors du plan refusé');
+    await as(null, `select confirm_loading($1, 1, null, '{}')`, [fl.share_token]);
+    ok((await as(A, `select status from shipments where code = $1`, [fl.code])).rows[0].status === 'partially_loaded', 'quai : anciennes confirmations ignorées');
+    await db.exec(`update shipments set expires_at = now() + interval '1 day'`);
+    await as(A, `update shipments set label = 'Toujours actif' where code = $1`, [fl.code]);
+    ok((await as(A, `select expires_at > now() + interval '30 days' as ok from shipments where code = $1`, [fl.code])).rows[0].ok, 'expiration repoussée à chaque modification');
     // Regroupement : tout ou rien, revérifié (statut, version lue), réservé à l'entreprise.
     const mk = async (st) => (await as(A, `insert into shipments(org_id, status, input) values ($1, $2, '{"rows":[1]}') returning id, code, updated_at`, [orgA, st])).rows[0];
     const [g1, g2, g3] = [await mk('in_progress'), await mk('validated'), await mk('sent')];

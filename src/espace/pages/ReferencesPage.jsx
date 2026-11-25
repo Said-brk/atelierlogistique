@@ -286,7 +286,7 @@ function RefTable({ kind }) {
   const table = TABLES[kind];
   const { org } = useEspace();
   const admin = org.role === 'owner' || org.role === 'admin';
-  const { items, reload } = useReferences();
+  const { items, reload, error: readError } = useReferences();
   const [editing, setEditing] = useState(null);
   const [error, setError] = useState('');
   const rows = useMemo(() => (items ?? []).filter((i) => i.kind === kind).sort((a, b) => a.sort - b.sort || a.label.localeCompare(b.label)), [items, kind]);
@@ -316,6 +316,7 @@ function RefTable({ kind }) {
       </div>
       <p className="px-4 py-2.5 text-sm text-slate-500 border-b border-slate-100">{table.intro}</p>
       {items === undefined ? <div className="p-6 flex justify-center text-slate-400"><Loader2 className="animate-spin" /></div>
+        : readError ? <div className="p-6 text-sm text-red-800 bg-red-50">Lecture impossible ({readError}). <button onClick={reload} className="underline">Réessayer</button></div>
         : items === null ? <div className="p-6 text-sm text-amber-800 bg-amber-50">Tables de référence indisponibles : le script SQL 20261124000008 n’a pas encore été exécuté dans Supabase.</div>
           : rows.length === 0 ? <div className="p-6 text-sm text-slate-500">Aucune ligne. {admin && (table.noReset ? 'Ajoutez-en une.' : 'Ajoutez-en une ou revenez aux valeurs par défaut.')}</div>
             : <ResizableTable id={`ref-${kind}`} rows={rows} columns={columns} onRowClick={(i) => setEditing(i)} rowClass={(i) => (i.active ? '' : 'text-slate-400')}
