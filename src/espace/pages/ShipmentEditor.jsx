@@ -1,7 +1,7 @@
 // Éditeur d'un chargement : en-tête commun + optimiseur de chargement intégré, pré-rempli.
 // Liens : palettisations qui alimentent ce chargement (chargement → palettes).
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Loader2, QrCode, PackageCheck, X, Copy, Trash2 } from 'lucide-react';
 import LoadOptimizer from '../../outils/optimiseur-chargement/LoadOptimizer.jsx';
@@ -12,6 +12,7 @@ import GuideQrModal from '../../outils/optimiseur-chargement/guide/GuideQrModal'
 import { EditorHeader, DocChip, Btn, editorInputCls, pct, ConflictBanner, ReferencesError, DocMenu } from '../ui';
 import useDocEditor, { initialOf } from '../useDocEditor';
 import useReferences from '../useReferences';
+import { tourTitle, isAutoTitle } from '../tourCheck';
 
 /** /app/chargements/nouveau : crée un chargement vide puis ouvre l'éditeur. */
 export function NewShipment() {
@@ -38,6 +39,13 @@ export default function ShipmentEditor() {
   // Arrivée depuis « Charger le camion » d'une palettisation : palettes déjà écrites dans ce chargement.
   const location = useLocation();
   const [received, setReceived] = useState(location.state?.received ?? null);
+  // Tournée choisie : seules ses agences sont proposées comme destinations (dans l'ordre de la tournée).
+  const tours = refs.tools?.tours ?? [];
+  const tour = ed.meta.tour;
+  const agencies = useMemo(() => {
+    const all = refs.tools?.agencies ?? [];
+    return tour ? all.filter((a) => a.tour === tour).sort((a, b) => a.order - b.order) : all;
+  }, [refs.tools, tour]);
   useEffect(() => { if (ed.doc?.id) palletizationsOfShipment(ed.doc.id).then(setPzs).catch(() => setPzs([])); }, [ed.doc?.id]);
   const proofs = useLoadingProofs(ed.doc?.id, ed.doc?.status);
   // Au quai : le statut suit les confirmations du cariste (toutes les 20 s et au retour sur l'onglet).
@@ -72,6 +80,13 @@ export default function ShipmentEditor() {
     if (ready(d?.result?.plan)) setQuaiOpen(true);
     else if (d) alert('Le plan n’est pas prêt : lancez l’optimisation, attendez la fin du calcul, puis renvoyez.'); // eslint-disable-line no-alert
   };
+  // Tournée ou date changée : le titre suit (« Tournée T01 – 25/11/2026 ») tant qu'il n'a pas été saisi à la main.
+  const setHeader = (patch) => {
+    const m = { ...ed.meta, ...patch };
+    const auto = isAutoTitle(ed.meta.label) ? tourTitle([m.tour], m.departure_at) : null;
+    ed.setMeta(auto ? { ...m, label: auto } : m);
+  };
+  const tourMissing = !!tour && !tours.some((t) => t.code === tour);
   const duplicate = async () => {
     const d = ed.dirty ? await ed.save() : ed.doc;
     if (d) navigate(`/app/chargements/${await duplicateShipment(d)}`);
@@ -100,8 +115,18 @@ export default function ShipmentEditor() {
           { label: 'Dupliquer', icon: Copy, onClick: duplicate },
           { label: 'Supprimer…', icon: Trash2, danger: true, onClick: remove },
         ]} />}
-        extraFields={<label className="flex items-center gap-2 text-slate-500">Départ
-          <input type="date" value={ed.meta.departure_at} onChange={(e) => ed.setMeta({ ...ed.meta, departure_at: e.target.value })} className={editorInputCls} /></label>}
+        extraFields={<>
+          <label className="flex items-center gap-2 text-slate-500">Départ
+            <input type="date" value={ed.meta.departure_at} onChange={(e) => setHeader({ departure_at: e.target.value })} className={editorInputCls} /></label>
+          {'tour' in ed.doc && (tours.length > 0 || tour) && (
+            <label className="flex items-center gap-2 text-slate-500" title="Les destinations proposées sont celles de la tournée">Tournée
+              <select value={tour} onChange={(e) => setHeader({ tour: e.target.value })} disabled={!!locked} className={`${editorInputCls} max-w-[11rem]`}>
+                <option value="">— Aucune —</option>
+                {tours.map((t) => <option key={t.code} value={t.code}>{t.code} · {t.label}</option>)}
+                {tourMissing && <option value={tour}>{tour} (inconnue)</option>}
+              </select></label>
+          )}
+        </>}
         links={<>
           {pzs.length > 0 && <span className="flex flex-wrap items-center gap-1.5 text-slate-500 text-xs">Palettes issues de
             {pzs.map((p) => <DocChip key={p.code} kind="pallet" to={`/app/palettisations/${p.code}`} code={p.code} title={p.label ?? ''} />)}</span>}
@@ -116,7 +141,7 @@ export default function ShipmentEditor() {
         </div>
       )}
       <ConflictBanner conflict={ed.conflict} saving={ed.saving} onReload={ed.reload} onOverwrite={ed.overwrite} />
-      <LoadOptimizer key={`${ed.doc.id}:${ed.instance}`} workspace={{ initial: initialOf(ed.doc), references: refs.tools, onChange: ed.onChange, shareUrl, locked, trucks, truckPhase: DOCK_STATUSES.includes(ed.doc.status) ? 'todo' : 'plan' }} />
+      <LoadOptimizer key={`${ed.doc.id}:${ed.instance}`} workspace={{ initial: initialOf(ed.doc), references: refs.tools, agencies, onChange: ed.onChange, shareUrl, locked, trucks, truckPhase: DOCK_STATUSES.includes(ed.doc.status) ? 'todo' : 'plan' }} />
       {proofOf !== undefined && <ProofViewer proofs={proofs} truck={proofOf} onClose={() => setProofOf(undefined)} />}
       {quaiOpen && <GuideQrModal url={shareUrlOf(ed.doc)} onClose={() => setQuaiOpen(false)} title={`${ed.doc.code} · plan pas à pas pour le cariste`}
         note="Lien permanent : il affiche toujours la dernière version enregistrée. Si vous modifiez le plan, enregistrez : le cariste voit la nouvelle version." />}

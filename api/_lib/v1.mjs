@@ -170,6 +170,7 @@ function parseShipment(body, catalog = null) {
       reference,
       label: str(body.label, 120) || null,
       departureAt,
+      ...body.tour !== void 0 ? { tour: str(body.tour, 40) || null } : {},
       mode,
       validate: body.validate === true,
       input: { ...input, rows },
@@ -1528,6 +1529,7 @@ function listItemOf(s, site) {
     version: s.version,
     source: s.source,
     departure_date: s.departure_at,
+    tour: s.tour ?? null,
     created_at: s.created_at,
     updated_at: s.updated_at,
     summary: summaryOf(s),
@@ -1663,7 +1665,7 @@ async function handle(req, db, site = "https://atelierlogistique.com") {
         } else {
           const result = v.mode === "auto" ? await computePlan(v.input) : null;
           const status = v.mode === "auto" ? v.validate ? "validated" : "in_progress" : "new";
-          const fields = { label: v.label, departure_at: v.departureAt, input: v.input, result, status, source: "api" };
+          const fields = { label: v.label, departure_at: v.departureAt, ...v.tour !== void 0 ? { tour: v.tour } : {}, input: v.input, result, status, source: "api" };
           const row = existing ? await db.updateShipment(existing.id, fields) : await db.insertShipment({ ...fields, org_id: org, external_id: v.reference });
           res = { status: existing ? 200 : 201, body: await shipmentOf(row, site) };
         }
@@ -1705,7 +1707,7 @@ async function handle(req, db, site = "https://atelierlogistique.com") {
 
 // src/api/v1/vercel.ts
 var SHIPMENT_FIELDS = "*";
-var LIST_FIELDS = "id, org_id, code, external_id, label, status, version, source, departure_at, created_at, updated_at, validated_at, share_token, summary:result->summary";
+var LIST_FIELDS = "id, org_id, code, external_id, label, status, version, source, departure_at, tour, created_at, updated_at, validated_at, share_token, summary:result->summary";
 var client = null;
 function sb() {
   const url = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL;

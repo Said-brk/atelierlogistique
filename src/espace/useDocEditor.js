@@ -20,7 +20,7 @@ export const initialOf = (d) => ({ rows: [], ...(d.input ?? {}), plan: d.result?
 
 export default function useDocEditor({ code, load, update, titleOf, autosaveMs = 2000 }) {
   const [doc, setDoc] = useState(undefined);
-  const [meta, setMetaState] = useState({ label: '', external_id: '', departure_at: '' });
+  const [meta, setMetaState] = useState({ label: '', external_id: '', departure_at: '', tour: '' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [dirty, setDirty] = useState(false);
@@ -44,7 +44,7 @@ export default function useDocEditor({ code, load, update, titleOf, autosaveMs =
   const apply = (d, keepMeta = false) => {
     setDoc(d);
     if (!d) return;
-    if (!keepMeta) setMetaState({ label: d.label ?? '', external_id: d.external_id ?? '', departure_at: toDateInput(d.departure_at) });
+    if (!keepMeta) setMetaState({ label: d.label ?? '', external_id: d.external_id ?? '', departure_at: toDateInput(d.departure_at), tour: d.tour ?? '' });
     savedInput.current = stable(d.input ?? {});
     savedPlan.current = planSig(d.result?.plan);
     savedGuide.current = hasGuide(d.result?.plan);
@@ -103,6 +103,7 @@ export default function useDocEditor({ code, load, update, titleOf, autosaveMs =
         ...(nextStatus ? { status: nextStatus } : base.status === 'new' ? { status: 'in_progress' } : {}),
         ...extra,
       };
+      if ('tour' in base) patch.tour = usedMeta.tour || null;
       if ('departure_at' in base) patch.departure_at = usedMeta.departure_at ? new Date(usedMeta.departure_at).toISOString() : null;
       // Garder mes modifications : on écrase la version en base vue dans le conflit.
       const expected = force && conflictRef.current ? conflictRef.current.updated_at : base.updated_at;

@@ -50,6 +50,7 @@ export default function Shipments() {
       columns={[
         { h: 'Origine', cell: (r) => SOURCE[r.source] ?? r.source },
         { h: 'Départ', cell: (r) => <span className="whitespace-nowrap">{fmtDate(r.departure_at)}</span> },
+        { h: 'Tournée', cell: (r) => r.tour ?? '—' },
         { h: 'Véhicule', cell: (r) => <span className="whitespace-nowrap">{r.result?.summary?.vehicle ?? '—'}</span> },
         { h: 'Remplissage', cell: (r) => pct(r.result?.summary?.fill) },
         { h: 'Palettes de', cell: (r) => (r.palletizations?.length

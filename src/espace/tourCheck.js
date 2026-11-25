@@ -17,3 +17,16 @@ export function tourWarning(destinations, refs) {
   const parts = [...byTour.entries()].map(([t, ds]) => `${t ? `${name[t] ?? t} (${t})` : 'hors tournée'} : ${ds.join(', ')}`);
   return `Les destinations ne font pas partie d’une même tournée :\n• ${parts.join('\n• ')}\n\nVoulez-vous quand même continuer ?`;
 }
+
+// ---------------------------------------------------------------- Titre d'un chargement d'après sa tournée
+const fmtDay = (d) => (d ? new Date(`${String(d).slice(0, 10)}T00:00:00Z`).toLocaleDateString('fr-FR', { timeZone: 'UTC' }) : '');
+
+/** « Tournée T01 – 25/11/2026 » ; plusieurs tournées : « Tournée T01/T02 – … ». null sans tournée. */
+export function tourTitle(codes, day) {
+  const c = [...new Set((codes ?? []).map((x) => String(x ?? '').trim()).filter(Boolean))];
+  if (!c.length) return null;
+  return `Tournée ${c.join('/')}${day ? ` – ${fmtDay(day)}` : ''}`;
+}
+
+/** Titre généré (vide, par défaut ou déjà « Tournée … ») : on peut le remplacer sans écraser une saisie. */
+export const isAutoTitle = (label) => !String(label ?? '').trim() || /^(Tournée |Chargement du |Chargement — |Regroupement )/.test(label);

@@ -283,6 +283,10 @@
             "type": "string",
             "format": "date"
           },
+          "tour": {
+            "type": "string",
+            "description": "Code de la tournée (tables de référence de l'entreprise)"
+          },
           "mode": {
             "type": "string",
             "enum": [

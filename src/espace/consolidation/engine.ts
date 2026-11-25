@@ -17,7 +17,7 @@ export interface Row {
   stop?: number; destination?: string; [k: string]: unknown;
 }
 export interface DayShipment {
-  id: string; code: string; label: string | null; status: string; departure_at: string | null;
+  id: string; code: string; label: string | null; status: string; departure_at: string | null; tour?: string | null;
   input: { rows?: Row[]; deliveryMode?: 'STRICT' | 'SOFT' } | null;
 }
 export interface Evaluation { cost: number; trucks: { label: string; cost: number; fill: number }[]; ok: boolean; reason?: string }
@@ -45,8 +45,9 @@ export interface AnalyzeOptions {
 
 const destOf = (r: Row) => String(r.destination ?? '').trim();
 
-/** Tournée d'un chargement : toutes ses destinations dans la même tournée, sinon null / '*'. */
-export function tourOf(s: DayShipment, agencies: Map<string, Agency>): string | null {
+/** Tournée d'un chargement : celle choisie sur le chargement, sinon déduite (toutes ses destinations dans la même tournée), sinon null / '*'. */
+export function tourOf(s: Pick<DayShipment, 'input'> & { tour?: string | null }, agencies: Map<string, Agency>): string | null {
+  if (s.tour) return s.tour;
   const tours = new Set(validRows(s).map((r) => agencies.get(destOf(r))?.tour ?? null));
   if (tours.has(null) || tours.size === 0) return null;
   return tours.size === 1 ? [...tours][0] : '*';

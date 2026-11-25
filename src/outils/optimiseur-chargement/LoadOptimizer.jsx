@@ -455,6 +455,7 @@ function Kpi({ label, value, sub }) {
  *   shareUrl : lien permanent du plan enregistré (/q/…), utilisé pour le QR code et la fiche à la place
  *              du lien qui contient le plan ; à ne fournir que si le plan affiché est celui enregistré.
  *   references : tables de référence de l'entreprise (véhicules, essieux, arrimage) — voir shared/references.
+ *   agencies : destinations proposées (par défaut references.agencies) — ex. les agences de la tournée choisie.
  *   origin   : n° du document qui envoie des palettes (ex. PZ-…) : ses lignes remplacent ses envois précédents
  *              et s'ajoutent aux autres lignes au lieu de tout remplacer.
  * Sans workspace : page publique (barre d'outil, en-tête SEO, FAQ).
@@ -1058,7 +1059,7 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
                 {importMsg.text}
               </div>
             )}
-            {goodsOpen && <ColisTable rows={rows} updateRow={updateRow} updateStacking={updateStacking} removeRow={removeRow} addRow={addRow} agencies={refs?.agencies} />}
+            {goodsOpen && <ColisTable rows={rows} updateRow={updateRow} updateStacking={updateStacking} removeRow={removeRow} addRow={addRow} agencies={workspace?.agencies ?? refs?.agencies} />}
           </div>
           </fieldset>
 
