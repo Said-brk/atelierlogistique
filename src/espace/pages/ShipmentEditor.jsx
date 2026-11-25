@@ -9,7 +9,7 @@ import { useEspace } from '../useEspace';
 import { getShipment, createShipment, updateShipment, palletizationsOfShipment, shareUrlOf, shipmentStatus, DOCK_STATUSES, SOURCE } from '../data';
 import { useLoadingProofs, proofsByTruck, ProofButton, ProofViewer } from '../LoadingProof';
 import GuideQrModal from '../../outils/optimiseur-chargement/guide/GuideQrModal';
-import { EditorHeader, DocChip, Btn, editorInputCls, pct } from '../ui';
+import { EditorHeader, DocChip, Btn, editorInputCls, pct, ConflictBanner } from '../ui';
 import useDocEditor, { initialOf } from '../useDocEditor';
 import useReferences from '../useReferences';
 
@@ -91,7 +91,8 @@ export default function ShipmentEditor() {
           <button onClick={() => setReceived(null)} className="text-emerald-700 hover:text-emerald-900" aria-label="Fermer"><X size={15} /></button>
         </div>
       )}
-      <LoadOptimizer key={ed.doc.id} workspace={{ initial: initialOf(ed.doc), references: refs.tools, onChange: ed.onChange, shareUrl, locked, trucks, truckPhase: DOCK_STATUSES.includes(ed.doc.status) ? 'todo' : 'plan' }} />
+      <ConflictBanner conflict={ed.conflict} saving={ed.saving} onReload={ed.reload} onOverwrite={ed.overwrite} />
+      <LoadOptimizer key={`${ed.doc.id}:${ed.instance}`} workspace={{ initial: initialOf(ed.doc), references: refs.tools, onChange: ed.onChange, shareUrl, locked, trucks, truckPhase: DOCK_STATUSES.includes(ed.doc.status) ? 'todo' : 'plan' }} />
       {proofOf !== undefined && <ProofViewer proofs={proofs} truck={proofOf} onClose={() => setProofOf(undefined)} />}
       {quaiOpen && <GuideQrModal url={shareUrlOf(ed.doc)} onClose={() => setQuaiOpen(false)} title={`${ed.doc.code} · plan pas à pas pour le cariste`}
         note="Lien permanent : il affiche toujours la dernière version enregistrée. Si vous modifiez le plan, enregistrez : le cariste voit la nouvelle version." />}

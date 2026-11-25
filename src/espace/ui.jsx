@@ -1,6 +1,6 @@
 // Petits éléments d'interface communs aux pages de l'espace.
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Save, CheckCircle2, RotateCcw, Loader2, Truck, Package } from 'lucide-react';
+import { ArrowLeft, Save, CheckCircle2, RotateCcw, Loader2, Truck, Package, AlertTriangle } from 'lucide-react';
 import { STATUS } from './data';
 
 export function PageHeader({ title, subtitle, actions, children }) {
@@ -96,5 +96,22 @@ export function DocChip({ to, code, title, kind = 'shipment' }) {
     <Link to={to} title={title} onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1 font-jetbrains text-[11px] rounded px-2 py-1 hover:underline whitespace-nowrap" style={{ color: c.color, background: c.bg }}>
       <Icon size={11} /> {code}
     </Link>
+  );
+}
+
+/** Document modifié ailleurs pendant l'édition : l'enregistrement automatique est suspendu jusqu'au choix. */
+export function ConflictBanner({ conflict, saving, onReload, onOverwrite }) {
+  if (!conflict) return null;
+  const when = conflict.updated_at ? new Date(conflict.updated_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '';
+  return (
+    <div role="alert" className="mx-4 sm:mx-6 mt-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2.5 text-sm text-amber-900 flex flex-wrap items-center gap-x-3 gap-y-2">
+      <AlertTriangle size={16} className="shrink-0 text-amber-600" />
+      <span className="flex-1 min-w-[220px]">
+        <b>Modifié ailleurs{when && ` à ${when}`}</b> (autre onglet, collègue ou WMS{conflict.status ? ` · statut : ${STATUS[conflict.status]?.label ?? conflict.status}` : ''}).
+        Vos dernières modifications ne sont pas enregistrées.
+      </span>
+      <Btn variant="ghost" onClick={onReload} disabled={saving}><RotateCcw size={14} /> Recharger</Btn>
+      <Btn onClick={onOverwrite} disabled={saving}>{saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} Garder mes modifications</Btn>
+    </div>
   );
 }
