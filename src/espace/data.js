@@ -69,11 +69,33 @@ export async function createShipment(orgId, fields = {}) {
   return data.code;
 }
 
-export async function updateShipment(id, patch) {
+/** Le document a changé en base depuis sa lecture (autre onglet, collègue, WMS) : remote = version en base. */
+export class ConflictError extends Error {
+  constructor(remote) { super('Document modifié ailleurs'); this.name = 'ConflictError'; this.remote = remote; }
+}
+
+/**
+ * Mise à jour avec contrôle de concurrence : expected = updated_at lu (null : sans contrôle). Si le document a
+ * changé entre-temps, rien n'est écrit et ConflictError porte la version en base.
+ */
+async function guardedUpdate(table, id, patch, expected, select, reload) {
   const sb = await getSupabase();
-  const { data, error } = await sb.from('shipments').update(patch).eq('id', id).select('*').single();
+  let q = sb.from(table).update(patch).eq('id', id);
+  if (expected) q = q.eq('updated_at', expected);
+  const { data, error } = await q.select(select);
   fail(error);
-  return data;
+  if (data?.length) return data[0];
+  const remote = await reload();
+  if (!remote) throw new Error('Document introuvable (supprimé ?).');
+  throw new ConflictError(remote);
+}
+
+export async function updateShipment(id, patch, expected = null) {
+  return guardedUpdate('shipments', id, patch, expected, '*', async () => {
+    const sb = await getSupabase();
+    const { data } = await sb.from('shipments').select('*').eq('id', id).maybeSingle();
+    return data;
+  });
 }
 
 export async function signOut() {
@@ -107,11 +129,12 @@ export async function createPalletization(orgId, fields = {}) {
   return data.code;
 }
 
-export async function updatePalletization(id, patch) {
-  const sb = await getSupabase();
-  const { data, error } = await sb.from('palletizations').update(patch).eq('id', id).select('*, shipments(code, label)').single();
-  fail(error);
-  return data;
+export async function updatePalletization(id, patch, expected = null) {
+  return guardedUpdate('palletizations', id, patch, expected, '*, shipments(code, label)', async () => {
+    const sb = await getSupabase();
+    const { data } = await sb.from('palletizations').select('*, shipments(code, label)').eq('id', id).maybeSingle();
+    return data;
+  });
 }
 
 /** Palettisations qui alimentent un chargement (navigation chargement → palettes). */

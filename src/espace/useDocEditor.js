@@ -1,5 +1,9 @@
 // Logique commune des éditeurs de l'espace (chargement, palettisation) : chargement du document,
 // suivi des modifications (outil intégré + champs d'en-tête), enregistrement, alerte avant de quitter.
+//
+// Concurrence : chaque enregistrement n'aboutit que si le document n'a pas changé en base depuis sa lecture
+// (updated_at). Sinon : « conflit » — l'enregistrement automatique s'arrête et l'utilisateur choisit
+// Recharger (version en base) ou Garder mes modifications (écrase la version en base).
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 
@@ -32,6 +36,9 @@ export default function useDocEditor({ code, load, update, titleOf, autosaveMs =
   const dirtyRef = useRef(false); dirtyRef.current = dirty;
   const inFlight = useRef(null);
   const saveRef = useRef(null);
+  const [conflict, setConflict] = useState(null); // version en base quand elle a changé ailleurs
+  const conflictRef = useRef(null); conflictRef.current = conflict;
+  const [instance, setInstance] = useState(0); // +1 au rechargement : l'outil intégré repart de la base
 
   /** Document reçu de la base. keepMeta : après un enregistrement, on garde ce qui a été tapé entre-temps. */
   const apply = (d, keepMeta = false) => {
@@ -47,8 +54,8 @@ export default function useDocEditor({ code, load, update, titleOf, autosaveMs =
 
   useEffect(() => {
     // Passage direct à un autre document : on enregistre d'abord celui qu'on quitte.
-    if (dirtyRef.current) saveRef.current?.();
-    snapshot.current = null; setDirty(false);
+    if (dirtyRef.current && !conflictRef.current) saveRef.current?.();
+    snapshot.current = null; setDirty(false); setConflict(null);
     setDoc(undefined);
     load(code).then((d) => apply(d)).catch((e) => { setError(e.message); setDoc(null); });
   }, [code]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -75,9 +82,10 @@ export default function useDocEditor({ code, load, update, titleOf, autosaveMs =
   }, [dirty]);
 
   /** Enregistre (statut : inchangé, sauf Nouveau → En cours ; ou celui demandé). Renvoie le document. */
-  const save = async (nextStatus, extra = {}) => {
+  const save = async (nextStatus, extra = {}, { force = false } = {}) => {
     const current = docRef.current;
     if (!current) return null;
+    if (conflictRef.current && !force) return null; // en attente du choix de l'utilisateur
     if (inFlight.current) await inFlight.current.catch(() => {}); // un enregistrement à la fois
     const base = docRef.current;
     const usedSnap = snapshot.current;
@@ -96,11 +104,14 @@ export default function useDocEditor({ code, load, update, titleOf, autosaveMs =
         ...extra,
       };
       if ('departure_at' in base) patch.departure_at = usedMeta.departure_at ? new Date(usedMeta.departure_at).toISOString() : null;
-      return update(base.id, patch);
+      // Garder mes modifications : on écrase la version en base vue dans le conflit.
+      const expected = force && conflictRef.current ? conflictRef.current.updated_at : base.updated_at;
+      return update(base.id, patch, expected);
     })();
     inFlight.current = run;
     try {
       const d = await run;
+      setConflict(null);
       apply(d, true);
       // Modifié pendant l'enregistrement ? On reste « à enregistrer » (l'enregistrement auto repassera).
       const changedMeanwhile = snapshot.current !== usedSnap || metaRef.current !== usedMeta;
@@ -109,6 +120,7 @@ export default function useDocEditor({ code, load, update, titleOf, autosaveMs =
       setSavedAt(new Date());
       return d;
     } catch (e) {
+      if (e.name === 'ConflictError') { setConflict(e.remote); return null; }
       setError(/duplicate key|unique/i.test(e.message) ? 'Cette référence WMS / ERP existe déjà sur un autre document.' : e.message);
       return null;
     } finally {
@@ -121,11 +133,22 @@ export default function useDocEditor({ code, load, update, titleOf, autosaveMs =
   // Enregistrement automatique : quelques secondes après la dernière modification.
   useEffect(() => {
     if (!autosaveMs || !dirtyRef.current) return undefined;
-    const t = setTimeout(() => { if (dirtyRef.current) saveRef.current(); }, autosaveMs);
+    const t = setTimeout(() => { if (dirtyRef.current && !conflictRef.current) saveRef.current(); }, autosaveMs);
     return () => clearTimeout(t);
   }, [rev, autosaveMs]);
-  // En quittant l'éditeur (autre page de l'espace) : on enregistre ce qui restait.
-  useEffect(() => () => { if (dirtyRef.current) saveRef.current(); }, []);
+  // En quittant l'éditeur (autre page de l'espace) : on enregistre ce qui restait (sauf conflit non tranché).
+  useEffect(() => () => { if (dirtyRef.current && !conflictRef.current) saveRef.current(); }, []);
+
+  /** Conflit → Recharger : on abandonne les modifications locales et on repart de la version en base. */
+  const reload = () => {
+    const remote = conflictRef.current;
+    if (!remote) return;
+    snapshot.current = null; setDirty(false); setConflict(null); setError('');
+    apply(remote);
+    setInstance((n) => n + 1);
+  };
+  /** Conflit → Garder mes modifications : enregistre en écrasant la version en base. */
+  const overwrite = () => save(undefined, {}, { force: true });
 
   /** Met à jour le statut seul (fetchStatus → { status, loaded_at, version, updated_at }), sans toucher à la saisie. */
   const refreshStatus = useCallback(async (fetchStatus) => {
@@ -134,5 +157,5 @@ export default function useDocEditor({ code, load, update, titleOf, autosaveMs =
     if (st && docRef.current && st.status !== docRef.current.status) setDoc((d) => (d ? { ...d, ...st } : d));
   }, []);
 
-  return { doc, meta, setMeta, saving, error, dirty, savedAt, summary, onChange, save, refreshStatus };
+  return { doc, meta, setMeta, saving, error, dirty, savedAt, summary, onChange, save, refreshStatus, conflict, reload, overwrite, instance };
 }

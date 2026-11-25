@@ -10,7 +10,7 @@ import { useEspace } from '../useEspace';
 import { getPalletization, createPalletization, updatePalletization, createShipmentForPalletization, linkPalletization, getShipment, palletRows, SOURCE } from '../data';
 import { tourWarning } from '../tourCheck';
 import LoadTruckDialog from '../LoadTruckDialog';
-import { EditorHeader, DocChip } from '../ui';
+import { EditorHeader, DocChip, ConflictBanner } from '../ui';
 import useDocEditor, { initialOf } from '../useDocEditor';
 import useReferences from '../useReferences';
 
@@ -70,7 +70,8 @@ export default function PalletizationEditor() {
           ? <DocChip kind="shipment" to={`/app/chargements/${ed.doc.shipments.code}`} code={ed.doc.shipments.code} title={ed.doc.shipments.label ?? ''} />
           : <span className="text-slate-400">— choisi au clic sur « Charger le camion »</span>}</span>}
         summary={s && `${s.pallets} palette(s) · ${s.full} complète(s) · ${s.mixed} mixte(s) · ${Math.round(s.weight).toLocaleString('fr-FR')} kg${s.unplaced ? ` · ${s.unplaced} colis non palettisé(s)` : ''}`} />
-      <Palletizer key={ed.doc.id} workspace={{ initial: initialOf(ed.doc), references: refs.tools, onChange: ed.onChange, origin: ed.doc.code }} onLoadTruck={loadTruck} />
+      <ConflictBanner conflict={ed.conflict} saving={ed.saving} onReload={ed.reload} onOverwrite={ed.overwrite} />
+      <Palletizer key={`${ed.doc.id}:${ed.instance}`} workspace={{ initial: initialOf(ed.doc), references: refs.tools, onChange: ed.onChange, origin: ed.doc.code }} onLoadTruck={loadTruck} />
       {choosing && <LoadTruckDialog orgId={org.id} pz={choosing.pz} onNew={toNew} onExisting={toExisting} onClose={() => setChoosing(null)} />}
     </>
   );
