@@ -540,6 +540,8 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
   };
   const [viewingTruck, setViewingTruck] = useState(null);
   const { runFleet, resetFleet, restoreFleet, plan: fleetPlan, status: fleetStatus } = useFleetPlanner();
+  // Mètres plancher par véhicule de la flotte ({ [n° camion]: FloorMeters }), calculés en arrière-plan.
+  const [fleetFloorMap, setFleetFloorMap] = useState(null);
   const changeFleetVehicles = (next) => {
     setFleetVehicles(next); setFleetTouched(true);
     resetFleet(); setContainerOverride(null); setViewingTruck(null);
@@ -681,6 +683,22 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
   }, [activeRows]);
 
   const containerVolume = container.length * container.width * container.height;
+  // En-tête « Plancher occupé » : valeurs réelles après calcul (véhicule ou flotte), sinon le maximum de
+  // mètres plancher si rien n'était gerbé (surface au sol de toutes les unités ÷ 2,4 m).
+  const fmt1 = (v) => v.toLocaleString(numLocale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  const headerFloor = (() => {
+    const maxLdm = activeRows.reduce((sum, r) => sum + (r.quantity || 0) * (r.length || 0) * (r.width || 0), 0) / 1e4 / 2.4;
+    if (vehicleMode === 'fleet') {
+      const trucks = fleetStatus === 'done' ? fleetPlan?.trucks ?? [] : [];
+      const all = trucks.length > 0 && fleetFloorMap && trucks.every((tk) => fleetFloorMap[tk.index]);
+      if (!all) return { maxLdm, occupied: null, length: null, ldm: null };
+      const fl = trucks.map((tk) => fleetFloorMap[tk.index]);
+      return { maxLdm, occupied: fl.reduce((a, x) => a + x.occupiedLength, 0), length: fl.reduce((a, x) => a + x.containerLength, 0), ldm: fl.reduce((a, x) => a + x.ldm, 0) };
+    }
+    if (!result || containerOverride) return { maxLdm, occupied: null, length: container.length / 1000, ldm: null };
+    const fm = floorMeters(result.placedItems, container);
+    return { maxLdm, occupied: fm.occupiedLength, length: fm.containerLength, ldm: fm.ldm };
+  })();
   const overweight = container.maxWeight != null && totals.weight > container.maxWeight;
 
   // Analytics anonyme (uniquement si un système existe sur le site)
@@ -922,8 +940,6 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
 
   // Flotte (espace) : plan pas à pas de chaque véhicule, pour le lien quai permanent (un QR, choix du camion).
   const [fleetGuideList, setFleetGuideList] = useState(null);
-  // Mètres plancher par véhicule de la flotte ({ [n° camion]: FloorMeters }), calculés en arrière-plan.
-  const [fleetFloorMap, setFleetFloorMap] = useState(null);
   useEffect(() => {
     setFleetGuideList(null);
     setFleetFloorMap(null);
@@ -1152,7 +1168,12 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
                   <div><div className="font-jetbrains text-[10px] text-slate-500">{tr('Unités')}</div><div className="font-bricolage font-bold text-xl" style={{ color: BLUE }}>{totals.units}</div></div>
                   <div><div className="font-jetbrains text-[10px] text-slate-500">{tr('Volume march.')}</div><div className="font-bricolage font-bold text-xl text-slate-800">{formatM3(totals.volume)} m³</div></div>
                   <div><div className="font-jetbrains text-[10px] text-slate-500">{tr('Poids total')}</div><div className="font-bricolage font-bold text-xl text-slate-800">{formatKg(totals.weight)} kg</div></div>
-                  <div><div className="font-jetbrains text-[10px] text-slate-500">{tr('Contenant')}</div><div className="font-bricolage font-bold text-xl text-slate-800">{formatM3(containerVolume)} m³</div></div>
+                  <div><div className="font-jetbrains text-[10px] text-slate-500">{tr('Plancher occupé')}</div>
+                    <div className="font-bricolage font-bold text-xl text-slate-800">{headerFloor.occupied != null ? fmt1(headerFloor.occupied) : '—'}{headerFloor.length != null && <span className="text-sm font-semibold text-slate-500"> / {fmt1(headerFloor.length)} m</span>}</div>
+                    <div className="font-jetbrains text-[10px] text-slate-500 mt-0.5">{headerFloor.ldm != null
+                      ? tr('{v1} mètres plancher', { v1: fmt1(headerFloor.ldm) })
+                      : tr('≤ {v1} MPL sans gerbage', { v1: fmt1(headerFloor.maxLdm) })}</div>
+                  </div>
                 </div>
                 {multiStop && (
                   <div className="mb-3 px-3 py-2.5 rounded-md bg-white border border-slate-200">
