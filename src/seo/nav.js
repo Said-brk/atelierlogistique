@@ -6,7 +6,7 @@
 export const CONTACT_EMAIL = 'contact@atelierlogistique.com';
 
 export const NAV_LINKS = [
-  { label: 'Outils', href: '/#tools' },
+  { label: 'Outils', href: '/outils' },
   { label: 'Ressources', href: '/ressources' },
   { label: 'Contact', href: `mailto:${CONTACT_EMAIL}` },
 ];

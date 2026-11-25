@@ -1696,7 +1696,7 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
         <section className="rounded-xl border border-slate-200 p-6 text-center" style={{ background: BLUE_LIGHT, borderColor: '#BFDBFE' }}>
           <h2 className="font-bricolage font-bold text-lg text-slate-900 mb-1">{tr('Vous souhaitez aller plus loin dans l\'optimisation de vos flux logistiques ?')}</h2>
           <p className="text-slate-600 text-sm mb-4 max-w-xl mx-auto">{tr('Atelier Logistique vous propose également des outils pour analyser vos stocks, vos approvisionnements et votre performance Supply Chain.')}</p>
-          <a href={lang === 'en' ? homeHref('en') : '/#tools'} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg font-jetbrains text-sm font-medium text-white" style={{ background: BLUE }}>{tr('Découvrir les autres outils')}{' '}<ArrowRight size={15} />
+          <a href={lang === 'en' ? homeHref('en') : '/outils'} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg font-jetbrains text-sm font-medium text-white" style={{ background: BLUE }}>{tr('Découvrir les autres outils')}{' '}<ArrowRight size={15} />
           </a>
         </section>
       </SeoFold>}

@@ -12,7 +12,7 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from 
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  SITE, SITE_NAME, TOOL_PAGES, ARTICLE_PAGES, HOME_PAGE, RESSOURCES_PAGE, toolPath,
+  SITE, SITE_NAME, TOOL_PAGES, ARTICLE_PAGES, HOME_PAGE, RESSOURCES_PAGE, ALL_TOOLS_PAGE, FEATURED_TOOLS, toolPath,
 } from '../src/seo/pages.js';
 import { navHtml } from '../src/seo/nav.js';
 import { wordmarkHtml } from '../src/seo/brand.js';
@@ -116,7 +116,7 @@ for (const t of TOOL_PAGES) {
       '@type': 'BreadcrumbList',
       itemListElement: [
         { '@type': 'ListItem', position: 1, name: SITE_NAME, item: `${SITE}/` },
-        { '@type': 'ListItem', position: 2, name: 'Outils', item: `${SITE}/#tools` },
+        { '@type': 'ListItem', position: 2, name: 'Outils', item: `${SITE}/outils` },
         { '@type': 'ListItem', position: 3, name: t.name, item: SITE + path },
       ],
     },
@@ -144,7 +144,7 @@ for (const t of TOOL_PAGES) {
     ${guides.length ? `<section><h2 class="font-bold text-xl mb-2">Guides</h2>${links(guides)}</section>` : ''}
     ${related.length ? `<section><h2 class="font-bold text-xl mb-2">Outils associés</h2>${links(related)}</section>` : ''}`;
   const alternate = EN_TOOL_ALTERNATES[t.id] ?? null;
-  write(path, page(head({ path, title: t.title, description: t.description, structured, alternate }), shell([{ label: 'Outils', href: '/#tools' }, { label: t.name }], inner, alternate)));
+  write(path, page(head({ path, title: t.title, description: t.description, structured, alternate }), shell([{ label: 'Outils', href: '/outils' }, { label: t.name }], inner, alternate)));
 }
 
 // ---------- Outils en anglais (même application, interface anglaise) ----------
@@ -155,20 +155,73 @@ for (const p of enTools) {
 }
 
 // ---------- Accueil ----------
+// Les deux outils phares d'abord, puis « Tous les outils » : ce sont les liens que Google reprend
+// en liens annexes (sitelinks) sous le résultat principal.
+const featured = FEATURED_TOOLS.map((id) => TOOL_PAGES.find((t) => t.id === id)).filter(Boolean);
+const others = TOOL_PAGES.filter((t) => !FEATURED_TOOLS.includes(t.id));
+const ORG = {
+  '@context': 'https://schema.org',
+  '@type': 'Organization',
+  '@id': `${SITE}/#organization`,
+  name: SITE_NAME,
+  url: `${SITE}/`,
+  logo: `${SITE}/favicon_atelierlogistique.png`,
+  email: 'contact@atelierlogistique.com',
+};
+{
+  const structured = [
+    {
+      '@context': 'https://schema.org',
+      '@type': 'WebSite',
+      '@id': `${SITE}/#website`,
+      name: SITE_NAME,
+      alternateName: ['atelierlogistique.com', 'Atelier Logistique – outils supply chain'],
+      url: `${SITE}/`,
+      inLanguage: 'fr',
+      description: HOME_PAGE.description,
+      publisher: { '@id': `${SITE}/#organization` },
+    },
+    ORG,
+    {
+      '@context': 'https://schema.org',
+      '@type': 'ItemList',
+      name: 'Outils Atelier Logistique',
+      itemListElement: [...featured.map((t) => ({ name: t.name, url: SITE + toolPath(t.id) })), { name: ALL_TOOLS_PAGE.h1, url: SITE + ALL_TOOLS_PAGE.path }]
+        .map((x, i) => ({ '@type': 'SiteNavigationElement', position: i + 1, name: x.name, url: x.url })),
+    },
+  ];
+  const inner = `
+    <div><h1 class="font-bold text-3xl">${esc(HOME_PAGE.h1)}</h1><p class="text-slate-600 mt-2">${esc(HOME_PAGE.intro)}</p></div>
+    <section><h2 class="font-bold text-xl mb-2">Outils phares</h2>${links(featured.map((t) => ({ href: toolPath(t.id), label: t.name, desc: t.intro })))}</section>
+    <section><h2 class="font-bold text-xl mb-2"><a class="underline" href="${ALL_TOOLS_PAGE.path}">${esc(ALL_TOOLS_PAGE.h1)}</a></h2>${links(others.map((t) => ({ href: toolPath(t.id), label: t.name })))}</section>`;
+  write('/', page(head({ path: '/', title: HOME_PAGE.title, description: HOME_PAGE.description, structured, alternate: '/en' }), shell([], inner, '/en')));
+}
+
+// ---------- Tous les outils ----------
 {
   const structured = [{
     '@context': 'https://schema.org',
-    '@type': 'WebSite',
-    name: SITE_NAME,
-    url: `${SITE}/`,
+    '@type': 'CollectionPage',
+    name: ALL_TOOLS_PAGE.title,
+    url: SITE + ALL_TOOLS_PAGE.path,
     inLanguage: 'fr',
-    description: HOME_PAGE.description,
+    isPartOf: { '@id': `${SITE}/#website` },
+    mainEntity: {
+      '@type': 'ItemList',
+      itemListElement: TOOL_PAGES.map((t, i) => ({ '@type': 'ListItem', position: i + 1, name: t.name, url: SITE + toolPath(t.id) })),
+    },
+  }, {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: SITE_NAME, item: `${SITE}/` },
+      { '@type': 'ListItem', position: 2, name: ALL_TOOLS_PAGE.h1, item: SITE + ALL_TOOLS_PAGE.path },
+    ],
   }];
   const inner = `
-    <div><h1 class="font-bold text-3xl">${esc(HOME_PAGE.h1)}</h1><p class="text-slate-600 mt-2">${esc(HOME_PAGE.intro)}</p></div>
-    <section id="tools"><h2 class="font-bold text-xl mb-2">Les outils</h2>${links(TOOL_PAGES.map((t) => ({ href: toolPath(t.id), label: t.name, desc: t.intro })))}</section>
-    <section><h2 class="font-bold text-xl mb-2">Guides</h2>${links(ARTICLE_PAGES.map((a) => ({ href: `/ressources/${a.slug}`, label: a.title })))}</section>`;
-  write('/', page(head({ path: '/', title: HOME_PAGE.title, description: HOME_PAGE.description, structured, alternate: '/en' }), shell([], inner, '/en')));
+    <div><h1 class="font-bold text-3xl">${esc(ALL_TOOLS_PAGE.h1)}</h1><p class="text-slate-600 mt-2">${esc(ALL_TOOLS_PAGE.intro)}</p></div>
+    <section>${links([...featured, ...others].map((t) => ({ href: toolPath(t.id), label: t.name, desc: t.intro })))}</section>`;
+  write(ALL_TOOLS_PAGE.path, page(head({ path: ALL_TOOLS_PAGE.path, title: ALL_TOOLS_PAGE.title, description: ALL_TOOLS_PAGE.description, structured }), shell([{ label: ALL_TOOLS_PAGE.h1 }], inner)));
 }
 
 // ---------- Ressources ----------
@@ -224,6 +277,7 @@ console.log(`Pages anglaises : ${enPaths.length + enTools.length}`);
   const lastmodOf = (loc) => new RegExp(`<loc>${loc.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}</loc>\\s*<lastmod>([^<]+)</lastmod>`).exec(prev)?.[1] ?? today;
   const entries = [
     { loc: `${SITE}/`, lastmod: today, freq: 'weekly', prio: '1.0' },
+    { loc: SITE + ALL_TOOLS_PAGE.path, lastmod: today, freq: 'weekly', prio: '0.9' },
     ...TOOL_PAGES.map((t) => ({ loc: SITE + toolPath(t.id), lastmod: today, freq: 'monthly', prio: ['optimiseur-chargement', 'pallet'].includes(t.id) ? '0.9' : '0.7' })),
     { loc: `${SITE}/ressources`, lastmod: today, freq: 'weekly', prio: '0.8' },
     ...ARTICLE_PAGES.map((a) => ({ loc: `${SITE}/ressources/${a.slug}`, lastmod: lastmodOf(`${SITE}/ressources/${a.slug}`), freq: 'monthly', prio: '0.8' })),
@@ -238,4 +292,4 @@ ${entries.map((e) => `  <url><loc>${e.loc}</loc><lastmod>${e.lastmod}</lastmod><
   writeFileSync(join(dist, 'sitemap.xml'), xml);
 }
 
-console.log(`Pré-rendu : ${TOOL_PAGES.length + 2} pages + sitemap.xml`);
+console.log(`Pré-rendu : ${TOOL_PAGES.length + 3} pages + sitemap.xml`);
