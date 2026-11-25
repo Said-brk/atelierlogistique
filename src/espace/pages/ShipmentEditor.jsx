@@ -2,8 +2,8 @@
 // Liens : palettisations qui alimentent ce chargement (chargement → palettes).
 
 import { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Loader2, QrCode } from 'lucide-react';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { Loader2, QrCode, PackageCheck, X } from 'lucide-react';
 import LoadOptimizer from '../../outils/optimiseur-chargement/LoadOptimizer.jsx';
 import { useEspace } from '../useEspace';
 import { getShipment, createShipment, updateShipment, palletizationsOfShipment, shareUrlOf, shipmentStatus, DOCK_STATUSES, SOURCE } from '../data';
@@ -34,6 +34,9 @@ export default function ShipmentEditor() {
   const [pzs, setPzs] = useState([]);
   const [quaiOpen, setQuaiOpen] = useState(false);
   const [proofOf, setProofOf] = useState(undefined); // undefined = fermé ; null = toutes ; n = camion n
+  // Arrivée depuis « Charger le camion » d'une palettisation : palettes déjà écrites dans ce chargement.
+  const location = useLocation();
+  const [received, setReceived] = useState(location.state?.received ?? null);
   useEffect(() => { if (ed.doc?.id) palletizationsOfShipment(ed.doc.id).then(setPzs).catch(() => setPzs([])); }, [ed.doc?.id]);
   const proofs = useLoadingProofs(ed.doc?.id, ed.doc?.status);
   // Au quai : le statut suit les confirmations du cariste (toutes les 20 s et au retour sur l'onglet).
@@ -81,6 +84,13 @@ export default function ShipmentEditor() {
           {proofs.length > 0 && <ProofButton count={proofs.reduce((n, p) => n + p.urls.length, 0)} onClick={() => setProofOf(null)} />}
         </>}
         summary={s && `${s.fleet ? 'Flotte' : 'Plan'} : ${s.vehicle} · ${s.packed} colis · ${s.fleet ? 'moy. ' : ''}${pct(s.fill)}${s.unpacked ? ` · ${s.unpacked} non chargé(s)` : ''}${s.edited ? ' · modifié à la main' : ''}`} />
+      {received && (
+        <div className="mx-4 sm:mx-6 mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800 flex items-center gap-2">
+          <PackageCheck size={16} className="shrink-0" />
+          <span className="flex-1">{received.count} palette(s) de {received.from} ajoutée(s) à ce chargement. Choisissez le véhicule puis lancez l’optimisation.</span>
+          <button onClick={() => setReceived(null)} className="text-emerald-700 hover:text-emerald-900" aria-label="Fermer"><X size={15} /></button>
+        </div>
+      )}
       <LoadOptimizer key={ed.doc.id} workspace={{ initial: initialOf(ed.doc), references: refs.tools, onChange: ed.onChange, shareUrl, locked, trucks, truckPhase: DOCK_STATUSES.includes(ed.doc.status) ? 'todo' : 'plan' }} />
       {proofOf !== undefined && <ProofViewer proofs={proofs} truck={proofOf} onClose={() => setProofOf(undefined)} />}
       {quaiOpen && <GuideQrModal url={shareUrlOf(ed.doc)} onClose={() => setQuaiOpen(false)} title={`${ed.doc.code} · plan pas à pas pour le cariste`}

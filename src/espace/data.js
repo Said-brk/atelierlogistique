@@ -2,6 +2,8 @@
 // d'accès de la base : un utilisateur ne lit et n'écrit que dans son entreprise.
 
 import { getSupabase } from '../shared/account/supabase';
+import { recordsToColisRows } from '../outils/optimiseur-chargement/import/colisSchema';
+import { newRowId } from '../outils/optimiseur-chargement/uiHelpers';
 
 export const STATUS = {
   new: { label: 'Nouveau', color: '#1D4ED8', bg: '#EFF6FF' },
@@ -120,14 +122,39 @@ export async function palletizationsOfShipment(shipmentId) {
   return withSummary(data);
 }
 
-/** Crée un chargement pour une palettisation et les relie ; renvoie le n° du chargement. */
-export async function createShipmentForPalletization(orgId, pz) {
+/** Lignes de chargement des palettes d'une palettisation (marquées de son n° : origin). */
+export function palletRows(pzCode, records) {
+  return recordsToColisRows(records).map((r) => ({ id: newRowId(), ...r, origin: pzCode }));
+}
+
+/**
+ * Écrit les palettes dans le chargement (en base) : remplace celles déjà reçues de cette palettisation, garde
+ * les autres lignes ; le plan est à recalculer. Refusé si le chargement n'est plus modifiable. Contrôle de
+ * concurrence : la mise à jour ne passe que si le chargement n'a pas changé depuis sa lecture (2 essais).
+ */
+export async function putPalletsInShipment(shipmentId, pzCode, rows) {
+  const sb = await getSupabase();
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const { data: s, error } = await sb.from('shipments').select('id, code, status, input, updated_at').eq('id', shipmentId).single();
+    fail(error);
+    if (!OPEN_STATUSES.includes(s.status)) throw new Error(`Le chargement ${s.code} n’est plus modifiable (${STATUS[s.status]?.label ?? s.status}).`); // eslint-disable-line no-use-before-define
+    const kept = (s.input?.rows ?? []).filter((r) => r.origin !== pzCode && (r.reference || r.length));
+    const input = { ...(s.input ?? {}), rows: [...kept, ...rows], excludedStops: [] };
+    const { data, error: e2 } = await sb.from('shipments').update({ input, result: null }).eq('id', s.id).eq('updated_at', s.updated_at).select('code');
+    fail(e2);
+    if (data?.length) return s.code;
+  }
+  throw new Error('Le chargement vient d’être modifié par ailleurs : réessayez.');
+}
+
+/** Crée un chargement avec les palettes d'une palettisation et les relie ; renvoie le n° du chargement. */
+export async function createShipmentForPalletization(orgId, pz, rows) {
   const sb = await getSupabase();
   const { data, error } = await sb.from('shipments')
-    .insert({ org_id: orgId, source: 'web', label: pz.label ? `Chargement — ${pz.label}` : undefined, input: { rows: [] } })
+    .insert({ org_id: orgId, source: 'web', label: pz.label ? `Chargement — ${pz.label}` : undefined, input: { rows } })
     .select('id, code').single();
   fail(error);
-  return linkPalletization(pz, data); // eslint-disable-line no-use-before-define
+  return linkPalletization(pz, data, null); // eslint-disable-line no-use-before-define
 }
 
 /** Chargements qui peuvent encore recevoir des palettes : Nouveau ou En cours (pas validés, envoyés ni annulés). */
@@ -141,21 +168,23 @@ export async function openShipments(orgId, limit = 50) {
 }
 
 /**
- * Relie une palettisation à un chargement existant. Si elle alimentait un autre chargement encore modifiable,
- * ses palettes en sont retirées (lignes marquées de son n°) et le plan de ce chargement est à recalculer.
+ * Relie une palettisation à un chargement. rows : ses palettes, écrites d'abord dans le chargement (null : déjà
+ * fait à la création). Si elle alimentait un autre chargement encore modifiable, ses palettes en sont retirées
+ * ensuite (lignes marquées de son n°) et le plan de ce chargement est à recalculer.
  */
-export async function linkPalletization(pz, shipment) {
+export async function linkPalletization(pz, shipment, rows) {
   const sb = await getSupabase();
+  if (rows) await putPalletsInShipment(shipment.id, pz.code, rows);
+  const { error } = await sb.from('palletizations').update({ shipment_id: shipment.id }).eq('id', pz.id);
+  fail(error);
   if (pz.shipment_id && pz.shipment_id !== shipment.id) {
     const { data: old } = await sb.from('shipments').select('id, status, input').eq('id', pz.shipment_id).maybeSingle();
-    const rows = old?.input?.rows;
-    if (old && OPEN_STATUSES.includes(old.status) && Array.isArray(rows) && rows.some((r) => r.origin === pz.code)) {
-      const { error: e0 } = await sb.from('shipments').update({ input: { ...old.input, rows: rows.filter((r) => r.origin !== pz.code) }, result: null }).eq('id', old.id);
+    const oldRows = old?.input?.rows;
+    if (old && OPEN_STATUSES.includes(old.status) && Array.isArray(oldRows) && oldRows.some((r) => r.origin === pz.code)) {
+      const { error: e0 } = await sb.from('shipments').update({ input: { ...old.input, rows: oldRows.filter((r) => r.origin !== pz.code) }, result: null }).eq('id', old.id);
       fail(e0);
     }
   }
-  const { error } = await sb.from('palletizations').update({ shipment_id: shipment.id }).eq('id', pz.id);
-  fail(error);
   return shipment.code;
 }
 

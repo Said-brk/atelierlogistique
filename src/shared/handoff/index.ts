@@ -24,6 +24,7 @@ export interface HandoffEnvelope {
 interface SessionLike { getItem(k: string): string | null; setItem(k: string, v: string): void; removeItem(k: string): void; }
 
 const key = (target: string) => `al.handoff.${target}`;
+export const HANDOFF_TTL_MS = 15 * 60 * 1000;
 
 function session(): SessionLike | null {
   try { return typeof sessionStorage !== 'undefined' ? sessionStorage : null; } catch { return null; }
@@ -57,6 +58,8 @@ export function consumeHandoff(
   try {
     const env = JSON.parse(raw) as HandoffEnvelope;
     if (env.format !== 'atelier-logistique/handoff' || env.schemaId !== schemaId || !Array.isArray(env.records)) return null;
+    // Envoi oublié (onglet laissé ouvert, envoi annulé) : ignoré au-delà de 15 minutes.
+    if (Date.now() - new Date(env.createdAt).getTime() > HANDOFF_TTL_MS) return null;
     return env;
   } catch {
     return null;
