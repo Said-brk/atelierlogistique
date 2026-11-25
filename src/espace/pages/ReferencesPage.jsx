@@ -13,7 +13,7 @@ import { saveReference, deleteReference, resetReferences } from '../data';
 import { Btn } from '../ui';
 import ResizableTable from '../ResizableTable';
 import { defaultReferences } from '../../shared/references/defaults';
-import { BILLING_LABELS, RATE_UNIT } from '../../shared/carriers/pricing';
+import { BILLING_LABELS, RATE_UNIT, fuelFor } from '../../shared/carriers/pricing';
 
 const inputCls = 'w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:bg-slate-50';
 const fmt = (v, d = 0) => (v == null || v === '' ? '—' : Number(v).toLocaleString('fr-FR', { maximumFractionDigits: d }));
@@ -92,6 +92,7 @@ const AGENCY_FIELDS = [
   { key: 'code', label: 'Code agence / ville', type: 'text', hint: 'Valeur choisie dans la colonne Destination des lignes (ex. LYO01).' },
   { key: 'label', label: 'Description', type: 'text', wide: true },
   { key: 'city', label: 'Ville', type: 'text', optional: true },
+  { key: 'zone', label: 'Zone tarifaire', type: 'text', optional: true, hint: 'Département ou zone des grilles transporteurs (ex. 69, Z2).' },
   { key: 'tour', label: 'Tournée', type: 'select', optional: true, options: (items) => [['', '— aucune'], ...items.filter((i) => i.kind === 'tour').map((t) => [t.code, `${t.code} · ${t.label}`])] },
   { key: 'order', label: 'Rang dans la tournée', type: 'num', hint: '1 = livrée en premier.' },
   { key: 'sort', label: 'Ordre d’affichage', type: 'num' },
@@ -116,12 +117,16 @@ const CARRIER_FIELDS = [
   { key: 'code', label: 'Code', type: 'text', hint: 'Ex. GEODIS, TRANS-SUD.' },
   { key: 'label', label: 'Raison sociale', type: 'text', wide: true },
   { key: 'billing', label: 'Mode de facturation', type: 'select', wide: true, options: Object.entries(BILLING_LABELS) },
-  { key: 'rate', label: 'Tarif', type: 'num', if: (f) => f.billing !== 'ftl', unitOf: (f) => RATE_UNIT[f.billing], hint: 'Tarif moyen ; les grilles par zone viendront ensuite.' },
+  { key: 'rate', label: 'Tarif de base', type: 'num', optional: true, if: (f) => f.billing !== 'ftl', unitOf: (f) => RATE_UNIT[f.billing], hint: 'Appliqué aux zones absentes de la grille (vide = zones de la grille seulement).' },
+  { key: 'zones', label: 'Grille par zone', type: 'zones', if: (f) => f.billing !== 'ftl', wide: true, unitOf: (f) => RATE_UNIT[f.billing],
+    hint: 'Zone = celle des agences (Paramètres › Agences). Plusieurs destinations : la zone la plus chère s’applique.' },
   { key: 'kgPerM3', label: 'Équivalence volume', unit: 'kg/m³', type: 'num', if: (f) => f.billing === 'weight', hint: 'Souvent 250 à 333.' },
   { key: 'kgPerLdm', label: 'Équivalence plancher', unit: 'kg/MPL', type: 'num', if: (f) => f.billing === 'weight', hint: 'Souvent 1 500 à 1 850.' },
   { key: 'prices', label: 'Forfait par véhicule', type: 'prices', if: (f) => f.billing === 'ftl', wide: true, hint: 'Laissez vide un véhicule que ce transporteur ne fournit pas.' },
   { key: 'minCharge', label: 'Minimum de perception', unit: '€', type: 'num', optional: true },
-  { key: 'fuelPct', label: 'Surcharge gazole', unit: '%', type: 'num', optional: true, hint: 'Indexation gazole du mois.' },
+  { key: 'stopFee', label: 'Frais par arrêt supplémentaire', unit: '€', type: 'num', optional: true, hint: 'Au-delà de la première destination.' },
+  { key: 'fuelPct', label: 'Surcharge gazole par défaut', unit: '%', type: 'num', optional: true },
+  { key: 'fuelByMonth', label: 'Surcharge gazole publiée chaque mois', type: 'months', wide: true, hint: 'Le taux du mois de départ s’applique (à défaut, le dernier mois publié, puis le taux par défaut).' },
   { key: 'sort', label: 'Ordre d’affichage', type: 'num' },
   { key: 'active', label: 'Proposé sur les chargements', type: 'bool' },
 ];
@@ -132,7 +137,9 @@ const tariffText = (d) => {
     const p = Object.entries(d.prices ?? {}).filter(([, v]) => v != null && v !== '');
     return p.length ? `${p.length} forfait${p.length > 1 ? 's' : ''} véhicule` : 'aucun forfait';
   }
-  return d.rate == null ? '—' : `${fmt(Number(d.rate), 2)} ${RATE_UNIT[d.billing] ?? ''}`;
+  const z = (d.zones ?? []).length;
+  const baseTxt = d.rate == null ? '' : `${fmt(Number(d.rate), 2)} ${RATE_UNIT[d.billing] ?? ''}`;
+  return [baseTxt, z ? `${z} zone${z > 1 ? 's' : ''}` : ''].filter(Boolean).join(' · ') || '—';
 };
 
 const CARRIER_COLUMNS = (admin, patch) => [
@@ -141,7 +148,7 @@ const CARRIER_COLUMNS = (admin, patch) => [
   { key: 'billing', h: 'Facturation', cell: (i) => <span className="text-xs">{BILLING_LABELS[i.data.billing] ?? '—'}</span> },
   { key: 'rate', h: 'Tarif', cell: (i) => <span className="text-xs whitespace-nowrap">{tariffText(i.data)}</span> },
   { key: 'min', h: 'Minimum', cell: (i) => money(i.data.minCharge) },
-  { key: 'fuel', h: 'Gazole', cell: (i) => (i.data.fuelPct == null || i.data.fuelPct === '' ? '—' : `${fmt(Number(i.data.fuelPct), 1)} %`) },
+  { key: 'fuel', h: 'Gazole', cell: (i) => { const f = fuelFor(i.data, new Date().toISOString().slice(0, 7)); return f.pct ? `${fmt(f.pct, 1)} %${f.month ? '' : ' (défaut)'}` : '—'; } },
   { key: 'active', h: 'Proposé', cell: (i) => toggle(i.active, () => patch(i, { active: !i.active }), !admin, 'Proposé sur les chargements') },
 ];
 
@@ -151,6 +158,7 @@ const AGENCY_COLUMNS = (admin, patch, items) => [
   { key: 'code', h: 'Code', cell: (i) => <span className="font-jetbrains text-xs text-blue-700">{i.code}</span> },
   { key: 'label', h: 'Description', min: 120, cell: (i) => <span className="font-medium text-slate-900">{i.label}</span> },
   { key: 'city', h: 'Ville', cell: (i) => i.data.city || '—' },
+  { key: 'zone', h: 'Zone', cell: (i) => <span className="font-jetbrains text-xs">{i.data.zone || '—'}</span> },
   { key: 'tour', h: 'Tournée', cell: (i) => { const t = items.find((x) => x.kind === 'tour' && x.code === i.data.tour); return t ? <span className="text-xs">{t.code} · {t.label}</span> : <span className="text-xs text-slate-400">—</span>; } },
   { key: 'order', h: 'Rang', cell: (i) => (i.data.tour ? i.data.order ?? '—' : '—') },
   { key: 'active', h: 'Proposée', cell: (i) => toggle(i.active, () => patch(i, { active: !i.active }), !admin, 'Proposée dans les listes') },
@@ -190,7 +198,7 @@ const TABLES = {
   carrier: {
     title: 'Transporteurs', icon: Receipt, fields: CARRIER_FIELDS, columns: CARRIER_COLUMNS, noun: 'transporteur', noReset: true,
     intro: 'Vos transporteurs et leur mode de facturation. Choisis sur un chargement, ils donnent son coût théorique (mètres plancher, palettes, poids taxable ou forfait).',
-    blank: () => ({ kind: 'carrier', code: '', label: '', active: true, sort: 100, data: { billing: 'ldm', rate: null, minCharge: null, kgPerM3: 333, kgPerLdm: 1750, prices: {}, fuelPct: null } }),
+    blank: () => ({ kind: 'carrier', code: '', label: '', active: true, sort: 100, data: { billing: 'ldm', rate: null, minCharge: null, kgPerM3: 333, kgPerLdm: 1750, prices: {}, fuelPct: null, fuelByMonth: {}, zones: [], stopFee: null } }),
   },
 };
 
@@ -205,6 +213,8 @@ function formOf(item, fields) {
   for (const f of fields) {
     if (f.key === 'axleMode') continue;
     const raw = TOP.includes(f.key) ? item[f.key] : f.key.startsWith('axle.') ? axle[f.key.slice(5)] : item.data?.[f.key];
+    if (f.type === 'zones') { v[f.key] = (Array.isArray(raw) ? raw : []).map((z) => ({ zone: z.zone ?? '', rate: z.rate == null ? '' : String(z.rate) })); continue; }
+    if (f.type === 'months') { v[f.key] = Object.entries(raw ?? {}).sort(([a], [b]) => b.localeCompare(a)).map(([month, x]) => ({ month, pct: x == null ? '' : String(x) })); continue; }
     if (f.type === 'prices') { v[f.key] = Object.fromEntries(Object.entries(raw ?? {}).map(([k, x]) => [k, x == null ? '' : String(x)])); continue; }
     v[f.key] = f.type === 'days' ? (Array.isArray(raw) ? raw : []) : f.type === 'bool' ? !!raw : raw == null ? '' : f.type === 'cm' ? String(Math.round(raw) / 10) : String(raw);
   }
@@ -220,6 +230,29 @@ function itemOf(base, form, fields) {
     if (f.key === 'axleMode' || (f.if && !f.if(form))) continue;
     let val = form[f.key];
     if (f.type === 'select') val = val === '' ? null : val;
+    if (f.type === 'zones') {
+      const seen = new Set(); const list = [];
+      for (const z of val ?? []) {
+        const zone = String(z.zone ?? '').trim().toUpperCase(); const t = String(z.rate ?? '').trim().replace(',', '.');
+        if (!zone && !t) continue;
+        const n = Number(t);
+        if (!zone || t === '' || !Number.isFinite(n) || n < 0) { errors[f.key] = 'Chaque ligne : une zone et un tarif'; continue; }
+        if (seen.has(zone)) { errors[f.key] = `Zone ${zone} en double`; continue; }
+        seen.add(zone); list.push({ zone, rate: n });
+      }
+      val = list;
+    }
+    if (f.type === 'months') {
+      const out3 = {};
+      for (const r of val ?? []) {
+        const m = String(r.month ?? '').trim(); const t = String(r.pct ?? '').trim().replace(',', '.');
+        if (!m && !t) continue;
+        const n = Number(t);
+        if (!/^\d{4}-\d{2}$/.test(m) || t === '' || !Number.isFinite(n)) { errors[f.key] = 'Chaque ligne : un mois et un taux'; continue; }
+        out3[m] = n;
+      }
+      val = out3;
+    }
     if (f.type === 'prices') {
       const out2 = {};
       for (const [k, x] of Object.entries(val ?? {})) {
@@ -251,6 +284,7 @@ function itemOf(base, form, fields) {
   if (out.kind === 'vehicle' && !(out.data.length > 0 && out.data.width > 0 && out.data.height > 0)) errors.length = errors.length ?? 'Dimensions > 0';
   if (out.kind === 'pallet' && !(out.data.length > 0 && out.data.width > 0)) errors.length = errors.length ?? 'Dimensions > 0';
   if (out.kind === 'carrier' && out.data.billing === 'ftl' && !Object.keys(out.data.prices ?? {}).length) errors.prices = 'Au moins un forfait';
+  if (out.kind === 'carrier' && out.data.billing !== 'ftl' && out.data.rate == null && !(out.data.zones ?? []).length) errors.rate = 'Tarif de base ou grille par zone';
   return { item: out, errors };
 }
 
@@ -272,6 +306,30 @@ function Field({ f, value, onChange, error, disabled, items = [], form = {} }) {
           })}
         </div>
         {f.hint && <span className="block mt-0.5 text-slate-400">{f.hint}</span>}
+      </div>
+    );
+  }
+  if (f.type === 'zones' || f.type === 'months') {
+    const zonesT = f.type === 'zones';
+    const list = value ?? [];
+    const set = (i, k, x) => onChange(list.map((r, j) => (j === i ? { ...r, [k]: x } : r)));
+    const blank = zonesT ? { zone: '', rate: '' } : { month: new Date().toISOString().slice(0, 7), pct: '' };
+    return (
+      <div className="sm:col-span-2 text-xs text-slate-500">{f.label}{zonesT && unit && <span className="text-slate-400"> ({unit})</span>}
+        <div className="mt-1 space-y-1.5">
+          {list.map((r, i) => (
+            <div key={i} className="flex items-center gap-2">
+              {zonesT
+                ? <input value={r.zone} onChange={(e) => set(i, 'zone', e.target.value)} disabled={disabled} placeholder="Zone (ex. 69)" className={`${inputCls} font-jetbrains`} />
+                : <input type="month" value={r.month} onChange={(e) => set(i, 'month', e.target.value)} disabled={disabled} className={inputCls} />}
+              <span className="w-32 shrink-0"><input value={zonesT ? r.rate : r.pct} onChange={(e) => set(i, zonesT ? 'rate' : 'pct', e.target.value)} disabled={disabled} inputMode="decimal"
+                placeholder={zonesT ? 'Tarif' : '%'} className={`${inputCls} font-jetbrains text-right`} /></span>
+              {!disabled && <button type="button" onClick={() => onChange(list.filter((_, j) => j !== i))} className="p-1 text-slate-400 hover:text-red-700" aria-label="Retirer"><X size={15} /></button>}
+            </div>
+          ))}
+          {!disabled && <button type="button" onClick={() => onChange([...list, blank])} className="inline-flex items-center gap-1 text-sm text-blue-700 hover:underline"><Plus size={14} /> {zonesT ? 'Ajouter une zone' : 'Ajouter un mois'}</button>}
+        </div>
+        {error ? <span className="block mt-0.5 text-red-700">{error}</span> : f.hint && <span className="block mt-0.5 text-slate-400">{f.hint}</span>}
       </div>
     );
   }

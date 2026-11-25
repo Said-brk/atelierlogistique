@@ -119,8 +119,8 @@ export default function useDocEditor({ code, load, update, titleOf, autosaveMs =
           }
         }
       }
-      Object.assign(patch, deriveRef.current?.(patch, base) ?? {});
       if ('departure_at' in base) patch.departure_at = usedMeta.departure_at ? new Date(usedMeta.departure_at).toISOString() : null;
+      Object.assign(patch, deriveRef.current?.(patch, base) ?? {});
       // Garder mes modifications : on écrase la version en base vue dans le conflit.
       const expected = force && conflictRef.current ? conflictRef.current.updated_at : base.updated_at;
       return update(base.id, patch, expected);

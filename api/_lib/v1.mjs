@@ -241,7 +241,7 @@ function toToolReferences(items) {
   const tourCodes = new Set(tours.map((t2) => t2.code));
   const agencies = by("agency").filter((i) => i.active).map((i) => {
     const d = i.data;
-    return { code: i.code, label: i.label, city: d.city ?? "", tour: d.tour && tourCodes.has(d.tour) ? d.tour : null, order: n(d.order) };
+    return { code: i.code, label: i.label, city: d.city ?? "", tour: d.tour && tourCodes.has(d.tour) ? d.tour : null, order: n(d.order), zone: d.zone ? String(d.zone).trim() : null };
   });
   const cons = items.find((i) => i.kind === "setting" && i.code === "consolidation")?.data;
   return { vehicles, pallets, lashing, agencies, tours, carriers, consolidation: { mode: cons?.mode === "tour" ? "tour" : "free" } };
