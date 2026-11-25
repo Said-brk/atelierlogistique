@@ -47,6 +47,10 @@
       "destination": "/ressources/repartition-des-charges-camion.html"
     },
     {
+      "source": "/ressources/controle-factures-transport",
+      "destination": "/ressources/controle-factures-transport.html"
+    },
+    {
       "source": "/ressources/arrimage-des-charges",
       "destination": "/ressources/arrimage-des-charges.html"
     },

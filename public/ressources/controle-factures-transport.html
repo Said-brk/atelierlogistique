@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Contrôle des factures transport : méthode et outil · Atelier Logistique</title>
+  <meta name="description" content="Camion surdimensionné, mètres plancher non vérifiés, grilles par zone, surcharge gazole : pourquoi vous payez plus que prévu, et comment contrôler chaque facture transporteur (pré-facturation)." />
+  <meta name="keywords" content="contrôle facture transport, audit facture transporteur, pré-facturation transport, coût transport, mètre plancher facturation, surcharge gazole transporteur, grille tarifaire transporteur, comparer transporteurs, réduire coûts transport" />
+  <link rel="canonical" href="https://atelierlogistique.com/ressources/controle-factures-transport" />
+
+  <meta property="og:title" content="Factures transport : pourquoi vous payez plus que prévu" />
+  <meta property="og:description" content="Les erreurs courantes, la méthode de pré-facturation et un outil pour contrôler chaque facture transporteur." />
+  <meta property="og:type" content="article" />
+  <meta property="og:url" content="https://atelierlogistique.com/ressources/controle-factures-transport" />
+  <meta property="og:site_name" content="Atelier Logistique" />
+  <meta property="og:locale" content="fr_FR" />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Factures transport : pourquoi vous payez plus que prévu" />
+  <meta name="twitter:description" content="Mètres plancher, zones, gazole : contrôler chaque facture transporteur." />
+
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="icon" type="image/png" href="/favicon_atelierlogistique.png" />
+  <link rel="apple-touch-icon" href="/favicon_atelierlogistique.png" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=JetBrains+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = { theme: { extend: { fontFamily: {
+      bricolage: ['Bricolage Grotesque', 'sans-serif'],
+      sans: ['DM Sans', 'sans-serif'],
+      jetbrains: ['JetBrains Mono', 'monospace'],
+    } } } };
+  </script>
+
+  <style>
+    body { font-family: 'DM Sans', system-ui, sans-serif; }
+    .font-bricolage { font-family: 'Bricolage Grotesque', sans-serif; letter-spacing: -0.02em; }
+    .font-jetbrains { font-family: 'JetBrains Mono', monospace; }
+    h1, h2, h3, h4 { font-family: 'Bricolage Grotesque', sans-serif; letter-spacing: -0.02em; }
+    .prose-content p { margin-bottom: 1rem; line-height: 1.75; }
+    .prose-content ul, .prose-content ol { padding-left: 1.5rem; margin-bottom: 1rem; }
+    .prose-content ul { list-style: disc; }
+    .prose-content ol { list-style: decimal; }
+    .prose-content li { margin-bottom: 0.5rem; line-height: 1.65; }
+    .prose-content a { color: #2563EB; text-decoration: underline; text-underline-offset: 2px; }
+    @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+    .pulse-dot { animation: pulse-dot 2s ease-in-out infinite; }
+    details summary { list-style: none; }
+    details summary::-webkit-details-marker { display: none; }
+  </style>
+
+  <script type="application/ld+json">
+  {"@context": "https://schema.org", "@type": "Article", "headline": "Factures transport : contrôler le coût réel de chaque chargement", "description": "Camion surdimensionné, mètres plancher non vérifiés, grilles par zone, surcharge gazole : pourquoi on paie plus que prévu, et la méthode de pré-facturation pour contrôler chaque facture transporteur.", "author": {"@type": "Person", "name": "Saïd BARKAM", "jobTitle": "Consultant ERP & Supply Chain"}, "publisher": {"@type": "Organization", "name": "Atelier Logistique"}, "datePublished": "2026-11-25", "dateModified": "2026-11-25", "mainEntityOfPage": "https://atelierlogistique.com/ressources/controle-factures-transport", "inLanguage": "fr-FR", "about": ["Contrôle des factures transport", "Pré-facturation", "Mètre plancher", "Surcharge gazole"]}
+  </script>
+
+  <script type="application/ld+json">
+  {"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "Atelier Logistique", "item": "https://atelierlogistique.com/"}, {"@type": "ListItem", "position": 2, "name": "Ressources", "item": "https://atelierlogistique.com/ressources"}, {"@type": "ListItem", "position": 3, "name": "Contrôle des factures transport", "item": "https://atelierlogistique.com/ressources/controle-factures-transport"}]}
+  </script>
+
+  <script type="application/ld+json">
+  {"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "Comment contrôler une facture de transport ?", "acceptedAnswer": {"@type": "Answer", "text": "En recalculant le coût attendu de chaque expédition avec la grille du transporteur (mode de facturation, tarif de la zone ou de la tournée, minimum, frais d’arrêt, surcharge gazole du mois), puis en le comparant au montant facturé. Seuls les écarts au-delà d’une tolérance, par exemple 3 %, sont analysés et réclamés."}}, {"@type": "Question", "name": "Qu’est-ce que la pré-facturation transport ?", "acceptedAnswer": {"@type": "Answer", "text": "C’est le calcul, par le chargeur, du prix théorique de chaque expédition au moment où elle part, à partir du contrat transporteur. À réception de la facture, il suffit de rapprocher les deux montants au lieu de tout vérifier à la main."}}, {"@type": "Question", "name": "Comment sont facturés les mètres plancher ?", "acceptedAnswer": {"@type": "Answer", "text": "Le mètre plancher (MPL) est la surface au sol occupée divisée par 2,4 m, la largeur intérieure d’une remorque ; les colis gerbés ne comptent pas. Le transporteur multiplie le nombre de MPL, souvent arrondi au dixième supérieur, par son tarif au MPL. Calculer vos MPL réels permet de vérifier la quantité facturée."}}, {"@type": "Question", "name": "Comment est calculée la surcharge gazole ?", "acceptedAnswer": {"@type": "Answer", "text": "La plupart des transporteurs publient chaque mois un pourcentage de surcharge gazole, indexé sur le prix du gazole. Il s’applique au montant du transport. Le contrôle consiste à vérifier que le taux appliqué est bien celui du mois de l’expédition."}}, {"@type": "Question", "name": "Quel transporteur choisir pour un chargement ?", "acceptedAnswer": {"@type": "Answer", "text": "Celui dont la grille donne le coût le plus bas pour ce chargement précis : selon le volume, les mètres plancher, le poids taxable, les destinations et le nombre d’arrêts, ce n’est pas toujours le même. Comparer les grilles sur le plan de chargement réel, avant de réserver, évite de surpayer."}}, {"@type": "Question", "name": "Existe-t-il un outil pour contrôler ses factures transport ?", "acceptedAnswer": {"@type": "Answer", "text": "Oui. L’espace Atelier Logistique calcule le coût théorique de chaque chargement d’après la grille de vos transporteurs, importe leurs factures (CSV ou Excel), signale les écarts et produit une synthèse mensuelle par transporteur. Il est gratuit pendant la phase pilote."}}]}
+  </script>
+
+</head>
+
+<body class="bg-white text-slate-900">
+
+  <!-- HEADER -->
+  <nav class="border-b border-slate-200 sticky top-0 z-20 bg-white/90 backdrop-blur-sm">
+    <div class="max-w-7xl mx-auto px-6 md:px-10 py-4 flex items-center justify-between">
+      <a href="/" class="flex items-center gap-3">
+        <svg viewBox="0 0 120 120" width="40" height="40" xmlns="http://www.w3.org/2000/svg" class="w-10 h-10 shrink-0" role="img" aria-label="Atelier Logistique"><path d="M16 104 L60 16 L104 104" fill="none" stroke="#0F172A" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/><line x1="38" y1="72" x2="82" y2="72" stroke="#2563EB" stroke-width="7" stroke-linecap="round" stroke-dasharray="2 12"/><circle cx="16" cy="104" r="11" fill="#2563EB"/><circle cx="104" cy="104" r="11" fill="#2563EB"/><circle cx="60" cy="16" r="11" fill="#F59E0B"/></svg>
+        <div>
+          <div class="font-bricolage font-bold text-lg tracking-tight text-slate-900">ATELIER LOGISTIQUE</div>
+          <div class="font-jetbrains text-[10px] text-slate-500 -mt-1 tracking-wider">LA BOÎTE À OUTILS DES PROS DE LA SUPPLY CHAIN</div>
+        </div>
+      </a>
+      <div class="hidden md:flex items-center gap-5 font-jetbrains text-xs text-slate-500">
+        <a href="/#tools" class="hover:text-slate-900 transition-colors">Outils</a>
+        <a href="/#how" class="hover:text-slate-900 transition-colors">Comment ça marche</a>
+        <a href="/ressources" class="hover:text-slate-900 transition-colors">Ressources</a>
+        <span class="text-slate-300">|</span>
+        <span class="flex items-center gap-2" style="color: #2563EB;">
+          <span class="w-1.5 h-1.5 rounded-full pulse-dot" style="background: #2563EB;"></span>
+          EN LIGNE
+        </span>
+      </div>
+    </div>
+  </nav>
+
+
+
+  <!-- BREADCRUMB -->
+  <nav class="max-w-7xl mx-auto px-6 md:px-10 py-3 font-jetbrains text-[11px] text-slate-500" aria-label="Fil d'Ariane">
+    <a href="/" class="hover:text-slate-900 transition-colors">ATELIER</a>
+    <span class="mx-2 text-slate-300">/</span>
+    <a href="/ressources" class="hover:text-slate-900 transition-colors">RESSOURCES</a>
+    <span class="mx-2 text-slate-300">/</span>
+    <span class="text-slate-800">CONTRÔLE DES FACTURES TRANSPORT</span>
+  </nav>
+
+  <!-- HERO -->
+  <section class="relative max-w-7xl mx-auto px-6 md:px-10 pt-12 md:pt-16 pb-16 md:pb-20">
+    <div class="font-jetbrains text-xs mb-6 flex items-center gap-2 tracking-wider" style="color: #2563EB;">
+      <span>●</span>
+      <span>TRANSPORT & COÛTS — GUIDE PRATIQUE</span>
+    </div>
+    <h1 class="font-bricolage font-bold text-4xl md:text-6xl lg:text-7xl leading-[0.95] mb-6 tracking-tight max-w-4xl text-slate-900">
+      Factures transport :
+      <br /><em class="italic font-normal text-slate-400">le camion est parti,</em>
+      <br /><span style="color: #2563EB;">la facture n’est pas vérifiée.</span>
+    </h1>
+    <p class="text-slate-600 text-lg md:text-xl max-w-3xl leading-relaxed">
+      Camion réservé trop grand, mètres plancher jamais mesurés, grilles tarifaires que personne ne relit, surcharge
+      gazole qui change chaque mois : les erreurs les plus courantes, la méthode des entreprises qui maîtrisent leurs
+      coûts, et comment l’automatiser.
+    </p>
+    <div class="flex flex-wrap items-center gap-3 mt-10 font-jetbrains text-xs">
+      <a href="/connexion" class="px-5 py-3 rounded-md font-medium transition-all hover:translate-y-[-1px] flex items-center gap-2 text-white" style="background: #2563EB;">
+        CONTRÔLER MES FACTURES GRATUITEMENT
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </a>
+      <a href="#methode" class="px-5 py-3 rounded-md font-medium border border-slate-300 text-slate-700 hover:bg-slate-50 transition-all">
+        LA MÉTHODE
+      </a>
+    </div>
+  </section>
+
+  <!-- CONTENU PRINCIPAL -->
+  <main class="max-w-3xl mx-auto px-6 md:px-10 py-12 prose-content text-slate-700 text-base">
+
+    <nav class="mb-12 rounded-lg border border-slate-200 p-5" style="background: #F8FAFC;" aria-label="Sommaire">
+      <div class="font-jetbrains text-[10px] tracking-widest mb-3 text-slate-500">SOMMAIRE</div>
+      <ol class="text-sm space-y-1 mb-0">
+        <li><a href="#probleme">Le poste qu’on contrôle le moins</a></li>
+        <li><a href="#camion">Erreur 1 : le camion réservé « par sécurité »</a></li>
+        <li><a href="#mpl">Erreur 2 : des mètres plancher facturés, jamais mesurés</a></li>
+        <li><a href="#grilles">Erreur 3 : des grilles tarifaires que personne ne relit</a></li>
+        <li><a href="#gazole">Erreur 4 : la surcharge gazole du mauvais mois</a></li>
+        <li><a href="#factures">Erreur 5 : des factures validées en bloc</a></li>
+        <li><a href="#methode">La méthode : la pré-facturation en 4 étapes</a></li>
+        <li><a href="#outil">Ce que fait Atelier Logistique</a></li>
+        <li><a href="#faq">FAQ</a></li>
+      </ol>
+    </nav>
+
+    <section id="probleme" class="mb-12">
+      <div class="font-jetbrains text-[10px] tracking-widest mb-2" style="color: #2563EB;">01 · LE PROBLÈME</div>
+      <h2 class="font-bricolage font-bold text-3xl mb-4 text-slate-900">Le poste qu’on contrôle le moins</h2>
+      <p>
+        Dans la plupart des entreprises, le transport est l’un des premiers postes de coût logistique. C’est pourtant
+        celui qu’on vérifie le moins. Le circuit est toujours le même : un camion réservé au téléphone, une marchandise
+        livrée, une facture reçue un mois plus tard… et validée, parce que la livraison a eu lieu et que personne n’a
+        le temps de refaire le calcul.
+      </p>
+      <p>
+        Entre la réservation et le paiement, personne n’a vérifié que <strong>le prix payé correspond à ce qui a
+        réellement été chargé</strong>. Les cinq erreurs ci-dessous se retrouvent presque partout.
+      </p>
+    </section>
+
+    <section id="camion" class="mb-12">
+      <div class="font-jetbrains text-[10px] tracking-widest mb-2" style="color: #2563EB;">02 · ERREUR 1</div>
+      <h2 class="font-bricolage font-bold text-3xl mb-4 text-slate-900">Le camion réservé « par sécurité »</h2>
+      <p>
+        16 palettes à expédier : on réserve un semi-remorque (33 places), « au cas où ». Elles tenaient dans un
+        <strong>porteur 19 tonnes</strong> (18 places). Sur une journée régionale de 300 km, l’écart de coût de revient
+        entre les deux véhicules est de l’ordre de <strong>140 €</strong> : véhicule plus cher, coûts de structure,
+        gazole, péages et conducteur. Trois fois par semaine sur un seul flux, cela représente près de
+        <strong>20 000 € par an</strong>.
+      </p>
+      <p>
+        La cause est toujours la même : le <a href="/ressources/plan-de-chargement-camion">plan de chargement</a> n’est pas
+        fait avant de réserver. On découvre au quai que le semi part à moitié vide.
+      </p>
+    </section>
+
+    <section id="mpl" class="mb-12">
+      <div class="font-jetbrains text-[10px] tracking-widest mb-2" style="color: #2563EB;">03 · ERREUR 2</div>
+      <h2 class="font-bricolage font-bold text-3xl mb-4 text-slate-900">Des mètres plancher facturés, jamais mesurés</h2>
+      <p>
+        En groupage et en messagerie, le prix dépend souvent du <strong>mètre plancher (MPL)</strong> : la surface au sol
+        occupée, divisée par 2,4 m (la largeur intérieure d’une remorque). Les colis gerbés ne comptent pas. Ou bien du
+        <strong>poids taxable</strong>, le plus élevé entre le poids réel, le volume converti (par exemple 330 kg par m³)
+        et les mètres plancher convertis (par exemple 1 750 kg par MPL).
+      </p>
+      <p>
+        Le transporteur facture 6,8 MPL. Combien en occupiez-vous vraiment ? Sans calcul de votre côté, impossible de le
+        savoir, donc impossible de contester. Et un mauvais gerbage se paie deux fois : plus de plancher occupé, donc
+        plus de MPL facturés.
+      </p>
+    </section>
+
+    <section id="grilles" class="mb-12">
+      <div class="font-jetbrains text-[10px] tracking-widest mb-2" style="color: #2563EB;">04 · ERREUR 3</div>
+      <h2 class="font-bricolage font-bold text-3xl mb-4 text-slate-900">Des grilles tarifaires que personne ne relit</h2>
+      <p>
+        Les conditions sont négociées une fois par an, puis rangées dans un PDF ou un fichier Excel. Elles sont pourtant
+        riches :
+      </p>
+      <ul>
+        <li>un <strong>mode de facturation</strong> : au MPL, à la palette, aux 100 kg taxables ou au forfait par véhicule ;</li>
+        <li>un <strong>tarif par zone</strong>, par <strong>tournée</strong>, parfois par agence ;</li>
+        <li>un <strong>minimum de perception</strong> et des <strong>frais par arrêt supplémentaire</strong> ;</li>
+        <li>des <strong>équivalences poids / volume</strong> propres à chaque transporteur.</li>
+      </ul>
+      <p>
+        Au moment de payer, personne ne refait le calcul ligne par ligne. Et la personne qui valide la facture n’est pas
+        toujours celle qui a négocié le contrat.
+      </p>
+    </section>
+
+    <section id="gazole" class="mb-12">
+      <div class="font-jetbrains text-[10px] tracking-widest mb-2" style="color: #2563EB;">05 · ERREUR 4</div>
+      <h2 class="font-bricolage font-bold text-3xl mb-4 text-slate-900">La surcharge gazole du mauvais mois</h2>
+      <p>
+        La plupart des transporteurs publient chaque mois un <strong>taux de surcharge gazole</strong>, appliqué au montant
+        du transport. Si le taux facturé n’est pas celui du mois de l’expédition, l’erreur ne pèse que quelques pour cent :
+        assez peu pour passer inaperçue, mais sur chaque facture, tous les mois.
+      </p>
+    </section>
+
+    <section id="factures" class="mb-12">
+      <div class="font-jetbrains text-[10px] tracking-widest mb-2" style="color: #2563EB;">06 · ERREUR 5</div>
+      <h2 class="font-bricolage font-bold text-3xl mb-4 text-slate-900">Des factures validées en bloc</h2>
+      <p>
+        Les factures arrivent groupées, les lignes sont nombreuses, la marchandise est déjà livrée : on valide. Les
+        estimations du secteur situent pourtant entre <strong>5 et 6 %</strong> la part des factures de transporteurs mal
+        calculées, et autour de <strong>5 %</strong> celle des colis mal facturés en e-commerce. Une erreur que personne ne
+        relève n’est jamais remboursée.
+      </p>
+      <p>
+        Dernier symptôme : aucune vision par transporteur. Quand vient la renégociation annuelle, il manque les chiffres
+        essentiels (coût réel au MPL et à la palette, taux de remplissage, nombre d’écarts constatés). On négocie au ressenti.
+      </p>
+    </section>
+
+    <section id="methode" class="mb-12">
+      <div class="font-jetbrains text-[10px] tracking-widest mb-2" style="color: #2563EB;">07 · LA MÉTHODE</div>
+      <h2 class="font-bricolage font-bold text-3xl mb-4 text-slate-900">La pré-facturation en 4 étapes</h2>
+      <p>
+        Les chargeurs qui maîtrisent leurs coûts appliquent une méthode simple, appelée <strong>pré-facturation</strong> ou
+        <strong>contrôle de facture transport</strong> :
+      </p>
+      <figure class="my-8">
+        <svg viewBox="0 0 720 150" class="w-full h-auto" role="img" aria-label="Pré-facturation : 1. plan de chargement, 2. coût théorique, 3. rapprochement avec la facture, 4. revue mensuelle par transporteur.">
+          <g font-family="DM Sans, sans-serif">
+            <rect x="8" y="30" width="160" height="90" rx="10" fill="#EFF6FF" stroke="#2563EB" stroke-width="2"/>
+            <text x="88" y="62" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="12" fill="#2563EB">01</text>
+            <text x="88" y="84" text-anchor="middle" font-size="15" font-weight="700" fill="#0F172A">Plan de</text>
+            <text x="88" y="102" text-anchor="middle" font-size="15" font-weight="700" fill="#0F172A">chargement</text>
+            <rect x="192" y="30" width="160" height="90" rx="10" fill="#EFF6FF" stroke="#2563EB" stroke-width="2"/>
+            <text x="272" y="62" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="12" fill="#2563EB">02</text>
+            <text x="272" y="84" text-anchor="middle" font-size="15" font-weight="700" fill="#0F172A">Coût</text>
+            <text x="272" y="102" text-anchor="middle" font-size="15" font-weight="700" fill="#0F172A">théorique</text>
+            <rect x="376" y="30" width="160" height="90" rx="10" fill="#FEF3C7" stroke="#F59E0B" stroke-width="2"/>
+            <text x="456" y="62" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="12" fill="#B45309">03</text>
+            <text x="456" y="84" text-anchor="middle" font-size="15" font-weight="700" fill="#0F172A">Facture vs</text>
+            <text x="456" y="102" text-anchor="middle" font-size="15" font-weight="700" fill="#0F172A">théorique</text>
+            <rect x="560" y="30" width="152" height="90" rx="10" fill="#F0FDF4" stroke="#15803D" stroke-width="2"/>
+            <text x="636" y="62" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="12" fill="#15803D">04</text>
+            <text x="636" y="84" text-anchor="middle" font-size="15" font-weight="700" fill="#0F172A">Revue</text>
+            <text x="636" y="102" text-anchor="middle" font-size="15" font-weight="700" fill="#0F172A">mensuelle</text>
+            <path d="M170 75 h18 M182 69 l6 6 l-6 6" stroke="#64748B" stroke-width="2" fill="none"/>
+            <path d="M354 75 h18 M366 69 l6 6 l-6 6" stroke="#64748B" stroke-width="2" fill="none"/>
+            <path d="M538 75 h18 M550 69 l6 6 l-6 6" stroke="#64748B" stroke-width="2" fill="none"/>
+          </g>
+        </svg>
+        <figcaption class="text-xs text-slate-500 text-center mt-2">Calculer avant de réserver, comparer à réception, traiter seulement les écarts.</figcaption>
+      </figure>
+      <ol>
+        <li><strong>Simuler avant de réserver</strong> : plan de chargement, véhicule adapté, mètres plancher et poids taxable connus.</li>
+        <li><strong>Calculer le coût théorique</strong> de chaque expédition avec la grille du transporteur, au moment de l’envoi, et le figer.</li>
+        <li><strong>Rapprocher chaque facture</strong> de ce coût théorique, et n’analyser que les écarts au-delà d’une tolérance (par exemple 3 %).</li>
+        <li><strong>Faire une revue mensuelle par transporteur</strong> : volumes, coût au MPL et à la palette, remplissage, écarts. C’est la base de la négociation.</li>
+      </ol>
+      <p>
+        Sans outil, ces quatre étapes demandent des heures de tableur. C’est exactement ce qu’Atelier Logistique automatise.
+      </p>
+    </section>
+
+    <section id="outil" class="mb-12">
+      <div class="font-jetbrains text-[10px] tracking-widest mb-2" style="color: #2563EB;">08 · L’OUTIL</div>
+      <h2 class="font-bricolage font-bold text-3xl mb-4 text-slate-900">Ce que fait Atelier Logistique</h2>
+      <h3 class="font-bricolage font-semibold text-xl mb-2 text-slate-900">Vos transporteurs et leurs grilles, au même endroit</h3>
+      <ul>
+        <li>facturation au <strong>mètre plancher</strong>, à la <strong>palette</strong>, aux <strong>100 kg taxables</strong> ou au <strong>forfait par véhicule</strong> ;</li>
+        <li><strong>grille tarifaire</strong> par <strong>agence</strong>, par <strong>tournée</strong> ou par <strong>zone</strong>, choisies dans vos listes (priorité : agence, puis tournée, puis zone) ;</li>
+        <li><strong>minimum de perception</strong>, <strong>frais par arrêt supplémentaire</strong> ;</li>
+        <li><strong>surcharge gazole publiée chaque mois</strong>, appliquée selon le mois de départ.</li>
+      </ul>
+      <h3 class="font-bricolage font-semibold text-xl mb-2 mt-6 text-slate-900">Le coût théorique sur chaque chargement</h3>
+      <p>
+        Dès que le plan de chargement 3D est calculé, l’en-tête affiche le coût théorique du transporteur choisi, avec le
+        détail : MPL, tarif retenu, frais d’arrêts, gazole. Le coût est figé à l’envoi au quai. Et si un autre transporteur
+        est moins cher pour ce plan précis, un bouton le signale (« Trans Sud : −415 € ») : un clic pour le choisir.
+      </p>
+      <h3 class="font-bricolage font-semibold text-xl mb-2 mt-6 text-slate-900">Le contrôle transport, mois par mois</h3>
+      <ul>
+        <li>coût théorique, montant facturé et <strong>écart</strong>, par chargement et par transporteur ;</li>
+        <li><strong>MPL réalisés et MPL facturés</strong>, coût au MPL et à la palette, remplissage moyen ;</li>
+        <li>un statut par chargement : <em>Conforme</em>, <em>Surfacturé</em>, <em>Sous le devis</em>, <em>À facturer</em> ;</li>
+        <li><strong>import de la facture</strong> du transporteur (CSV ou copier-coller Excel), rapprochée automatiquement par numéro de chargement ou référence WMS / ERP ;</li>
+        <li><strong>export</strong> du mois pour la réunion avec le transporteur.</li>
+      </ul>
+      <div class="my-8 rounded-lg border border-slate-200 p-5" style="background: #F8FAFC;">
+        <div class="font-jetbrains text-[10px] tracking-widest mb-2 text-slate-500">PAR OÙ COMMENCER</div>
+        <ol class="mb-0">
+          <li>Créez vos transporteurs et saisissez leur grille : une ligne par tournée suffit pour démarrer.</li>
+          <li>Choisissez le transporteur sur vos chargements : le coût théorique se calcule seul (le transporteur par défaut d’une tournée est proposé automatiquement).</li>
+          <li>En fin de mois, importez la facture dans <strong>Contrôle transport</strong> et ne traitez que les écarts signalés.</li>
+        </ol>
+      </div>
+    </section>
+
+    <section id="faq" class="mb-12">
+      <div class="font-jetbrains text-[10px] tracking-widest mb-2" style="color: #2563EB;">09 · FAQ</div>
+      <h2 class="font-bricolage font-bold text-3xl mb-6 text-slate-900">Questions fréquentes</h2>
+      <div class="space-y-3">
+        <details class="rounded-lg border border-slate-200 p-4 group">
+          <summary class="font-bricolage font-semibold text-slate-900 cursor-pointer flex items-center justify-between">
+            <span>Comment contrôler une facture de transport ?</span>
+            <svg class="w-4 h-4 transition-transform group-open:rotate-180 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </summary>
+          <p class="mt-3 text-sm text-slate-600 leading-relaxed">En recalculant le coût attendu de chaque expédition avec la grille du transporteur (mode de facturation, tarif de la zone ou de la tournée, minimum, frais d’arrêt, surcharge gazole du mois), puis en le comparant au montant facturé. Seuls les écarts au-delà d’une tolérance, par exemple 3 %, sont analysés et réclamés.</p>
+        </details>
+
+        <details class="rounded-lg border border-slate-200 p-4 group">
+          <summary class="font-bricolage font-semibold text-slate-900 cursor-pointer flex items-center justify-between">
+            <span>Qu’est-ce que la pré-facturation transport ?</span>
+            <svg class="w-4 h-4 transition-transform group-open:rotate-180 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </summary>
+          <p class="mt-3 text-sm text-slate-600 leading-relaxed">C’est le calcul, par le chargeur, du prix théorique de chaque expédition au moment où elle part, à partir du contrat transporteur. À réception de la facture, il suffit de rapprocher les deux montants au lieu de tout vérifier à la main.</p>
+        </details>
+
+        <details class="rounded-lg border border-slate-200 p-4 group">
+          <summary class="font-bricolage font-semibold text-slate-900 cursor-pointer flex items-center justify-between">
+            <span>Comment sont facturés les mètres plancher ?</span>
+            <svg class="w-4 h-4 transition-transform group-open:rotate-180 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </summary>
+          <p class="mt-3 text-sm text-slate-600 leading-relaxed">Le mètre plancher (MPL) est la surface au sol occupée divisée par 2,4 m, la largeur intérieure d’une remorque ; les colis gerbés ne comptent pas. Le transporteur multiplie le nombre de MPL, souvent arrondi au dixième supérieur, par son tarif au MPL. Calculer vos MPL réels permet de vérifier la quantité facturée.</p>
+        </details>
+
+        <details class="rounded-lg border border-slate-200 p-4 group">
+          <summary class="font-bricolage font-semibold text-slate-900 cursor-pointer flex items-center justify-between">
+            <span>Comment est calculée la surcharge gazole ?</span>
+            <svg class="w-4 h-4 transition-transform group-open:rotate-180 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </summary>
+          <p class="mt-3 text-sm text-slate-600 leading-relaxed">La plupart des transporteurs publient chaque mois un pourcentage de surcharge gazole, indexé sur le prix du gazole. Il s’applique au montant du transport. Le contrôle consiste à vérifier que le taux appliqué est bien celui du mois de l’expédition.</p>
+        </details>
+
+        <details class="rounded-lg border border-slate-200 p-4 group">
+          <summary class="font-bricolage font-semibold text-slate-900 cursor-pointer flex items-center justify-between">
+            <span>Quel transporteur choisir pour un chargement ?</span>
+            <svg class="w-4 h-4 transition-transform group-open:rotate-180 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </summary>
+          <p class="mt-3 text-sm text-slate-600 leading-relaxed">Celui dont la grille donne le coût le plus bas pour ce chargement précis : selon le volume, les mètres plancher, le poids taxable, les destinations et le nombre d’arrêts, ce n’est pas toujours le même. Comparer les grilles sur le plan de chargement réel, avant de réserver, évite de surpayer.</p>
+        </details>
+
+        <details class="rounded-lg border border-slate-200 p-4 group">
+          <summary class="font-bricolage font-semibold text-slate-900 cursor-pointer flex items-center justify-between">
+            <span>Existe-t-il un outil pour contrôler ses factures transport ?</span>
+            <svg class="w-4 h-4 transition-transform group-open:rotate-180 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </summary>
+          <p class="mt-3 text-sm text-slate-600 leading-relaxed">Oui. L’espace Atelier Logistique calcule le coût théorique de chaque chargement d’après la grille de vos transporteurs, importe leurs factures (CSV ou Excel), signale les écarts et produit une synthèse mensuelle par transporteur. Il est gratuit pendant la phase pilote.</p>
+        </details>
+      </div>
+    </section>
+
+    <p class="text-xs text-slate-400 mb-10">Sources : estimations sectorielles sur les erreurs de facturation transport (Beancount, « Freight invoice audit », 2026 ; Sendcloud, « Repérer les surcharges transporteur cachées ») ; coûts de revient porteur 19 t et ensembles articulés en régional : CNR, enquête Porteurs 19 tonnes régional, décembre 2024. L’écart de 140 € par jour est une estimation d’Atelier Logistique à partir de ces données.</p>
+
+    <!-- À LIRE AUSSI -->
+    <section class="mb-4">
+      <div class="font-jetbrains text-[10px] tracking-widest mb-3 text-slate-500">À LIRE AUSSI</div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3 not-prose">
+        <a href="/ressources/plan-de-chargement-camion" class="block rounded-lg border border-slate-200 p-4 hover:bg-slate-50 transition-colors" style="text-decoration: none;">
+          <div class="font-jetbrains text-[10px] tracking-widest mb-1" style="color: #0369A1;">GUIDE</div>
+          <div class="font-bricolage font-semibold text-slate-900">Plan de chargement camion : méthode et tournées multi-arrêts</div>
+        </a>
+        <a href="/ressources/repartition-des-charges-camion" class="block rounded-lg border border-slate-200 p-4 hover:bg-slate-50 transition-colors" style="text-decoration: none;">
+          <div class="font-jetbrains text-[10px] tracking-widest mb-1" style="color: #15803D;">GUIDE</div>
+          <div class="font-bricolage font-semibold text-slate-900">Répartition des charges d’un camion : charge à l’essieu et calcul</div>
+        </a>
+        <a href="/capacite" class="block rounded-lg border border-slate-200 p-4 hover:bg-slate-50 transition-colors md:col-span-2" style="text-decoration: none;">
+          <div class="font-jetbrains text-[10px] tracking-widest mb-1" style="color: #2563EB;">TABLEAU</div>
+          <div class="font-bricolage font-semibold text-slate-900">Combien de palettes par camion et par conteneur ?</div>
+        </a>
+      </div>
+    </section>
+    <!-- À PROPOS DE L'AUTEUR (bloc commun : /ressources/auteur.js) -->
+    <div id="auteur"></div>
+  </main>
+
+  <!-- CTA ESPACE (CONNEXION) -->
+  <section class="border-t border-slate-200" style="background: #F8FAFC;">
+    <div class="max-w-3xl mx-auto px-6 md:px-10 py-14 text-center">
+      <div class="font-jetbrains text-[10px] tracking-widest mb-3" style="color: #2563EB;">ESPACE ATELIER LOGISTIQUE · GRATUIT PENDANT LA PHASE PILOTE</div>
+      <h2 class="font-bricolage font-bold text-3xl md:text-4xl mb-4 text-slate-900 tracking-tight">Vos factures transport, enfin contrôlées</h2>
+      <p class="text-slate-600 mb-8 max-w-xl mx-auto leading-relaxed">Grilles de vos transporteurs, coût théorique de chaque chargement, transporteur le moins cher, import des factures et synthèse mensuelle des écarts. Créez votre espace en une minute, sans carte bancaire.</p>
+      <div class="flex flex-col sm:flex-row items-center justify-center gap-3">
+        <a href="/connexion" class="inline-flex items-center gap-2 px-6 py-3.5 rounded-md font-jetbrains text-xs font-medium shadow-lg transition-transform hover:translate-y-[-1px] text-white" style="background: #2563EB;">
+          CRÉER MON ESPACE GRATUIT
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </a>
+        <a href="/outils/optimiseur-chargement" class="inline-flex items-center gap-2 px-6 py-3.5 rounded-md font-jetbrains text-xs font-medium border border-slate-300 text-slate-700 hover:bg-white">
+          TESTER L’OPTIMISEUR 3D SANS COMPTE
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA AUDIT FLASH -->
+  <section class="text-white" style="background: linear-gradient(135deg, #0F172A 0%, #1E3A8A 70%, #B45309 100%);">
+    <div class="max-w-3xl mx-auto px-6 md:px-10 py-14">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
+        <div class="md:col-span-2">
+          <div class="font-jetbrains text-[10px] tracking-widest mb-2" style="color: #F59E0B;">AUDIT FLASH SUPPLY CHAIN</div>
+          <div class="font-bricolage font-bold text-2xl md:text-3xl mb-3 leading-tight tracking-tight">Auditez votre supply chain en 5 minutes</div>
+          <div class="text-slate-300 text-sm leading-relaxed">L'Audit Flash analyse vos ventes et votre stock pour identifier les chantiers prioritaires : stock dormant chiffré, OTIF achat et client, déséquilibres inter-magasins, articles à risque. Diagnostic gratuit avec rapport PDF.</div>
+        </div>
+        <div>
+          <a href="/outils/audit" class="inline-flex items-center justify-center gap-2 w-full px-5 py-3 rounded-md font-jetbrains text-xs font-bold shadow-lg" style="background: #F59E0B; color: #0F172A;">
+            LANCER L'AUDIT FLASH
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="border-t border-slate-200 bg-white">
+    <div class="max-w-7xl mx-auto px-6 md:px-10 py-8 flex flex-col md:flex-row md:items-center md:justify-between gap-3 font-jetbrains text-[11px] text-slate-500">
+      <div>ATELIER LOGISTIQUE © 2026 — La boîte à outils des pros de la supply chain</div>
+      <div class="flex items-center gap-5">
+        <a href="/" class="hover:text-slate-900">Tous les outils</a>
+        <a href="/outils/optimiseur-chargement" class="hover:text-slate-900">Optimiseur 3D</a>
+        <a href="/outils/audit" class="hover:text-slate-900">Audit Flash</a>
+        <a href="mailto:contact@atelierlogistique.com" class="hover:text-slate-900">Contact</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="/ressources/auteur.js" defer></script>
+</body>
+</html>
+
