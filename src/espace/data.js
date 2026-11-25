@@ -523,3 +523,53 @@ export async function setDeparture(id, day) {
   const { error } = await sb.from('shipments').update({ departure_at: day ? `${day}T00:00:00.000Z` : null }).eq('id', id);
   fail(error);
 }
+
+// ---------------------------------------------------------------- Supprimer / dupliquer
+const missingFn = (error, fn) => error && new RegExp(`${fn}|schema cache|does not exist`, 'i').test(error.message);
+
+/**
+ * Supprime définitivement un chargement et ses dépendances : palettisations, chargements regroupés dans
+ * celui-ci, versions, confirmations ; photos de preuve effacées du stockage d'abord. Le WMS reçoit « annulé ».
+ */
+export async function deleteShipment(id) {
+  const sb = await getSupabase();
+  const { data: loads } = await sb.from('shipment_loadings').select('photos').eq('shipment_id', id);
+  const photos = (loads ?? []).flatMap((l) => l.photos ?? []);
+  if (photos.length) await sb.storage.from('preuves').remove(photos).catch(() => {}); // photos : au mieux
+  const { data, error } = await sb.rpc('delete_shipment', { p_id: id });
+  if (missingFn(error, 'delete_shipment')) throw new Error('Suppression indisponible : exécutez le script SQL 20261125000012 dans Supabase.');
+  fail(error);
+  return { ...data, photos: photos.length };
+}
+
+/** Supprime une palettisation ; ses palettes sont retirées de son chargement s'il est encore modifiable. */
+export async function deletePalletization(id) {
+  const sb = await getSupabase();
+  const { data, error } = await sb.rpc('delete_palletization', { p_id: id });
+  if (missingFn(error, 'delete_palletization')) throw new Error('Suppression indisponible : exécutez le script SQL 20261125000012 dans Supabase.');
+  fail(error);
+  return data;
+}
+
+/** Copie d'un document (saisie et plan) : nouveau n°, statut Nouveau, sans référence WMS ni date de départ. */
+async function duplicate(table, doc) {
+  const sb = await getSupabase();
+  const { data, error } = await sb.from(table).insert({
+    org_id: doc.org_id, source: 'web', status: 'new',
+    label: `Copie de ${doc.label || doc.code}`.slice(0, 200),
+    // Les lignes ne sont plus « reçues » d'une palettisation : la copie est indépendante.
+    input: { ...(doc.input ?? {}), rows: (doc.input?.rows ?? []).map(({ origin, fromShipment, ...r }) => r) },
+    result: doc.result ?? null,
+  }).select('code').single();
+  fail(error);
+  return data.code;
+}
+export const duplicateShipment = (doc) => duplicate('shipments', doc);
+export const duplicatePalletization = (doc) => duplicate('palletizations', doc);
+
+/** Nombre de chargements d'origine regroupés dans celui-ci (pour annoncer ce que la suppression emporte). */
+export async function mergedCount(orgId, code) {
+  const sb = await getSupabase();
+  const { count } = await sb.from('shipments').select('id', { count: 'exact', head: true }).eq('org_id', orgId).eq('merged_into', code);
+  return count ?? 0;
+}
