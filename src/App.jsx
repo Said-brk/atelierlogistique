@@ -153,6 +153,15 @@ const ARTICLES = [
     cta: 'optimiseur-chargement',
   },
   {
+    slug: 'controle-factures-transport',
+    tag: 'Guide',
+    title: 'Contrôle des factures transport : pourquoi vous payez plus que prévu',
+    desc: 'Camion surdimensionné, mètres plancher non vérifiés, grilles par zone, surcharge gazole : les erreurs courantes et la méthode de pré-facturation pour contrôler chaque facture.',
+    icon: Truck,
+    color: '#B45309', light: '#FEF3C7', border: '#FDE68A',
+    cta: 'optimiseur-chargement',
+  },
+  {
     slug: 'arrimage-des-charges',
     tag: 'Guide',
     title: 'Arrimage des charges : combien de sangles et qui est responsable',
