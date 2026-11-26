@@ -8,6 +8,7 @@ import { useEspace } from '../useEspace';
 import { renameOrganization, signOut, ROLES } from '../data';
 import { PageHeader, Btn } from '../ui';
 import PasswordForm, { hasPassword } from '../PasswordForm';
+import { usesSso } from '../../shared/account/supabase';
 import TeamPage from './TeamPage';
 import ApiKeysPage from './ApiKeysPage';
 import ReferencesPage from './ReferencesPage';
@@ -52,7 +53,9 @@ function AccountTab() {
     <section className="rounded-xl bg-white border border-slate-200 p-5 space-y-3 max-w-xl">
       <div className="flex items-center gap-2 font-semibold text-slate-900"><UserRound size={17} /> Mon compte</div>
       <div className="text-sm text-slate-600">{user.email}</div>
-      <div className="text-xs text-slate-500">{hasPassword(user) ? 'Connexion par e-mail et mot de passe.' : 'Pas encore de mot de passe : définissez-en un pour vous connecter sans attendre d’e-mail.'}</div>
+      <div className="text-xs text-slate-500">{usesSso(user)
+        ? `Connexion avec ${(user.app_metadata?.providers ?? []).includes('google') ? 'Google' : 'Microsoft'}${hasPassword(user) ? ', ou par e-mail et mot de passe.' : '. Vous pouvez aussi définir un mot de passe.'}`
+        : hasPassword(user) ? 'Connexion par e-mail et mot de passe.' : 'Pas encore de mot de passe : définissez-en un pour vous connecter sans attendre d’e-mail.'}</div>
       <PasswordForm user={user} />
       <Btn variant="ghost" onClick={async () => { await signOut(); navigate('/', { replace: true }); }}><LogOut size={15} /> Se déconnecter</Btn>
     </section>

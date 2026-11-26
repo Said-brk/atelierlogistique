@@ -5,7 +5,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Mail, LogOut, Building2, Loader2, CheckCircle2, Truck, KeyRound, ArrowRight } from 'lucide-react';
-import { getSupabase, accountEnabled, passwordStep } from './supabase';
+import { getSupabase, accountEnabled, passwordStep, SSO_PROVIDERS, signInWithProvider } from './supabase';
 
 const BLUE = '#2563EB';
 
@@ -61,6 +61,51 @@ const LOGIN_ERRORS = [
 ];
 const loginError = (err) => LOGIN_ERRORS.find(([re]) => re.test(err?.message ?? ''))?.[1] ?? 'Échec. Vérifiez l’adresse et réessayez.';
 
+// Retour de Microsoft / Google en erreur (?error=…&error_description=…).
+function ssoError(params) {
+  const code = params.get('error'); const desc = params.get('error_description') ?? '';
+  if (!code && !desc) return '';
+  if (/consent|admin/i.test(desc)) return 'Votre organisation exige l’accord de son administrateur pour cette application. Demandez-le à votre service informatique, ou connectez-vous par e-mail.';
+  if (/email/i.test(desc)) return 'Le fournisseur n’a pas transmis votre adresse e-mail. Réessayez ou utilisez l’e-mail et le mot de passe.';
+  if (/access_denied|cancel/i.test(code + desc)) return 'Connexion annulée.';
+  return `Connexion impossible : ${desc || code}.`;
+}
+
+/** Logos officiels (couleurs de marque) des fournisseurs. */
+function MicrosoftLogo() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 21 21" aria-hidden="true">
+      <rect x="1" y="1" width="9" height="9" fill="#F25022" /><rect x="11" y="1" width="9" height="9" fill="#7FBA00" />
+      <rect x="1" y="11" width="9" height="9" fill="#00A4EF" /><rect x="11" y="11" width="9" height="9" fill="#FFB900" />
+    </svg>
+  );
+}
+const PROVIDERS = { azure: { label: 'Continuer avec Microsoft', Logo: MicrosoftLogo } };
+
+function SsoButtons({ onError }) {
+  const [busy, setBusy] = useState('');
+  const go = async (p) => {
+    setBusy(p); onError('');
+    try { await signInWithProvider(p); } catch { setBusy(''); onError('Connexion impossible pour le moment. Réessayez ou utilisez l’e-mail.'); }
+  };
+  const list = SSO_PROVIDERS.filter((p) => PROVIDERS[p]);
+  if (!list.length) return null;
+  return (
+    <div className="space-y-2 mb-5">
+      {list.map((p) => {
+        const { label, Logo } = PROVIDERS[p];
+        return (
+          <button key={p} type="button" onClick={() => go(p)} disabled={!!busy}
+            className="w-full inline-flex items-center justify-center gap-2.5 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 hover:bg-slate-50 disabled:opacity-60">
+            {busy === p ? <Loader2 size={18} className="animate-spin" /> : <Logo />} {label}
+          </button>
+        );
+      })}
+      <div className="flex items-center gap-3 pt-2 text-xs text-slate-400"><span className="h-px flex-1 bg-slate-200" />ou avec votre e-mail<span className="h-px flex-1 bg-slate-200" /></div>
+    </div>
+  );
+}
+
 const fieldCls = 'w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200';
 const TITLES = {
   login: ['Se connecter', 'Retrouvez vos chargements et palettisations. Les outils restent utilisables sans compte.'],
@@ -77,8 +122,10 @@ export function LoginPage() {
   const [mode, setMode] = useState(() => (params.get('mode') === 'inscription' ? 'signup' : 'login'));
   const [email, setEmail] = useState(params.get('email') ?? '');
   const [password, setPassword] = useState('');
-  const [state, setState] = useState('idle'); // idle | sending | sent | error
-  const [error, setError] = useState('');
+  const [state, setState] = useState(() => (ssoError(params) ? 'error' : 'idle')); // idle | sending | sent | error
+  const [error, setError] = useState(() => ssoError(params));
+  // Nettoie l'URL après un retour en erreur de Microsoft / Google.
+  useEffect(() => { if (params.get('error') || params.get('error_description')) window.history.replaceState(null, '', '/connexion'); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { if (session) navigate('/app', { replace: true }); }, [session, navigate]);
   if (!accountEnabled) return <Disabled />;
@@ -129,7 +176,8 @@ export function LoginPage() {
             </div>
             <p className="text-sm text-slate-500">{link('login', '← Retour à la connexion')}</p>
           </div>
-        ) : (
+        ) : (<>
+          {mode !== 'forgot' && <SsoButtons onError={(m) => { setError(m); setState(m ? 'error' : 'idle'); }} />}
           <form onSubmit={submit} className="space-y-3">
             <label className="block text-xs font-jetbrains text-slate-500" htmlFor="email">ADRESSE E-MAIL PROFESSIONNELLE</label>
             <input id="email" type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)}
@@ -151,7 +199,7 @@ export function LoginPage() {
               {mode === 'login' ? <p>Pas encore de compte ? {link('signup', 'Créer un compte')}</p> : <p>{link('login', '← Retour à la connexion')}</p>}
             </div>
           </form>
-        )}
+        </>)}
       </Card>
     </Shell>
   );
