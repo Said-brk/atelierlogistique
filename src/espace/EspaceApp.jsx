@@ -10,7 +10,7 @@ import { Routes, Route, NavLink, Navigate, useNavigate, useLocation, useMatch } 
 import { LayoutDashboard, Truck, Boxes, KeyRound, Settings, Plus, LogOut, Menu, X, ExternalLink, Loader2, Building2, ArrowRight, PanelLeftClose, PanelLeftOpen, Mail, ChevronDown, ChevronRight, Wrench, Combine, Receipt } from 'lucide-react';
 import { EspaceProvider, useEspace } from './useEspace';
 import { I18nProvider } from '../shared/i18n/I18nProvider.jsx';
-import { accountEnabled, passwordStep } from '../shared/account/supabase';
+import { accountEnabled, passwordStep, usesSso } from '../shared/account/supabase';
 import { hasPassword } from './PasswordForm';
 import { createOrganization, signOut, setPassword, acceptInvitation, declineInvitation, ROLES } from './data';
 import Dashboard from './pages/Dashboard';
@@ -302,7 +302,8 @@ function Gate({ children }) {
   if (!session || orgs === null) {
     return <div className="min-h-screen flex items-center justify-center bg-slate-50 text-slate-400"><Loader2 className="animate-spin" /></div>;
   }
-  if (passwordStep.pending() || !hasPassword(session.user)) return <ChoosePassword />;
+  // Compte Microsoft / Google : pas de mot de passe exigé.
+  if (!usesSso(session.user) && (passwordStep.pending() || !hasPassword(session.user))) return <ChoosePassword />;
   if (invitations.length > 0 && !skipInvites) return <Invitations canSkip={orgs.length > 0} onSkip={() => setSkipInvites(true)} />;
   if (orgs.length === 0) return <Onboarding />;
   return children;

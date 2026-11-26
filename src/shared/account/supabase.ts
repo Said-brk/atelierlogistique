@@ -45,3 +45,30 @@ export const passwordStep = {
   pending: (): boolean => { try { return localStorage.getItem(PASSWORD_STEP_KEY) === '1'; } catch { return false; } },
   clear: () => { try { localStorage.removeItem(PASSWORD_STEP_KEY); } catch { /* stockage indisponible */ } },
 };
+
+// ---------------------------------------------------------------- Connexion avec un fournisseur (SSO)
+/** Fournisseurs activés dans Supabase (Authentication › Sign In / Providers). */
+export type SsoProvider = 'azure' | 'google';
+export const SSO_PROVIDERS: SsoProvider[] = ['azure'];
+
+/** Le compte se connecte-t-il via Microsoft / Google (pas de mot de passe exigé) ? */
+export function usesSso(user: { app_metadata?: { provider?: string; providers?: string[] } } | null | undefined): boolean {
+  const list = user?.app_metadata?.providers ?? (user?.app_metadata?.provider ? [user.app_metadata.provider] : []);
+  return list.some((p) => p && p !== 'email');
+}
+
+/** Redirige vers Microsoft / Google ; retour sur /connexion, qui ouvre l'espace une fois la session créée. */
+export async function signInWithProvider(provider: SsoProvider): Promise<void> {
+  const sb = await getSupabase();
+  passwordStep.clear();
+  const { error } = await sb.auth.signInWithOAuth({
+    provider,
+    options: {
+      redirectTo: `${window.location.origin}/connexion`,
+      // Microsoft doit renvoyer l'adresse e-mail (exigé par Supabase).
+      scopes: provider === 'azure' ? 'openid email profile' : undefined,
+      queryParams: { prompt: 'select_account' },
+    },
+  });
+  if (error) throw error;
+}
