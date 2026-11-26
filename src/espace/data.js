@@ -471,7 +471,7 @@ export const CONSOLIDABLE = ['new', 'in_progress', 'validated'];
 export async function datedShipments(orgId) {
   const sb = await getSupabase();
   const since = new Date(Date.now() - 864e5).toISOString().slice(0, 10);
-  const { data, error } = await sb.from('shipments').select(`id, code, label, external_id, status, departure_at, tour, updated_at, input, ${SUMMARY}`)
+  const { data, error } = await sb.from('shipments').select(`id, code, label, external_id, status, departure_at, tour, carrier, updated_at, input, ${SUMMARY}`)
     .eq('org_id', orgId).in('status', CONSOLIDABLE).gte('departure_at', since).order('departure_at').limit(300);
   fail(error);
   return data;
@@ -483,7 +483,7 @@ export async function datedShipments(orgId) {
  * dans PL-… »). La base revérifie que chaque original est encore regroupable et inchangé depuis l'analyse
  * (updated_at) ; sinon rien n'est fait. Renvoie le n° du nouveau chargement.
  */
-export async function consolidateShipments(orgId, list, { rows, plan, summary, fleetVehicles, label, tour }) {
+export async function consolidateShipments(orgId, list, { rows, plan, summary, fleetVehicles, label, tour, carrier }) {
   const sb = await getSupabase();
   const { data, error } = await sb.rpc('consolidate_shipments', {
     p_org: orgId,
@@ -499,7 +499,8 @@ export async function consolidateShipments(orgId, list, { rows, plan, summary, f
   }
   fail(error);
   // Tournée commune aux chargements regroupés : reportée sur le nouveau chargement.
-  if (tour) await sb.from('shipments').update({ tour }).eq('org_id', orgId).eq('code', data);
+  // Tournée et transporteur communs aux chargements regroupés : reportés sur le nouveau chargement.
+  if (tour || carrier) await sb.from('shipments').update({ ...(tour ? { tour } : {}), ...(carrier ? { carrier } : {}) }).eq('org_id', orgId).eq('code', data);
   return data;
 }
 

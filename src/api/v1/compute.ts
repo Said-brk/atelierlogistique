@@ -6,6 +6,7 @@ import { planFleet } from '../../outils/optimiseur-chargement/engine/fleet';
 import { encodePlan } from '../../outils/optimiseur-chargement/guide/planLink';
 import { rowsToDefinitions } from '../../outils/optimiseur-chargement/uiHelpers';
 import { CONTAINER_PRESETS } from '../../outils/optimiseur-chargement/constants/containers';
+import { floorMeters, goodsFacts, vehiclesOf } from '../../outils/optimiseur-chargement/engine/floorMeters';
 import type { ContainerDefinition } from '../../outils/optimiseur-chargement/engine/types';
 import type { ParsedShipment } from './schema';
 
@@ -32,8 +33,10 @@ export async function computePlan(input: ParsedShipment['input']) {
     const vehicles = (input.fleetVehicles ?? []).filter((v) => v.enabled).map((v) => ({ container: v.container, cost: v.cost }));
     const fleet = planFleet(defs, vehicles, opts);
     const guides = [];
+    let ldm = 0;
     for (const t of fleet.trucks) {
       const r = optimizeWithInsights(t.container, t.definitions, opts);
+      ldm += floorMeters(r.placedItems, t.container).ldm;
       const label = `${t.index}. ${labelOf(t.container)}`;
       guides.push({ index: t.index, label, units: r.placedItems.length, guide: await encodePlan({ ...t.container, label }, r.placedItems) });
     }
@@ -43,6 +46,8 @@ export async function computePlan(input: ParsedShipment['input']) {
       vehicle: byVehicle.map(([l, k]) => `${k} × ${l}`).join(' + '), fleet: n,
       packed: fleet.trucks.reduce((s, t) => s + t.units, 0), unpacked: fleet.unplaced.reduce((s, u) => s + u.quantity, 0),
       fill: fleet.trucks.reduce((s, t) => s + t.volumeUtilization, 0) / n, weight: fleet.trucks.reduce((s, t) => s + t.weight, 0), edited: false,
+      ldm: Math.round(ldm * 100) / 100, ...goodsFacts(fleet.trucks.flatMap((t) => t.definitions)),
+      vehicles: vehiclesOf(fleet.trucks.map((t) => ({ id: t.container.id, label: t.container.label }))),
     } : { vehicle: '—', fleet: 0, packed: 0, unpacked: fleet.unplaced.reduce((s, u) => s + u.quantity, 0), fill: 0, weight: 0, edited: false };
     return { summary, plan: { fleet, guides } };
   }
@@ -51,7 +56,11 @@ export async function computePlan(input: ParsedShipment['input']) {
   const base = optimizeWithInsights(container, defs, opts);
   const guide = await encodePlan(container, base.placedItems);
   return {
-    summary: { vehicle: container.label, packed: base.packedItems, unpacked: base.unpackedCount, fill: base.volumeUtilization, weight: base.usedWeight, edited: false },
+    summary: {
+      vehicle: container.label, packed: base.packedItems, unpacked: base.unpackedCount, fill: base.volumeUtilization, weight: base.usedWeight, edited: false,
+      ldm: Math.round(floorMeters(base.placedItems, container).ldm * 100) / 100, ...goodsFacts(base.placedItems),
+      vehicles: [{ code: container.id, label: container.label, count: 1 }],
+    },
     plan: { base, manual: null, guide },
   };
 }

@@ -146,3 +146,27 @@ describe('API v1', () => {
     expect(input).toMatchObject({ containerId: 'custom', custom: { label: 'Caisse mobile', length: 720, maxWeight: 8000 } });
   });
 });
+
+describe('API v1 : transporteur et coût théorique', () => {
+  it('mode auto + transporteur : coût calculé avec la grille, MPL / palettes / véhicules dans le résumé', async () => {
+    const { db, ships } = memoryDb();
+    db.references = async () => [
+      { kind: 'carrier', code: 'GEO', label: 'Geodis', active: true, sort: 1, data: { billing: 'pallet', rate: 40, fuelPct: 10 } },
+    ] as any;
+    const r = await handle(req('POST', '/shipments', { reference: 'EXP-T', mode: 'auto', carrier: 'GEO', lines: LINES }), db);
+    expect(r.status).toBe(201);
+    const s = ships[0] as any;
+    expect(s.result.summary).toMatchObject({ pallets: 6, vehicles: [expect.objectContaining({ count: 1 })] });
+    expect(s.result.summary.ldm).toBeGreaterThan(0);
+    expect(s.carrier).toBe('GEO');
+    expect(Number(s.carrier_cost)).toBe(264); // 6 palettes × 40 € + 10 % (les 40 cartons ne sont pas des palettes)
+    expect((r.body as any).carrier_cost).toBe(264);
+  });
+  it('transporteur inconnu : coût vide et erreur explicite', async () => {
+    const { db, ships } = memoryDb();
+    db.references = async () => [];
+    await handle(req('POST', '/shipments', { reference: 'EXP-U', mode: 'auto', carrier: 'XX', lines: LINES }), db);
+    expect((ships[0] as any).carrier_cost).toBeNull();
+    expect((ships[0] as any).carrier_quote.error).toMatch(/inconnu/);
+  });
+});

@@ -213,7 +213,7 @@ export default function ApiDocsPage() {
             <Field name="label" type="texte">Libellé affiché dans l’espace.</Field>
             <Field name="departure_date" type="date ISO">Date de départ.</Field>
             <Field name="tour" type="texte">Code de la tournée (Paramètres › Tables de référence › Tournées).</Field>
-            <Field name="carrier / carrier_cost" type="texte / nombre">En sortie : transporteur choisi et coût théorique (€) d’après sa grille.</Field>
+            <Field name="carrier" type="texte">Code du transporteur (Paramètres › Transporteurs). En mode auto, le coût théorique est calculé avec sa grille et renvoyé dans <code>carrier_cost</code>.</Field>
             <Field name="lines" type="liste" req>Colis et palettes (2 000 lignes, 5 000 unités au maximum).</Field>
           </Table>
 

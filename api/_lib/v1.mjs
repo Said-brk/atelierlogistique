@@ -171,6 +171,7 @@ function parseShipment(body, catalog = null) {
       label: str(body.label, 120) || null,
       departureAt,
       ...body.tour !== void 0 ? { tour: str(body.tour, 40) || null } : {},
+      ...body.carrier !== void 0 ? { carrier: str(body.carrier, 40) || null } : {},
       mode,
       validate: body.validate === true,
       input: { ...input, rows },
@@ -245,6 +246,161 @@ function toToolReferences(items) {
   });
   const cons = items.find((i) => i.kind === "setting" && i.code === "consolidation")?.data;
   return { vehicles, pallets, lashing, agencies, tours, carriers, consolidation: { mode: cons?.mode === "tour" ? "tour" : "free" } };
+}
+
+// src/shared/carriers/pricing.ts
+var SCOPE_LABELS = { agency: "Agence", tour: "Tourn\xE9e", zone: "Zone" };
+var num2 = (v, d = 0) => {
+  const n2 = Number(v);
+  return Number.isFinite(n2) ? n2 : d;
+};
+var r2 = (v) => Math.round(v * 100) / 100;
+var ceilTo = (v, step) => Math.ceil(Math.round(v / step * 1e6) / 1e6) * step;
+var up = (v) => String(v ?? "").trim().toUpperCase();
+var lineOf = (l) => ({ scope: l.scope ?? "zone", key: up(l.key ?? l.zone) });
+function destRate(grid, base, d) {
+  for (const [scope, key] of [["agency", d.agency], ["tour", d.tour], ["zone", d.zone]]) {
+    const r = key ? grid.get(`${scope}:${up(key)}`) : void 0;
+    if (r != null) return { rate: r, via: `${SCOPE_LABELS[scope]} ${up(key)}` };
+  }
+  return base == null ? null : { rate: base, via: null };
+}
+function rateFor(c, dests = []) {
+  const grid = /* @__PURE__ */ new Map();
+  for (const l of c.zones ?? []) {
+    const { scope, key } = lineOf(l);
+    if (key && l.rate != null && Number.isFinite(Number(l.rate))) grid.set(`${scope}:${key}`, Number(l.rate));
+  }
+  const base = c.rate == null || c.rate === "" ? null : Number(c.rate);
+  if (!grid.size) return base == null ? { error: "Tarif manquant pour ce transporteur." } : { rate: base, zone: null };
+  let best = null;
+  for (const d of dests) {
+    const r = destRate(grid, base, d);
+    if (!r) return { error: `${d.agency} : ni agence, ni tourn\xE9e, ni zone dans la grille de ce transporteur.` };
+    if (!best || r.rate > best.rate) best = { rate: r.rate, zone: r.via };
+  }
+  if (best) return best;
+  return base == null ? { error: "Destinations inconnues : choisissez les agences dans les lignes." } : { rate: base, zone: null };
+}
+function fuelFor(c, month) {
+  const table = Object.entries(c.fuelByMonth ?? {}).filter(([, v]) => v != null && Number.isFinite(Number(v))).sort(([a], [b]) => a.localeCompare(b));
+  if (table.length && month) {
+    const past = table.filter(([m]) => m <= month);
+    if (past.length) {
+      const [m, v] = past[past.length - 1];
+      return { pct: Number(v), month: m };
+    }
+  }
+  return { pct: num2(c.fuelPct), month: null };
+}
+function quote(facts, c) {
+  let rate = 0;
+  let zone = null;
+  if (c.billing !== "ftl") {
+    const rf = rateFor(c, facts.dests ?? (facts.zones ?? []).map((z) => ({ agency: z, tour: null, zone: z })));
+    if ("error" in rf) return rf;
+    ({ rate, zone } = rf);
+  }
+  let qty = 0;
+  let unit = "";
+  let base = 0;
+  let taxable;
+  let lines;
+  switch (c.billing) {
+    case "ldm": {
+      if (facts.ldm == null) return { error: "M\xE8tres plancher non calcul\xE9s : lancez le calcul du plan." };
+      qty = r2(ceilTo(facts.ldm, 0.1));
+      unit = "MPL";
+      base = qty * rate;
+      break;
+    }
+    case "pallet": {
+      if (facts.pallets == null) {
+        qty = facts.units;
+        unit = qty > 1 ? "palettes" : "palette";
+      } else if (facts.pallets > 0) {
+        qty = facts.pallets;
+        unit = qty > 1 ? "palettes" : "palette";
+      } else {
+        qty = facts.ldm ? Math.ceil(Math.round(facts.ldm / 0.4 * 1e6) / 1e6) : 0;
+        unit = "\xE9quiv. palettes";
+      }
+      base = qty * rate;
+      break;
+    }
+    case "weight": {
+      const real = facts.weightKg;
+      const vol = facts.volumeM3 * num2(c.kgPerM3, 0);
+      const floor = facts.ldm == null ? 0 : facts.ldm * num2(c.kgPerLdm, 0);
+      const kg = Math.max(real, vol, floor);
+      taxable = { kg: Math.round(kg), by: kg === real ? "real" : kg === floor ? "floor" : "volume" };
+      qty = Math.ceil(Math.round(kg) / 100);
+      unit = "\xD7 100 kg";
+      base = qty * rate;
+      break;
+    }
+    case "ftl": {
+      if (!facts.vehicles.length) return { error: "Aucun v\xE9hicule : lancez le calcul du plan." };
+      lines = [];
+      for (const v of facts.vehicles) {
+        const p = c.prices?.[v.code];
+        if (p == null || !Number.isFinite(Number(p))) return { error: `Pas de forfait pour \xAB ${v.label} \xBB chez ce transporteur.` };
+        lines.push({ label: v.label, count: v.count, price: Number(p) });
+      }
+      qty = lines.reduce((s, l) => s + l.count, 0);
+      unit = qty > 1 ? "v\xE9hicules" : "v\xE9hicule";
+      base = lines.reduce((s, l) => s + l.count * l.price, 0);
+      break;
+    }
+    default:
+      return { error: "Mode de facturation inconnu." };
+  }
+  const stopsFee = r2(Math.max(0, (facts.stops ?? 1) - 1) * num2(c.stopFee));
+  base += stopsFee;
+  const min = num2(c.minCharge);
+  const minApplied = min > 0 && base < min;
+  const transport = minApplied ? min : base;
+  const f = fuelFor(c, facts.month);
+  const fuel = r2(transport * f.pct / 100);
+  return {
+    basis: c.billing,
+    qty,
+    unit,
+    base: r2(base),
+    minApplied,
+    fuel,
+    amount: r2(transport + fuel),
+    taxable,
+    lines,
+    ...c.billing !== "ftl" ? { rate, zone } : {},
+    stopsFee,
+    fuelPct: f.pct,
+    fuelMonth: f.month
+  };
+}
+function factsOf(summary, extra = {}) {
+  if (!summary) return null;
+  return {
+    ...extra,
+    ldm: summary.ldm == null ? null : num2(summary.ldm),
+    weightKg: num2(summary.weight),
+    volumeM3: num2(summary.volume),
+    units: num2(summary.packed),
+    pallets: summary.pallets == null ? null : num2(summary.pallets),
+    vehicles: Array.isArray(summary.vehicles) ? summary.vehicles : [],
+    dests: extra.dests ?? [],
+    stops: extra.stops ?? 1,
+    month: extra.month ?? null
+  };
+}
+function routeOf(rows, agencies) {
+  const codes = [...new Set((rows ?? []).filter((r) => (r.quantity ?? 1) > 0).map((r) => String(r.destination ?? "").trim()).filter(Boolean))];
+  const by = new Map(agencies.map((a) => [a.code.toUpperCase(), a]));
+  const dests = codes.map((c) => {
+    const a = by.get(c.toUpperCase());
+    return { agency: a?.code ?? c, tour: a?.tour ?? null, zone: a?.zone ?? null };
+  });
+  return { dests, stops: Math.max(1, codes.length) };
 }
 
 // src/outils/optimiseur-chargement/constants/engine-config.ts
@@ -1407,6 +1563,52 @@ function rowsToDefinitions(rows) {
   }));
 }
 
+// src/outils/optimiseur-chargement/engine/floorMeters.ts
+var REFERENCE_WIDTH_MM = 2400;
+var FLOOR_TOLERANCE_MM = 5;
+function floorMeters(placed, container) {
+  let area = 0;
+  let occupied = 0;
+  let floorItems = 0;
+  for (const p of placed) {
+    occupied = Math.max(occupied, p.x + p.length);
+    if (p.z <= FLOOR_TOLERANCE_MM) {
+      area += p.length * p.width;
+      floorItems++;
+    }
+  }
+  const floorArea = area / 1e6;
+  return {
+    floorArea,
+    ldm: floorArea / (REFERENCE_WIDTH_MM / 1e3),
+    occupiedLength: occupied / 1e3,
+    containerLength: container.length / 1e3,
+    floorItems,
+    stackedItems: placed.length - floorItems
+  };
+}
+var PALLET_MIN_AREA_MM2 = 3e5;
+function goodsFacts(items) {
+  let volume2 = 0;
+  let pallets = 0;
+  for (const it of items) {
+    const q = it.quantity ?? 1;
+    volume2 += it.length * it.width * it.height * q / 1e9;
+    if (it.length * it.width >= PALLET_MIN_AREA_MM2 || it.floorOnly) pallets += q;
+  }
+  return { volume: Math.round(volume2 * 1e3) / 1e3, pallets };
+}
+function vehiclesOf(list) {
+  const m = /* @__PURE__ */ new Map();
+  for (const c of list) {
+    const k = c.id ?? c.label;
+    const v = m.get(k) ?? { code: k, label: c.label, count: 0 };
+    v.count += 1;
+    m.set(k, v);
+  }
+  return [...m.values()];
+}
+
 // src/api/v1/compute.ts
 var LOADING = { mode: "WALLS" };
 var labelOf = (c) => c.label;
@@ -1431,8 +1633,10 @@ async function computePlan(input) {
     const vehicles = (input.fleetVehicles ?? []).filter((v) => v.enabled).map((v) => ({ container: v.container, cost: v.cost }));
     const fleet = planFleet(defs, vehicles, opts);
     const guides = [];
+    let ldm = 0;
     for (const t2 of fleet.trucks) {
       const r = optimizeWithInsights(t2.container, t2.definitions, opts);
+      ldm += floorMeters(r.placedItems, t2.container).ldm;
       const label = `${t2.index}. ${labelOf(t2.container)}`;
       guides.push({ index: t2.index, label, units: r.placedItems.length, guide: await encodePlan({ ...t2.container, label }, r.placedItems) });
     }
@@ -1448,7 +1652,10 @@ async function computePlan(input) {
       unpacked: fleet.unplaced.reduce((s, u) => s + u.quantity, 0),
       fill: fleet.trucks.reduce((s, t2) => s + t2.volumeUtilization, 0) / n2,
       weight: fleet.trucks.reduce((s, t2) => s + t2.weight, 0),
-      edited: false
+      edited: false,
+      ldm: Math.round(ldm * 100) / 100,
+      ...goodsFacts(fleet.trucks.flatMap((t2) => t2.definitions)),
+      vehicles: vehiclesOf(fleet.trucks.map((t2) => ({ id: t2.container.id, label: t2.container.label })))
     } : { vehicle: "\u2014", fleet: 0, packed: 0, unpacked: fleet.unplaced.reduce((s, u) => s + u.quantity, 0), fill: 0, weight: 0, edited: false };
     return { summary, plan: { fleet, guides } };
   }
@@ -1456,7 +1663,17 @@ async function computePlan(input) {
   const base = optimizeWithInsights(container, defs, opts);
   const guide = await encodePlan(container, base.placedItems);
   return {
-    summary: { vehicle: container.label, packed: base.packedItems, unpacked: base.unpackedCount, fill: base.volumeUtilization, weight: base.usedWeight, edited: false },
+    summary: {
+      vehicle: container.label,
+      packed: base.packedItems,
+      unpacked: base.unpackedCount,
+      fill: base.volumeUtilization,
+      weight: base.usedWeight,
+      edited: false,
+      ldm: Math.round(floorMeters(base.placedItems, container).ldm * 100) / 100,
+      ...goodsFacts(base.placedItems),
+      vehicles: [{ code: container.id, label: container.label, count: 1 }]
+    },
     plan: { base, manual: null, guide }
   };
 }
@@ -1630,6 +1847,18 @@ async function catalogOf(db, org) {
     defaultId: (vehicles.find((v) => v.container.id === "semi") ?? vehicles[0]).container.id
   };
 }
+async function carrierCostOf(db, org, carrier, tour, result, rows, departure) {
+  if (!carrier || !result?.summary) return void 0;
+  const refs = toToolReferences(db.references ? await db.references(org).catch(() => []) : []);
+  const c = refs.carriers.find((x) => x.code === carrier);
+  if (!c) return { carrier_cost: null, carrier_quote: { carrier, error: `Transporteur ${carrier} inconnu (Param\xE8tres \u203A Transporteurs).` } };
+  const route = routeOf(rows, refs.agencies);
+  const dests = route.dests.map((d) => d.tour || !tour ? d : { ...d, tour });
+  const f = factsOf(result.summary, { ...route, dests, month: (departure ?? (/* @__PURE__ */ new Date()).toISOString()).slice(0, 7) });
+  if (!f) return void 0;
+  const q = { carrier: c.code, label: c.label, ...quote(f, c.data) };
+  return { carrier_cost: "error" in q ? null : q.amount, carrier_quote: q };
+}
 var STATUSES = ["new", "in_progress", "validated", "sent", "partially_loaded", "loaded", "cancelled"];
 var err = (status, code, message, details) => ({ status, body: { error: { code, message, ...details ? { details } : {} } } });
 async function sha256Hex(s) {
@@ -1669,7 +1898,19 @@ async function handle(req, db, site = "https://atelierlogistique.com") {
         } else {
           const result = v.mode === "auto" ? await computePlan(v.input) : null;
           const status = v.mode === "auto" ? v.validate ? "validated" : "in_progress" : "new";
-          const fields = { label: v.label, departure_at: v.departureAt, ...v.tour !== void 0 ? { tour: v.tour } : {}, input: v.input, result, status, source: "api" };
+          const carrier = v.carrier !== void 0 ? v.carrier : existing?.carrier;
+          const cost = await carrierCostOf(db, org, carrier, v.tour !== void 0 ? v.tour : existing?.tour, result, v.input.rows, v.departureAt);
+          const fields = {
+            label: v.label,
+            departure_at: v.departureAt,
+            ...v.tour !== void 0 ? { tour: v.tour } : {},
+            ...v.carrier !== void 0 ? { carrier: v.carrier } : {},
+            ...cost ?? {},
+            input: v.input,
+            result,
+            status,
+            source: "api"
+          };
           const row = existing ? await db.updateShipment(existing.id, fields) : await db.insertShipment({ ...fields, org_id: org, external_id: v.reference });
           res = { status: existing ? 200 : 201, body: await shipmentOf(row, site) };
         }

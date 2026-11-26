@@ -289,8 +289,7 @@
           },
           "carrier": {
             "type": "string",
-            "description": "Code du transporteur (tables de référence)",
-            "readOnly": true
+            "description": "Code du transporteur (tables de référence) : le coût théorique est calculé avec sa grille"
           },
           "carrier_cost": {
             "type": "number",
