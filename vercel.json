@@ -59,6 +59,10 @@
       "destination": "/ressources/index.html"
     },
     {
+      "source": "/chargement-palettisation",
+      "destination": "/chargement-palettisation/index.html"
+    },
+    {
       "source": "/outils",
       "destination": "/outils/index.html"
     },

@@ -200,6 +200,15 @@ export const ALL_TOOLS_PAGE = {
   intro: 'Des outils web gratuits pour la logistique et le transport, sans installation ni compte.',
 };
 
+/** Page dédiée palettisation + chargement camion + coûts transport (lien à partager). */
+export const LOAD_LANDING_PAGE = {
+  path: '/chargement-palettisation',
+  title: 'Palettisation et plan de chargement camion 3D gratuits | Atelier Logistique',
+  description: 'Palettisez vos cartons, chargez vos camions en 3D, calculez les mètres plancher, choisissez le transporteur le moins cher et contrôlez ses factures. Gratuit, sans installation.',
+  h1: 'Palettisez. Chargez. Payez le juste prix du transport.',
+  intro: 'Des cartons au camion plein, puis jusqu’à la facture du transporteur : palettes optimisées, plan de chargement 3D, mètres plancher, transporteur le moins cher et contrôle des factures.',
+};
+
 /** Outils mis en avant (accueil, liens annexes Google). */
 export const FEATURED_TOOLS = ['optimiseur-chargement', 'pallet'];
 
