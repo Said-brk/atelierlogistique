@@ -173,6 +173,11 @@ export default function ShipmentEditor() {
         extraFields={<>
           <label className="flex items-center gap-2 text-slate-500">Départ
             <input type="date" value={ed.meta.departure_at} onChange={(e) => setHeader({ departure_at: e.target.value })} className={editorInputCls} /></label>
+          {'tour' in ed.doc && !tours.length && !tour && (
+            <span className="flex items-center gap-2 text-slate-500">Tournée
+              <Link to="/app/parametres/references/tournees" className="text-xs font-medium text-blue-700 hover:underline whitespace-nowrap"
+                title="Créez vos tournées : destinations filtrées, titre automatique, calendrier">+ Créer une tournée</Link></span>
+          )}
           {'tour' in ed.doc && (tours.length > 0 || tour) && (
             <label className="flex items-center gap-2 text-slate-500" title="Les destinations proposées sont celles de la tournée">Tournée
               <select value={tour} onChange={(e) => setHeader({ tour: e.target.value })} disabled={!!locked} className={`${editorInputCls} max-w-[11rem]`}>
@@ -180,6 +185,11 @@ export default function ShipmentEditor() {
                 {tours.map((t) => <option key={t.code} value={t.code}>{t.code} · {t.label}</option>)}
                 {tourMissing && <option value={tour}>{tour} (inconnue)</option>}
               </select></label>
+          )}
+          {'carrier' in ed.doc && !carriers.length && !carrier && (
+            <span className="flex items-center gap-2 text-slate-500">Transporteur
+              <Link to="/app/parametres/references/transporteurs" className="text-xs font-medium text-blue-700 hover:underline whitespace-nowrap"
+                title="Ajoutez vos transporteurs et leurs grilles : coût théorique, moins cher, contrôle des factures">+ Ajouter un transporteur</Link></span>
           )}
           {'carrier' in ed.doc && (carriers.length > 0 || carrier) && (
             <span className="flex flex-wrap items-center gap-2 text-slate-500 min-w-0 max-w-full">
