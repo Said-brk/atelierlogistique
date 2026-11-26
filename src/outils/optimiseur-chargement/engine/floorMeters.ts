@@ -62,3 +62,28 @@ export function taxableWeight(
   const basis: TaxableBasis = taxable === real ? 'real' : taxable === floor ? 'floor' : 'volume';
   return { real, volumetric, floor, taxable, basis };
 }
+
+// ---------------------------------------------------------------- Faits de tarification (résumé du plan)
+/** Surface au sol à partir de laquelle un colis est compté comme une palette (0,3 m² : demi-palette 80 × 60 incluse). */
+export const PALLET_MIN_AREA_MM2 = 300_000;
+
+/**
+ * Volume (m³) et nombre de palettes des colis chargés (dimensions en mm ; quantity = nombre d'unités, 1 par défaut).
+ * Palette = colis d'au moins 0,3 m² au sol (les cartons ne sont pas comptés comme des palettes).
+ */
+export function goodsFacts(items: { length: number; width: number; height: number; quantity?: number; floorOnly?: boolean }[]) {
+  let volume = 0; let pallets = 0;
+  for (const it of items) {
+    const q = it.quantity ?? 1;
+    volume += (it.length * it.width * it.height * q) / 1e9;
+    if (it.length * it.width >= PALLET_MIN_AREA_MM2 || it.floorOnly) pallets += q;
+  }
+  return { volume: Math.round(volume * 1000) / 1000, pallets };
+}
+
+/** Véhicules utilisés, regroupés par code (forfait par véhicule). */
+export function vehiclesOf(list: { id?: string; label: string }[]) {
+  const m = new Map<string, { code: string; label: string; count: number }>();
+  for (const c of list) { const k = c.id ?? c.label; const v = m.get(k) ?? { code: k, label: c.label, count: 0 }; v.count += 1; m.set(k, v); }
+  return [...m.values()];
+}

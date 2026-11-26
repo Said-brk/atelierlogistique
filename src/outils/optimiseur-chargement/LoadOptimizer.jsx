@@ -37,7 +37,7 @@ import { LOAD_FAQ_EN, toolSeoEn } from '../../seo/pages-en';
 import ColisTable from './components/ColisTable';
 import SeoFold from '../../shared/ui/SeoFold';
 import FloorMetersCard from './components/FloorMetersCard';
-import { DEFAULT_TAXABLE, floorMeters } from './engine/floorMeters';
+import { DEFAULT_TAXABLE, floorMeters, goodsFacts, vehiclesOf } from './engine/floorMeters';
 import { FleetVehicles, FleetResult } from './components/FleetPanel';
 import { useFleetPlanner } from './useFleetPlanner';
 import { encodePlan, guideUrl, qrTextOf } from './guide/planLink';
@@ -969,10 +969,12 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
     const fleetDone = vehicleMode === 'fleet' && fleetStatus === 'done' && fleetPlan?.trucks.length > 0;
     const byVehicle = fleetDone ? Object.entries(fleetPlan.trucks.reduce((m, t) => { const l = tText(t.container.label); m[l] = (m[l] ?? 0) + 1; return m; }, {})) : [];
     // Véhicules par code (coût transporteur au forfait) ; mètres plancher et volume (coût au MPL / aux 100 kg).
+    // Faits de tarification transporteur : MPL, volume et palettes chargés, véhicules par code.
     const vehicles = fleetDone
-      ? Object.values(fleetPlan.trucks.reduce((m, t) => { const c = t.container.id ?? t.vehicleId; m[c] = m[c] ?? { code: c, label: tText(t.container.label), count: 0 }; m[c].count += 1; return m; }, {}))
+      ? vehiclesOf(fleetPlan.trucks.map((t) => ({ id: t.container.id ?? t.vehicleId, label: tText(t.container.label) })))
       : [{ code: container.id ?? containerId, label: tText(container.label), count: 1 }];
-    const facts = { ldm: floorLdm, volume: Math.round(totals.volume / 1e6) / 1e3, vehicles };
+    const goods = fleetDone ? goodsFacts(fleetPlan.trucks.flatMap((t) => t.definitions)) : done ? goodsFacts(result.placedItems) : { volume: 0, pallets: 0 };
+    const facts = { ldm: floorLdm, ...goods, vehicles };
     onWorkspaceChange?.({
       rows, containerId, custom, vehicleMode, deliveryMode, excludedStops,
       ...(fleetTouched ? { fleetVehicles } : {}),
@@ -994,7 +996,7 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
         : done && vehicleMode === 'single' && !containerOverride && !restoring
           ? { base: rawResult, manual: manual.snapshot, guide: encodedGuideLink?.split('#')[1] ?? null } : null,
     });
-  }, [rows, containerId, custom, vehicleMode, deliveryMode, excludedStops, result, rawResult, status, container, containerOverride, manual.edited, manual.snapshot, encodedGuideLink, fleetPlan, fleetStatus, fleetGuideList, fleetVehicles, fleetTouched, pickedVehicle, baseContainer, onWorkspaceChange, floorLdm, totals.volume]);
+  }, [rows, containerId, custom, vehicleMode, deliveryMode, excludedStops, result, rawResult, status, container, containerOverride, manual.edited, manual.snapshot, encodedGuideLink, fleetPlan, fleetStatus, fleetGuideList, fleetVehicles, fleetTouched, pickedVehicle, baseContainer, onWorkspaceChange, floorLdm]);
 
   return (
     <div className={`${embedded ? '' : 'min-h-screen'} text-slate-900`} style={{ background: '#F8FAFC', fontFamily: "'DM Sans', system-ui, sans-serif" }}>

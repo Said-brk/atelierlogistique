@@ -7,7 +7,7 @@ export interface ControlShipment {
   carrier: string | null; carrier_cost: number | string | null;
   carrier_quote: { basis?: string; qty?: number; unit?: string; error?: string } | null;
   invoiced_amount: number | string | null; invoiced_qty: number | string | null; invoice_ref: string | null;
-  summary: { ldm?: number | null; packed?: number; weight?: number; fill?: number; fleet?: number } | null;
+  summary: { ldm?: number | null; packed?: number; pallets?: number | null; weight?: number; fill?: number; fleet?: number } | null;
 }
 
 export interface ControlRow extends ControlShipment {
@@ -43,6 +43,12 @@ export interface CarrierStats {
 const n = (v: unknown): number | null => (v == null || v === '' || !Number.isFinite(Number(v)) ? null : Number(v));
 const r2 = (v: number) => Math.round(v * 100) / 100;
 
+/** Tolérance d'écart facture / théorique (%), réglée sur la page Contrôle transport (3 % par défaut). */
+export const TOLERANCE_KEY = 'al.espace.transport.tolerance';
+export function tolerance(): number {
+  try { const v = Number(globalThis.localStorage?.getItem(TOLERANCE_KEY)); return Number.isFinite(v) && v > 0 ? v : 3; } catch { return 3; }
+}
+
 export function controlRows(list: ControlShipment[], tolerancePct = 3): ControlRow[] {
   return list.map((s) => {
     const theoretical = n(s.carrier_cost);
@@ -65,13 +71,14 @@ export function carrierStats(rows: ControlRow[]): CarrierStats[] {
     const both = billed.filter((r) => r.theoretical != null);
     const sum = (a: ControlRow[], f: (r: ControlRow) => number | null) => a.reduce((t, r) => t + (f(r) ?? 0), 0);
     const ldm = sum(rs, (r) => r.ldm);
-    const pallets = sum(rs, (r) => n(r.summary?.packed));
+    const palletsOf = (r: ControlRow) => n(r.summary?.pallets) ?? n(r.summary?.packed);
+    const pallets = sum(rs, palletsOf);
     const theoreticalBoth = sum(both, (r) => r.theoretical);
     const gap = r2(sum(both, (r) => r.gap));
     const ldmBilledRows = billed.filter((r) => r.carrier_quote?.basis === 'ldm' && r.qtyBilled != null);
     const invoiced = r2(sum(billed, (r) => r.invoiced));
     const ldmOfBilled = sum(billed, (r) => r.ldm);
-    const palletsOfBilled = sum(billed, (r) => n(r.summary?.packed));
+    const palletsOfBilled = sum(billed, palletsOf);
     const fills = rs.map((r) => n(r.summary?.fill)).filter((x): x is number => x != null);
     return {
       carrier, shipments: rs.length, invoicedCount: billed.length,
@@ -109,7 +116,19 @@ export function parseInvoiceCsv(text: string): { lines: InvoiceLine[]; errors: s
   const raw = text.replace(/^﻿/, '').split(/\r?\n/).filter((l) => l.trim());
   if (!raw.length) return { lines: [], errors: ['Fichier vide'] };
   const sep = raw[0].includes('\t') ? '\t' : raw[0].split(';').length >= raw[0].split(',').length ? ';' : ',';
-  const split = (l: string) => l.split(sep).map((c) => c.replace(/^"|"$/g, '').trim());
+  // Découpe en respectant les guillemets ("1,100.50", "F;1", "" pour un guillemet).
+  const split = (l: string) => {
+    const out: string[] = []; let cur = ''; let q = false;
+    for (let i = 0; i < l.length; i++) {
+      const ch = l[i];
+      if (q) { if (ch === '"' && l[i + 1] === '"') { cur += '"'; i++; } else if (ch === '"') q = false; else cur += ch; }
+      else if (ch === '"') q = true;
+      else if (ch === sep) { out.push(cur.trim()); cur = ''; }
+      else cur += ch;
+    }
+    out.push(cur.trim());
+    return out;
+  };
   const head = split(raw[0]).map(norm);
   const idx = Object.fromEntries((Object.keys(COLS) as (keyof typeof COLS)[]).map((k) => [k, head.findIndex((h) => COLS[k].test(h))])) as Record<keyof typeof COLS, number>;
   if (idx.ref < 0 || idx.amount < 0) return { lines: [], errors: ['Colonnes « Référence » et « Montant » introuvables dans l’en-tête.'] };

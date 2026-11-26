@@ -46,6 +46,8 @@ export interface LoadFacts {
   weightKg: number;
   volumeM3: number;
   units: number;
+  /** Palettes chargées (colis ≥ 0,3 m² au sol) ; null = résumé ancien (avant comptage). */
+  pallets?: number | null;
   vehicles: { code: string; label: string; count: number }[];
   /** Destinations (agences) avec tournée et zone ; vide = inconnues. */
   dests?: Dest[];
@@ -148,7 +150,11 @@ export function quote(facts: LoadFacts, c: CarrierData): QuoteResult {
       qty = r2(ceilTo(facts.ldm, 0.1)); unit = 'MPL'; base = qty * rate; break;
     }
     case 'pallet': {
-      qty = facts.units; unit = qty > 1 ? 'palettes' : 'palette'; base = qty * rate; break;
+      // Palettes chargées ; sans palette (cartons seuls) : équivalent palettes au sol (MPL ÷ 0,4) ; ancien résumé : unités.
+      if (facts.pallets == null) { qty = facts.units; unit = qty > 1 ? 'palettes' : 'palette'; }
+      else if (facts.pallets > 0) { qty = facts.pallets; unit = qty > 1 ? 'palettes' : 'palette'; }
+      else { qty = facts.ldm ? Math.ceil(Math.round((facts.ldm / 0.4) * 1e6) / 1e6) : 0; unit = 'équiv. palettes'; }
+      base = qty * rate; break;
     }
     case 'weight': {
       const real = facts.weightKg;
@@ -193,6 +199,7 @@ export function factsOf(summary: Record<string, unknown> | null | undefined, ext
     weightKg: num(summary.weight),
     volumeM3: num(summary.volume),
     units: num(summary.packed),
+    pallets: summary.pallets == null ? null : num(summary.pallets),
     vehicles: Array.isArray(summary.vehicles) ? (summary.vehicles as LoadFacts['vehicles']) : [],
     dests: extra.dests ?? [], stops: extra.stops ?? 1, month: extra.month ?? null,
   };

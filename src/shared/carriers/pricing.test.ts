@@ -76,3 +76,17 @@ describe('grille par agence / tournée / zone', () => {
     expect(quote(f([{ agency: 'X', tour: null, zone: null }]), { ...c, rate: null })).toHaveProperty('error');
   });
 });
+
+describe('palettes : seuls les supports comptent', () => {
+  it('cartons exclus ; sans palette : équivalent au sol (MPL ÷ 0,4) ; ancien résumé : unités', async () => {
+    const { quote } = await import('./pricing');
+    const { goodsFacts } = await import('../../outils/optimiseur-chargement/engine/floorMeters');
+    const g = goodsFacts([{ length: 1200, width: 800, height: 1500, quantity: 6 }, { length: 600, width: 400, height: 400, quantity: 40 }]);
+    expect(g.pallets).toBe(6);
+    expect(g.volume).toBeCloseTo(6 * 1.44 + 40 * 0.096, 3);
+    const c = { billing: 'pallet' as const, rate: 10 };
+    expect((quote({ ...facts, units: 46, pallets: 6 }, c) as any)).toMatchObject({ qty: 6, amount: 60 });
+    expect((quote({ ...facts, units: 40, pallets: 0, ldm: 1.3 }, c) as any)).toMatchObject({ qty: 4, unit: 'équiv. palettes' });
+    expect((quote({ ...facts, units: 16 }, c) as any).qty).toBe(16);
+  });
+});

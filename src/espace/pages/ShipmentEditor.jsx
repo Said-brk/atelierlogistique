@@ -14,6 +14,7 @@ import useDocEditor, { initialOf } from '../useDocEditor';
 import useReferences from '../useReferences';
 import { tourTitle, isAutoTitle } from '../tourCheck';
 import { quote, factsOf, routeOf, rankCarriers } from '../../shared/carriers/pricing';
+import { tolerance } from '../transport/control';
 
 /** /app/chargements/nouveau : crée un chargement vide puis ouvre l'éditeur. */
 export function NewShipment() {
@@ -181,7 +182,7 @@ export default function ShipmentEditor() {
               </select></label>
           )}
           {'carrier' in ed.doc && (carriers.length > 0 || carrier) && (
-            <span className="flex items-center gap-2 text-slate-500">
+            <span className="flex flex-wrap items-center gap-2 text-slate-500 min-w-0 max-w-full">
               <label className="flex items-center gap-2">Transporteur
                 <select value={carrier} onChange={(e) => ed.setMeta({ ...ed.meta, carrier: e.target.value })} disabled={!!locked} className={`${editorInputCls} max-w-[11rem]`}>
                   <option value="">— Aucun —</option>
@@ -203,7 +204,7 @@ export default function ShipmentEditor() {
                 <label className="flex items-center gap-1.5" title="Montant de la facture du transporteur (contrôle transport)">Facturé
                   <input value={ed.meta.invoiced_amount} onChange={(e) => ed.setMeta({ ...ed.meta, invoiced_amount: e.target.value })} inputMode="decimal" placeholder="—"
                     className={`${editorInputCls} w-24 text-right font-jetbrains`} />
-                  {invoiceGap && <span className={`text-xs font-semibold ${invoiceGap.pct > 3 ? 'text-red-700' : invoiceGap.pct < -3 ? 'text-amber-700' : 'text-emerald-700'}`}>{invoiceGap.text}</span>}
+                  {invoiceGap && <span className={`text-xs font-semibold ${invoiceGap.pct > tolerance() ? 'text-red-700' : invoiceGap.pct < -tolerance() ? 'text-amber-700' : 'text-emerald-700'}`}>{invoiceGap.text}</span>}
                 </label>
               )}
             </span>

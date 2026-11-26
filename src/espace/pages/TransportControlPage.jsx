@@ -11,9 +11,8 @@ import useReferences from '../useReferences';
 import { controlShipments, saveInvoice } from '../data';
 import { PageHeader, Btn, ReferencesError } from '../ui';
 import ResizableTable from '../ResizableTable';
-import { controlRows, carrierStats, parseInvoiceCsv, matchInvoice } from '../transport/control';
+import { controlRows, carrierStats, parseInvoiceCsv, matchInvoice, tolerance, TOLERANCE_KEY as TOL_KEY } from '../transport/control';
 
-const TOL_KEY = 'al.espace.transport.tolerance';
 const eur = (v, d = 0) => (v == null ? '—' : `${Number(v).toLocaleString('fr-FR', { minimumFractionDigits: d, maximumFractionDigits: 2 })} €`);
 const num1 = (v) => (v == null ? '—' : Number(v).toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }));
 const pctTxt = (v) => (v == null ? '—' : `${v > 0 ? '+' : ''}${v.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} %`);
@@ -123,7 +122,7 @@ export default function TransportControlPage() {
   const [error, setError] = useState('');
   const [carrier, setCarrier] = useState('');
   const [onlyFlagged, setOnlyFlagged] = useState(false);
-  const [tol, setTol] = useState(() => { try { return Number(localStorage.getItem(TOL_KEY)) || 3; } catch { return 3; } });
+  const [tol, setTol] = useState(tolerance);
   const [importing, setImporting] = useState(false);
   const [notice, setNotice] = useState('');
 

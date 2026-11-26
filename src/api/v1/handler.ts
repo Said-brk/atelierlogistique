@@ -10,6 +10,7 @@
 import { parseShipment } from './schema';
 import type { VehicleCatalog } from './schema';
 import { toToolReferences } from '../../shared/references/defaults';
+import { quote, factsOf, routeOf } from '../../shared/carriers/pricing';
 import type { RefItem } from '../../shared/references/defaults';
 import { computePlan } from './compute';
 import { shipmentOf, listItemOf, type ShipmentRow } from './present';
@@ -38,6 +39,20 @@ async function catalogOf(db: Db, org: string): Promise<VehicleCatalog | null> {
     defaultId: (vehicles.find((v) => v.container.id === 'semi') ?? vehicles[0]).container.id,
   };
 }
+/** Coût théorique du transporteur (même calcul que l'espace) ; undefined = pas de transporteur ou pas de plan. */
+async function carrierCostOf(db: Db, org: string, carrier: string | null | undefined, tour: string | null | undefined, result: { summary?: Record<string, unknown> } | null, rows: { destination?: string; quantity?: number }[], departure: string | null) {
+  if (!carrier || !result?.summary) return undefined;
+  const refs = toToolReferences(db.references ? await db.references(org).catch(() => []) : []);
+  const c = refs.carriers.find((x) => x.code === carrier);
+  if (!c) return { carrier_cost: null, carrier_quote: { carrier, error: `Transporteur ${carrier} inconnu (Paramètres › Transporteurs).` } };
+  const route = routeOf(rows, refs.agencies);
+  const dests = route.dests.map((d) => (d.tour || !tour ? d : { ...d, tour }));
+  const f = factsOf(result.summary, { ...route, dests, month: (departure ?? new Date().toISOString()).slice(0, 7) });
+  if (!f) return undefined;
+  const q = { carrier: c.code, label: c.label, ...quote(f, c.data) };
+  return { carrier_cost: 'error' in q ? null : q.amount, carrier_quote: q };
+}
+
 export interface ApiRequest { method: string; path: string; query: URLSearchParams; headers: Record<string, string | undefined>; body: unknown }
 export interface ApiResponse { status: number; body: unknown }
 
@@ -87,7 +102,12 @@ export async function handle(req: ApiRequest, db: Db, site = 'https://atelierlog
         } else {
           const result = v.mode === 'auto' ? await computePlan(v.input) : null;
           const status = v.mode === 'auto' ? (v.validate ? 'validated' : 'in_progress') : 'new';
-          const fields = { label: v.label, departure_at: v.departureAt, ...(v.tour !== undefined ? { tour: v.tour } : {}), input: v.input, result, status, source: 'api' };
+          const carrier = v.carrier !== undefined ? v.carrier : existing?.carrier;
+          const cost = await carrierCostOf(db, org, carrier, v.tour !== undefined ? v.tour : existing?.tour, result, v.input.rows, v.departureAt);
+          const fields = {
+            label: v.label, departure_at: v.departureAt, ...(v.tour !== undefined ? { tour: v.tour } : {}),
+            ...(v.carrier !== undefined ? { carrier: v.carrier } : {}), ...(cost ?? {}), input: v.input, result, status, source: 'api',
+          };
           const row = existing
             ? await db.updateShipment(existing.id, fields)
             : await db.insertShipment({ ...fields, org_id: org, external_id: v.reference });

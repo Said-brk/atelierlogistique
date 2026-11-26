@@ -67,6 +67,14 @@ function SuggestionCard({ s, byCode, onMerge, onIgnore, busy, tour, destLabel })
   );
 }
 
+/** Transporteur des chargements regroupés s'il est le même pour tous, sinon celui de la tournée commune, sinon aucun. */
+function commonCarrier(items, tourCodes, tours) {
+  const set = [...new Set(items.map((x) => x.carrier).filter(Boolean))];
+  if (set.length === 1 && items.every((x) => x.carrier)) return set[0];
+  if (!set.length && tourCodes.length === 1) return tours.find((t) => t.code === tourCodes[0])?.carrier ?? null;
+  return null;
+}
+
 export default function ConsolidationPage() {
   const { org } = useEspace();
   const navigate = useNavigate();
@@ -115,7 +123,7 @@ export default function ConsolidationPage() {
       else if (e.data.ok) setRun({ status: 'done', progress: [1, 1], analysis: e.data.analysis });
       else setRun({ status: 'error', progress: [0, 0], analysis: null, error: e.data.error });
     };
-    w.postMessage({ shipments: list.map(({ id, code, label, status, departure_at, tour, input }) => ({ id, code, label, status, departure_at, tour, input })), vehicles, mode, agencies });
+    w.postMessage({ shipments: list.map(({ id, code, label, status, departure_at, tour, carrier, input }) => ({ id, code, label, status, departure_at, tour, carrier, input })), vehicles, mode, agencies });
     return () => w.terminate();
   }, [list, vehicles, mode, agencies]);
   const tourText = (code) => { const t = run.analysis?.tours?.[code]; return t === '*' ? 'plusieurs tournées' : t ? (tourName[t] ?? t) : null; };
@@ -145,6 +153,8 @@ export default function ConsolidationPage() {
       const code = await consolidateShipments(org.id, items, {
         rows: s.rows, plan: s.plan, summary, fleetVehicles: vehicles.map((v) => ({ ...v, enabled: true })),
         label: tourTitle(tourCodes, items[0].departure_at), tour: tourCodes.length === 1 ? tourCodes[0] : null,
+        // Transporteur commun aux chargements regroupés (sinon celui de la tournée) : repris sur le nouveau chargement.
+        carrier: commonCarrier(items, tourCodes, refs.tools?.tours ?? []),
       });
       navigate(`/app/chargements/${code}`);
     } catch (e) {

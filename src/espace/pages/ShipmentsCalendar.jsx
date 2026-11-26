@@ -102,7 +102,7 @@ export default function ShipmentsCalendar() {
   const createFor = async (day, tour) => {
     setBusy(true);
     try {
-      const code = await createShipment(org.id, { label: tourTitle(tour ? [tour.code] : [], day) ?? `Chargement du ${fmt(day, { day: 'numeric', month: 'long' })}`, departure_at: `${day}T00:00:00.000Z`, ...(tour ? { tour: tour.code } : {}) });
+      const code = await createShipment(org.id, { label: tourTitle(tour ? [tour.code] : [], day) ?? `Chargement du ${fmt(day, { day: 'numeric', month: 'long' })}`, departure_at: `${day}T00:00:00.000Z`, ...(tour ? { tour: tour.code } : {}), ...(tour?.carrier ? { carrier: tour.carrier } : {}) });
       navigate(`/app/chargements/${code}`);
     } catch (e) { setError(e.message); setBusy(false); }
   };
