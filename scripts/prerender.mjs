@@ -12,7 +12,7 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from 
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  SITE, SITE_NAME, TOOL_PAGES, ARTICLE_PAGES, HOME_PAGE, RESSOURCES_PAGE, ALL_TOOLS_PAGE, FEATURED_TOOLS, toolPath,
+  SITE, SITE_NAME, TOOL_PAGES, ARTICLE_PAGES, HOME_PAGE, RESSOURCES_PAGE, ALL_TOOLS_PAGE, FEATURED_TOOLS, LOAD_LANDING_PAGE, toolPath,
 } from '../src/seo/pages.js';
 import { navHtml } from '../src/seo/nav.js';
 import { wordmarkHtml } from '../src/seo/brand.js';
@@ -197,6 +197,34 @@ const ORG = {
   write('/', page(head({ path: '/', title: HOME_PAGE.title, description: HOME_PAGE.description, structured, alternate: '/en' }), shell([], inner, '/en')));
 }
 
+// ---------- Palettisation + chargement (page dédiée) ----------
+{
+  const L = LOAD_LANDING_PAGE;
+  const structured = [{
+    '@context': 'https://schema.org',
+    '@type': 'WebPage',
+    name: L.title,
+    url: SITE + L.path,
+    inLanguage: 'fr',
+    description: L.description,
+    isPartOf: { '@id': `${SITE}/#website` },
+    about: ['Palettisation', 'Plan de chargement camion', 'Mètre plancher', 'Contrôle des factures transport'],
+  }, {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: SITE_NAME, item: `${SITE}/` },
+      { '@type': 'ListItem', position: 2, name: 'Palettisation et chargement', item: SITE + L.path },
+    ],
+  }];
+  const tools = ['optimiseur-chargement', 'pallet'].map((id) => TOOL_PAGES.find((t) => t.id === id)).filter(Boolean);
+  const inner = `
+    <div><h1 class="font-bold text-3xl">${esc(L.h1)}</h1><p class="text-slate-600 mt-2">${esc(L.intro)}</p></div>
+    <section><h2 class="font-bold text-xl mb-2">Les outils</h2>${links(tools.map((t) => ({ href: toolPath(t.id), label: t.name, desc: t.intro })))}</section>
+    <section><h2 class="font-bold text-xl mb-2">Coûts transport</h2><p>Mètres plancher et poids taxable, transporteurs et grilles (agence, tournée, zone), transporteur le moins cher, surcharge gazole mensuelle et contrôle des factures. <a class="underline" href="/ressources/controle-factures-transport">La méthode de pré-facturation</a>.</p></section>`;
+  write(L.path, page(head({ path: L.path, title: L.title, description: L.description, structured }), shell([{ label: 'Palettisation et chargement' }], inner)));
+}
+
 // ---------- Tous les outils ----------
 {
   const structured = [{
@@ -278,6 +306,7 @@ console.log(`Pages anglaises : ${enPaths.length + enTools.length}`);
   const entries = [
     { loc: `${SITE}/`, lastmod: today, freq: 'weekly', prio: '1.0' },
     { loc: SITE + ALL_TOOLS_PAGE.path, lastmod: today, freq: 'weekly', prio: '0.9' },
+    { loc: SITE + LOAD_LANDING_PAGE.path, lastmod: today, freq: 'weekly', prio: '0.95' },
     ...TOOL_PAGES.map((t) => ({ loc: SITE + toolPath(t.id), lastmod: today, freq: 'monthly', prio: ['optimiseur-chargement', 'pallet'].includes(t.id) ? '0.9' : '0.7' })),
     { loc: `${SITE}/ressources`, lastmod: today, freq: 'weekly', prio: '0.8' },
     ...ARTICLE_PAGES.map((a) => ({ loc: `${SITE}/ressources/${a.slug}`, lastmod: lastmodOf(`${SITE}/ressources/${a.slug}`), freq: 'monthly', prio: '0.8' })),
@@ -292,4 +321,4 @@ ${entries.map((e) => `  <url><loc>${e.loc}</loc><lastmod>${e.lastmod}</lastmod><
   writeFileSync(join(dist, 'sitemap.xml'), xml);
 }
 
-console.log(`Pré-rendu : ${TOOL_PAGES.length + 3} pages + sitemap.xml`);
+console.log(`Pré-rendu : ${TOOL_PAGES.length + 4} pages + sitemap.xml`);

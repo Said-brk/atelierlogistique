@@ -4,6 +4,7 @@
 // Animation en CSS pur (aucune librairie), en boucle ; figée si l'utilisateur réduit les animations.
 
 import { ArrowRight } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 const AMBER = '#F59E0B';
 const T = 10; // durée d'une boucle (s)
@@ -134,6 +135,9 @@ export default function LoadHeroBanner({ onLaunch }) {
                 CHARGER MON CAMION <ArrowRight size={15} />
               </button>
             </div>
+            <Link to="/chargement-palettisation" className="inline-flex items-center gap-1.5 mt-5 font-jetbrains text-xs font-semibold hover:underline" style={{ color: AMBER }}>
+              DÉCOUVRIR TOUT LE MODULE : SIMULATEUR, MÈTRES PLANCHER, FACTURES <ArrowRight size={13} />
+            </Link>
           </div>
 
           <div className="lg:col-span-6">

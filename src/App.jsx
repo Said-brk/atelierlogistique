@@ -22,7 +22,8 @@ const LoginPage = lazy(() => import('./shared/account/AccountPages.jsx').then((m
 const EspaceApp = lazy(() => import('./espace/EspaceApp.jsx'));
 const QuaiGuide = lazy(() => import('./espace/QuaiGuide.jsx'));
 const ApiDocsPage = lazy(() => import('./pages/ApiDocsPage.jsx'));
-import { SITE, toolSeo, ALL_TOOLS_PAGE, FEATURED_TOOLS } from './seo/pages';
+const LoadLanding = lazy(() => import('./components/landing/LoadLanding.jsx'));
+import { SITE, toolSeo, ALL_TOOLS_PAGE, FEATURED_TOOLS, LOAD_LANDING_PAGE } from './seo/pages';
 import { toolSeoEn } from './seo/pages-en';
 import { I18nProvider } from './shared/i18n/I18nProvider.jsx';
 import { TOOL_PATHS, toolFromEnPath } from './shared/i18n/paths';
@@ -228,6 +229,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route path="/outils" element={<AllToolsPage />} />
+        <Route path="/chargement-palettisation" element={<LoadLandingPage />} />
         <Route path="/outils/:id" element={<ToolRoute />} />
         <Route path="/ressources" element={<Ressources />} />
         <Route path="/chargement" element={<I18nProvider lang="fr"><Suspense fallback={null}><LoadingGuide /></Suspense></I18nProvider>} />
@@ -285,7 +287,7 @@ function SiteFooter() {
           <Logo small />
           <span>ATELIER LOGISTIQUE © 2026 — La boîte à outils des pros de la supply chain</span>
         </div>
-        <div className="flex items-center gap-5">
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
           <Link to="/outils" className="hover:text-slate-800 transition-colors">Outils</Link>
           <a href="/api" className="hover:text-slate-800 transition-colors">API</a>
           <Link to="/ressources" className="hover:text-slate-800 transition-colors">Ressources</Link>
@@ -546,6 +548,19 @@ function ToolsCatalog({ onLaunch, title = null, asH1 = false }) {
         </div>
       </div>
     </section>
+  );
+}
+
+// Page dédiée palettisation + chargement + coûts transport : /chargement-palettisation (lien à partager).
+function LoadLandingPage() {
+  useSeoMeta(LOAD_LANDING_PAGE, LOAD_LANDING_PAGE.path);
+  return (
+    <div className="min-h-screen text-slate-900" style={{ background: '#FFFFFF', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+      <FontsAndStyles />
+      <SiteHeader />
+      <Suspense fallback={<div className="min-h-[70vh]" style={{ background: '#0F172A' }} />}><LoadLanding /></Suspense>
+      <SiteFooter />
+    </div>
   );
 }
 
