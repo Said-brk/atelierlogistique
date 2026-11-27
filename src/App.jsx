@@ -262,19 +262,19 @@ function SiteHeader({ lang = 'fr' }) {
   const en = lang === 'en';
   return (
     <nav className="border-b border-slate-200 sticky top-0 z-30 bg-white/90 backdrop-blur-sm">
-      <div className="max-w-7xl mx-auto px-6 md:px-10 py-4 flex items-center justify-between">
-        <Link to={en ? '/en' : '/'} className="flex items-center gap-3">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-10 py-4 flex items-center justify-between gap-2">
+        <Link to={en ? '/en' : '/'} className="flex items-center gap-2 sm:gap-3 min-w-0 overflow-hidden">
           <Logo />
           <div>
-            <div className="font-bricolage font-bold text-lg tracking-tight">
+            <div className="font-bricolage font-bold text-base sm:text-lg tracking-tight whitespace-nowrap">
               <span style={{ color: BRAND_COLORS.navy }}>ATELIER</span> <span style={{ color: BRAND_COLORS.blue }}>LOGISTIQUE</span>
             </div>
-            <div className="font-jetbrains text-[10px] -mt-1 tracking-wider">
+            <div className="font-jetbrains text-[10px] -mt-1 tracking-wider whitespace-nowrap">
               <span style={{ color: BRAND_COLORS.muted }}>{en ? 'SUPPLY CHAIN' : TAGLINE[0]}</span> <span className="font-semibold" style={{ color: BRAND_COLORS.amber }}>{en ? 'TOOLBOX' : TAGLINE[1]}</span>
             </div>
           </div>
         </Link>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 sm:gap-4 shrink-0">
           <SiteNav lang={lang} />
           {en && <a href="/chargement-palettisation" hrefLang="fr" title="Version française" className="font-jetbrains text-[11px] px-2 py-1 rounded-md border border-slate-300 text-slate-600 hover:text-slate-900">FR</a>}
         </div>
