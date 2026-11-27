@@ -35,6 +35,19 @@ const en: Record<string, string> = {
   "Mot de passe oublié ?": "Forgot password?",
   "Envoyer le lien": "Send the link",
   "Pas encore de compte ?": "No account yet?",
+  "30 secondes, juste votre adresse e-mail.": "30 seconds, just your email address.",
+  "Coût transport de chaque départ et contrôle des factures": "Freight cost of every departure and invoice audit",
+  "Créer mon espace": "Create my workspace",
+  "Créez votre espace gratuit": "Create your free workspace",
+  "Déjà un compte ?": "Already have an account?",
+  "Enregistrez ce résultat": "Save this result",
+  "GRATUIT PENDANT LA PHASE PILOTE": "FREE DURING THE PILOT PHASE",
+  "Non, continuer sans compte": "No, continue without an account",
+  "QR code cariste permanent, calendrier et travail en équipe": "Permanent forklift QR code, calendar and teamwork",
+  "Sans compte, il reste seulement dans ce navigateur. Avec votre espace gratuit : historique, transporteurs, coût du transport et QR code cariste permanent.": "Without an account, it only stays in this browser. With your free workspace: history, carriers, freight cost and a permanent forklift QR code.",
+  "Sans compte, les fonctionnalités sont réduites : les calculs marchent, mais rien n’est enregistré. Idéal pour tester.": "Without an account, features are limited: calculations work, but nothing is saved. Ideal for testing.",
+  "Vos chargements et palettisations enregistrés, retrouvés partout": "Your loads and palletisations saved, available anywhere",
+  "Vos véhicules, transporteurs et grilles tarifaires": "Your vehicles, carriers and rate cards",
 };
 
 export default en;
