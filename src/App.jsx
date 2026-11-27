@@ -24,7 +24,7 @@ const QuaiGuide = lazy(() => import('./espace/QuaiGuide.jsx'));
 const ApiDocsPage = lazy(() => import('./pages/ApiDocsPage.jsx'));
 const LoadLanding = lazy(() => import('./components/landing/LoadLanding.jsx'));
 import { SITE, toolSeo, ALL_TOOLS_PAGE, FEATURED_TOOLS, LOAD_LANDING_PAGE } from './seo/pages';
-import { toolSeoEn } from './seo/pages-en';
+import { toolSeoEn, LOAD_LANDING_PAGE_EN } from './seo/pages-en';
 import { I18nProvider } from './shared/i18n/I18nProvider.jsx';
 import { TOOL_PATHS, toolFromEnPath } from './shared/i18n/paths';
 import SiteNav from './components/SiteNav.jsx';
@@ -237,6 +237,7 @@ export default function App() {
         {/* Lien court des QR codes (v2) : la langue est dans le lien. */}
         <Route path="/g" element={<QrGuideRoute />} />
         <Route path="/q/:token" element={<Suspense fallback={null}><QuaiGuide /></Suspense>} />
+        <Route path="/en" element={<LoadLandingPage lang="en" />} />
         <Route path="/en/loading" element={<I18nProvider lang="en"><Suspense fallback={null}><LoadingGuide /></Suspense></I18nProvider>} />
         <Route path="/en/:page" element={<EnToolRoute />} />
         <Route path="/connexion" element={<AccountShell><LoginPage /></AccountShell>} />
@@ -257,29 +258,48 @@ function ScrollToTop() {
 }
 
 // En-tête de site partagé (accueil, ressources, 404)
-function SiteHeader() {
+function SiteHeader({ lang = 'fr' }) {
+  const en = lang === 'en';
   return (
     <nav className="border-b border-slate-200 sticky top-0 z-30 bg-white/90 backdrop-blur-sm">
       <div className="max-w-7xl mx-auto px-6 md:px-10 py-4 flex items-center justify-between">
-        <Link to="/" className="flex items-center gap-3">
+        <Link to={en ? '/en' : '/'} className="flex items-center gap-3">
           <Logo />
           <div>
             <div className="font-bricolage font-bold text-lg tracking-tight">
               <span style={{ color: BRAND_COLORS.navy }}>ATELIER</span> <span style={{ color: BRAND_COLORS.blue }}>LOGISTIQUE</span>
             </div>
             <div className="font-jetbrains text-[10px] -mt-1 tracking-wider">
-              <span style={{ color: BRAND_COLORS.muted }}>{TAGLINE[0]}</span> <span className="font-semibold" style={{ color: BRAND_COLORS.amber }}>{TAGLINE[1]}</span>
+              <span style={{ color: BRAND_COLORS.muted }}>{en ? 'SUPPLY CHAIN' : TAGLINE[0]}</span> <span className="font-semibold" style={{ color: BRAND_COLORS.amber }}>{en ? 'TOOLBOX' : TAGLINE[1]}</span>
             </div>
           </div>
         </Link>
-        <SiteNav />
+        <div className="flex items-center gap-4">
+          <SiteNav lang={lang} />
+          {en && <a href="/chargement-palettisation" hrefLang="fr" title="Version française" className="font-jetbrains text-[11px] px-2 py-1 rounded-md border border-slate-300 text-slate-600 hover:text-slate-900">FR</a>}
+        </div>
       </div>
     </nav>
   );
 }
 
 // Pied de page partagé
-function SiteFooter() {
+function SiteFooter({ lang = 'fr' }) {
+  if (lang === 'en') {
+    return (
+      <footer className="border-t border-slate-200">
+        <div className="max-w-7xl mx-auto px-6 md:px-10 py-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 font-jetbrains text-xs text-slate-500">
+          <div className="flex items-center gap-3"><Logo small /><span>ATELIER LOGISTIQUE © 2026 — The supply chain toolbox</span></div>
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+            <a href="/en/truck-load-planner" className="hover:text-slate-800">Load planner</a>
+            <a href="/en/palletizing-calculator" className="hover:text-slate-800">Pallet calculator</a>
+            <a href="/en/capacity" className="hover:text-slate-800">Capacity tables</a>
+            <span>Contact: <a href="mailto:contact@atelierlogistique.com" className="hover:text-slate-800 hover:underline">contact@atelierlogistique.com</a></span>
+          </div>
+        </div>
+      </footer>
+    );
+  }
   return (
     <footer className="border-t border-slate-200">
       <div className="max-w-7xl mx-auto px-6 md:px-10 py-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 font-jetbrains text-xs text-slate-500">
@@ -552,15 +572,20 @@ function ToolsCatalog({ onLaunch, title = null, asH1 = false }) {
 }
 
 // Page dédiée palettisation + chargement + coûts transport : /chargement-palettisation (lien à partager).
-function LoadLandingPage() {
-  useSeoMeta(LOAD_LANDING_PAGE, LOAD_LANDING_PAGE.path);
+// Page chargement + palettisation : /chargement-palettisation (fr) et /en (accueil anglais, même page traduite).
+function LoadLandingPage({ lang = 'fr' }) {
+  const seo = lang === 'en' ? LOAD_LANDING_PAGE_EN : LOAD_LANDING_PAGE;
+  useSeoMeta(seo, seo.path);
+  useEffect(() => { document.documentElement.lang = lang; }, [lang]);
   return (
-    <div className="min-h-screen text-slate-900" style={{ background: '#FFFFFF', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
-      <FontsAndStyles />
-      <SiteHeader />
-      <Suspense fallback={<div className="min-h-[70vh]" style={{ background: '#0F172A' }} />}><LoadLanding /></Suspense>
-      <SiteFooter />
-    </div>
+    <I18nProvider lang={lang}>
+      <div className="min-h-screen text-slate-900" style={{ background: '#FFFFFF', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+        <FontsAndStyles />
+        <SiteHeader lang={lang} />
+        <Suspense fallback={<div className="min-h-[70vh]" style={{ background: '#0F172A' }} />}><LoadLanding key={lang} /></Suspense>
+        <SiteFooter lang={lang} />
+      </div>
+    </I18nProvider>
   );
 }
 

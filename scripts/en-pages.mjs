@@ -66,7 +66,7 @@ function home(css) {
 /** Écrit l'accueil anglais et renvoie son chemin (sitemap). Les outils : enToolPages(). */
 export function writeEnPages(dist) {
   const css = cssHref(dist);
-  const pages = [home(css)];
-  pages.forEach((p) => writePage(dist, p));
-  return pages.map((p) => p.path);
+  // /en est désormais la page Chargement + palettisation en anglais (scripts/prerender.mjs) ; home() reste pour référence.
+  void css; void home;
+  return ['/en'];
 }

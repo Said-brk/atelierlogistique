@@ -7,7 +7,7 @@ import { translate, translateText, interpolate, hasTranslation } from './core';
 import './dictionaries';
 
 const SRC = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const MODULES = ['shared/import', 'outils/optimiseur-chargement', 'outils/palettisation', 'shared/account', 'shared/carriers', 'espace'];
+const MODULES = ['shared/import', 'outils/optimiseur-chargement', 'outils/palettisation', 'shared/account', 'shared/carriers', 'espace', 'components/landing'];
 
 describe('i18n — dictionnaires', () => {
   it('chaque texte t()/N_() des outils traduits a sa traduction anglaise', () => {

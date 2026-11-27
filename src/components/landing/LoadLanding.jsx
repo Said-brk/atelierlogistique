@@ -9,6 +9,12 @@ import {
   AlertTriangle, Sparkles, ChevronDown, CalendarDays,
 } from 'lucide-react';
 import { defaultReferences } from '../../shared/references/defaults';
+import { t as tr, tText, numLocale, getCurrentLang } from '../../shared/i18n/core';
+
+// Liens selon la langue de la page (/chargement-palettisation ou /en).
+const isEn = () => getCurrentLang() === 'en';
+const LOAD_HREF = () => (isEn() ? '/en/truck-load-planner' : '/outils/optimiseur-chargement');
+const PALLET_HREF = () => (isEn() ? '/en/palletizing-calculator' : '/outils/pallet');
 
 const BLUE = '#2563EB';
 const AMBER = '#F59E0B';
@@ -18,7 +24,7 @@ const VIOLET = '#8B5CF6';
 const ROSE = '#F43F5E';
 const CYAN = '#06B6D4';
 
-const fmt = (v, d = 0) => Number(v).toLocaleString('fr-FR', { minimumFractionDigits: d, maximumFractionDigits: d });
+const fmt = (v, d = 0) => Number(v).toLocaleString(numLocale(), { minimumFractionDigits: d, maximumFractionDigits: d });
 
 // Véhicules et palettes : mêmes valeurs par défaut que l'espace (Paramètres › Tables de référence).
 const REFS = defaultReferences();
@@ -114,7 +120,7 @@ function TruckSvg({ color = BLUE, cargo = [AMBER, GREEN, VIOLET], scale = 1, cab
 // ---------------------------------------------------------------- 1. Hero : la route
 function HeroScene() {
   return (
-    <svg viewBox="0 0 1000 300" className="w-full h-auto" preserveAspectRatio="xMidYMax slice" role="img" aria-label="Des camions chargés roulent sur la route">
+    <svg viewBox="0 0 1000 300" className="w-full h-auto" preserveAspectRatio="xMidYMax slice" role="img" aria-label={tr('Des camions chargés roulent sur la route')}>
       {/* ville en arrière-plan, qui défile lentement */}
       <g className="ll-anim" style={{ animation: 'll-city 40s linear infinite' }} opacity="0.35">
         {Array.from({ length: 2 }).map((_, k) => (
@@ -129,7 +135,7 @@ function HeroScene() {
       <g opacity="0.9">
         <path d="M790 200 V120 l70 -30 l70 30 V200 z" fill="#1E293B" stroke="#334155" />
         {[0, 1, 2].map((i) => <rect key={i} x={808 + i * 40} y="150" width="30" height="50" rx="2" fill="#0F172A" stroke={AMBER} strokeOpacity="0.5" />)}
-        <text x="860" y="138" textAnchor="middle" fontSize="11" fill={AMBER} fontFamily="JetBrains Mono, monospace" fontWeight="700">QUAI</text>
+        <text x="860" y="138" textAnchor="middle" fontSize="11" fill={AMBER} fontFamily="JetBrains Mono, monospace" fontWeight="700">{tr('QUAI')}</text>
       </g>
       {/* route */}
       <rect x="0" y="200" width="1000" height="100" fill="#0B1222" />
@@ -137,10 +143,10 @@ function HeroScene() {
       <line x1="0" y1="203" x2="1000" y2="203" stroke="#334155" strokeWidth="3" />
       {/* camions */}
       <g className="ll-anim" style={{ animation: 'll-drive 11s linear infinite' }}>
-        <g transform="translate(0 112)"><g className="ll-anim" style={{ animation: 'll-bob .5s ease-in-out infinite' }}><TruckSvg color={BLUE} cargo={[AMBER, GREEN, VIOLET]} label="100 % REMPLI" /></g></g>
+        <g transform="translate(0 112)"><g className="ll-anim" style={{ animation: 'll-bob .5s ease-in-out infinite' }}><TruckSvg color={BLUE} cargo={[AMBER, GREEN, VIOLET]} label={tr('100 % REMPLI')} /></g></g>
       </g>
       <g className="ll-anim" style={{ animation: 'll-drive 11s linear infinite', animationDelay: '-5.5s' }}>
-        <g transform="translate(0 112)"><g className="ll-anim" style={{ animation: 'll-bob .55s ease-in-out infinite' }}><TruckSvg color={AMBER} cab="#7C2D12" cargo={[CYAN, ROSE, BLUE]} label="6,8 MPL" /></g></g>
+        <g transform="translate(0 112)"><g className="ll-anim" style={{ animation: 'll-bob .55s ease-in-out infinite' }}><TruckSvg color={AMBER} cab="#7C2D12" cargo={[CYAN, ROSE, BLUE]} label={tr('6,8 MPL')} /></g></g>
       </g>
       <g className="ll-anim" style={{ animation: 'll-drive-back 14s linear infinite', animationDelay: '-3s' }}>
         <g transform="translate(0 196) scale(0.6)"><TruckSvg color={GREEN} cab="#064E3B" cargo={[AMBER, VIOLET, CYAN]} /></g>
@@ -159,25 +165,24 @@ function Hero() {
       <div className="relative max-w-7xl mx-auto px-6 md:px-10 pt-16 md:pt-24 pb-6 text-center">
         <div className="ll-in inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-jetbrains tracking-widest mb-6"
           style={{ background: 'rgba(245,158,11,0.15)', color: AMBER, border: '1px solid rgba(245,158,11,0.35)' }}>
-          <Sparkles size={12} /> PALETTISATION · CHARGEMENT 3D · COÛTS TRANSPORT
+          <Sparkles size={12} /> {tr('PALETTISATION · CHARGEMENT 3D · COÛTS TRANSPORT')}
         </div>
         <h1 className="ll-in font-bricolage font-bold text-white text-4xl md:text-6xl lg:text-7xl leading-[1.0] tracking-tight max-w-5xl mx-auto" style={{ animationDelay: '.1s' }}>
-          Palettisez. Chargez.
-          <span className="block mt-2"><span style={{ color: AMBER }}>Payez le juste prix</span> du transport.</span>
+          {tr('Palettisez. Chargez.')}
+          <span className="block mt-2"><span style={{ color: AMBER }}>{tr('Payez le juste prix')}</span> {tr('du transport.')}</span>
         </h1>
         <p className="ll-in text-slate-300 text-base md:text-xl leading-relaxed max-w-3xl mx-auto mt-6" style={{ animationDelay: '.2s' }}>
-          Des cartons au camion plein, puis jusqu’à la facture du transporteur : palettes optimisées, plan de chargement 3D,
-          mètres plancher, transporteur le moins cher et contrôle des factures. Dans votre navigateur.
+          {tr('Des cartons au camion plein, puis jusqu’à la facture du transporteur : palettes optimisées, plan de chargement 3D, mètres plancher, transporteur le moins cher et contrôle des factures. Dans votre navigateur.')}
         </p>
         <div className="ll-in flex flex-col sm:flex-row items-center justify-center gap-3 mt-9" style={{ animationDelay: '.3s' }}>
-          <Link to="/outils/optimiseur-chargement" className="inline-flex items-center gap-2 px-6 py-3.5 rounded-lg font-jetbrains text-sm font-semibold shadow-xl transition-all hover:-translate-y-0.5" style={{ background: AMBER, color: NAVY }}>
-            CHARGER MON CAMION <ArrowRight size={15} />
+          <Link to={LOAD_HREF()} className="inline-flex items-center gap-2 px-6 py-3.5 rounded-lg font-jetbrains text-sm font-semibold shadow-xl transition-all hover:-translate-y-0.5" style={{ background: AMBER, color: NAVY }}>
+            {tr('CHARGER MON CAMION')} <ArrowRight size={15} />
           </Link>
-          <Link to="/outils/pallet" className="inline-flex items-center gap-2 px-6 py-3.5 rounded-lg font-jetbrains text-sm font-semibold text-white transition-all hover:-translate-y-0.5 hover:bg-white/10" style={{ border: '1px solid rgba(255,255,255,0.4)' }}>
-            PALETTISER MES CARTONS <ArrowRight size={15} />
+          <Link to={PALLET_HREF()} className="inline-flex items-center gap-2 px-6 py-3.5 rounded-lg font-jetbrains text-sm font-semibold text-white transition-all hover:-translate-y-0.5 hover:bg-white/10" style={{ border: '1px solid rgba(255,255,255,0.4)' }}>
+            {tr('PALETTISER MES CARTONS')} <ArrowRight size={15} />
           </Link>
         </div>
-        <p className="ll-in font-jetbrains text-[11px] text-slate-400 mt-4" style={{ animationDelay: '.4s' }}>Gratuit · sans installation · outils utilisables sans compte</p>
+        <p className="ll-in font-jetbrains text-[11px] text-slate-400 mt-4" style={{ animationDelay: '.4s' }}>{tr('Gratuit · sans installation · outils utilisables sans compte')}</p>
       </div>
       <div className="relative mt-4"><HeroScene /></div>
     </section>
@@ -244,36 +249,36 @@ function TruckSimulator() {
     <section id="simulateur" className="bg-slate-50 border-y border-slate-200">
       <div className="max-w-7xl mx-auto px-6 md:px-10 py-16 md:py-24">
         <Reveal>
-          <div className="font-jetbrains text-xs tracking-wider mb-3" style={{ color: BLUE }}>01 / SIMULATEUR</div>
-          <h2 className="font-bricolage font-bold text-3xl md:text-5xl tracking-tight text-slate-900 max-w-3xl">Quel camion pour vos palettes&nbsp;? <span style={{ color: BLUE }}>Combien ça coûte&nbsp;?</span></h2>
-          <p className="text-slate-600 mt-4 max-w-2xl">Bougez les curseurs : le véhicule, les mètres plancher, le poids taxable et le prix se recalculent en direct.</p>
+          <div className="font-jetbrains text-xs tracking-wider mb-3" style={{ color: BLUE }}>{tr('01 / SIMULATEUR')}</div>
+          <h2 className="font-bricolage font-bold text-3xl md:text-5xl tracking-tight text-slate-900 max-w-3xl">{tr('Quel camion pour vos palettes ?')} <span style={{ color: BLUE }}>{tr('Combien ça coûte ?')}</span></h2>
+          <p className="text-slate-600 mt-4 max-w-2xl">{tr('Bougez les curseurs : le véhicule, les mètres plancher, le poids taxable et le prix se recalculent en direct.')}</p>
         </Reveal>
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mt-10">
           <Reveal className="lg:col-span-4">
             <div className="rounded-2xl bg-white border border-slate-200 p-6 space-y-6 shadow-sm">
               <div>
-                <div className="text-sm font-medium text-slate-700 mb-2">Type de palette</div>
+                <div className="text-sm font-medium text-slate-700 mb-2">{tr('Type de palette')}</div>
                 <div className="grid grid-cols-3 gap-2">
                   {PALLETS.map((p) => (
                     <button key={p.code} type="button" onClick={() => setPalletCode(p.code)}
                       className={`rounded-lg border px-2 py-2 text-xs font-semibold transition-all ${palletCode === p.code ? 'text-white shadow-md' : 'text-slate-700 bg-white hover:border-slate-400'}`}
                       style={palletCode === p.code ? { background: BLUE, borderColor: BLUE } : { borderColor: '#E2E8F0' }}>
-                      {p.label.split(' ')[0]}<span className="block font-jetbrains font-normal opacity-80">{p.length / 10}×{p.width / 10}</span>
+                      {tText(p.label).split(' ')[0]}<span className="block font-jetbrains font-normal opacity-80">{p.length / 10}×{p.width / 10}</span>
                     </button>
                   ))}
                 </div>
               </div>
-              <Slider label="Nombre de palettes" value={count} min={1} max={66} onChange={setCount} color={BLUE} />
-              <Slider label="Poids par palette" value={weight} min={50} max={1000} step={10} onChange={setWeight} color={VIOLET} unit=" kg" />
-              <Slider label="Hauteur de charge" value={height} min={40} max={200} step={5} onChange={setHeight} color={CYAN} unit=" cm" />
+              <Slider label={tr('Nombre de palettes')} value={count} min={1} max={66} onChange={setCount} color={BLUE} />
+              <Slider label={tr('Poids par palette')} value={weight} min={50} max={1000} step={10} onChange={setWeight} color={VIOLET} unit=" kg" />
+              <Slider label={tr('Hauteur de charge')} value={height} min={40} max={200} step={5} onChange={setHeight} color={CYAN} unit=" cm" />
               <label className="flex items-center justify-between gap-3 rounded-lg bg-slate-50 px-3 py-2.5 cursor-pointer">
-                <span className="text-sm font-medium text-slate-700">Palettes gerbables (2 niveaux)</span>
+                <span className="text-sm font-medium text-slate-700">{tr('Palettes gerbables (2 niveaux)')}</span>
                 <button type="button" role="switch" aria-checked={stack} onClick={() => setStack((s) => !s)}
                   className="relative w-11 h-6 rounded-full transition-colors" style={{ background: stack ? GREEN : '#CBD5E1' }}>
                   <span className="absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all" style={{ left: stack ? 22 : 2 }} />
                 </button>
               </label>
-              <Slider label="Tarif groupage du transporteur" value={rate} min={40} max={200} step={5} onChange={setRate} color={AMBER} unit=" €/MPL" />
+              <Slider label={tr('Tarif groupage du transporteur')} value={rate} min={40} max={200} step={5} onChange={setRate} color={AMBER} unit={` €/${tr('MPL')}`} />
             </div>
           </Reveal>
 
@@ -282,15 +287,15 @@ function TruckSimulator() {
               <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
                 <div className="flex items-center gap-2 text-white">
                   <Truck size={20} style={{ color: AMBER }} />
-                  <span className="font-bricolage font-bold text-xl">{plan.trucks > 1 ? `${plan.trucks} × ` : ''}{plan.veh.label}</span>
+                  <span className="font-bricolage font-bold text-xl">{plan.trucks > 1 ? `${plan.trucks} × ` : ''}{tText(plan.veh.label)}</span>
                 </div>
                 <span className="font-jetbrains text-[11px] px-2.5 py-1 rounded-full" style={{ background: 'rgba(16,185,129,0.15)', color: '#6EE7B7', border: '1px solid rgba(16,185,129,0.35)' }}>
-                  {plan.trucks > 1 ? 'plusieurs camions nécessaires' : 'le plus petit véhicule qui suffit'}
+                  {plan.trucks > 1 ? tr('plusieurs camions nécessaires') : tr('le plus petit véhicule qui suffit')}
                 </span>
               </div>
               {/* remorque vue de dessus */}
               <div key={plan.veh.code} className="ll-anim overflow-x-auto" style={{ animation: 'll-arrive .7s ease-out' }}>
-                <svg viewBox={`-6 -6 ${W + 80} ${H + 12}`} className="w-full h-auto min-w-[420px]" role="img" aria-label={`Vue de dessus : ${shown} palettes au sol`}>
+                <svg viewBox={`-6 -6 ${W + 80} ${H + 12}`} className="w-full h-auto min-w-[420px]" role="img" aria-label={tr('Vue de dessus : {n} palettes au sol', { n: shown })}>
                   <rect x="0" y="0" width={W} height={H} rx="6" fill="rgba(255,255,255,0.05)" stroke="#60A5FA" strokeWidth="2" />
                   {Array.from({ length: Math.ceil(plan.veh.length / 1000) }).map((_, i) => (
                     <line key={i} x1={i * 1000 * scale} y1="0" x2={i * 1000 * scale} y2={H} stroke="rgba(148,163,184,0.15)" />
@@ -310,15 +315,15 @@ function TruckSimulator() {
                 <div className="h-full rounded-full transition-all duration-700" style={{ width: `${plan.fill * 100}%`, background: `linear-gradient(90deg, ${GREEN}, ${AMBER})` }} />
               </div>
               <div className="flex justify-between font-jetbrains text-[11px] text-slate-400 mt-1.5">
-                <span>{plan.positions} place{plan.positions > 1 ? 's' : ''} au sol sur {plan.slots.n * plan.trucks}</span><span>remplissage {Math.round(plan.fill * 100)} %</span>
+                <span>{tr('{n} place(s) au sol sur {m}', { n: plan.positions, m: plan.slots.n * plan.trucks })}</span><span>{tr('remplissage {p} %', { p: Math.round(plan.fill * 100) })}</span>
               </div>
               {/* chiffres */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-6">
                 {[
-                  { k: 'Mètres plancher', v: `${fmt(plan.ldm, 1)} MPL`, c: AMBER, icon: Ruler },
-                  { k: 'Poids réel', v: `${fmt(plan.total)} kg`, c: VIOLET, icon: Package },
-                  { k: 'Poids taxable', v: `${fmt(plan.taxable)} kg`, c: CYAN, icon: Layers },
-                  { k: 'Facturé au MPL', v: `${fmt(plan.ldmBilled, 1)} MPL`, c: GREEN, icon: Receipt },
+                  { k: tr('Mètres plancher'), v: `${fmt(plan.ldm, 1)} ${tr('MPL')}`, c: AMBER, icon: Ruler },
+                  { k: tr('Poids réel'), v: `${fmt(plan.total)} kg`, c: VIOLET, icon: Package },
+                  { k: tr('Poids taxable'), v: `${fmt(plan.taxable)} kg`, c: CYAN, icon: Layers },
+                  { k: tr('Facturé au MPL'), v: `${fmt(plan.ldmBilled, 1)} ${tr('MPL')}`, c: GREEN, icon: Receipt },
                 ].map(({ k, v, c, icon: Icon }) => (
                   <div key={k} className="rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}>
                     <div className="flex items-center gap-1.5 font-jetbrains text-[10px] uppercase text-slate-400"><Icon size={12} style={{ color: c }} />{k}</div>
@@ -328,25 +333,25 @@ function TruckSimulator() {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
                 {[
-                  { id: 'groupage', l: `Groupage · ${fmt(plan.ldmBilled, 1)} MPL × ${rate} €`, v: plan.groupage },
-                  { id: 'ftl', l: `Camion complet · ${plan.trucks > 1 ? `${plan.trucks} × ` : ''}${plan.veh.label}`, v: plan.ftl },
+                  { id: 'groupage', l: `${tr('Groupage')} · ${fmt(plan.ldmBilled, 1)} ${tr('MPL')} × ${rate} €`, v: plan.groupage },
+                  { id: 'ftl', l: `${tr('Camion complet')} · ${plan.trucks > 1 ? `${plan.trucks} × ` : ''}${tText(plan.veh.label)}`, v: plan.ftl },
                 ].map((o) => (
                   <div key={o.id} className="rounded-xl p-4 transition-all" style={cheaper === o.id ? { background: 'rgba(16,185,129,0.15)', border: `1.5px solid ${GREEN}` } : { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)' }}>
                     <div className="flex items-center justify-between">
                       <span className="text-xs text-slate-300">{o.l}</span>
-                      {cheaper === o.id && <span className="font-jetbrains text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: GREEN, color: '#fff' }}>MOINS CHER</span>}
+                      {cheaper === o.id && <span className="font-jetbrains text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: GREEN, color: '#fff' }}>{tr('MOINS CHER')}</span>}
                     </div>
                     <div className="font-bricolage font-bold text-2xl text-white mt-1">{fmt(o.v)} €</div>
                   </div>
                 ))}
               </div>
-              <p className="font-jetbrains text-[10px] text-slate-500 mt-3">Calcul simplifié (palettes identiques, rangées complètes). Tarifs d’exemple : dans votre espace, ce sont vos véhicules et les grilles de vos transporteurs qui s’appliquent.</p>
+              <p className="font-jetbrains text-[10px] text-slate-500 mt-3">{tr('Calcul simplifié (palettes identiques, rangées complètes). Tarifs d’exemple : dans votre espace, ce sont vos véhicules et les grilles de vos transporteurs qui s’appliquent.')}</p>
             </div>
           </Reveal>
         </div>
         <Reveal className="text-center mt-10">
-          <Link to="/outils/optimiseur-chargement" className="inline-flex items-center gap-2 px-6 py-3.5 rounded-lg font-jetbrains text-sm font-semibold text-white shadow-lg transition-all hover:-translate-y-0.5" style={{ background: BLUE }}>
-            CALCULER MON VRAI CHARGEMENT EN 3D <ArrowRight size={15} />
+          <Link to={LOAD_HREF()} className="inline-flex items-center gap-2 px-6 py-3.5 rounded-lg font-jetbrains text-sm font-semibold text-white shadow-lg transition-all hover:-translate-y-0.5" style={{ background: BLUE }}>
+            {tr('CALCULER MON VRAI CHARGEMENT EN 3D')} <ArrowRight size={15} />
           </Link>
         </Reveal>
       </div>
@@ -401,19 +406,19 @@ function PalletSimulator() {
     <section className="bg-white">
       <div className="max-w-7xl mx-auto px-6 md:px-10 py-16 md:py-24 grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
         <Reveal className="lg:col-span-5">
-          <div className="font-jetbrains text-xs tracking-wider mb-3" style={{ color: AMBER }}>02 / PALETTISATION</div>
-          <h2 className="font-bricolage font-bold text-3xl md:text-5xl tracking-tight text-slate-900">Combien de cartons <span style={{ color: AMBER }}>par palette&nbsp;?</span></h2>
-          <p className="text-slate-600 mt-4">Réglez votre carton : la palette se monte sous vos yeux. L’outil complet gère les cartons mixtes, le poids, le gerbage et l’export du plan.</p>
+          <div className="font-jetbrains text-xs tracking-wider mb-3" style={{ color: AMBER }}>{tr('02 / PALETTISATION')}</div>
+          <h2 className="font-bricolage font-bold text-3xl md:text-5xl tracking-tight text-slate-900">{tr('Combien de cartons')} <span style={{ color: AMBER }}>{tr('par palette ?')}</span></h2>
+          <p className="text-slate-600 mt-4">{tr('Réglez votre carton : la palette se monte sous vos yeux. L’outil complet gère les cartons mixtes, le poids, le gerbage et l’export du plan.')}</p>
           <div className="rounded-2xl border border-slate-200 p-6 mt-8 space-y-5 bg-white shadow-sm">
-            <Slider label="Longueur du carton" value={l} min={15} max={80} onChange={setL} color={AMBER} unit=" cm" />
-            <Slider label="Largeur du carton" value={w} min={15} max={80} onChange={setW} color={AMBER} unit=" cm" />
-            <Slider label="Hauteur du carton" value={h} min={10} max={60} onChange={setH} color={AMBER} unit=" cm" />
-            <Slider label="Hauteur maximale de la palette" value={maxH} min={80} max={220} step={5} onChange={setMaxH} color={BLUE} unit=" cm" />
+            <Slider label={tr('Longueur du carton')} value={l} min={15} max={80} onChange={setL} color={AMBER} unit=" cm" />
+            <Slider label={tr('Largeur du carton')} value={w} min={15} max={80} onChange={setW} color={AMBER} unit=" cm" />
+            <Slider label={tr('Hauteur du carton')} value={h} min={10} max={60} onChange={setH} color={AMBER} unit=" cm" />
+            <Slider label={tr('Hauteur maximale de la palette')} value={maxH} min={80} max={220} step={5} onChange={setMaxH} color={BLUE} unit=" cm" />
           </div>
         </Reveal>
         <Reveal className="lg:col-span-7" delay={100}>
           <div className="rounded-2xl p-6" style={{ background: 'linear-gradient(160deg, #FFFBEB 0%, #FEF3C7 100%)', border: '1px solid #FDE68A' }}>
-            <svg viewBox="0 0 400 330" className="w-full h-auto max-h-[380px]" role="img" aria-label={`Palette de ${calc.total} cartons`}>
+            <svg viewBox="0 0 400 330" className="w-full h-auto max-h-[380px]" role="img" aria-label={tr('Palette de {n} cartons', { n: calc.total })}>
               {/* palette bois */}
               {(() => { const p = (a, b, c) => iso(a, b, c).join(','); return (
                 <g>
@@ -427,18 +432,18 @@ function PalletSimulator() {
               </g>
             </svg>
             <div className="grid grid-cols-3 gap-3 mt-2">
-              {[{ k: 'Par couche', v: calc.perLayer }, { k: 'Couches', v: calc.layers }, { k: 'Cartons / palette', v: calc.total, big: true }].map((x) => (
+              {[{ k: tr('Par couche'), v: calc.perLayer }, { k: tr('Couches'), v: calc.layers }, { k: tr('Cartons / palette'), v: calc.total, big: true }].map((x) => (
                 <div key={x.k} className="rounded-xl bg-white/80 p-3 text-center">
                   <div className="font-jetbrains text-[10px] uppercase text-slate-500">{x.k}</div>
                   <div className={`font-bricolage font-bold ${x.big ? 'text-3xl' : 'text-2xl'}`} style={{ color: x.big ? '#B45309' : NAVY }}>{x.v}</div>
                 </div>
               ))}
             </div>
-            <div className="mt-3 text-center font-jetbrains text-xs text-slate-600">Remplissage du volume : <b style={{ color: calc.fill > 0.85 ? '#047857' : '#B45309' }}>{Math.round(calc.fill * 100)} %</b></div>
+            <div className="mt-3 text-center font-jetbrains text-xs text-slate-600">{tr('Remplissage du volume :')} <b style={{ color: calc.fill > 0.85 ? '#047857' : '#B45309' }}>{Math.round(calc.fill * 100)} %</b></div>
           </div>
           <div className="text-center mt-6">
-            <Link to="/outils/pallet" className="inline-flex items-center gap-2 px-6 py-3.5 rounded-lg font-jetbrains text-sm font-semibold shadow-lg transition-all hover:-translate-y-0.5" style={{ background: AMBER, color: NAVY }}>
-              OUVRIR LA PALETTISATION 3D <ArrowRight size={15} />
+            <Link to={PALLET_HREF()} className="inline-flex items-center gap-2 px-6 py-3.5 rounded-lg font-jetbrains text-sm font-semibold shadow-lg transition-all hover:-translate-y-0.5" style={{ background: AMBER, color: NAVY }}>
+              {tr('OUVRIR LA PALETTISATION 3D')} <ArrowRight size={15} />
             </Link>
           </div>
         </Reveal>
@@ -471,18 +476,18 @@ function BillingShowcase() {
   const gap = done.reduce((s, r) => s + Math.max(0, r.f - r.th), 0);
 
   const features = [
-    { icon: Receipt, c: AMBER, t: 'Vos transporteurs, vos grilles', d: 'Au mètre plancher, à la palette, aux 100 kg taxables ou au forfait par véhicule. Tarifs par agence, par tournée ou par zone, minimum de perception, frais d’arrêt.' },
-    { icon: Sparkles, c: GREEN, t: 'Le transporteur le moins cher', d: 'Sur chaque plan de chargement, toutes les grilles sont comparées : un clic pour choisir le moins cher.' },
-    { icon: CalendarDays, c: VIOLET, t: 'Surcharge gazole du mois', d: 'Le taux publié par chaque transporteur pour le mois de départ s’applique automatiquement.' },
-    { icon: ShieldCheck, c: ROSE, t: 'Contrôle des factures', d: 'Importez la facture (CSV ou Excel) : chaque ligne est rapprochée, les écarts au-delà de votre tolérance sont signalés.' },
+    { icon: Receipt, c: AMBER, t: tr('Vos transporteurs, vos grilles'), d: tr('Au mètre plancher, à la palette, aux 100 kg taxables ou au forfait par véhicule. Tarifs par agence, par tournée ou par zone, minimum de perception, frais d’arrêt.') },
+    { icon: Sparkles, c: GREEN, t: tr('Le transporteur le moins cher'), d: tr('Sur chaque plan de chargement, toutes les grilles sont comparées : un clic pour choisir le moins cher.') },
+    { icon: CalendarDays, c: VIOLET, t: tr('Surcharge gazole du mois'), d: tr('Le taux publié par chaque transporteur pour le mois de départ s’applique automatiquement.') },
+    { icon: ShieldCheck, c: ROSE, t: tr('Contrôle des factures'), d: tr('Importez la facture (CSV ou Excel) : chaque ligne est rapprochée, les écarts au-delà de votre tolérance sont signalés.') },
   ];
 
   return (
     <section style={{ background: 'radial-gradient(120% 140% at 10% 0%, #312E81 0%, #0F172A 60%)' }}>
       <div className="max-w-7xl mx-auto px-6 md:px-10 py-16 md:py-24 grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
         <Reveal className="lg:col-span-5">
-          <div className="font-jetbrains text-xs tracking-wider mb-3" style={{ color: '#A5B4FC' }}>03 / COÛTS TRANSPORT</div>
-          <h2 className="font-bricolage font-bold text-3xl md:text-5xl tracking-tight text-white">Le camion est parti.<br /><span style={{ color: AMBER }}>La facture est vérifiée.</span></h2>
+          <div className="font-jetbrains text-xs tracking-wider mb-3" style={{ color: '#A5B4FC' }}>{tr('03 / COÛTS TRANSPORT')}</div>
+          <h2 className="font-bricolage font-bold text-3xl md:text-5xl tracking-tight text-white">{tr('Le camion est parti.')}<br /><span style={{ color: AMBER }}>{tr('La facture est vérifiée.')}</span></h2>
           <div className="space-y-4 mt-8">
             {features.map(({ icon: Icon, c, t, d }) => (
               <div key={t} className="flex gap-3">
@@ -491,20 +496,22 @@ function BillingShowcase() {
               </div>
             ))}
           </div>
-          <Link to="/ressources/controle-factures-transport" className="inline-flex items-center gap-1.5 mt-7 text-sm font-semibold" style={{ color: '#A5B4FC' }}>
-            La méthode de pré-facturation <ArrowRight size={14} />
-          </Link>
+          {!isEn() && (
+            <Link to="/ressources/controle-factures-transport" className="inline-flex items-center gap-1.5 mt-7 text-sm font-semibold" style={{ color: '#A5B4FC' }}>
+              La méthode de pré-facturation <ArrowRight size={14} />
+            </Link>
+          )}
         </Reveal>
         <Reveal className="lg:col-span-7" delay={100}>
           <div ref={ref} className="rounded-2xl bg-white shadow-2xl overflow-hidden">
             <div className="flex items-center gap-2 px-5 py-3 border-b border-slate-100 bg-slate-50">
               <span className="w-2.5 h-2.5 rounded-full bg-rose-400" /><span className="w-2.5 h-2.5 rounded-full bg-amber-400" /><span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
-              <span className="ml-2 font-jetbrains text-[11px] text-slate-500">Contrôle transport · facture F-2026-118</span>
+              <span className="ml-2 font-jetbrains text-[11px] text-slate-500">{tr('Contrôle transport · facture F-2026-118')}</span>
             </div>
             <div className="relative">
               <div className="ll-anim absolute left-0 right-0 h-10 pointer-events-none" style={{ background: 'linear-gradient(180deg, rgba(37,99,235,0), rgba(37,99,235,.12), rgba(37,99,235,0))', animation: 'll-scan 2.4s ease-in-out infinite alternate' }} />
               <table className="w-full text-sm">
-                <thead><tr className="text-left text-[11px] text-slate-500 font-jetbrains uppercase"><th className="px-4 py-2">Chargement</th><th className="px-2 py-2 hidden sm:table-cell">Tournée</th><th className="px-2 py-2 text-right">Théorique</th><th className="px-2 py-2 text-right">Facturé</th><th className="px-4 py-2">Contrôle</th></tr></thead>
+                <thead><tr className="text-left text-[11px] text-slate-500 font-jetbrains uppercase"><th className="px-4 py-2">{tr('Chargement')}</th><th className="px-2 py-2 hidden sm:table-cell">{tr('Tournée')}</th><th className="px-2 py-2 text-right">{tr('Théorique')}</th><th className="px-2 py-2 text-right">{tr('Facturé')}</th><th className="px-4 py-2">{tr('Contrôle')}</th></tr></thead>
                 <tbody>
                   {INVOICE.map((r, i) => {
                     const seen = i < step;
@@ -518,7 +525,7 @@ function BillingShowcase() {
                         <td className="px-4 py-2.5">
                           {seen ? (over
                             ? <span className="ll-pop inline-flex items-center gap-1 rounded-full bg-red-50 text-red-700 text-xs font-semibold px-2 py-0.5"><AlertTriangle size={12} />+{fmt(((r.f - r.th) / r.th) * 100, 1)} %</span>
-                            : <span className="ll-pop inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-semibold px-2 py-0.5"><CheckCircle2 size={12} />Conforme</span>)
+                            : <span className="ll-pop inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-semibold px-2 py-0.5"><CheckCircle2 size={12} />{tr('Conforme')}</span>)
                             : <span className="text-xs text-slate-300">—</span>}
                         </td>
                       </tr>
@@ -528,7 +535,7 @@ function BillingShowcase() {
               </table>
             </div>
             <div className="flex items-center justify-between px-5 py-4 border-t border-slate-100" style={{ background: gap > 0 ? '#FFF7ED' : '#F8FAFC' }}>
-              <span className="text-sm text-slate-600">Écarts à réclamer</span>
+              <span className="text-sm text-slate-600">{tr('Écarts à réclamer')}</span>
               <span className="font-bricolage font-bold text-2xl" style={{ color: gap > 0 ? '#C2410C' : NAVY }}>{fmt(gap, 2)} €</span>
             </div>
           </div>
@@ -539,15 +546,15 @@ function BillingShowcase() {
 }
 
 // ---------------------------------------------------------------- 5. Fonctionnalités
-const FEATURES = [
-  { icon: Package, c: AMBER, t: 'Palettisation 3D', d: 'Cartons identiques ou mixtes, poids et gerbage, plan par couche exportable.' },
-  { icon: Truck, c: BLUE, t: 'Plan de chargement 3D', d: 'Camion ou conteneur, multi-arrêts (dernier livré chargé en premier), charge par essieu.' },
-  { icon: Layers, c: VIOLET, t: 'Flotte automatique', d: 'Le bon mélange de véhicules quand un seul ne suffit pas, au coût le plus bas.' },
-  { icon: Ruler, c: GREEN, t: 'Mètres plancher & poids taxable', d: 'MPL réels, colis gerbés exclus, poids taxable au volume et au plancher.' },
-  { icon: RouteIcon, c: CYAN, t: 'Tournées & calendrier', d: 'Destinations par tournée, titre automatique, calendrier et regroupement des chargements.' },
-  { icon: ScanLine, c: ROSE, t: 'Quai & QR code cariste', d: 'Plan imprimé, guide pas à pas sur mobile, preuve de chargement en photo.' },
-  { icon: Plug, c: '#64748B', t: 'Import ERP / WMS & API', d: 'Collez un export Excel ou envoyez vos chargements par API : plan et coût calculés.' },
-  { icon: Receipt, c: '#B45309', t: 'Transporteurs & factures', d: 'Coût théorique, transporteur le moins cher, contrôle mensuel des écarts.' },
+const features = () => [
+  { icon: Package, c: AMBER, t: tr('Palettisation 3D'), d: tr('Cartons identiques ou mixtes, poids et gerbage, plan par couche exportable.') },
+  { icon: Truck, c: BLUE, t: tr('Plan de chargement 3D'), d: tr('Camion ou conteneur, multi-arrêts (dernier livré chargé en premier), charge par essieu.') },
+  { icon: Layers, c: VIOLET, t: tr('Flotte automatique'), d: tr('Le bon mélange de véhicules quand un seul ne suffit pas, au coût le plus bas.') },
+  { icon: Ruler, c: GREEN, t: tr('Mètres plancher & poids taxable'), d: tr('MPL réels, colis gerbés exclus, poids taxable au volume et au plancher.') },
+  { icon: RouteIcon, c: CYAN, t: tr('Tournées & calendrier'), d: tr('Destinations par tournée, titre automatique, calendrier et regroupement des chargements.') },
+  { icon: ScanLine, c: ROSE, t: tr('Quai & QR code cariste'), d: tr('Plan imprimé, guide pas à pas sur mobile, preuve de chargement en photo.') },
+  { icon: Plug, c: '#64748B', t: tr('Import ERP / WMS & API'), d: tr('Collez un export Excel ou envoyez vos chargements par API : plan et coût calculés.') },
+  { icon: Receipt, c: '#B45309', t: tr('Transporteurs & factures'), d: tr('Coût théorique, transporteur le moins cher, contrôle mensuel des écarts.') },
 ];
 
 function Features() {
@@ -555,11 +562,11 @@ function Features() {
     <section className="bg-white">
       <div className="max-w-7xl mx-auto px-6 md:px-10 py-16 md:py-24">
         <Reveal className="text-center max-w-3xl mx-auto">
-          <div className="font-jetbrains text-xs tracking-wider mb-3" style={{ color: BLUE }}>04 / TOUT CE QU’IL FAUT</div>
-          <h2 className="font-bricolage font-bold text-3xl md:text-5xl tracking-tight text-slate-900">Du carton à la facture, <span style={{ color: BLUE }}>un seul outil.</span></h2>
+          <div className="font-jetbrains text-xs tracking-wider mb-3" style={{ color: BLUE }}>{tr('04 / TOUT CE QU’IL FAUT')}</div>
+          <h2 className="font-bricolage font-bold text-3xl md:text-5xl tracking-tight text-slate-900">{tr('Du carton à la facture,')} <span style={{ color: BLUE }}>{tr('un seul outil.')}</span></h2>
         </Reveal>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-12">
-          {FEATURES.map(({ icon: Icon, c, t, d }, i) => (
+          {features().map(({ icon: Icon, c, t, d }, i) => (
             <Reveal key={t} delay={i * 60}>
               <div className="group h-full rounded-2xl border border-slate-200 p-5 bg-white transition-all hover:-translate-y-1 hover:shadow-xl" style={{ borderTop: `4px solid ${c}` }}>
                 <span className="w-11 h-11 rounded-xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110 group-hover:-rotate-6" style={{ background: `${c}1A`, color: c }}><Icon size={22} /></span>
@@ -577,20 +584,20 @@ function Features() {
 // ---------------------------------------------------------------- 6. Chiffres + parcours
 function Journey() {
   const steps = [
-    { n: '1', t: 'Collez vos colis', d: 'Depuis Excel, votre ERP ou votre WMS.', c: AMBER },
-    { n: '2', t: 'Palettes et plan 3D', d: 'Palettes optimisées, camion au bon gabarit.', c: BLUE },
-    { n: '3', t: 'Quai guidé', d: 'Plan imprimé et QR code pour le cariste.', c: GREEN },
-    { n: '4', t: 'Facture contrôlée', d: 'Coût théorique face au montant facturé.', c: ROSE },
+    { n: '1', t: tr('Collez vos colis'), d: tr('Depuis Excel, votre ERP ou votre WMS.'), c: AMBER },
+    { n: '2', t: tr('Palettes et plan 3D'), d: tr('Palettes optimisées, camion au bon gabarit.'), c: BLUE },
+    { n: '3', t: tr('Quai guidé'), d: tr('Plan imprimé et QR code pour le cariste.'), c: GREEN },
+    { n: '4', t: tr('Facture contrôlée'), d: tr('Coût théorique face au montant facturé.'), c: ROSE },
   ];
   return (
     <section className="bg-slate-50 border-y border-slate-200">
       <div className="max-w-7xl mx-auto px-6 md:px-10 py-16 md:py-20">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
           {[
-            { v: 33, s: '', l: 'palettes EUR dans une semi', c: BLUE },
-            { v: 2.4, s: ' m', l: 'largeur de référence du MPL', c: AMBER, d: 1 },
-            { v: 20000, s: ' €', l: 'par an : un semi au lieu d’un 19 t, 3 fois par semaine', c: GREEN },
-            { v: 0, s: ' €', l: 'pour essayer, sans compte', c: VIOLET },
+            { v: 33, s: '', l: tr('palettes EUR dans une semi'), c: BLUE },
+            { v: 2.4, s: ' m', l: tr('largeur de référence du MPL'), c: AMBER, d: 1 },
+            { v: 20000, s: ' €', l: tr('par an : un semi au lieu d’un 19 t, 3 fois par semaine'), c: GREEN },
+            { v: 0, s: ' €', l: tr('pour essayer, sans compte'), c: VIOLET },
           ].map((x) => (
             <Reveal key={x.l}>
               <div className="font-bricolage font-bold text-4xl md:text-5xl" style={{ color: x.c }}><CountUp to={x.v} suffix={x.s} decimals={x.d ?? 0} /></div>
@@ -616,11 +623,11 @@ function Journey() {
 }
 
 // ---------------------------------------------------------------- 7. FAQ + appel final
-const FAQ = [
-  ['Les outils sont-ils vraiment gratuits ?', 'Oui. La palettisation 3D et l’optimiseur de chargement s’utilisent gratuitement, sans compte. L’espace (chargements enregistrés, transporteurs, contrôle des factures) est gratuit pendant la phase pilote.'],
-  ['Qu’est-ce qu’un mètre plancher ?', 'La surface au sol occupée divisée par 2,4 m, la largeur d’une remorque. Les colis gerbés ne comptent pas. C’est l’unité de facturation la plus courante en groupage.'],
-  ['Puis-je utiliser mes propres véhicules et tarifs ?', 'Oui. Dans votre espace, vous paramétrez vos véhicules, palettes, agences, tournées et transporteurs (grilles par agence, tournée ou zone, surcharge gazole mensuelle).'],
-  ['Comment importer mes données ?', 'Collez un export Excel de votre ERP ou WMS, ou envoyez vos chargements par l’API : le plan et le coût théorique sont calculés automatiquement.'],
+const faq = () => [
+  [tr('Les outils sont-ils vraiment gratuits ?'), tr('Oui. La palettisation 3D et l’optimiseur de chargement s’utilisent gratuitement, sans compte. L’espace (chargements enregistrés, transporteurs, contrôle des factures) est gratuit pendant la phase pilote.')],
+  [tr('Qu’est-ce qu’un mètre plancher ?'), tr('La surface au sol occupée divisée par 2,4 m, la largeur d’une remorque. Les colis gerbés ne comptent pas. C’est l’unité de facturation la plus courante en groupage.')],
+  [tr('Puis-je utiliser mes propres véhicules et tarifs ?'), tr('Oui. Dans votre espace, vous paramétrez vos véhicules, palettes, agences, tournées et transporteurs (grilles par agence, tournée ou zone, surcharge gazole mensuelle).')],
+  [tr('Comment importer mes données ?'), tr('Collez un export Excel de votre ERP ou WMS, ou envoyez vos chargements par l’API : le plan et le coût théorique sont calculés automatiquement.')],
 ];
 
 function Faq() {
@@ -628,9 +635,9 @@ function Faq() {
   return (
     <section className="bg-white">
       <div className="max-w-3xl mx-auto px-6 md:px-10 py-16 md:py-20">
-        <Reveal><h2 className="font-bricolage font-bold text-3xl md:text-4xl tracking-tight text-slate-900 text-center mb-8">Questions fréquentes</h2></Reveal>
+        <Reveal><h2 className="font-bricolage font-bold text-3xl md:text-4xl tracking-tight text-slate-900 text-center mb-8">{tr('Questions fréquentes')}</h2></Reveal>
         <div className="space-y-3">
-          {FAQ.map(([q, a], i) => (
+          {faq().map(([q, a], i) => (
             <div key={q} className="rounded-xl border border-slate-200 overflow-hidden">
               <button type="button" onClick={() => setOpen(open === i ? -1 : i)} aria-expanded={open === i}
                 className="w-full flex items-center justify-between gap-3 px-5 py-4 text-left font-bricolage font-semibold text-slate-900 hover:bg-slate-50">
@@ -654,14 +661,14 @@ function FinalCta() {
         <svg viewBox="0 0 300 110"><TruckSvg color="#fff" cab="#93C5FD" cargo={[AMBER, AMBER, AMBER]} /></svg>
       </div>
       <div className="relative max-w-4xl mx-auto px-6 md:px-10 py-16 md:py-20 text-center">
-        <h2 className="font-bricolage font-bold text-3xl md:text-5xl tracking-tight text-white">Prêt à remplir vos camions&nbsp;?</h2>
-        <p className="text-blue-100 mt-4 max-w-xl mx-auto">Essayez les outils tout de suite, ou créez votre espace pour enregistrer vos chargements, vos transporteurs et contrôler vos factures.</p>
+        <h2 className="font-bricolage font-bold text-3xl md:text-5xl tracking-tight text-white">{tr('Prêt à remplir vos camions ?')}</h2>
+        <p className="text-blue-100 mt-4 max-w-xl mx-auto">{tr('Essayez les outils tout de suite, ou créez votre espace pour enregistrer vos chargements, vos transporteurs et contrôler vos factures.')}</p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-8">
-          <Link to="/connexion" className="inline-flex items-center gap-2 px-6 py-3.5 rounded-lg font-jetbrains text-sm font-semibold shadow-xl transition-all hover:-translate-y-0.5" style={{ background: AMBER, color: NAVY }}>
-            CRÉER MON ESPACE GRATUIT <ArrowRight size={15} />
+          <Link to={isEn() ? '/connexion?mode=inscription&lang=en' : '/connexion'} className="inline-flex items-center gap-2 px-6 py-3.5 rounded-lg font-jetbrains text-sm font-semibold shadow-xl transition-all hover:-translate-y-0.5" style={{ background: AMBER, color: NAVY }}>
+            {tr('CRÉER MON ESPACE GRATUIT')} <ArrowRight size={15} />
           </Link>
-          <Link to="/outils/optimiseur-chargement" className="inline-flex items-center gap-2 px-6 py-3.5 rounded-lg font-jetbrains text-sm font-semibold text-white transition-all hover:bg-white/10" style={{ border: '1px solid rgba(255,255,255,0.5)' }}>
-            ESSAYER SANS COMPTE
+          <Link to={LOAD_HREF()} className="inline-flex items-center gap-2 px-6 py-3.5 rounded-lg font-jetbrains text-sm font-semibold text-white transition-all hover:bg-white/10" style={{ border: '1px solid rgba(255,255,255,0.5)' }}>
+            {tr('ESSAYER SANS COMPTE')}
           </Link>
         </div>
       </div>

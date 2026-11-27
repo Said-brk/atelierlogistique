@@ -5,5 +5,6 @@ import loadEn from '../../outils/optimiseur-chargement/i18n.en';
 import palletEn from '../../outils/palettisation/i18n.en';
 import accountEn from '../account/i18n.en';
 import espaceEn from '../../espace/i18n.en';
+import landingEn from '../../components/landing/i18n.en';
 
-registerDictionary('en', { ...importEn, ...loadEn, ...palletEn, ...accountEn, ...espaceEn });
+registerDictionary('en', { ...importEn, ...loadEn, ...palletEn, ...accountEn, ...espaceEn, ...landingEn });

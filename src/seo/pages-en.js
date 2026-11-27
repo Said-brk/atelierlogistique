@@ -22,6 +22,15 @@ export const PALLET_FAQ_EN = [
   { q: 'Is it free?', a: 'Yes, free and with no sign-up. The calculation runs in your browser: your data is not sent to any server.' },
 ];
 
+/** Accueil anglais (/en) : version anglaise de la page Chargement + palettisation. */
+export const LOAD_LANDING_PAGE_EN = {
+  path: '/en',
+  title: `Free 3D truck load planner & pallet calculator | ${SITE_NAME}`,
+  description: 'Palletise your cartons, load your trucks in 3D, compute loading meters, pick the cheapest carrier and audit freight invoices. Free, nothing to install, no sign-up.',
+  h1: 'Palletise. Load. Pay the right price for transport.',
+  intro: 'From cartons to a full truck, all the way to the carrier invoice: optimised pallets, 3D load plan, loading meters, cheapest carrier and freight invoice audit.',
+};
+
 /** Outils disponibles en anglais (mêmes id que TOOL_PAGES). */
 export const TOOL_PAGES_EN = [
   {
