@@ -8,23 +8,24 @@ import { TOOL_COMPONENTS, TOOL_EMBED_CSS } from '../../App.jsx';
 import { I18nProvider, useLang } from '../../shared/i18n/I18nProvider.jsx';
 import { APP_TOOLS, TOOL_GROUPS } from '../tools';
 import { PageHeader } from '../ui';
+import { t as tr } from '../../shared/i18n/core';
 
 const LocalNote = ({ className = '' }) => (
   <div className={`inline-flex items-center gap-1.5 text-xs text-slate-500 ${className}`}>
-    <Monitor size={13} /> Outil local : les calculs restent dans ce navigateur, rien n’est enregistré dans votre espace.
+    <Monitor size={13} /> {tr('Outil local : les calculs restent dans ce navigateur, rien n’est enregistré dans votre espace.')}
   </div>
 );
 
 export function ToolsHome() {
-  useEffect(() => { document.title = 'Outils | Atelier Logistique'; }, []);
+  useEffect(() => { document.title = `${tr('Outils')} | Atelier Logistique`; }, []);
   return (
     <>
-      <PageHeader title="Outils" subtitle="Les outils du site, à portée de main dans votre espace." />
+      <PageHeader title={tr('Outils')} subtitle={tr('Les outils du site, à portée de main dans votre espace.')} />
       <div className="px-5 sm:px-8 py-6 space-y-6 max-w-6xl">
         <LocalNote />
         {TOOL_GROUPS.map((g) => (
           <section key={g.id}>
-            <div className="font-jetbrains text-[11px] tracking-wider text-slate-400 mb-2 flex items-center gap-2"><g.icon size={13} /> {g.label.toUpperCase()}</div>
+            <div className="font-jetbrains text-[11px] tracking-wider text-slate-400 mb-2 flex items-center gap-2"><g.icon size={13} /> {tr(g.label).toUpperCase()}</div>
             <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3">
               {g.tools.map((t) => (
                 <Link key={t.id} to={`/app/outils/${t.id}`} className="group rounded-xl bg-white border border-slate-200 p-4 hover:border-blue-300 hover:shadow-sm transition">
@@ -51,7 +52,7 @@ export function ToolInApp() {
   const Comp = TOOL_COMPONENTS[id];
   const lang = useLang();
   useEffect(() => { if (tool) document.title = `${tool.name} | Atelier Logistique`; }, [tool]);
-  if (!tool || !Comp) return <div className="p-10 text-center text-slate-500">Outil introuvable. <Link to="/app/outils" className="text-blue-700">Tous les outils</Link></div>;
+  if (!tool || !Comp) return <div className="p-10 text-center text-slate-500">{tr('Outil introuvable.')} <Link to="/app/outils" className="text-blue-700">{tr('Tous les outils')}</Link></div>;
   return (
     <div className="tool-embedded">
       <style>{TOOL_EMBED_CSS}</style>

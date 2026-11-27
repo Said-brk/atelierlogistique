@@ -4,6 +4,7 @@
 
 import { Zap } from 'lucide-react';
 import { TOOLS, CATEGORIES } from '../App.jsx';
+import { N_ } from '../shared/i18n/core';
 
 /** Outils déjà intégrés autrement (Chargements, Palettisations) : pas répétés dans « Outils ». */
 const IN_OPERATIONS = new Set(['pallet', 'optimiseur-chargement']);
@@ -14,6 +15,9 @@ export const APP_TOOLS = [
 ];
 
 /** Catégories (sous-sections) et leurs outils, dans l'ordre du site. */
+// Libellés des familles (catalogue du site, en français) : traduits à l'affichage.
+export const GROUP_LABELS = [N_('Étiquetage & marquage'), N_('Planification & stocks'), N_('Transport & documents'), N_('Utilitaires')];
+
 export const TOOL_GROUPS = CATEGORIES
   .map((c) => ({ ...c, tools: APP_TOOLS.filter((t) => t.cat === c.id) }))
   .filter((g) => g.tools.length > 0);

@@ -3,6 +3,7 @@
 // {x} = valeur insérée à l'affichage : la garder telle quelle dans la traduction.
 
 const en: Record<string, string> = {
+  "Choix : moins de palettes, puis moins de place au sol, puis coût. Valeurs proposées : Paramètres › Tables de référence.": "Choice: fewer pallets, then less floor space, then cost. Suggested values: Settings › Reference tables.",
   "complète": "full",
   "mono-référence": "single-SKU",
   "mixte": "mixed",

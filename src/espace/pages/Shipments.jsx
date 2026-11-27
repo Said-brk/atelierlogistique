@@ -8,13 +8,14 @@ import { listShipments, SOURCE } from '../data';
 import DocList from '../DocList';
 import { DocChip, fmtDate, pct, PageHeader, Btn } from '../ui';
 import ShipmentsCalendar from './ShipmentsCalendar';
+import { t as tr, N_, numLocale } from '../../shared/i18n/core';
 
 const VIEW_KEY = 'al.espace.shipments.view';
 
 function ViewSwitch({ view, onChange }) {
   return (
     <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-slate-100 text-sm">
-      {[['liste', 'Liste', List], ['calendrier', 'Calendrier', CalendarDays]].map(([v, l, Icon]) => (
+      {[['liste', tr('Liste'), List], ['calendrier', tr('Calendrier'), CalendarDays]].map(([v, l, Icon]) => (
         <button key={v} onClick={() => onChange(v)}
           className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md ${view === v ? 'bg-white shadow-sm text-slate-900 font-medium' : 'text-slate-500 hover:text-slate-800'}`}>
           <Icon size={15} /> {l}
@@ -32,30 +33,30 @@ export default function Shipments() {
   const view = params.get('vue') ?? stored ?? 'liste';
   const setView = (v) => { try { localStorage.setItem(VIEW_KEY, v); } catch { /* indisponible */ } setParams(v === 'calendrier' ? { vue: v } : {}); };
   const fetch = useCallback(() => listShipments(org.id), [org.id]);
-  useEffect(() => { if (view === 'calendrier') document.title = 'Calendrier des chargements | Atelier Logistique'; }, [view]);
+  useEffect(() => { if (view === 'calendrier') document.title = `${tr('Calendrier des chargements')} | Atelier Logistique`; }, [view]);
   const switcher = <ViewSwitch view={view} onChange={setView} />;
 
   if (view === 'calendrier') {
     return (
       <>
-        <PageHeader title="Chargements" subtitle="Calendrier des départs, par tournée"
-          actions={<>{switcher}<Btn onClick={() => navigate('/app/chargements/nouveau')}><Plus size={15} /> Nouveau chargement</Btn></>} />
+        <PageHeader title={tr('Chargements')} subtitle={tr('Calendrier des départs, par tournée')}
+          actions={<>{switcher}<Btn onClick={() => navigate('/app/chargements/nouveau')}><Plus size={15} /> {tr('Nouveau chargement')}</Btn></>} />
         <ShipmentsCalendar />
       </>
     );
   }
   return (
-    <DocList title="Chargements" subtitle="Arrivés de votre WMS / ERP, d’un fichier, ou créés ici" docTitle="Chargements" headerExtra={switcher}
-      newLabel="Nouveau chargement" newPath="/app/chargements/nouveau" basePath="/app/chargements" fetch={fetch}
+    <DocList title={tr('Chargements')} subtitle={tr('Arrivés de votre WMS / ERP, d’un fichier, ou créés ici')} docTitle={tr('Chargements')} headerExtra={switcher}
+      newLabel={tr('Nouveau chargement')} newPath="/app/chargements/nouveau" basePath="/app/chargements" fetch={fetch}
       columns={[
-        { h: 'Origine', cell: (r) => SOURCE[r.source] ?? r.source },
-        { h: 'Départ', cell: (r) => <span className="whitespace-nowrap">{fmtDate(r.departure_at)}</span> },
-        { h: 'Tournée', cell: (r) => r.tour ?? '—' },
-        { h: 'Transporteur', cell: (r) => r.carrier ?? '—' },
-        { h: 'Coût théorique', cell: (r) => (r.carrier_cost == null ? '—' : <span className="font-jetbrains text-xs whitespace-nowrap">{Number(r.carrier_cost).toLocaleString('fr-FR', { maximumFractionDigits: 2 })} €</span>) },
-        { h: 'Véhicule', cell: (r) => <span className="whitespace-nowrap">{r.result?.summary?.vehicle ?? '—'}</span> },
-        { h: 'Remplissage', cell: (r) => pct(r.result?.summary?.fill) },
-        { h: 'Palettes de', cell: (r) => (r.palletizations?.length
+        { h: N_('Origine'), cell: (r) => SOURCE[r.source] ?? r.source },
+        { h: N_('Départ'), cell: (r) => <span className="whitespace-nowrap">{fmtDate(r.departure_at)}</span> },
+        { h: N_('Tournée'), cell: (r) => r.tour ?? '—' },
+        { h: N_('Transporteur'), cell: (r) => r.carrier ?? '—' },
+        { h: N_('Coût théorique'), cell: (r) => (r.carrier_cost == null ? '—' : <span className="font-jetbrains text-xs whitespace-nowrap">{Number(r.carrier_cost).toLocaleString(numLocale(), { maximumFractionDigits: 2 })} €</span>) },
+        { h: N_('Véhicule'), cell: (r) => <span className="whitespace-nowrap">{r.result?.summary?.vehicle ?? '—'}</span> },
+        { h: N_('Remplissage'), cell: (r) => pct(r.result?.summary?.fill) },
+        { h: N_('Palettes de'), cell: (r) => (r.palletizations?.length
           ? <span className="flex flex-wrap gap-1">{r.palletizations.map((p) => <DocChip key={p.code} kind="pallet" to={`/app/palettisations/${p.code}`} code={p.code} />)}</span> : '—') },
       ]} />
   );

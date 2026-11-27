@@ -12,8 +12,10 @@ import useReferences from '../useReferences';
 import { calendarShipments, setDeparture, createShipment, STATUS, DOCK_STATUSES } from '../data';
 import { tourOf } from '../consolidation/engine';
 import { tourTitle } from '../tourCheck';
+import { t as tr, numLocale } from '../../shared/i18n/core';
 
-const WEEKDAYS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+// Jours de la semaine (lundi → dimanche), abrégés dans la langue de l'utilisateur.
+const weekdays = () => Array.from({ length: 7 }, (_, i) => new Date(Date.UTC(2024, 0, 1 + i)).toLocaleDateString(numLocale(), { weekday: 'short', timeZone: 'UTC' }).replace('.', ''));
 const TOUR_COLORS = ['#7C3AED', '#0891B2', '#DB2777', '#EA580C', '#16A34A', '#2563EB', '#CA8A04', '#9333EA'];
 
 // Jours en UTC (clé AAAA-MM-JJ) : même convention que la date de départ enregistrée.
@@ -23,7 +25,7 @@ const addDays = (k, n) => { const d = fromKey(k); d.setUTCDate(d.getUTCDate() + 
 const isoDow = (k) => ((fromKey(k).getUTCDay() + 6) % 7) + 1; // 1 = lundi
 const mondayOf = (k) => addDays(k, 1 - isoDow(k));
 const todayKey = () => { const d = new Date(); return keyOf(new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()))); };
-const fmt = (k, o) => fromKey(k).toLocaleDateString('fr-FR', { timeZone: 'UTC', ...o });
+const fmt = (k, o) => fromKey(k).toLocaleDateString(numLocale(), { timeZone: 'UTC', ...o });
 const VIEW_KEY = 'al.espace.calendar.mode';
 
 function Card({ s, tourColor, onOpen, compact = false }) {
@@ -32,7 +34,7 @@ function Card({ s, tourColor, onOpen, compact = false }) {
   const sum = s.summary;
   return (
     <div draggable={!fixed} onDragStart={(e) => { e.dataTransfer.setData('text/plain', s.id); e.dataTransfer.effectAllowed = 'move'; }}
-      onClick={() => onOpen(s)} title={`${s.code} · ${s.label ?? ''} — ${st?.label ?? s.status}${fixed ? ' (chargé : date figée)' : ' · glisser pour changer la date'}`}
+      onClick={() => onOpen(s)} title={`${s.code} · ${s.label ?? ''} — ${st?.label ?? s.status}${fixed ? ` (${tr('chargé : date figée')})` : ` · ${tr('glisser pour changer la date')}`}`}
       className={`group rounded-md bg-white border border-slate-200 hover:border-blue-300 hover:shadow-sm cursor-pointer ${compact ? 'px-1.5 py-1' : 'px-2 py-1.5'}`}
       style={{ borderLeft: `3px solid ${tourColor ?? '#CBD5E1'}` }}>
       <div className="flex items-center gap-1.5 min-w-0">
@@ -94,7 +96,7 @@ export default function ShipmentsCalendar() {
     const s = [...(data?.dated ?? []), ...(data?.undated ?? [])].find((x) => x.id === id);
     if (!s || String(s.departure_at ?? '').slice(0, 10) === day) return;
     if (s.status === 'loaded') return;
-    if (DOCK_STATUSES.includes(s.status) && !window.confirm(`${s.code} est déjà au quai. Changer quand même sa date de départ ?`)) return;
+    if (DOCK_STATUSES.includes(s.status) && !window.confirm(tr('{code} est déjà au quai. Changer quand même sa date de départ ?', { code: s.code }))) return;
     setBusy(true); setError('');
     try { await setDeparture(id, day); load(); } catch (e) { setError(e.message); }
     setBusy(false);
@@ -102,7 +104,7 @@ export default function ShipmentsCalendar() {
   const createFor = async (day, tour) => {
     setBusy(true);
     try {
-      const code = await createShipment(org.id, { label: tourTitle(tour ? [tour.code] : [], day) ?? `Chargement du ${fmt(day, { day: 'numeric', month: 'long' })}`, departure_at: `${day}T00:00:00.000Z`, ...(tour ? { tour: tour.code } : {}), ...(tour?.carrier ? { carrier: tour.carrier } : {}) });
+      const code = await createShipment(org.id, { label: tourTitle(tour ? [tour.code] : [], day) ?? tr('Chargement du {d}', { d: fmt(day, { day: 'numeric', month: 'long' }) }), departure_at: `${day}T00:00:00.000Z`, ...(tour ? { tour: tour.code } : {}), ...(tour?.carrier ? { carrier: tour.carrier } : {}) });
       navigate(`/app/chargements/${code}`);
     } catch (e) { setError(e.message); setBusy(false); }
   };
@@ -136,15 +138,15 @@ export default function ShipmentsCalendar() {
     <div className="px-5 sm:px-8 py-5 space-y-3">
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex items-center rounded-lg border border-slate-200 bg-white">
-          <button onClick={() => shift(-1)} className="p-2 text-slate-500 hover:text-slate-900" aria-label="Précédent"><ChevronLeft size={16} /></button>
-          <button onClick={() => setAnchor(todayKey())} className="px-2.5 py-1.5 text-sm text-slate-700 border-x border-slate-200 hover:bg-slate-50">Aujourd’hui</button>
-          <button onClick={() => shift(1)} className="p-2 text-slate-500 hover:text-slate-900" aria-label="Suivant"><ChevronRight size={16} /></button>
+          <button onClick={() => shift(-1)} className="p-2 text-slate-500 hover:text-slate-900" aria-label={tr('Précédent')}><ChevronLeft size={16} /></button>
+          <button onClick={() => setAnchor(todayKey())} className="px-2.5 py-1.5 text-sm text-slate-700 border-x border-slate-200 hover:bg-slate-50">{tr('Aujourd’hui')}</button>
+          <button onClick={() => shift(1)} className="p-2 text-slate-500 hover:text-slate-900" aria-label={tr('Suivant')}><ChevronRight size={16} /></button>
         </div>
         <div className="font-semibold text-slate-900 capitalize">{title}</div>
         {(busy || !data) && <Loader2 size={15} className="animate-spin text-slate-400" />}
         <span className="flex-1" />
         <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-white border border-slate-200 text-sm">
-          {[['week', 'Semaine', CalendarRange], ['month', 'Mois', CalendarDays]].map(([m, l, Icon]) => (
+          {[['week', tr('Semaine'), CalendarRange], ['month', tr('Mois'), CalendarDays]].map(([m, l, Icon]) => (
             <button key={m} onClick={() => setMode(m)} className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md ${mode === m ? 'bg-blue-600 text-white' : 'text-slate-600 hover:text-slate-900'}`}><Icon size={14} /> {l}</button>
           ))}
         </div>
@@ -152,8 +154,8 @@ export default function ShipmentsCalendar() {
       {tours.length > 0 && (
         <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500">
           {tours.map((t) => <span key={t.code} className="inline-flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: tourColor[t.code] }} />{t.label}
-            <span className="text-slate-400">{t.days.length ? `(${t.days.map((d) => WEEKDAYS[d - 1]).join(', ')})` : '(jours non renseignés)'}</span></span>)}
-          {mode === 'month' && <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full border border-slate-400" /> tournée prévue, sans chargement</span>}
+            <span className="text-slate-400">{t.days.length ? `(${t.days.map((d) => weekdays()[d - 1]).join(', ')})` : `(${tr('jours non renseignés')})`}</span></span>)}
+          {mode === 'month' && <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full border border-slate-400" /> {tr('tournée prévue, sans chargement')}</span>}
         </div>
       )}
       {error && <div className="text-sm text-red-700">{error}</div>}
@@ -167,24 +169,24 @@ export default function ShipmentsCalendar() {
                 <div key={day} {...dropProps(day)}
                   className={`rounded-xl border min-h-[120px] md:min-h-[420px] flex flex-col ${over === day ? 'border-blue-400 bg-blue-50/60' : day === today ? 'border-blue-200 bg-white' : 'border-slate-200 bg-white'}`}>
                   <div className={`px-2.5 py-2 border-b border-slate-100 flex items-baseline gap-1.5 ${day === today ? 'text-blue-700' : 'text-slate-700'}`}>
-                    <span className="text-xs font-semibold uppercase">{WEEKDAYS[isoDow(day) - 1]}</span>
+                    <span className="text-xs font-semibold uppercase">{weekdays()[isoDow(day) - 1]}</span>
                     <span className="text-lg font-bold leading-none">{fmt(day, { day: 'numeric' })}</span>
                     <span className="ml-auto text-[11px] text-slate-400">{count || ''}</span>
                   </div>
                   <div className="p-1.5 space-y-2 flex-1">
                     {groups.map(({ tour, items, planned }) => (
                       <div key={tour.code} className="rounded-lg p-1 space-y-1" style={{ background: `${tourColor[tour.code]}0F` }}>
-                        <div className="px-1 text-[10px] font-semibold truncate" style={{ color: tourColor[tour.code] }} title={tour.label}>{tour.label}{!planned && <span className="font-normal text-slate-400"> · hors jour prévu</span>}</div>
+                        <div className="px-1 text-[10px] font-semibold truncate" style={{ color: tourColor[tour.code] }} title={tour.label}>{tour.label}{!planned && <span className="font-normal text-slate-400"> {tr('· hors jour prévu')}</span>}</div>
                         {items.map((s) => <Card key={s.id} s={s} tourColor={tourColor[tour.code]} onOpen={open} />)}
                         {items.length === 0 && (
                           <button onClick={() => createFor(day, tour)} className="w-full rounded-md border border-dashed px-2 py-1.5 text-[11px] text-slate-500 hover:text-blue-700 hover:border-blue-300 inline-flex items-center justify-center gap-1"
-                            style={{ borderColor: `${tourColor[tour.code]}66` }}><Plus size={12} /> Chargement</button>
+                            style={{ borderColor: `${tourColor[tour.code]}66` }}><Plus size={12} /> {tr('Chargement')}</button>
                         )}
                       </div>
                     ))}
                     {others.length > 0 && (
                       <div className="space-y-1">
-                        {groups.length > 0 && <div className="px-1 text-[10px] font-semibold text-slate-400">Autres</div>}
+                        {groups.length > 0 && <div className="px-1 text-[10px] font-semibold text-slate-400">{tr('Autres')}</div>}
                         {others.map((s) => <Card key={s.id} s={s} onOpen={open} />)}
                       </div>
                     )}
@@ -197,7 +199,7 @@ export default function ShipmentsCalendar() {
         ) : (
           <div className="flex-1 min-w-0 w-full rounded-xl border border-slate-200 bg-white overflow-hidden">
             <div className="grid grid-cols-7 bg-slate-50 border-b border-slate-200 text-[11px] font-semibold text-slate-500 uppercase">
-              {WEEKDAYS.map((d) => <div key={d} className="px-2 py-1.5">{d}</div>)}
+              {weekdays().map((d) => <div key={d} className="px-2 py-1.5">{d}</div>)}
             </div>
             <div className="grid grid-cols-7">
               {days.map((day) => {
@@ -209,7 +211,7 @@ export default function ShipmentsCalendar() {
                     className={`min-h-[96px] border-b border-r border-slate-100 p-1 space-y-1 ${over === day ? 'bg-blue-50' : day.slice(0, 7) !== month ? 'bg-slate-50/70' : ''}`}>
                     <button onClick={() => { setAnchor(day); setMode('week'); }} className={`text-xs font-semibold px-1 rounded ${day === today ? 'bg-blue-600 text-white' : day.slice(0, 7) !== month ? 'text-slate-300' : 'text-slate-600 hover:text-blue-700'}`}>{fmt(day, { day: 'numeric' })}</button>
                     {items.slice(0, 4).map(([s, c]) => <Card key={s.id} s={s} tourColor={c} onOpen={open} compact />)}
-                    {items.length > 4 && <button onClick={() => { setAnchor(day); setMode('week'); }} className="text-[10px] text-slate-500 hover:text-blue-700 px-1">+{items.length - 4} autre(s)</button>}
+                    {items.length > 4 && <button onClick={() => { setAnchor(day); setMode('week'); }} className="text-[10px] text-slate-500 hover:text-blue-700 px-1">{tr('+{n} autre(s)', { n: items.length - 4 })}</button>}
                     {empty.length > 0 && count === 0 && <div className="flex flex-wrap gap-0.5">{empty.map((g) => <span key={g.tour.code} title={`${g.tour.label} : aucun chargement`} className="w-2 h-2 rounded-full border" style={{ borderColor: tourColor[g.tour.code] }} />)}</div>}
                   </div>
                 );
@@ -220,12 +222,12 @@ export default function ShipmentsCalendar() {
 
         <aside onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); setOver(null); const id = e.dataTransfer.getData('text/plain'); if (id) move(id, null); }}
           className="w-full xl:w-56 shrink-0 rounded-xl border border-slate-200 bg-white">
-          <div className="px-3 py-2 border-b border-slate-100 text-sm font-semibold text-slate-800 flex items-center gap-1.5"><Inbox size={15} /> Sans date <span className="text-slate-400 font-normal">· {undated.length}</span></div>
+          <div className="px-3 py-2 border-b border-slate-100 text-sm font-semibold text-slate-800 flex items-center gap-1.5"><Inbox size={15} /> {tr('Sans date')} <span className="text-slate-400 font-normal">· {undated.length}</span></div>
           <div className="p-1.5 space-y-1 max-h-[60vh] overflow-y-auto">
-            {undated.length === 0 ? <div className="px-2 py-3 text-xs text-slate-400">Tous vos chargements à faire sont datés.</div>
+            {undated.length === 0 ? <div className="px-2 py-3 text-xs text-slate-400">{tr('Tous vos chargements à faire sont datés.')}</div>
               : undated.map((s) => <Card key={s.id} s={s} tourColor={s.tour ? tourColor[s.tour] : null} onOpen={open} />)}
           </div>
-          <p className="px-3 pb-2 text-[11px] text-slate-400 hidden lg:block">Glissez un chargement sur un jour pour fixer sa date de départ.</p>
+          <p className="px-3 pb-2 text-[11px] text-slate-400 hidden lg:block">{tr('Glissez un chargement sur un jour pour fixer sa date de départ.')}</p>
         </aside>
       </div>
     </div>

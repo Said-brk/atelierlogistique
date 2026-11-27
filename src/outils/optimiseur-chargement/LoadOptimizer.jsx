@@ -1127,7 +1127,7 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
                   </div>
                 </div>
                 {vehicleMode === 'fleet' && <FleetVehicles vehicles={fleetVehicles} onChange={changeFleetVehicles}
-                  note={refs ? 'Véhicules, dimensions et coûts proposés : Paramètres › Tables de référence. Les changements faits ici ne valent que pour ce chargement.' : null} />}
+                  note={refs ? tr('Véhicules, dimensions et coûts proposés : Paramètres › Tables de référence. Les changements faits ici ne valent que pour ce chargement.') : null} />}
                 {vehicleMode === 'single' && (<>
                 <div className="p-4 grid grid-cols-2 md:grid-cols-3 gap-2">
                   {vehicleList.map((c) => (

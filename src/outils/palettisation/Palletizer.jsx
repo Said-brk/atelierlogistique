@@ -368,7 +368,7 @@ export default function Palletizer({ onBack, embedded: embeddedProp = false, onL
         <div className="grid grid-cols-1 xl:grid-cols-5 gap-4 sm:gap-5 items-start">
           <div className="xl:col-span-3">
             <SupportsPanel supports={supports} onChange={changeSupports}
-              note={refPallets ? 'Choix : moins de palettes, puis moins de place au sol, puis coût. Valeurs proposées : Paramètres › Tables de référence.' : null} />
+              note={refPallets ? t('Choix : moins de palettes, puis moins de place au sol, puis coût. Valeurs proposées : Paramètres › Tables de référence.') : null} />
           </div>
 
           <div className="xl:col-span-2 rounded-xl border border-slate-200 bg-white p-4 space-y-3">

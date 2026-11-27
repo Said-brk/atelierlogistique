@@ -3,6 +3,7 @@
 // {x} = valeur insérée à l'affichage : la garder telle quelle dans la traduction.
 
 const en: Record<string, string> = {
+  "Véhicules, dimensions et coûts proposés : Paramètres › Tables de référence. Les changements faits ici ne valent que pour ce chargement.": "Vehicles, dimensions and costs suggested: Settings › Reference tables. Changes made here apply to this load only.",
   // Visite guidée
   "Visite guidée": "Guided tour",
   "Première fois ici ?": "First time here?",
