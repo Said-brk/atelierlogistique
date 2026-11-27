@@ -6,7 +6,7 @@ import {
   RotateCcw, Check, ArrowRight, Boxes, Upload, Download,
   MapPin, Undo2, Printer, Scale, ChevronDown,
   QrCode as QrCodeIcon, Pencil,
-  Lock, Ruler,
+  Lock, Ruler, Sparkles,
 } from 'lucide-react';
 
 const LoadView3D = lazy(() => import('./LoadView3D.jsx'));
@@ -65,6 +65,7 @@ import { applyManualPlan } from './manual/editPlan';
 import EditPanel from './manual/EditPanel';
 import WallSteps from './print/WallSteps';
 import { homeHref } from '../../shared/i18n/paths';
+import GuidedTour from '../../shared/tour/GuidedTour';
 
 const importProfiles = createLocalProfileStore();
 const IMPORT_EXTRA_OPTIONS = [
@@ -613,6 +614,7 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
     ? (vehicleMode === 'fleet' ? (viewingTruck ? `${shareUrl}?camion=${viewingTruck}` : null) : shareUrl)
     : encodedGuideLink;
   const [guideOpen, setGuideOpen] = useState(false);
+  const [tourKey, setTourKey] = useState(0); // relance de la visite guidée
   useEffect(() => {
     let alive = true;
     setGuideLink(null);
@@ -998,6 +1000,28 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
     });
   }, [rows, containerId, custom, vehicleMode, deliveryMode, excludedStops, result, rawResult, status, container, containerOverride, manual.edited, manual.snapshot, encodedGuideLink, fleetPlan, fleetStatus, fleetGuideList, fleetVehicles, fleetTouched, pickedVehicle, baseContainer, onWorkspaceChange, floorLdm]);
 
+  // Visite guidée : les points qui font l'effet « waouh », sans encombrer l'écran.
+  const tourSteps = [
+    { target: '[data-tour="example"]', title: tr('Commencez par un exemple'),
+      body: tr('Un clic et un vrai chargement à plusieurs arrêts se remplit : références, poids, gerbage, ordre de livraison.'),
+      action: workspace ? undefined : { label: tr('Charger l’exemple'), run: loadExample } },
+    { target: '[data-tour="import"]', title: tr('Ou vos propres données'),
+      body: tr('Collez depuis Excel ou importez l’export de votre ERP / WMS. Vos colonnes sont reconnues puis mémorisées.') },
+    { target: '[data-tour="vehicle-mode"]', title: tr('Un camion… ou toute une flotte'),
+      body: tr('En « Flotte automatique », l’outil choisit la combinaison de véhicules la moins chère pour tout faire partir.'),
+      action: { label: tr('Essayer la flotte'), run: () => switchVehicleMode('fleet'), disabled: vehicleMode === 'fleet' } },
+    { target: '[data-tour="optimize"]', title: tr('Lancez le calcul'),
+      body: tr('Plan 3D colis par colis en quelques secondes, calculé dans votre navigateur.'),
+      action: { label: vehicleMode === 'fleet' ? tr('Proposer la flotte') : tr('Optimiser'), run: optimize, disabled: !valid || (vehicleMode === 'fleet' && !fleetReady) } },
+    { target: '[data-tour="fleet"]', title: tr('Votre flotte proposée'),
+      body: tr('Véhicules retenus, remplissage et coût de chaque camion, comparés aux autres options.'),
+      action: fleetPlan?.trucks?.[0] ? { label: tr('Voir le plan 3D'), run: () => viewTruck(fleetPlan.trucks[0]) } : undefined },
+    { target: '[data-tour="plan"]', title: tr('Votre plan de chargement 3D'),
+      body: tr('Tournez, zoomez, déchargez arrêt par arrêt. Mètres plancher et contrôles (poids, équilibre, accès) juste à côté.') },
+    { target: '[data-tour="qr"]', title: tr('Direction le quai'),
+      body: tr('Le cariste scanne ce QR code : le plan pas à pas s’ouvre sur son téléphone. Fini les plans papier.') },
+  ];
+
   return (
     <div className={`${embedded ? '' : 'min-h-screen'} text-slate-900`} style={{ background: '#F8FAFC', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
       {!embedded && (<>
@@ -1012,8 +1036,10 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
               <div className="font-jetbrains text-[10px] text-slate-500">{tr('ATELIER / CHARGEMENT')}</div>
             </div>
           </div>
-          <div className="hidden md:flex items-center gap-2 font-jetbrains text-[10px] text-slate-500 tracking-wider">
-            <span className="w-1.5 h-1.5 rounded-full" style={{ background: '#10B981' }} />{' '}{tr('CALCUL DANS LE NAVIGATEUR')}</div>
+          <div className="flex items-center gap-4">
+            <div className="hidden md:flex items-center gap-2 font-jetbrains text-[10px] text-slate-500 tracking-wider">
+              <span className="w-1.5 h-1.5 rounded-full" style={{ background: '#10B981' }} />{' '}{tr('CALCUL DANS LE NAVIGATEUR')}</div>
+          </div>
         </div>
       </nav>
 
@@ -1025,6 +1051,20 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
       </>)}
 
       <div className={`max-w-[1600px] mx-auto px-4 sm:px-6 py-4 ${status !== 'done' ? 'pb-24 xl:pb-4' : ''}`}>
+        {!locked && (
+          <div className="flex justify-end -mt-1 mb-2">
+            <button onClick={() => setTourKey((k) => k + 1)} className="flex items-center gap-1.5 font-jetbrains text-[11px] text-slate-500 hover:text-slate-900">
+              <Sparkles size={13} style={{ color: '#F59E0B' }} />{' '}{tr('Visite guidée')}</button>
+          </div>
+        )}
+        <GuidedTour id={workspace ? 'chargement-espace' : 'chargement'} enabled={!locked} restartKey={tourKey}
+          onEvent={(n) => track(`load_optimizer_${n}`)} steps={tourSteps}
+          labels={{
+            introTitle: tr('Première fois ici ?'),
+            introBody: tr('40 secondes pour voir l’outil charger un camion à votre place : exemple, flotte proposée, plan 3D et QR code pour le quai.'),
+            start: tr('Suivre le guide'), later: tr('Me le rappeler dans 24 h'), never: tr('Ne plus afficher'),
+            next: tr('Suivant'), finish: tr('Terminer'), of: tr('sur'), waiting: tr('Calcul en cours…'),
+          }} />
         <div className="space-y-4 sm:space-y-5">
 
           {locked && (
@@ -1048,9 +1088,9 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
                 )}
               </button>
               <div className="grid grid-cols-4 sm:flex sm:items-center gap-1.5">
-                <button onClick={() => setImportOpen(true)} className="col-span-2 flex items-center justify-center gap-1 font-jetbrains text-[11px] px-2.5 py-2 sm:py-1.5 rounded-md" style={{ background: BLUE, color: '#fff' }} title={tr('Fichier Excel / CSV (ERP, WMS) ou copier-coller')}><Upload size={11} />{' '}{tr('Importer / coller')}</button>
+                <button data-tour="import" onClick={() => setImportOpen(true)} className="col-span-2 flex items-center justify-center gap-1 font-jetbrains text-[11px] px-2.5 py-2 sm:py-1.5 rounded-md" style={{ background: BLUE, color: '#fff' }} title={tr('Fichier Excel / CSV (ERP, WMS) ou copier-coller')}><Upload size={11} />{' '}{tr('Importer / coller')}</button>
                 <button onClick={downloadTemplate} className="flex items-center justify-center gap-1 font-jetbrains text-[11px] px-2.5 py-2 sm:py-1.5 rounded-md" style={{ background: '#F1F5F9', color: '#475569' }}><Download size={11} />{' '}{tr('Modèle')}</button>
-                <button onClick={loadExample} className="flex items-center justify-center font-jetbrains text-[11px] px-2.5 py-2 sm:py-1.5 rounded-md" style={{ background: BLUE_LIGHT, color: BLUE }}>{tr('Exemple')}</button>
+                <button data-tour="example" onClick={loadExample} className="flex items-center justify-center font-jetbrains text-[11px] px-2.5 py-2 sm:py-1.5 rounded-md" style={{ background: BLUE_LIGHT, color: BLUE }}>{tr('Exemple')}</button>
               </div>
             </div>
             {importOpen && (
@@ -1079,7 +1119,7 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
               <div className="rounded-xl border border-slate-200 overflow-hidden bg-white">
                 <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 font-jetbrains text-xs text-slate-600 flex flex-wrap items-center justify-between gap-2">
                   <span className="flex items-center gap-2"><Truck size={13} /> 2 · {vehicleMode === 'fleet' ? tr('VÉHICULES DISPONIBLES') : tr('CHOISISSEZ VOTRE VÉHICULE OU CONTENANT')}</span>
-                  <div className="flex items-center gap-0.5 p-0.5 rounded-md bg-white border border-slate-200">
+                  <div data-tour="vehicle-mode" className="flex items-center gap-0.5 p-0.5 rounded-md bg-white border border-slate-200">
                     {[['single', tr('Un véhicule')], ['fleet', tr('Flotte automatique')]].map(([m, l]) => (
                       <button key={m} onClick={() => switchVehicleMode(m)} className="px-2.5 py-1 rounded text-[11px] font-jetbrains"
                         style={vehicleMode === m ? { background: BLUE, color: '#fff', fontWeight: 600 } : { color: '#64748B' }}>{l}</button>
@@ -1207,7 +1247,7 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
                   <div className="flex items-start gap-2 text-[11px] mb-3 px-3 py-2 rounded-md" style={{ background: '#FFFBEB', color: '#B45309', border: '1px solid #FDE68A' }}>
                     <AlertCircle size={13} className="mt-0.5 shrink-0" />{tr('Le poids total ({v1} kg) dépasse le poids utile du contenant ({v2} kg). Le moteur chargera ce qui est admissible.', { v1: formatKg(totals.weight), v2: formatKg(container.maxWeight) })}</div>
                 )}
-                <button ref={ctaRef} onClick={optimize} disabled={!valid || status === 'running' || fleetStatus === 'running' || (vehicleMode === 'fleet' && !fleetReady)}
+                <button data-tour="optimize" ref={ctaRef} onClick={optimize} disabled={!valid || status === 'running' || fleetStatus === 'running' || (vehicleMode === 'fleet' && !fleetReady)}
                   className="w-full flex items-center justify-center gap-2 py-3.5 sm:py-3 rounded-lg font-bricolage font-semibold text-white transition-all disabled:opacity-50"
                   style={{ background: BLUE }}>
                   {fleetStatus === 'running' ? <><Loader2 size={16} className="animate-spin" />{' '}{tr('Recherche de la meilleure flotte…')}</>
@@ -1224,7 +1264,7 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
 
           {/* Flotte proposée (mode Flotte automatique) */}
           {vehicleMode === 'fleet' && fleetStatus === 'done' && fleetPlan && (
-            <div ref={fleetRef} className="scroll-mt-20 rounded-xl transition-shadow duration-700"
+            <div data-tour="fleet" ref={fleetRef} className="scroll-mt-20 rounded-xl transition-shadow duration-700"
               style={fleetFlash ? { boxShadow: '0 0 0 3px #F59E0B, 0 10px 30px -10px rgba(245,158,11,0.6)' } : undefined}>
               <FleetResult plan={fleetPlan} viewing={viewingTruck} onView={viewTruck} trucks={workspace?.trucks} locked={!!locked} truckPhase={workspace?.truckPhase ?? null}
                 floors={fleetFloorMap ?? Object.fromEntries((fleetGuideList ?? []).filter((g) => g.floor).map((g) => [g.index, g.floor]))} />
@@ -1236,7 +1276,7 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
             {status === 'done' && result ? (
               <>
                 <div className="xl:col-span-3">
-                  <div className="rounded-xl border border-slate-200 overflow-hidden bg-white">
+                  <div data-tour="plan" className="rounded-xl border border-slate-200 overflow-hidden bg-white">
                     <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-slate-200 bg-slate-50 font-jetbrains text-xs text-slate-600 flex flex-wrap items-center justify-between gap-2">
                       <span className="flex items-center gap-2 shrink-0"><Box size={13} />{' '}{tr('PLAN')}<span className="hidden sm:inline">{' '}{tr('DE CHARGEMENT')}</span></span>
                       {/* Téléphone : actions sous le titre, alignées à gauche ; écran large : à droite du titre. */}
@@ -1394,7 +1434,7 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
                           </button>
                         ))}
                       </div>
-                      <button onClick={() => { setGuideOpen(true); track('load_optimizer_guide_qr'); }} disabled={!guideLink} title={tr('QR code cariste : plan pas à pas sur téléphone')}
+                      <button data-tour="qr" onClick={() => { setGuideOpen(true); track('load_optimizer_guide_qr'); }} disabled={!guideLink} title={tr('QR code cariste : plan pas à pas sur téléphone')}
                         className="w-full mb-2 flex items-center justify-center gap-2 py-2.5 rounded-lg font-jetbrains text-xs font-semibold disabled:opacity-50"
                         style={{ background: '#F59E0B', color: '#0F172A' }}>
                         <QrCodeIcon size={14} className="shrink-0" />{' '}{tr('QR code cariste')}</button>

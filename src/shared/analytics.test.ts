@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { scrubUrl } from './analytics.js';
+import { scrubUrl } from './analytics';
 
 describe('scrubUrl', () => {
   it('retire query et hash', () => {
