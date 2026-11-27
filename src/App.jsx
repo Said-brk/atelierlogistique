@@ -572,21 +572,25 @@ function AllToolsPage() {
     <div className="min-h-screen text-slate-900" style={{ background: '#FFFFFF', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
       <FontsAndStyles />
       <SiteHeader />
-      {/* Outils phares mis en avant */}
-      <section className="max-w-7xl mx-auto px-6 md:px-10 pt-14 grid grid-cols-1 md:grid-cols-2 gap-4">
-        {FEATURED_TOOLS.map((id) => TOOLS.find((t) => t.id === id)).filter(Boolean).map((t) => {
-          const Icon = t.icon;
-          return (
-            <Link key={t.id} to={`/outils/${t.id}`} className="group flex items-center gap-4 rounded-xl p-5 text-white transition-all hover:-translate-y-0.5 hover:shadow-lg" style={{ background: t.id === 'pallet' ? '#1E293B' : BLUE }}>
-              <span className="w-12 h-12 rounded-lg flex items-center justify-center bg-white/15 shrink-0"><Icon size={22} /></span>
-              <span className="min-w-0">
-                <span className="block font-bricolage font-semibold text-xl">{t.name}</span>
-                <span className="block text-sm text-white/80 truncate">{t.desc}</span>
-              </span>
-              <ArrowRight size={18} className="ml-auto shrink-0 transition-transform group-hover:translate-x-1" />
-            </Link>
-          );
-        })}
+      {/* Module chargement + palettisation : une seule entrée vers sa page dédiée */}
+      <section className="max-w-7xl mx-auto px-6 md:px-10 pt-14 pb-14">
+        <Link to={LOAD_LANDING_PAGE.path} className="group relative flex flex-col md:flex-row md:items-center gap-5 rounded-2xl p-6 md:p-7 text-white overflow-hidden transition-all hover:-translate-y-0.5 hover:shadow-xl"
+          style={{ background: `linear-gradient(120deg, ${BLUE} 0%, #1E293B 100%)` }}>
+          <span className="flex gap-2 shrink-0">
+            {FEATURED_TOOLS.map((id) => TOOLS.find((t) => t.id === id)).filter(Boolean).map((t) => {
+              const Icon = t.icon;
+              return <span key={t.id} className="w-12 h-12 rounded-lg flex items-center justify-center bg-white/15"><Icon size={22} /></span>;
+            })}
+          </span>
+          <span className="min-w-0">
+            <span className="block font-jetbrains text-[11px] tracking-widest" style={{ color: '#FBBF24' }}>MODULE TRANSPORT</span>
+            <span className="block font-bricolage font-semibold text-xl md:text-2xl">Chargement camion 3D + palettisation 3D</span>
+            <span className="block text-sm text-white/80 mt-1">Simulateur, mètres plancher, transporteur le moins cher et contrôle des factures.</span>
+          </span>
+          <span className="md:ml-auto inline-flex items-center gap-2 font-jetbrains text-xs font-semibold px-4 py-2.5 rounded-lg shrink-0 self-start md:self-center" style={{ background: '#F59E0B', color: '#0F172A' }}>
+            DÉCOUVRIR <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
+          </span>
+        </Link>
       </section>
       <ToolsCatalog onLaunch={(id) => navigate(`/outils/${id}`)}
         asH1 title={<>{ALL_TOOLS_PAGE.h1} · <span style={{ color: BLUE }}>{TOOLS.length} outils gratuits</span></>} />

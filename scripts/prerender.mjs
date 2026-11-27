@@ -248,6 +248,7 @@ const ORG = {
   }];
   const inner = `
     <div><h1 class="font-bold text-3xl">${esc(ALL_TOOLS_PAGE.h1)}</h1><p class="text-slate-600 mt-2">${esc(ALL_TOOLS_PAGE.intro)}</p></div>
+    <section>${links([{ href: LOAD_LANDING_PAGE.path, label: 'Chargement camion 3D + palettisation 3D', desc: LOAD_LANDING_PAGE.intro }])}</section>
     <section>${links([...featured, ...others].map((t) => ({ href: toolPath(t.id), label: t.name, desc: t.intro })))}</section>`;
   write(ALL_TOOLS_PAGE.path, page(head({ path: ALL_TOOLS_PAGE.path, title: ALL_TOOLS_PAGE.title, description: ALL_TOOLS_PAGE.description, structured }), shell([{ label: ALL_TOOLS_PAGE.h1 }], inner)));
 }
