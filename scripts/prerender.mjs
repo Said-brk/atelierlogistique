@@ -18,6 +18,8 @@ import { navHtml } from '../src/seo/nav.js';
 import { wordmarkHtml } from '../src/seo/brand.js';
 import { writeCapacityPages, CAPACITY_HUB } from './capacity-pages.mjs';
 import { writeEnPages, enToolPages, EN_TOOL_ALTERNATES } from './en-pages.mjs';
+import { LOAD_LANDING_PAGE_EN } from '../src/seo/pages-en.js';
+const L_FR_PATH = '/chargement-palettisation';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const dist = join(root, 'dist');
@@ -194,7 +196,7 @@ const ORG = {
     <div><h1 class="font-bold text-3xl">${esc(HOME_PAGE.h1)}</h1><p class="text-slate-600 mt-2">${esc(HOME_PAGE.intro)}</p></div>
     <section><h2 class="font-bold text-xl mb-2">Outils phares</h2>${links(featured.map((t) => ({ href: toolPath(t.id), label: t.name, desc: t.intro })))}</section>
     <section><h2 class="font-bold text-xl mb-2"><a class="underline" href="${ALL_TOOLS_PAGE.path}">${esc(ALL_TOOLS_PAGE.h1)}</a></h2>${links(others.map((t) => ({ href: toolPath(t.id), label: t.name })))}</section>`;
-  write('/', page(head({ path: '/', title: HOME_PAGE.title, description: HOME_PAGE.description, structured, alternate: '/en' }), shell([], inner, '/en')));
+  write('/', page(head({ path: '/', title: HOME_PAGE.title, description: HOME_PAGE.description, structured }), shell([], inner)));
 }
 
 // ---------- Palettisation + chargement (page dédiée) ----------
@@ -222,7 +224,25 @@ const ORG = {
     <div><h1 class="font-bold text-3xl">${esc(L.h1)}</h1><p class="text-slate-600 mt-2">${esc(L.intro)}</p></div>
     <section><h2 class="font-bold text-xl mb-2">Les outils</h2>${links(tools.map((t) => ({ href: toolPath(t.id), label: t.name, desc: t.intro })))}</section>
     <section><h2 class="font-bold text-xl mb-2">Coûts transport</h2><p>Mètres plancher et poids taxable, transporteurs et grilles (agence, tournée, zone), transporteur le moins cher, surcharge gazole mensuelle et contrôle des factures. <a class="underline" href="/ressources/controle-factures-transport">La méthode de pré-facturation</a>.</p></section>`;
-  write(L.path, page(head({ path: L.path, title: L.title, description: L.description, structured }), shell([{ label: 'Palettisation et chargement' }], inner)));
+  write(L.path, page(head({ path: L.path, title: L.title, description: L.description, structured, alternate: '/en' }), shell([{ label: 'Palettisation et chargement' }], inner, '/en')));
+}
+
+// ---------- Accueil anglais /en : même page que /chargement-palettisation, en anglais ----------
+{
+  const L = LOAD_LANDING_PAGE_EN;
+  const structured = [{
+    '@context': 'https://schema.org', '@type': 'WebPage', name: L.title, url: SITE + L.path, inLanguage: 'en', description: L.description,
+    isPartOf: { '@id': `${SITE}/#website` }, about: ['Palletising', 'Truck load planning', 'Loading meters', 'Freight invoice audit'],
+  }];
+  const inner = `
+    <div><h1 class="font-bold text-3xl">${esc(L.h1)}</h1><p class="text-slate-600 mt-2">${esc(L.intro)}</p></div>
+    <section><h2 class="font-bold text-xl mb-2">The tools</h2>${links([
+      { href: '/en/truck-load-planner', label: '3D truck load planner', desc: 'Semi-trailers and containers, multi-drop routes, axle loads, automatic fleet, loader QR code.' },
+      { href: '/en/palletizing-calculator', label: '3D pallet calculator', desc: 'Full and mixed pallets, best pallet type, then load the truck in one click.' },
+      { href: '/en/capacity', label: 'How many pallets fit?', desc: 'Pallets per semi-trailer, rigid truck, van and 20ft / 40ft container.' },
+    ])}</section>
+    <section><h2 class="font-bold text-xl mb-2">Freight costs</h2><p>Loading meters and chargeable weight, carriers and rate cards (branch, route, zone), cheapest carrier, monthly fuel surcharge and freight invoice audit.</p></section>`;
+  write(L.path, page(head({ path: L.path, title: L.title, description: L.description, structured, alternate: L_FR_PATH, lang: 'en' }), shell([{ label: 'Palletising & loading' }], inner, L_FR_PATH, 'en'), 'en'));
 }
 
 // ---------- Tous les outils ----------

@@ -119,7 +119,8 @@ const TITLES = {
 };
 
 export function LoginPage() {
-  const [lang, setLangState] = useState(guestLang);
+  // ?lang=en (lien depuis les pages anglaises) : choix explicite, mémorisé.
+  const [lang, setLangState] = useState(() => { const q = new URLSearchParams(window.location.search).get('lang'); if (q === 'en' || q === 'fr') { rememberLang(q); return q; } return guestLang(); });
   const t = (key, vars) => translate(lang, key, vars);
   useNoIndex(t('Connexion'));
   const navigate = useNavigate();
