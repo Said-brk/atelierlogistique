@@ -34,7 +34,7 @@ import {
 import { track } from './analytics';
 import { OPTIMIZER_FAQ, toolSeo } from '../../seo/pages';
 import { LOAD_FAQ_EN, toolSeoEn } from '../../seo/pages-en';
-import ColisTable from './components/ColisTable';
+import ColisTable, { NumCell } from './components/ColisTable';
 import SeoFold from '../../shared/ui/SeoFold';
 import FloorMetersCard from './components/FloorMetersCard';
 import { DEFAULT_TAXABLE, floorMeters, goodsFacts, vehiclesOf } from './engine/floorMeters';
@@ -66,6 +66,8 @@ import EditPanel from './manual/EditPanel';
 import WallSteps from './print/WallSteps';
 import { homeHref } from '../../shared/i18n/paths';
 import GuidedTour from '../../shared/tour/GuidedTour';
+import { mToL, cmToDim, dimToCm, kgToW, wToKg, m3ToV, imperial, ldmToU, ldmUnit } from '../../shared/units/units';
+import { wU, lU, dU, vU } from './uiHelpers';
 
 const importProfiles = createLocalProfileStore();
 const IMPORT_EXTRA_OPTIONS = [
@@ -97,7 +99,7 @@ function useDocumentMeta(title, description) {
 const BAL_COLORS = { ok: '#15803D', warn: '#B45309', over: '#B91C1C' };
 const BAL_BG = { ok: '#F0FDF4', warn: '#FFFBEB', over: '#FEF2F2' };
 const BAL_LABEL = { ok: N_('Conforme'), warn: N_('À surveiller'), over: N_('Hors limites') };
-const fmtM = (mm) => (mm / 1000).toLocaleString(numLocale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const fmtM = (mm) => mToL(mm / 1000).toLocaleString(numLocale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
 function BalanceField({ label, unit, value, onChange, step = '1' }) {
   return (
@@ -120,7 +122,7 @@ function LoadBar({ label, value, max }) {
     <div>
       <div className="flex items-center justify-between font-jetbrains text-[11px] mb-1">
         <span className="text-slate-600">{label}</span>
-        <span style={{ color: BAL_COLORS[st] }}>{formatKg(Math.max(0, value))} / {formatKg(max)} kg · {Math.round(pct * 100)} %</span>
+        <span style={{ color: BAL_COLORS[st] }}>{formatKg(Math.max(0, value))} / {formatKg(max)} {wU()} · {Math.round(pct * 100)} %</span>
       </div>
       <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
         <div className="h-full rounded-full" style={{ width: `${Math.min(100, Math.max(0, pct * 100))}%`, background: BAL_COLORS[st] }} />
@@ -196,7 +198,7 @@ function groupByReference(items) {
   for (const p of items) {
     const g = m.get(p.definitionId) || {
       definitionId: p.definitionId, reference: p.reference, count: 0,
-      l: Math.round(p.originalLength / 10), w: Math.round(p.originalWidth / 10), h: Math.round(p.originalHeight / 10),
+      l: Math.round(cmToDim(p.originalLength / 10)), w: Math.round(cmToDim(p.originalWidth / 10)), h: Math.round(cmToDim(p.originalHeight / 10)),
       total: 0,
     };
     g.count += 1; g.total += p.weight;
@@ -238,7 +240,7 @@ function PrintSheet({ container, result, rows, colorIndex, multiStopResult, left
   const today = new Date().toLocaleDateString(numLocale(), { day: '2-digit', month: 'long', year: 'numeric' });
   const td = { padding: '4px 8px', borderBottom: '1px solid #E2E8F0', fontSize: 11 };
   const th = { padding: '5px 8px', textAlign: 'left', fontSize: 9, letterSpacing: '0.05em', color: '#64748B', borderBottom: '2px solid #CBD5E1', textTransform: 'uppercase' };
-  const m = (x) => (x / 1000).toLocaleString(numLocale(), { maximumFractionDigits: 2 });
+  const m = (x) => mToL(x / 1000).toLocaleString(numLocale(), { maximumFractionDigits: 2 });
 
   return (
     <div className="lo-print-sheet" style={{ fontFamily: "'DM Sans', system-ui, sans-serif", color: '#0F172A', padding: 4 }}>
@@ -265,8 +267,8 @@ function PrintSheet({ container, result, rows, colorIndex, multiStopResult, left
 
       <div style={{ display: 'flex', gap: 18, marginBottom: 14, fontSize: 11, flexWrap: 'wrap' }}>
         <div><strong style={{ fontSize: 15 }}>{result.packedItems}/{result.totalItems}</strong>{' '}{tr('colis chargés')}</div>
-        <div><strong style={{ fontSize: 15 }}>{formatKg(result.usedWeight)}</strong> kg</div>
-        <div><strong style={{ fontSize: 15 }}>{formatM3(result.usedVolume)}</strong> m³</div>
+        <div><strong style={{ fontSize: 15 }}>{formatKg(result.usedWeight)}</strong> {wU()}</div>
+        <div><strong style={{ fontSize: 15 }}>{formatM3(result.usedVolume)}</strong> {vU()}</div>
         <div><strong style={{ fontSize: 15 }}>{formatPct(result.volumeUtilization)} %</strong>{' '}{tr('de remplissage')}</div>
       </div>
 
@@ -278,11 +280,11 @@ function PrintSheet({ container, result, rows, colorIndex, multiStopResult, left
       {balance && balance.cog && (
         <div className="lo-stop" style={{ marginBottom: 14, padding: '8px 10px', border: `1px solid ${BAL_COLORS[balance.status]}`, borderRadius: 6, background: BAL_BG[balance.status] }}>
           <strong style={{ fontSize: 12 }}>{tr('Répartition des charges : {v1}', { v1: tr(BAL_LABEL[balance.status]).toLowerCase() })}</strong>
-          <div style={{ fontSize: 11, marginTop: 3 }}>{tr('Centre de gravité à {v1} m de la face avant, {v2} m de haut. {v3}  Arrimage : {total} sangle(s) par-dessus (STF {stfDaN} daN, µ {v4}).', { v1: fmtM(balance.cog.x), v2: fmtM(balance.cog.z), v3: balance.supports
-              ? ` ${tText(balance.profile.frontLabel)} : ${formatKg(Math.max(0, balance.supports.front))} / ${formatKg(balance.profile.frontMax)} kg · ${tText(balance.profile.rearLabel)} : ${formatKg(Math.max(0, balance.supports.rear))} / ${formatKg(balance.profile.rearMax)} kg.`
+          <div style={{ fontSize: 11, marginTop: 3 }}>{tr('Centre de gravité à {v1} {lu} de la face avant, {v2} {lu} de haut. {v3}  Arrimage : {total} sangle(s) par-dessus (STF {stfDaN} daN, µ {v4}).', { wu: wU(), lu: lU(), du: dU(), vu: vU(),  v1: fmtM(balance.cog.x), v2: fmtM(balance.cog.z), v3: balance.supports
+              ? ` ${tText(balance.profile.frontLabel)} : ${formatKg(Math.max(0, balance.supports.front))} / ${formatKg(balance.profile.frontMax)} ${wU()} · ${tText(balance.profile.rearLabel)} : ${formatKg(Math.max(0, balance.supports.rear))} / ${formatKg(balance.profile.rearMax)} kg.`
               : tr(' Excentricité {v1}{v2} % (tolérance ±5 %).', { v1: balance.longitudinalPct >= 0 ? '+' : '', v2: formatPct(balance.longitudinalPct) }), total: balance.lashing.total, stfDaN: balance.lashing.params.stfDaN, v4: Number(balance.lashing.params.mu).toLocaleString(numLocale()) })}</div>
           {shiftMm > 0 && (
-            <div style={{ fontSize: 11, marginTop: 4, fontWeight: 700 }}>{tr('⚠ Chargement décalé : laisser {v1} m libres contre la face avant et poser une barre de calage avant le premier mur.', { v1: fmtM(shiftMm) })}</div>
+            <div style={{ fontSize: 11, marginTop: 4, fontWeight: 700 }}>{tr('⚠ Chargement décalé : laisser {v1} {lu} libres contre la face avant et poser une barre de calage avant le premier mur.', { wu: wU(), lu: lU(), du: dU(), vu: vU(),  v1: fmtM(shiftMm) })}</div>
           )}
           <div style={{ fontSize: 9, color: '#64748B', marginTop: 2 }}>{tr('Estimation indicative (EN 12195-1, CTU Code) : ne remplace pas le plan d\'arrimage ni les données du constructeur.')}</div>
         </div>
@@ -308,10 +310,10 @@ function PrintSheet({ container, result, rows, colorIndex, multiStopResult, left
                 return (
                   <tr key={w.wall} style={{ breakInside: 'avoid' }}>
                     <td style={{ ...td, fontWeight: 700 }}>{w.wall}</td>
-                    <td style={td}>{m(w.xStart)} → {m(w.xEnd)} m</td>
+                    <td style={td}>{m(w.xStart)} → {m(w.xEnd)} {lU()}</td>
                     <td style={td}>{content}</td>
                     <td style={{ ...td, textAlign: 'right' }}>{w.items}</td>
-                    <td style={{ ...td, textAlign: 'right' }}>{formatKg(w.weight)} kg</td>
+                    <td style={{ ...td, textAlign: 'right' }}>{formatKg(w.weight)} {wU()}</td>
                     {balance && <td style={{ ...td, textAlign: 'right', fontWeight: 700 }}>{balance.lashing.walls.find((x) => x.wall === w.wall)?.straps ?? 1}</td>}
                   </tr>
                 );
@@ -350,7 +352,7 @@ function PrintSheet({ container, result, rows, colorIndex, multiStopResult, left
                 <thead><tr>
                   <th style={th}>{tr('Référence')}</th>
                   <th style={{ ...th, textAlign: 'right' }}>{tr('Qté')}</th>
-                  <th style={{ ...th, textAlign: 'right' }}>{tr('Dim. (L×l×h cm)')}</th>
+                  <th style={{ ...th, textAlign: 'right' }}>{tr('Dim. (L×l×h {du})', { wu: wU(), lu: lU(), du: dU(), vu: vU() })}</th>
                   <th style={{ ...th, textAlign: 'right' }}>{tr('Poids tot.')}</th>
                 </tr></thead>
                 <tbody>
@@ -362,14 +364,14 @@ function PrintSheet({ container, result, rows, colorIndex, multiStopResult, left
                       </td>
                       <td style={{ ...td, textAlign: 'right' }}>{g.count}</td>
                       <td style={{ ...td, textAlign: 'right' }}>{g.l}×{g.w}×{g.h}</td>
-                      <td style={{ ...td, textAlign: 'right' }}>{formatKg(g.total)} kg</td>
+                      <td style={{ ...td, textAlign: 'right' }}>{formatKg(g.total)} {wU()}</td>
                     </tr>
                   ))}
                   <tr>
                     <td style={{ ...td, fontWeight: 700, borderBottom: 'none' }}>{tr('Total')}</td>
                     <td style={{ ...td, textAlign: 'right', fontWeight: 700, borderBottom: 'none' }}>{s.packedItems}</td>
                     <td style={{ ...td, borderBottom: 'none' }} />
-                    <td style={{ ...td, textAlign: 'right', fontWeight: 700, borderBottom: 'none' }}>{formatKg(s.packedWeight)} kg</td>
+                    <td style={{ ...td, textAlign: 'right', fontWeight: 700, borderBottom: 'none' }}>{formatKg(s.packedWeight)} {wU()}</td>
                   </tr>
                 </tbody>
               </table>
@@ -1083,7 +1085,7 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
                 <Boxes size={13} />{' '}{tr('1 · QUE SOUHAITEZ-VOUS CHARGER ?')}
                 {!goodsOpen && (
                   <span className="text-slate-400 font-normal">
-                    {tr('· {n} réf. · {u} unités · {w} kg', { n: activeRows.length, u: totals.units.toLocaleString(numLocale()), w: Math.round(totals.weight).toLocaleString(numLocale()) })}
+                    {tr('· {n} réf. · {u} unités · {w} {wu}', { wu: wU(), lu: lU(), du: dU(), vu: vU(),  n: activeRows.length, u: totals.units.toLocaleString(numLocale()), w: Math.round(totals.weight).toLocaleString(numLocale()) })}
                   </span>
                 )}
               </button>
@@ -1135,15 +1137,15 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
                       className="text-left px-3 py-2.5 rounded-lg font-jetbrains transition-all"
                       style={containerId === c.id ? { background: BLUE, color: '#fff' } : { background: '#F8FAFC', color: '#475569', border: '1px solid #E2E8F0' }}>
                       <div className="text-[11px] font-semibold leading-tight">{tText(c.label)}</div>
-                      <div className="text-[10px] opacity-80 mt-1">{(c.length / 1000).toFixed(2)}×{(c.width / 1000).toFixed(2)}×{(c.height / 1000).toFixed(2)} m</div>
-                      <div className="text-[9px] opacity-80">{formatKg(c.maxWeight)} kg</div>
+                      <div className="text-[10px] opacity-80 mt-1">{mToL(c.length / 1000).toFixed(imperial() ? 1 : 2)}×{mToL(c.width / 1000).toFixed(imperial() ? 1 : 2)}×{mToL(c.height / 1000).toFixed(imperial() ? 1 : 2)} {lU()}</div>
+                      <div className="text-[9px] opacity-80">{formatKg(c.maxWeight)} {wU()}</div>
                     </button>
                   ))}
                   <button onClick={() => { setContainerId('custom'); reset(); }}
                     className="text-left px-3 py-2.5 rounded-lg font-jetbrains transition-all"
                     style={containerId === 'custom' ? { background: BLUE, color: '#fff' } : { background: '#F8FAFC', color: '#475569', border: '1px solid #E2E8F0' }}>
                     <div className="text-[11px] font-semibold leading-tight">{tr('Dimensions personnalisées')}</div>
-                    <div className="text-[9px] opacity-80 mt-1">{tr('sur mesure (cm)')}</div>
+                    <div className="text-[9px] opacity-80 mt-1">{tr('sur mesure ({du})', { wu: wU(), lu: lU(), du: dU(), vu: vU() })}</div>
                   </button>
                 </div>
                 {containerId === 'custom' && (
@@ -1152,11 +1154,11 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
                       <label className="font-jetbrains text-[10px] text-slate-500 block mb-1">{tr('Nom')}</label>
                       <input value={custom.label} onChange={(e) => setCustom((c) => ({ ...c, label: e.target.value }))} className="w-full px-2 py-1.5 border border-slate-200 rounded-md outline-none font-jetbrains text-xs" />
                     </div>
-                    {[['length', tr('Long. (cm)')], ['width', tr('Larg. (cm)')], ['height', tr('Haut. (cm)')], ['maxWeight', tr('Poids max (kg)')]].map(([k, lbl]) => (
+                    {[['length', tr('Long. ({du})', { wu: wU(), lu: lU(), du: dU(), vu: vU() }), 'dim'], ['width', tr('Larg. ({du})', { wu: wU(), lu: lU(), du: dU(), vu: vU() }), 'dim'], ['height', tr('Haut. ({du})', { wu: wU(), lu: lU(), du: dU(), vu: vU() }), 'dim'], ['maxWeight', tr('Poids max ({wu})', { wu: wU(), lu: lU(), du: dU(), vu: vU() }), 'weight']].map(([k, lbl, kind]) => (
                       <div key={k}>
                         <label className="font-jetbrains text-[10px] text-slate-500 block mb-1">{lbl}</label>
-                        <input type="number" min="0" value={custom[k]} onChange={(e) => { setCustom((c) => ({ ...c, [k]: e.target.value })); reset(); }}
-                          className="w-full px-2 py-1.5 border border-slate-200 rounded-md outline-none font-jetbrains text-xs" />
+                        {/* Saisie dans les unités de l'entreprise ; le contenant reste en cm / kg. */}
+                        <NumCell kind={kind} width="w-full" value={custom[k]} onChange={(v) => { setCustom((c) => ({ ...c, [k]: v })); reset(); }} />
                       </div>
                     ))}
                   </div>
@@ -1167,7 +1169,7 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
                     <span className="flex items-center gap-1.5 min-w-0">
                       <Scale size={12} className="shrink-0" />
                       <span className="truncate">{tr('Essieux et arrimage · {v1} · µ {v2} · {stfDaN} daN', { v1: axleProfile.kind === 'TWO_SUPPORTS'
-                          ? tr('sellette ≤ {v1} kg · essieux ≤ {v2} kg', { v1: formatKg(axleProfile.frontMax), v2: formatKg(axleProfile.rearMax) })
+                          ? tr('sellette ≤ {v1} {wu} · essieux ≤ {v2} {wu}', { wu: wU(), lu: lU(), du: dU(), vu: vU(),  v1: formatKg(axleProfile.frontMax), v2: formatKg(axleProfile.rearMax) })
                           : tr('centre de gravité ±5 %'), v2: Number(lashingParams.mu).toLocaleString(numLocale()), stfDaN: lashingParams.stfDaN })}</span>
                     </span>
                     <ChevronDown size={12} className={`shrink-0 transition-transform ${balanceOpen ? 'rotate-180' : ''}`} />
@@ -1177,10 +1179,10 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
                       {axleProfile.kind === 'TWO_SUPPORTS' ? (
                         <>
                           <div className="grid grid-cols-2 gap-2.5">
-                            <BalanceField label={tr('Position sellette (depuis l\'avant)')} unit="m" step="0.1" value={axleProfile.frontPos / 1000} onChange={(v) => setAxle('frontPos', Number(v) * 1000)} />
-                            <BalanceField label={tr('Position essieux (centre du groupe)')} unit="m" step="0.1" value={axleProfile.rearPos / 1000} onChange={(v) => setAxle('rearPos', Number(v) * 1000)} />
-                            <BalanceField label={tr('Charge utile max sellette')} unit="kg" value={axleProfile.frontMax} onChange={(v) => setAxle('frontMax', Number(v))} />
-                            <BalanceField label={tr('Charge utile max essieux')} unit="kg" value={axleProfile.rearMax} onChange={(v) => setAxle('rearMax', Number(v))} />
+                            <BalanceField label={tr('Position sellette (depuis l\'avant)')} unit={lU()} step="0.1" value={Math.round(mToL(axleProfile.frontPos / 1000) * 100) / 100} onChange={(v) => setAxle('frontPos', Math.round((Number(v) / mToL(1)) * 1000))} />
+                            <BalanceField label={tr('Position essieux (centre du groupe)')} unit={lU()} step="0.1" value={Math.round(mToL(axleProfile.rearPos / 1000) * 100) / 100} onChange={(v) => setAxle('rearPos', Math.round((Number(v) / mToL(1)) * 1000))} />
+                            <BalanceField label={tr('Charge utile max sellette')} unit={wU()} value={Math.round(kgToW(axleProfile.frontMax))} onChange={(v) => setAxle('frontMax', Math.round(wToKg(Number(v))))} />
+                            <BalanceField label={tr('Charge utile max essieux')} unit={wU()} value={Math.round(kgToW(axleProfile.rearMax))} onChange={(v) => setAxle('rearMax', Math.round(wToKg(Number(v))))} />
                           </div>
                           <div className="text-[10px] text-slate-400">{tr('Valeurs indicatives : reportez celles du plan de répartition de charge ou de la notice de votre véhicule.')}</div>
                         </>
@@ -1216,13 +1218,13 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
               <div className="rounded-xl border p-4 bg-white" style={{ borderColor: BLUE, background: BLUE_LIGHT }}>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
                   <div><div className="font-jetbrains text-[10px] text-slate-500">{tr('Unités')}</div><div className="font-bricolage font-bold text-xl" style={{ color: BLUE }}>{totals.units}</div></div>
-                  <div><div className="font-jetbrains text-[10px] text-slate-500">{tr('Volume march.')}</div><div className="font-bricolage font-bold text-xl text-slate-800">{formatM3(totals.volume)} m³</div></div>
-                  <div><div className="font-jetbrains text-[10px] text-slate-500">{tr('Poids total')}</div><div className="font-bricolage font-bold text-xl text-slate-800">{formatKg(totals.weight)} kg</div></div>
+                  <div><div className="font-jetbrains text-[10px] text-slate-500">{tr('Volume march.')}</div><div className="font-bricolage font-bold text-xl text-slate-800">{formatM3(totals.volume)} {vU()}</div></div>
+                  <div><div className="font-jetbrains text-[10px] text-slate-500">{tr('Poids total')}</div><div className="font-bricolage font-bold text-xl text-slate-800">{formatKg(totals.weight)} {wU()}</div></div>
                   <div><div className="font-jetbrains text-[10px] text-slate-500">{tr('Plancher occupé')}</div>
-                    <div className="font-bricolage font-bold text-xl text-slate-800">{headerFloor.occupied != null ? fmt1(headerFloor.occupied) : '—'}{headerFloor.length != null && <span className="text-sm font-semibold text-slate-500"> / {fmt1(headerFloor.length)} m</span>}</div>
+                    <div className="font-bricolage font-bold text-xl text-slate-800">{headerFloor.occupied != null ? fmt1(mToL(headerFloor.occupied)) : '—'}{headerFloor.length != null && <span className="text-sm font-semibold text-slate-500"> / {fmt1(mToL(headerFloor.length))} {lU()}</span>}</div>
                     <div className="font-jetbrains text-[10px] text-slate-500 mt-0.5">{headerFloor.ldm != null
-                      ? tr('{v1} mètres plancher', { v1: fmt1(headerFloor.ldm) })
-                      : tr('≤ {v1} MPL sans gerbage', { v1: fmt1(headerFloor.maxLdm) })}</div>
+                      ? (imperial() ? `${fmt1(ldmToU(headerFloor.ldm))} ${ldmUnit()}` : tr('{v1} mètres plancher', { v1: fmt1(headerFloor.ldm) }))
+                      : tr('≤ {v1} MPL sans gerbage', { v1: fmt1(ldmToU(headerFloor.maxLdm)) }).replace('MPL', imperial() ? ldmUnit() : 'MPL')}</div>
                   </div>
                 </div>
                 {multiStop && (
@@ -1245,7 +1247,7 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
                 )}
                 {overweight && vehicleMode === 'single' && (
                   <div className="flex items-start gap-2 text-[11px] mb-3 px-3 py-2 rounded-md" style={{ background: '#FFFBEB', color: '#B45309', border: '1px solid #FDE68A' }}>
-                    <AlertCircle size={13} className="mt-0.5 shrink-0" />{tr('Le poids total ({v1} kg) dépasse le poids utile du contenant ({v2} kg). Le moteur chargera ce qui est admissible.', { v1: formatKg(totals.weight), v2: formatKg(container.maxWeight) })}</div>
+                    <AlertCircle size={13} className="mt-0.5 shrink-0" />{tr('Le poids total ({v1} {wu}) dépasse le poids utile du contenant ({v2} {wu}). Le moteur chargera ce qui est admissible.', { wu: wU(), lu: lU(), du: dU(), vu: vU(),  v1: formatKg(totals.weight), v2: formatKg(container.maxWeight) })}</div>
                 )}
                 <button data-tour="optimize" ref={ctaRef} onClick={optimize} disabled={!valid || status === 'running' || fleetStatus === 'running' || (vehicleMode === 'fleet' && !fleetReady)}
                   className="w-full flex items-center justify-center gap-2 py-3.5 sm:py-3 rounded-lg font-bricolage font-semibold text-white transition-all disabled:opacity-50"
@@ -1325,16 +1327,16 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
                           <div title={tr('Plancher occupé · mètres plancher (surface au sol ÷ 2,4 m)')}
                             className={`absolute ${!view3d && !editMode ? 'top-0.5 right-3 sm:top-1.5 sm:right-5' : 'top-3 left-3 sm:top-5 sm:left-5'} z-10 pointer-events-none inline-flex items-center gap-1.5 rounded-md bg-white/90 border border-slate-200 px-2 py-0.5 font-jetbrains text-[10px] text-slate-600 shadow-sm`}>
                             <Ruler size={11} className="text-slate-400" />
-                            <span><b className="text-slate-800">{fmt1(fm.occupiedLength)}</b> / {fmt1(fm.containerLength)} m</span>
+                            <span><b className="text-slate-800">{fmt1(mToL(fm.occupiedLength))}</b> / {fmt1(mToL(fm.containerLength))} {lU()}</span>
                             <span className="text-slate-300">·</span>
-                            <span><b className="text-slate-800">{fmt1(fm.ldm)}</b> MPL</span>
+                            <span><b className="text-slate-800">{fmt1(ldmToU(fm.ldm))}</b> {imperial() ? ldmUnit() : tr('MPL')}</span>
                           </div>
                         );
                       })()}
                       {hovered && (
                         <div className="absolute bottom-3 left-3 bg-white/95 border border-slate-200 rounded-lg px-3 py-2 font-jetbrains text-[11px] shadow-sm pointer-events-none">
                           <div className="font-semibold text-slate-800">{hovered.reference}</div>
-                          <div className="text-slate-500">{Math.round(hovered.originalLength / 10)} × {Math.round(hovered.originalWidth / 10)} × {Math.round(hovered.originalHeight / 10)} cm · {hovered.weight} kg</div>
+                          <div className="text-slate-500">{Math.round(cmToDim(hovered.originalLength / 10))} × {Math.round(cmToDim(hovered.originalWidth / 10))} × {Math.round(cmToDim(hovered.originalHeight / 10))} {dU()} · {formatKg(hovered.weight)} {wU()}</div>
                           {multiStopResult && <div className="text-slate-500">{stopLabel(hovered.stop ?? 1, rows)}</div>}
                           {blockedIds.has(hovered.id) && <div style={{ color: '#DC2626' }}>{tr('À déplacer pour livrer cet arrêt')}</div>}
                         </div>
@@ -1414,14 +1416,14 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
                       <div className="grid grid-cols-3 gap-3 mb-3">
                         <div><div className="font-jetbrains text-[10px] text-slate-500">{tr('Colis chargés')}</div><div className="font-bricolage font-bold text-xl" style={{ color: result.unpackedCount > 0 ? '#B91C1C' : BLUE }}>{result.packedItems} / {result.totalItems}</div></div>
                         <div><div className="font-jetbrains text-[10px] text-slate-500">{tr('Remplissage')}</div><div className="font-bricolage font-bold text-xl text-slate-800">{formatPct(result.volumeUtilization)} %</div></div>
-                        <div><div className="font-jetbrains text-[10px] text-slate-500">{tr('Poids')}</div><div className="font-bricolage font-bold text-xl text-slate-800">{formatKg(result.usedWeight)} kg</div></div>
+                        <div><div className="font-jetbrains text-[10px] text-slate-500">{tr('Poids')}</div><div className="font-bricolage font-bold text-xl text-slate-800">{formatKg(result.usedWeight)} {wU()}</div></div>
                       </div>
                       {(() => {
                         const fm = floorMeters(result.placedItems, container);
                         return (
                           <div className="mb-3 font-jetbrains text-[11px] text-slate-600 flex flex-wrap gap-x-3">
-                            <span>{tr('Plancher occupé')} <b className="text-slate-800">{fm.occupiedLength.toLocaleString(numLocale(), { maximumFractionDigits: 1, minimumFractionDigits: 1 })} / {fm.containerLength.toLocaleString(numLocale(), { maximumFractionDigits: 1, minimumFractionDigits: 1 })} m</b></span>
-                            <span>{fm.ldm.toLocaleString(numLocale(), { maximumFractionDigits: 1, minimumFractionDigits: 1 })} MPL</span>
+                            <span>{tr('Plancher occupé')} <b className="text-slate-800">{fmt1(mToL(fm.occupiedLength))} / {fmt1(mToL(fm.containerLength))} {lU()}</b></span>
+                            <span>{fmt1(ldmToU(fm.ldm))} {imperial() ? ldmUnit() : tr('MPL')}</span>
                           </div>
                         );
                       })()}
@@ -1471,8 +1473,8 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
                           </div>
 
                           <div className="rounded-xl border border-slate-200 p-4 bg-white space-y-4">
-                            <Bar label={tr('Poids utilisé')} value={result.usedWeight} max={result.maxWeight ?? result.usedWeight} unit="kg" format={formatKg} />
-                            <Bar label={tr('Volume utilisé')} value={mm3ToM3(result.usedVolume)} max={mm3ToM3(result.containerVolume)} unit="m³" format={(v) => v.toLocaleString(numLocale(), { maximumFractionDigits: 1 })} />
+                            <Bar label={tr('Poids utilisé')} value={result.usedWeight} max={result.maxWeight ?? result.usedWeight} unit={wU()} format={formatKg} />
+                            <Bar label={tr('Volume utilisé')} value={m3ToV(mm3ToM3(result.usedVolume))} max={m3ToV(mm3ToM3(result.containerVolume))} unit={vU()} format={(v) => v.toLocaleString(numLocale(), { maximumFractionDigits: 1 })} />
                           </div>
 
                           <FloorMetersCard placed={result.placedItems} container={container} weightKg={result.usedWeight}
@@ -1497,14 +1499,14 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
                                 <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ color: BAL_COLORS[balance.status], background: BAL_BG[balance.status] }}>{tr(BAL_LABEL[balance.status])}</span>
                               </div>
                               <div className="px-4 py-3 space-y-3">
-                                <div className="text-[11px] text-slate-600">{tr('Centre de gravité :')}{' '}<strong className="text-slate-900">{fmtM(balance.cog.x)} m</strong>{' '}{tr('de la face avant  · {v1}  · {v2} m de haut', { v1: Math.abs(balance.lateralPct) < 0.005 ? tr('centré en largeur') : tr('{v1} cm à {v2} de l\'axe', { v1: Math.round(Math.abs(balance.cog.y - container.width / 2) / 10), v2: balance.cog.y > container.width / 2 ? tr('droite') : tr('gauche') }), v2: fmtM(balance.cog.z) })}</div>
+                                <div className="text-[11px] text-slate-600">{tr('Centre de gravité :')}{' '}<strong className="text-slate-900">{fmtM(balance.cog.x)} {lU()}</strong>{' '}{tr('de la face avant  · {v1}  · {v2} {lu} de haut', { wu: wU(), lu: lU(), du: dU(), vu: vU(),  v1: Math.abs(balance.lateralPct) < 0.005 ? tr('centré en largeur') : tr('{v1} {du} à {v2} de l\'axe', { wu: wU(), lu: lU(), du: dU(), vu: vU(),  v1: Math.round(cmToDim(Math.abs(balance.cog.y - container.width / 2) / 10)), v2: balance.cog.y > container.width / 2 ? tr('droite') : tr('gauche') }), v2: fmtM(balance.cog.z) })}</div>
                                 {balance.supports ? (
                                   <>
                                     <LoadBar label={tText(axleProfile.frontLabel)} value={balance.supports.front} max={axleProfile.frontMax} />
                                     <LoadBar label={tText(axleProfile.rearLabel)} value={balance.supports.rear} max={axleProfile.rearMax} />
                                     <div className="text-[10px] text-slate-500">
                                       {balance.supports.zone
-                                        ? <>{tr('Zone conseillée du centre de gravité pour {v1} kg :', { v1: formatKg(balance.weight) })}{' '}<strong>{fmtM(Math.max(0, balance.supports.zone.from))} – {fmtM(Math.min(container.length, balance.supports.zone.to))} m</strong>{' '}{tr('de la face avant.')}</>
+                                        ? <>{tr('Zone conseillée du centre de gravité pour {v1} {wu} :', { wu: wU(), lu: lU(), du: dU(), vu: vU(),  v1: formatKg(balance.weight) })}{' '}<strong>{fmtM(Math.max(0, balance.supports.zone.from))} – {fmtM(Math.min(container.length, balance.supports.zone.to))} {lU()}</strong>{' '}{tr('de la face avant.')}</>
                                         : tr('Charge trop lourde pour respecter les deux appuis, quelle que soit la position.')}
                                       {balance.supports.status === 'over' && (balance.supports.frontPct > 1
                                         ? tr(' Trop de poids vers l’avant : reculez les colis lourds vers le milieu de la remorque.')
@@ -1525,7 +1527,7 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
                                         <div key={a.stop} className="flex items-center justify-between gap-2 font-jetbrains text-[10px] text-slate-600">
                                           <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full" style={{ background: BAL_COLORS[a.status] }} />{tr('Après l\'arrêt {stop}', { stop: a.stop })}</span>
                                           <span style={{ color: BAL_COLORS[a.status] }}>
-                                            {a.supports ? `${formatKg(Math.max(0, a.supports.front))} / ${formatKg(Math.max(0, a.supports.rear))} kg` : `${a.longitudinalPct >= 0 ? '+' : ''}${formatPct(a.longitudinalPct)} %`} · {tr(BAL_LABEL[a.status])}
+                                            {a.supports ? `${formatKg(Math.max(0, a.supports.front))} / ${formatKg(Math.max(0, a.supports.rear))} ${wU()}` : `${a.longitudinalPct >= 0 ? '+' : ''}${formatPct(a.longitudinalPct)} %`} · {tr(BAL_LABEL[a.status])}
                                           </span>
                                         </div>
                                       ))}
@@ -1535,7 +1537,7 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
                                 {shiftMm > 0 ? (
                                   <div className="rounded-lg px-3 py-2.5 text-[11px] flex flex-col sm:flex-row sm:items-center justify-between gap-2" style={{ background: BLUE_LIGHT, color: BLUE }}>
                                     <span>
-                                      <Check size={12} className="inline -mt-0.5 mr-1" />{tr('Chargement décalé de')}{' '}<strong>{fmtM(shiftMm)} m</strong>{' '}{tr('vers l\'arrière. Laissez cet espace libre contre la face avant et posez une')}{' '}<strong>{tr('barre de calage')}</strong>.
+                                      <Check size={12} className="inline -mt-0.5 mr-1" />{tr('Chargement décalé de')}{' '}<strong>{fmtM(shiftMm)} {lU()}</strong>{' '}{tr('vers l\'arrière. Laissez cet espace libre contre la face avant et posez une')}{' '}<strong>{tr('barre de calage')}</strong>.
                                     </span>
                                     <button onClick={() => setShiftMm(0)} className="shrink-0 flex items-center gap-1 font-jetbrains text-[10px] text-slate-500 hover:text-slate-800"><Undo2 size={11} />{' '}{tr('Annuler')}</button>
                                   </div>
@@ -1547,10 +1549,10 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
                                       {shiftSuggestion.partial ? tr(' (amélioration partielle, faute de place côté portes).') : '.'}
                                     </span>
                                     <button onClick={() => { setShiftMm(shiftSuggestion.shift); track('load_optimizer_shift_applied'); }}
-                                      className="shrink-0 px-3 py-2 rounded-md font-jetbrains text-[10px] font-semibold text-white" style={{ background: BLUE }}>{tr('Décaler de {v1} m vers l\'arrière', { v1: fmtM(shiftSuggestion.shift) })}</button>
+                                      className="shrink-0 px-3 py-2 rounded-md font-jetbrains text-[10px] font-semibold text-white" style={{ background: BLUE }}>{tr('Décaler de {v1} {lu} vers l\'arrière', { wu: wU(), lu: lU(), du: dU(), vu: vU(),  v1: fmtM(shiftSuggestion.shift) })}</button>
                                   </div>
                                 )}
-                                <div className="pt-2 border-t border-slate-100 text-[11px] text-slate-600">{tr('Arrimage :')}{' '}<strong className="text-slate-900">{tr('{total} sangle{v1}', { total: balance.lashing.total, v1: balance.lashing.total > 1 ? 's' : '' })}</strong>{' '}{tr('par-dessus ({length} mur{v1}, STF {stfDaN} daN, µ {v2}) {v3}', { length: balance.lashing.walls.length, v1: balance.lashing.walls.length > 1 ? 's' : '', stfDaN: lashingParams.stfDaN, v2: Number(lashingParams.mu).toLocaleString(numLocale()), v3: balance.lashing.perStrapKg === null ? tr(' : le frottement suffit, 1 sangle par mur minimum.') : tr(', soit {v1} kg retenus par sangle.', { v1: formatKg(Math.floor(balance.lashing.perStrapKg)) }) })}<span className="text-slate-400">{' '}{tr('Détail par mur sur la fiche.')}</span>
+                                <div className="pt-2 border-t border-slate-100 text-[11px] text-slate-600">{tr('Arrimage :')}{' '}<strong className="text-slate-900">{tr('{total} sangle{v1}', { total: balance.lashing.total, v1: balance.lashing.total > 1 ? 's' : '' })}</strong>{' '}{tr('par-dessus ({length} mur{v1}, STF {stfDaN} daN, µ {v2}) {v3}', { length: balance.lashing.walls.length, v1: balance.lashing.walls.length > 1 ? 's' : '', stfDaN: lashingParams.stfDaN, v2: Number(lashingParams.mu).toLocaleString(numLocale()), v3: balance.lashing.perStrapKg === null ? tr(' : le frottement suffit, 1 sangle par mur minimum.') : tr(', soit {v1} {wu} retenus par sangle.', { wu: wU(), lu: lU(), du: dU(), vu: vU(),  v1: formatKg(Math.floor(balance.lashing.perStrapKg)) }) })}<span className="text-slate-400">{' '}{tr('Détail par mur sur la fiche.')}</span>
                                 </div>
                                 <div className="text-[9px] text-slate-400 leading-snug">{tr('Estimation indicative (bras de levier, arrimage par friction EN 12195-1, CTU Code). Ne remplace pas le plan d\'arrimage ni les données du constructeur.')}</div>
                               </div>
@@ -1572,7 +1574,7 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
                                       <span className="w-2.5 h-2.5 rounded-sm" style={{ background: stopColor(s.stop).solid }} />{stopLabel(s.stop, rows)}
                                     </span>
                                     <span className="text-slate-500 pl-4 sm:pl-0 whitespace-nowrap">
-                                      <span style={{ color: s.unpackedItems > 0 ? '#B91C1C' : undefined }}>{s.packedItems}/{s.totalItems}</span> · {formatKg(s.packedWeight)} kg · {formatM3(s.packedVolume)} m³
+                                      <span style={{ color: s.unpackedItems > 0 ? '#B91C1C' : undefined }}>{s.packedItems}/{s.totalItems}</span> · {formatKg(s.packedWeight)} {wU()} · {formatM3(s.packedVolume)} {vU()}
                                     </span>
                                   </div>
                                 ))}
@@ -1701,7 +1703,7 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
           <div className="max-w-xl mx-auto flex items-center gap-3">
             <div className="font-jetbrains text-[10px] text-slate-500 leading-tight shrink-0">
               <div><span className="text-slate-900 font-medium">{totals.units}</span>{' '}{tr('unités')}</div>
-              <div>{formatM3(totals.volume)} m³ · {formatKg(totals.weight)} kg</div>
+              <div>{formatM3(totals.volume)} {vU()} · {formatKg(totals.weight)} {wU()}</div>
             </div>
             <button onClick={optimize} disabled={!valid || status === 'running'}
               className="flex-1 flex items-center justify-center gap-2 py-3 rounded-lg font-bricolage font-semibold text-white disabled:opacity-50"

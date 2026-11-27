@@ -5,11 +5,14 @@ export const UNITS: Record<UnitKind, UnitDef[]> = {
     { id: 'mm', label: 'mm', factor: 1 },
     { id: 'cm', label: 'cm', factor: 10 },
     { id: 'm', label: 'm', factor: 1000 },
+    { id: 'in', label: 'in', factor: 25.4 },
+    { id: 'ft', label: 'ft', factor: 304.8 },
   ],
   mass: [
     { id: 'g', label: 'g', factor: 0.001 },
     { id: 'kg', label: 'kg', factor: 1 },
     { id: 't', label: 't', factor: 1000 },
+    { id: 'lb', label: 'lb', factor: 0.45359237 },
   ],
 };
 
@@ -32,5 +35,7 @@ export function detectUnit(header: string, kind: UnitKind): string | null {
   if (kind === 'mass' && /\btonnes?\b/.test(h)) return 't';
   if (kind === 'length' && /\bmillim/.test(h)) return 'mm';
   if (kind === 'length' && /\bcentim/.test(h)) return 'cm';
+  if (kind === 'length' && /\binch(es)?\b|\bpouces?\b|"/.test(h)) return 'in';
+  if (kind === 'mass' && /\blbs?\b|\bpounds?\b|\blivres?\b/.test(h)) return 'lb';
   return null;
 }

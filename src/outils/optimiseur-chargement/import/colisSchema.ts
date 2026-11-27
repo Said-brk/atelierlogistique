@@ -4,6 +4,7 @@
 
 import type { CanonicalRecord, DatasetSchema } from '../../../shared/import';
 import { N_ } from '../../../shared/i18n/core';
+import { imperial } from '../../../shared/units/units';
 
 export const COLIS_SCHEMA: DatasetSchema = {
   id: 'atelier-logistique/colis',
@@ -18,13 +19,13 @@ export const COLIS_SCHEMA: DatasetSchema = {
       help: N_('Code article, SSCC ou libellé du support.') },
     { id: 'quantity', label: N_('Quantité'), type: 'integer', defaultValue: 1,
       aliases: ['quantite', 'qte', 'qty', 'quantity', 'nb', 'nombre', 'nb colis', 'nb supports', 'nb um', 'qte', 'pieces', 'count'] },
-    { id: 'length', label: N_('Longueur'), type: 'number', required: true, unitKind: 'length', defaultUnit: 'cm',
+    { id: 'length', label: N_('Longueur'), type: 'number', required: true, unitKind: 'length', get defaultUnit() { return imperial() ? 'in' : 'cm'; },
       aliases: ['longueur', 'long', 'length', 'lg', 'l'] },
-    { id: 'width', label: N_('Largeur'), type: 'number', required: true, unitKind: 'length', defaultUnit: 'cm',
+    { id: 'width', label: N_('Largeur'), type: 'number', required: true, unitKind: 'length', get defaultUnit() { return imperial() ? 'in' : 'cm'; },
       aliases: ['largeur', 'larg', 'width', 'lar', 'w'] },
-    { id: 'height', label: N_('Hauteur'), type: 'number', required: true, unitKind: 'length', defaultUnit: 'cm',
+    { id: 'height', label: N_('Hauteur'), type: 'number', required: true, unitKind: 'length', get defaultUnit() { return imperial() ? 'in' : 'cm'; },
       aliases: ['hauteur', 'haut', 'height', 'ht', 'h'] },
-    { id: 'weight', label: N_('Poids'), type: 'number', unitKind: 'mass', defaultUnit: 'kg', defaultValue: 0,
+    { id: 'weight', label: N_('Poids'), type: 'number', unitKind: 'mass', get defaultUnit() { return imperial() ? 'lb' : 'kg'; }, defaultValue: 0,
       aliases: ['poids', 'poids brut', 'masse', 'weight', 'gross weight', 'pds', 'kg'] },
     // Sans colonne Rotation, un fichier importé garde les colis debout (« Horizontale ») :
     // une palette couchée sur le plan est inexploitable au quai.

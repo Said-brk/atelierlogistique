@@ -4,6 +4,7 @@
 import { Plus, Trash2, Package } from 'lucide-react';
 import { newCustomSupport } from './supportsStore';
 import { t, tText, N_ } from '../../shared/i18n/core';
+import { cmToDim, dimToCm, kgToW, wToKg, dimUnit, weightUnit, currencySymbol } from '../../shared/units/units';
 
 const BLUE = '#2563EB';
 const cm = (mm) => Math.round(mm) / 10;
@@ -30,10 +31,11 @@ const FIELDS = [
 export default function SupportsPanel({ supports, onChange, note = null }) {
   const set = (id, patch) => onChange(supports.map((s) => (s.id === id ? { ...s, ...patch } : s)));
   const setField = (id, f, v) => {
-    const n = Math.max(0, Number(v) || 0);
-    set(id, { [f.key]: f.mm ? Math.round(n * 10) : n });
+    const n = Math.max(0, Number(v) || 0); // saisi dans les unités de l'entreprise (in / lb en US)
+    set(id, { [f.key]: f.mm ? Math.round(dimToCm(n) * 10) : f.unit === 'kg' ? Math.round(wToKg(n) * 1000) / 1000 : n });
   };
-  const value = (s, f) => (s[f.key] === undefined ? '' : f.mm ? cm(s[f.key]) : s[f.key]);
+  const value = (s, f) => (s[f.key] === undefined ? '' : f.mm ? Math.round(cmToDim(cm(s[f.key])) * 100) / 100 : f.unit === 'kg' ? Math.round(kgToW(s[f.key]) * 10) / 10 : s[f.key]);
+  const unitOf = (u) => (u === 'cm' ? dimUnit() : u === 'kg' ? weightUnit() : u === '€' ? currencySymbol() : u);
   const add = () => onChange([...supports, newCustomSupport(supports.filter((s) => s.custom).length + 1)]);
   const remove = (id) => onChange(supports.filter((s) => s.id !== id));
   const count = supports.filter((s) => s.available).length;
@@ -51,7 +53,7 @@ export default function SupportsPanel({ supports, onChange, note = null }) {
           <thead>
             <tr className="border-b border-slate-100 text-[10px] text-slate-400 font-normal">
               <th className="font-normal text-left pl-4 py-2">{t('Dispo · support')}</th>
-              {FIELDS.map((f) => <th key={f.key} className="font-normal px-1 py-2">{tText(f.label)} <span className="text-slate-300">{f.unit}</span></th>)}
+              {FIELDS.map((f) => <th key={f.key} className="font-normal px-1 py-2">{tText(f.label)} <span className="text-slate-300">{unitOf(f.unit)}</span></th>)}
               <th />
             </tr>
           </thead>

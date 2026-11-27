@@ -89,3 +89,7 @@ export function parseNumber(raw: unknown): number | null {
   const v = Number(s);
   return Number.isFinite(v) ? v : NaN;
 }
+
+/** Plancher occupé : mètres plancher (MPL) ou pieds linéaires (US). */
+export const ldmUnit = () => (imperial() ? 'lin. ft' : 'MPL');
+export const ldmToU = (ldm: number) => (imperial() ? ldm * FT_PER_M : ldm);

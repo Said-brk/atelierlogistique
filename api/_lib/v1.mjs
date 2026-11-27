@@ -261,6 +261,8 @@ function toToolReferences(items) {
 }
 
 // src/shared/units/units.ts
+var current2 = { units: "metric", currency: "EUR" };
+var imperial = () => current2.units === "imperial";
 var IN_PER_CM = 1 / 2.54;
 
 // src/shared/carriers/pricing.ts
@@ -1322,6 +1324,7 @@ async function encodePlan(container, placed, unitIdOf = () => null, lang = "fr")
   }
   const head = { n: container.label, c: [cm(container.length), cm(container.width), cm(container.height)], r: refs, d: dest, t: types, N: ordered.length };
   if (anyId) head.u = ids;
+  if (imperial()) head.U = 1;
   const body = [];
   for (const k of ["t", "o", "s", "w"]) col[k].forEach((v) => pushVarint(body, v));
   for (const k of ["x", "y", "z"]) {
@@ -1381,6 +1384,7 @@ function decodeV2(raw) {
   const mm = (v) => v * 10;
   return {
     label: String(head.n ?? "V\xE9hicule"),
+    imperial: head.U === 1,
     container: { length: mm(head.c[0]), width: mm(head.c[1]), height: mm(head.c[2]) },
     items: Array.from({ length: N }, (_, i) => {
       const [ri, a, b, c] = head.t[cols.t[i]];
@@ -1459,7 +1463,9 @@ var COLIS_SCHEMA = {
       type: "number",
       required: true,
       unitKind: "length",
-      defaultUnit: "cm",
+      get defaultUnit() {
+        return imperial() ? "in" : "cm";
+      },
       aliases: ["longueur", "long", "length", "lg", "l"]
     },
     {
@@ -1468,7 +1474,9 @@ var COLIS_SCHEMA = {
       type: "number",
       required: true,
       unitKind: "length",
-      defaultUnit: "cm",
+      get defaultUnit() {
+        return imperial() ? "in" : "cm";
+      },
       aliases: ["largeur", "larg", "width", "lar", "w"]
     },
     {
@@ -1477,7 +1485,9 @@ var COLIS_SCHEMA = {
       type: "number",
       required: true,
       unitKind: "length",
-      defaultUnit: "cm",
+      get defaultUnit() {
+        return imperial() ? "in" : "cm";
+      },
       aliases: ["hauteur", "haut", "height", "ht", "h"]
     },
     {
@@ -1485,7 +1495,9 @@ var COLIS_SCHEMA = {
       label: N_("Poids"),
       type: "number",
       unitKind: "mass",
-      defaultUnit: "kg",
+      get defaultUnit() {
+        return imperial() ? "lb" : "kg";
+      },
       defaultValue: 0,
       aliases: ["poids", "poids brut", "masse", "weight", "gross weight", "pds", "kg"]
     },

@@ -4,9 +4,11 @@
 import { useEffect, useState } from 'react';
 import { ArrowLeft, ArrowRight, ArrowUp, ArrowDown, ChevronsUp, ChevronsDown, RotateCw, Trash2, Undo2, Redo2, RotateCcw, CheckCircle2, AlertTriangle, PackagePlus, X } from 'lucide-react';
 import { t } from '../../../shared/i18n/core';
+import { cmToDim } from '../../../shared/units/units';
+import { wU, lU, dU, vU, formatKg } from '../uiHelpers';
 
 const STEPS = [10, 50, 100]; // mm
-const cm = (mm) => Math.round(mm / 10);
+const cm = (mm) => Math.round(cmToDim(mm / 10) * 10) / 10; // cm, ou pouces (unités US)
 
 function Btn({ onClick, title, children, disabled, danger }) {
   return (
@@ -64,14 +66,14 @@ export default function EditPanel({ edit, rulesOf, onClose }) {
         <div className="rounded-lg border border-slate-200 bg-white p-2.5 space-y-2">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <div className="font-jetbrains text-xs"><b className="text-slate-900">{sel.reference}</b>{' '}
-              <span className="text-slate-500">{cm(sel.length)} × {cm(sel.width)} × {cm(sel.height)} cm · {sel.weight} kg</span></div>
-            <div className="font-jetbrains text-[10px] text-slate-500">{t('x {x} · y {y} · z {z} cm', { x: cm(sel.x), y: cm(sel.y), z: cm(sel.z) })}</div>
+              <span className="text-slate-500">{cm(sel.length)} × {cm(sel.width)} × {cm(sel.height)} {dU()} · {formatKg(sel.weight)} {wU()}</span></div>
+            <div className="font-jetbrains text-[10px] text-slate-500">{t('x {x} · y {y} · z {z} {du}', { wu: wU(), lu: lU(), du: dU(), vu: vU(),  x: cm(sel.x), y: cm(sel.y), z: cm(sel.z) })}</div>
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
             <div className="flex items-center gap-0.5 p-0.5 rounded-md bg-slate-100 mr-1" title={t('Pas de déplacement')}>
               {STEPS.map((s) => (
                 <button key={s} type="button" onClick={() => setStep(s)} className="px-1.5 py-1 rounded font-jetbrains text-[10px]"
-                  style={step === s ? { background: '#fff', fontWeight: 600, color: '#1D4ED8' } : { color: '#64748B' }}>{cm(s)} cm</button>
+                  style={step === s ? { background: '#fff', fontWeight: 600, color: '#1D4ED8' } : { color: '#64748B' }}>{cm(s)} {dU()}</button>
               ))}
             </div>
             <Btn onClick={() => edit.move(sel.id, -step, 0, 0)} title={t('Vers la cabine (←)')}><ArrowLeft size={12} />{' '}{t('Cabine')}</Btn>

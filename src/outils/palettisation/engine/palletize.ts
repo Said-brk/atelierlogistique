@@ -14,6 +14,7 @@ import type { ContainerDefinition, Dimensions, ItemDefinition, PlacedItem } from
 import { bestLayerPattern, centerPattern, rotatePattern180, type LayerPattern } from './layerPattern';
 import type { PalletContent, PalletizeOptions, PalletizeResult, PalletPlan, PalletSpec, SupportChoice, UnplacedLine } from './types';
 import { t as tr, tText, numLocale } from '../../../shared/i18n/core';
+import { fmtMoney } from '../../../shared/units/units';
 
 /**
  * Pondérations pour une palette mixte : on remplit couche par couche (forte pénalité
@@ -264,7 +265,7 @@ function explain(best: { spec: PalletSpec; c: ReturnType<typeof cost> }, alt: { 
   if (b.unplaced !== a.unplaced) return tr('{label} : tout est palettisé ({unplaced} colis restent hors palette en {label1})', { label: tText(best.spec.label), unplaced: a.unplaced, label1: tText(alt.spec.label) });
   if (b.count !== a.count) return tr('{label} : {count} palette(s) au lieu de {count1} en {label1}', { label: tText(best.spec.label), count: b.count, count1: a.count, label1: tText(alt.spec.label) });
   if (Math.abs(b.area - a.area) > 1) return tr('{label} : même nombre de palettes, {v1} m² au sol au lieu de {v2} m²', { label: tText(best.spec.label), v1: m2(b.area), v2: m2(a.area) });
-  if (Math.abs(b.money - a.money) > 1e-6) return tr('{label} : moins cher ({money} € au lieu de {money1} €)', { label: tText(best.spec.label), money: b.money, money1: a.money });
+  if (Math.abs(b.money - a.money) > 1e-6) return tr('{label} : moins cher ({money} au lieu de {money1})', { label: tText(best.spec.label), money: fmtMoney(b.money), money1: fmtMoney(a.money) });
   return tr('{label} : meilleur remplissage', { label: tText(best.spec.label) });
 }
 

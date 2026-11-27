@@ -5,14 +5,16 @@
 // Les numéros sont ceux du guide cariste (QR code) : « Colis 12 / 27 ».
 
 import { t, numLocale } from '../../../shared/i18n/core';
+import { mToL } from '../../../shared/units/units';
+import { wU, lU, dU, vU } from '../uiHelpers';
 
-const m = (mm) => (mm / 1000).toLocaleString(numLocale(), { maximumFractionDigits: 2 });
+const m = (mm) => mToL(mm / 1000).toLocaleString(numLocale(), { maximumFractionDigits: 2 });
 
 /** Position vue depuis les portes, tourné vers la cabine (même règle que le guide cariste). */
 export function wherePlaced(p, W) {
   const cy = p.y + p.width / 2;
   const side = cy < W / 3 ? t('à droite') : cy > (2 * W) / 3 ? t('à gauche') : t('au centre');
-  const level = p.z < 10 ? t('au sol') : t('en hauteur (sur {v1} m)', { v1: m(p.z) });
+  const level = p.z < 10 ? t('au sol') : t('en hauteur (sur {v1} {lu})', { wu: wU(), lu: lU(), du: dU(), vu: vU(),  v1: m(p.z) });
   return `${side} · ${level}`;
 }
 
@@ -117,7 +119,7 @@ export default function WallSteps({ container, placed, walls, colorOf }) {
                   <span style={{ background: '#0F172A', color: '#fff', borderRadius: 4, padding: '1px 6px', marginRight: 6 }}>{t('Mur {n}', { n: w.wall })}</span>
                   {t('n° {a} → {b}', { a: items[0].sequence, b: items[items.length - 1].sequence })}
                 </span>
-                <span style={{ fontSize: 9, color: '#64748B' }}>{t('{a} → {b} m depuis la cabine', { a: m(w.xStart), b: m(w.xEnd) })}</span>
+                <span style={{ fontSize: 9, color: '#64748B' }}>{t('{a} → {b} {lu} depuis la cabine', { wu: wU(), lu: lU(), du: dU(), vu: vU(),  a: m(w.xStart), b: m(w.xEnd) })}</span>
               </div>
               <WallLocator container={container} placed={placed} wall={w.wall} />
               <div style={{ display: 'flex', gap: 8, marginTop: 6, alignItems: 'flex-start' }}>
