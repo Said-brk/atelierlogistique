@@ -16,6 +16,7 @@ import { tourTitle, isAutoTitle } from '../tourCheck';
 import { quote, factsOf, routeOf, rankCarriers } from '../../shared/carriers/pricing';
 import { tolerance } from '../transport/control';
 import { t as tr, numLocale } from '../../shared/i18n/core';
+import { fmtMoney, fmtWeight, parseNumber } from '../../shared/units/units';
 
 /** /app/chargements/nouveau : crée un chargement vide puis ouvre l'éditeur. */
 export function NewShipment() {
@@ -43,14 +44,14 @@ function quoteOf(c, facts) {
   if (!facts) return null;
   return { carrier: c.code, label: c.label, ...quote(facts, c.data) };
 }
-const eur = (v) => `${v.toLocaleString(numLocale(), { minimumFractionDigits: 0, maximumFractionDigits: 2 })} €`;
+const eur = (v) => fmtMoney(v);
 /** Détail lisible d'un devis (infobulle). */
 function quoteDetail(q) {
   if (!q || q.error) return q?.error ?? '';
   const lines = [];
   if (q.lines) q.lines.forEach((l) => lines.push(tr('{n} × {label} à {price}', { n: l.count, label: l.label, price: eur(l.price) })));
   else lines.push(`${q.qty.toLocaleString(numLocale())} ${tr(q.unit)} → ${eur(q.base)}`);
-  if (q.taxable) lines.push(tr('Poids taxable : {kg} kg ({by})', { kg: q.taxable.kg.toLocaleString(numLocale()), by: { real: tr('poids réel'), volume: tr('volume'), floor: tr('plancher') }[q.taxable.by] }));
+  if (q.taxable) lines.push(tr('Poids taxable : {w} ({by})', { w: fmtWeight(q.taxable.kg), by: { real: tr('poids réel'), volume: tr('volume'), floor: tr('plancher') }[q.taxable.by] }));
   if (q.minApplied) lines.push(tr('Minimum de perception appliqué'));
   if (q.fuel) lines.push(tr('Surcharge gazole : {v}', { v: eur(q.fuel) }));
   return lines.join('\n');
@@ -134,7 +135,7 @@ export default function ShipmentEditor() {
   const carrier = ed.meta.carrier;
   const carrierMissing = !!carrier && !carriers.some((c) => c.code === carrier);
   // Au quai : coût figé (enregistré) ; sinon calcul en direct sur le plan affiché.
-  const invoiced = (() => { const t = String(ed.meta.invoiced_amount ?? '').replace(/[€\s\u00a0]/g, '').replace(',', '.'); return t === '' ? null : Number(t); })();
+  const invoiced = parseNumber(ed.meta.invoiced_amount);
   const facts = factsFor(s, liveRows.current ?? ed.doc.input?.rows, refs.tools?.agencies ?? [], ed.meta.departure_at, ed.meta.tour);
   const liveQuote = locked ? ed.doc.carrier_quote : (carriers.find((c) => c.code === carrier) ? quoteOf(carriers.find((c) => c.code === carrier), facts) : null);
   // Transporteur le moins cher pour ce plan (comparaison des grilles).

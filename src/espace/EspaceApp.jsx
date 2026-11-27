@@ -13,6 +13,8 @@ import { I18nProvider, useT } from '../shared/i18n/I18nProvider.jsx';
 import { N_ } from '../shared/i18n/core';
 import { userLang, accountLang, storedLang, rememberLang } from '../shared/i18n/userLang';
 import { saveAccountLang } from '../shared/account/supabase';
+import { setUnits, prefsOf, defaultUnits } from '../shared/units/units';
+import UnitsPicker from './UnitsPicker';
 import { accountEnabled, passwordStep, usesSso } from '../shared/account/supabase';
 import { hasPassword } from './PasswordForm';
 import { createOrganization, signOut, setPassword, acceptInvitation, declineInvitation, ROLES } from './data';
@@ -194,11 +196,12 @@ function Onboarding() {
   const { reloadOrgs, user } = useEspace();
   const t = useT();
   const [name, setName] = useState('');
+  const [prefs, setPrefs] = useState(() => defaultUnits(t.lang));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const submit = async (e) => {
     e.preventDefault(); setBusy(true); setError('');
-    try { await createOrganization(name); await reloadOrgs(); } catch (err) { setError(err.message); }
+    try { await createOrganization(name, prefs); await reloadOrgs(); } catch (err) { setError(err.message); }
     setBusy(false);
   };
   return (
@@ -210,6 +213,10 @@ function Onboarding() {
         <p className="text-xs text-slate-400">{t('Votre entreprise a déjà un espace ? Ne créez rien : demandez à un administrateur de vous inviter avec l’adresse {email}, puis reconnectez-vous.', { email: user?.email ?? '' })}</p>
         <input required minLength={2} maxLength={120} value={name} onChange={(e) => setName(e.target.value)} placeholder={t('Ex. Transports Martin')}
           className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" />
+        <div className="space-y-1.5">
+          <div className="text-xs text-slate-500">{t('Unités et devise')} <span className="text-slate-400">· {t('modifiables ensuite dans Paramètres › Entreprise')}</span></div>
+          <UnitsPicker value={prefs} onChange={setPrefs} compact />
+        </div>
         <button disabled={busy} className="w-full inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60" style={{ background: '#2563EB' }}>
           {busy ? <Loader2 size={16} className="animate-spin" /> : <ArrowRight size={16} />} {t('Entrer dans mon espace')}
         </button>
@@ -372,8 +379,9 @@ function Shell() {
 // Langue de l'interface : celle du compte (Paramètres › Mon compte), sinon celle choisie sur la page
 // de connexion (reportée sur le compte), sinon le français.
 function LangRoot({ children }) {
-  const { user } = useEspace();
+  const { user, org } = useEspace();
   const lang = userLang(user);
+  setUnits(prefsOf(org, lang)); // devise et unités de l'entreprise affichée (pour tout l'espace)
   const saved = accountLang(user);
   // Choix fait sur la page de connexion (avant tout enregistrement sur le compte) : reporté sur le compte.
   useEffect(() => {

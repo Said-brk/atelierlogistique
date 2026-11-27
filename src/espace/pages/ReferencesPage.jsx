@@ -15,10 +15,13 @@ import ResizableTable from '../ResizableTable';
 import { defaultReferences } from '../../shared/references/defaults';
 import { BILLING_LABELS, RATE_UNIT, SCOPE_LABELS, fuelFor } from '../../shared/carriers/pricing';
 import { t as tr, N_, numLocale } from '../../shared/i18n/core';
+import { fmtMoney, fmtWeight, fmtDim, mToL, cmToDim, dimToCm, kgToW, wToKg, dimUnit, weightUnit, lengthUnit, currencySymbol } from '../../shared/units/units';
 
 const inputCls = 'w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:bg-slate-50';
 const fmt = (v, d = 0) => (v == null || v === '' ? '—' : Number(v).toLocaleString(numLocale(), { maximumFractionDigits: d }));
-const m = (mm) => fmt(mm / 1000, 2);
+const m = (mm) => fmt(mToL(mm / 1000), 2);
+const w = (kg, d = 0) => fmtWeight(kg, d);
+const dim = (mm) => fmt(cmToDim(mm / 10), 1);
 
 // ---------------------------------------------------------------- Schémas des tables
 // Champ : key (« code », « label », « active », « sort » = colonnes ; sinon dans data, « a.b » = sous-objet),
@@ -69,9 +72,9 @@ const toggle = (on, onClick, disabled, title) => (
 const VEHICLE_COLUMNS = (admin, patch) => [
   { key: 'code', h: N_('Code'), cell: (i) => <span className="font-jetbrains text-xs text-blue-700">{i.code}</span> },
   { key: 'label', h: N_('Libellé'), min: 120, cell: (i) => <span className="font-medium text-slate-900">{i.label}</span> },
-  { key: 'dims', h: N_('L × l × H (m)'), cell: (i) => <span className="font-jetbrains text-xs whitespace-nowrap">{m(i.data.length)} × {m(i.data.width)} × {m(i.data.height)}</span> },
-  { key: 'load', h: N_('Charge utile'), cell: (i) => (i.data.maxWeight == null ? '—' : `${fmt(i.data.maxWeight)} kg`) },
-  { key: 'cost', h: N_('Coût / voyage'), cell: (i) => `${fmt(i.data.cost)} €` },
+  { key: 'dims', h: N_('L × l × H'), unit: lengthUnit, cell: (i) => <span className="font-jetbrains text-xs whitespace-nowrap">{m(i.data.length)} × {m(i.data.width)} × {m(i.data.height)}</span> },
+  { key: 'load', h: N_('Charge utile'), cell: (i) => (i.data.maxWeight == null ? '—' : w(i.data.maxWeight)) },
+  { key: 'cost', h: N_('Coût / voyage'), cell: (i) => fmtMoney(i.data.cost) },
   { key: 'axle', h: N_('Répartition'), cell: (i) => <span className="text-xs">{i.data.axle ? `${i.data.axle.frontLabel} / ${i.data.axle.rearLabel}` : tr('Conteneur')}</span> },
   { key: 'fleet', h: N_('Flotte'), cell: (i) => toggle(i.data.inFleet, () => patch(i, { data: { ...i.data, inFleet: !i.data.inFleet } }), !admin, tr('Coché par défaut en flotte automatique')) },
   { key: 'active', h: N_('Disponible'), cell: (i) => toggle(i.active, () => patch(i, { active: !i.active }), !admin, tr('Proposé dans les chargements')) },
@@ -80,12 +83,12 @@ const VEHICLE_COLUMNS = (admin, patch) => [
 const PALLET_COLUMNS = (admin, patch) => [
   { key: 'code', h: N_('Code'), cell: (i) => <span className="font-jetbrains text-xs text-blue-700">{i.code}</span> },
   { key: 'label', h: N_('Libellé'), min: 120, cell: (i) => <span className="font-medium text-slate-900">{i.label}</span> },
-  { key: 'dims', h: N_('L × l (cm)'), cell: (i) => <span className="font-jetbrains text-xs">{fmt(i.data.length / 10, 1)} × {fmt(i.data.width / 10, 1)}</span> },
-  { key: 'deck', h: N_('Plateau'), cell: (i) => `${fmt(i.data.deckHeight / 10, 1)} cm` },
-  { key: 'tare', h: N_('Tare'), cell: (i) => `${fmt(i.data.tare, 1)} kg` },
-  { key: 'hmax', h: N_('H maxi'), cell: (i) => `${fmt(i.data.maxTotalHeight / 10, 1)} cm` },
-  { key: 'load', h: N_('Charge maxi'), cell: (i) => `${fmt(i.data.maxLoad)} kg` },
-  { key: 'cost', h: N_('Coût'), cell: (i) => (i.data.cost == null ? '—' : `${fmt(i.data.cost, 2)} €`) },
+  { key: 'dims', h: N_('L × l'), unit: dimUnit, cell: (i) => <span className="font-jetbrains text-xs">{dim(i.data.length)} × {dim(i.data.width)}</span> },
+  { key: 'deck', h: N_('Plateau'), cell: (i) => fmtDim(i.data.deckHeight / 10) },
+  { key: 'tare', h: N_('Tare'), cell: (i) => w(i.data.tare, 1) },
+  { key: 'hmax', h: N_('H maxi'), cell: (i) => fmtDim(i.data.maxTotalHeight / 10) },
+  { key: 'load', h: N_('Charge maxi'), cell: (i) => w(i.data.maxLoad) },
+  { key: 'cost', h: N_('Coût'), cell: (i) => (i.data.cost == null ? '—' : fmtMoney(i.data.cost)) },
   { key: 'active', h: N_('Coché'), cell: (i) => toggle(i.active, () => patch(i, { active: !i.active }), !admin, tr('Coché par défaut')) },
 ];
 
@@ -133,7 +136,10 @@ const CARRIER_FIELDS = [
   { key: 'active', label: N_('Proposé sur les chargements'), type: 'bool' },
 ];
 
-const money = (v) => (v == null || v === '' ? '—' : `${fmt(Number(v), 2)} €`);
+/** Unité affichée d'un champ (saisie convertie : cm → in, kg → lb ; devise de l'entreprise). */
+const unitLabel = (u) => (u === 'cm' ? dimUnit() : u === 'kg' ? weightUnit() : u === '€' ? currencySymbol() : u);
+
+const money = (v) => (v == null || v === '' ? '—' : fmtMoney(Number(v)));
 const tariffText = (d) => {
   if (d.billing === 'ftl') {
     const p = Object.entries(d.prices ?? {}).filter(([, v]) => v != null && v !== '');
@@ -218,7 +224,7 @@ function formOf(item, fields) {
     if (f.type === 'zones') { v[f.key] = (Array.isArray(raw) ? raw : []).map((z) => ({ scope: z.scope ?? 'zone', key: z.key ?? z.zone ?? '', rate: z.rate == null ? '' : String(z.rate) })); continue; }
     if (f.type === 'months') { v[f.key] = Object.entries(raw ?? {}).sort(([a], [b]) => b.localeCompare(a)).map(([month, x]) => ({ month, pct: x == null ? '' : String(x) })); continue; }
     if (f.type === 'prices') { v[f.key] = Object.fromEntries(Object.entries(raw ?? {}).map(([k, x]) => [k, x == null ? '' : String(x)])); continue; }
-    v[f.key] = f.type === 'days' ? (Array.isArray(raw) ? raw : []) : f.type === 'bool' ? !!raw : raw == null ? '' : f.type === 'cm' ? String(Math.round(raw) / 10) : String(raw);
+    v[f.key] = f.type === 'days' ? (Array.isArray(raw) ? raw : []) : f.type === 'bool' ? !!raw : raw == null ? '' : f.type === 'cm' ? String(cmToDim(Math.round(raw) / 10)) : f.unit === 'kg' ? String(Math.round(kgToW(Number(raw)) * 10) / 10) : String(raw);
   }
   return v;
 }
@@ -276,7 +282,7 @@ function itemOf(base, form, fields) {
       else {
         const n = Number(s);
         if (!Number.isFinite(n) || (!f.signed && n < 0)) errors[f.key] = tr('Nombre invalide');
-        else val = f.type === 'cm' ? Math.round(n * 10) : n;
+        else val = f.type === 'cm' ? Math.round(dimToCm(n) * 10) : f.unit === 'kg' ? Math.round(wToKg(n) * 1000) / 1000 : n;
       }
     }
     if (TOP.includes(f.key)) out[f.key] = val;
@@ -292,7 +298,7 @@ function itemOf(base, form, fields) {
 }
 
 function Field({ f, value, onChange, error, disabled, items = [], form = {} }) {
-  const unit = f.unitOf ? f.unitOf(form) : f.unit;
+  const unit = unitLabel(f.unitOf ? f.unitOf(form) : f.unit);
   const label = tr(f.label); const hint = f.hint && tr(f.hint);
   const options = typeof f.options === 'function' ? f.options(items) : f.options;
   if (f.type === 'days') {
@@ -373,7 +379,7 @@ function Field({ f, value, onChange, error, disabled, items = [], form = {} }) {
     const vehicles = items.filter((i) => i.kind === 'vehicle').sort((a, b) => a.sort - b.sort);
     const val = value ?? {};
     return (
-      <div className="sm:col-span-2 text-xs text-slate-500">{label} <span className="text-slate-400">({tr('€ par véhicule')})</span>
+      <div className="sm:col-span-2 text-xs text-slate-500">{label} <span className="text-slate-400">({currencySymbol()} {tr('par véhicule')})</span>
         <div className="mt-1 grid sm:grid-cols-2 gap-x-4 gap-y-1.5">
           {vehicles.map((v) => (
             <label key={v.code} className="flex items-center gap-2">
@@ -461,7 +467,7 @@ function RefTable({ kind }) {
   const run = async (fn) => { setError(''); try { await fn(); reload(); } catch (e) { setError(e.message); } };
   const patch = (i, p) => run(() => saveReference(org.id, { ...i, ...p }));
   const columns = [
-    ...table.columns(admin, patch, items ?? []).map((c) => ({ ...c, h: tr(c.h) })),
+    ...table.columns(admin, patch, items ?? []).map((c) => ({ ...c, h: tr(c.h) + (c.unit ? ` (${c.unit()})` : '') })),
     { key: 'actions', h: '', tdClass: 'text-right whitespace-nowrap', cell: (i) => admin && (
       <span className="inline-flex gap-3">
         <button onClick={(e) => { e.stopPropagation(); setEditing(i); }} className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-blue-700"><Pencil size={13} /> {tr('Modifier')}</button>

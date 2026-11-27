@@ -12,8 +12,9 @@ import { toToolReferences, defaultReferences } from '../../shared/references/def
 import { PageHeader, Btn, StatusBadge, ReferencesError } from '../ui';
 import ResizableTable from '../ResizableTable';
 import { t as tr, numLocale } from '../../shared/i18n/core';
+import { fmtMoney, fmtWeight, fmtVolume } from '../../shared/units/units';
 
-const eur = (v) => `${Math.round(v).toLocaleString(numLocale())} €`;
+const eur = (v) => fmtMoney(Math.round(v), { max: 0 });
 const dayKey = (d) => String(d).slice(0, 10);
 const todayKey = () => new Date().toISOString().slice(0, 10);
 const dayLabel = (k) => {
@@ -170,8 +171,8 @@ export default function ConsolidationPage() {
     { key: 'label', h: tr('Libellé'), min: 120, cell: (s) => <span className="text-slate-900">{s.label || '—'}</span> },
     { key: 'dest', h: tr('Destinations'), cell: (s) => <span className="text-xs">{dests(s).join(', ') || '—'}</span> },
     { key: 'tour', h: tr('Tournée'), cell: (s) => { const t = tourText(s.code); return t ? <span className="text-xs">{t}</span> : <span className="text-xs text-slate-400">{run.analysis ? tr('hors tournée') : '…'}</span>; } },
-    { key: 'vol', h: tr('Volume'), cell: (s) => `${m3(s).toLocaleString(numLocale(), { maximumFractionDigits: 1 })} m³` },
-    { key: 'kg', h: tr('Poids'), cell: (s) => `${Math.round(kg(s)).toLocaleString(numLocale())} kg` },
+    { key: 'vol', h: tr('Volume'), cell: (s) => fmtVolume(m3(s)) },
+    { key: 'kg', h: tr('Poids'), cell: (s) => fmtWeight(kg(s)) },
     { key: 'sep', h: tr('Seul (calcul)'), cell: (s) => { const ev = run.analysis?.separate?.[s.code]; return ev?.ok ? <span className="text-xs">{trucksText(ev)} · {eur(ev.cost)}</span> : <span className="text-xs text-slate-400">{run.status === 'running' ? '…' : rowsOf(s).length ? tr('trop gros pour un regroupement') : tr('aucune ligne')}</span>; } },
     { key: 'status', h: 'Statut', cell: (s) => <StatusBadge status={s.status} /> },
   ];

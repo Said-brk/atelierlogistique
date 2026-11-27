@@ -9,6 +9,7 @@ import DocList from '../DocList';
 import { DocChip, fmtDate, pct, PageHeader, Btn } from '../ui';
 import ShipmentsCalendar from './ShipmentsCalendar';
 import { t as tr, N_, numLocale } from '../../shared/i18n/core';
+import { fmtMoney } from '../../shared/units/units';
 
 const VIEW_KEY = 'al.espace.shipments.view';
 
@@ -53,7 +54,7 @@ export default function Shipments() {
         { h: N_('Départ'), cell: (r) => <span className="whitespace-nowrap">{fmtDate(r.departure_at)}</span> },
         { h: N_('Tournée'), cell: (r) => r.tour ?? '—' },
         { h: N_('Transporteur'), cell: (r) => r.carrier ?? '—' },
-        { h: N_('Coût théorique'), cell: (r) => (r.carrier_cost == null ? '—' : <span className="font-jetbrains text-xs whitespace-nowrap">{Number(r.carrier_cost).toLocaleString(numLocale(), { maximumFractionDigits: 2 })} €</span>) },
+        { h: N_('Coût théorique'), cell: (r) => (r.carrier_cost == null ? '—' : <span className="font-jetbrains text-xs whitespace-nowrap">{fmtMoney(r.carrier_cost)}</span>) },
         { h: N_('Véhicule'), cell: (r) => <span className="whitespace-nowrap">{r.result?.summary?.vehicle ?? '—'}</span> },
         { h: N_('Remplissage'), cell: (r) => pct(r.result?.summary?.fill) },
         { h: N_('Palettes de'), cell: (r) => (r.palletizations?.length
