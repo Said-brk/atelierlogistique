@@ -5,6 +5,7 @@
 // columns : [{ key, h, cell(row), min?, thClass?, tdClass? }]
 
 import { useRef, useState } from 'react';
+import { t as tr } from '../shared/i18n/core';
 
 const PREFIX = 'al.espace.cols.';
 const load = (id) => { try { return JSON.parse(localStorage.getItem(PREFIX + id)) || null; } catch { return null; } };
@@ -49,7 +50,7 @@ export default function ResizableTable({
             {columns.map((c) => (
               <th key={c.key} ref={(el) => { ths.current[c.key] = el; }} className={`relative whitespace-nowrap ${thClass} ${c.thClass ?? ''}${clip} text-ellipsis`}>
                 {c.h}
-                <span role="separator" aria-orientation="vertical" title="Tirer pour redimensionner · double-clic : largeurs auto"
+                <span role="separator" aria-orientation="vertical" title={tr('Tirer pour redimensionner · double-clic : largeurs auto')}
                   onPointerDown={(e) => startDrag(e, c)} onDoubleClick={reset} onClick={(e) => e.stopPropagation()}
                   className="absolute right-0 top-0 h-full w-2.5 cursor-col-resize touch-none group flex justify-end">
                   <span className="w-px h-full bg-slate-200 group-hover:bg-blue-400 group-hover:w-0.5" />

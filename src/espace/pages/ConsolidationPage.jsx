@@ -11,15 +11,16 @@ import { tourTitle } from '../tourCheck';
 import { toToolReferences, defaultReferences } from '../../shared/references/defaults';
 import { PageHeader, Btn, StatusBadge, ReferencesError } from '../ui';
 import ResizableTable from '../ResizableTable';
+import { t as tr, numLocale } from '../../shared/i18n/core';
 
-const eur = (v) => `${Math.round(v).toLocaleString('fr-FR')} €`;
+const eur = (v) => `${Math.round(v).toLocaleString(numLocale())} €`;
 const dayKey = (d) => String(d).slice(0, 10);
 const todayKey = () => new Date().toISOString().slice(0, 10);
 const dayLabel = (k) => {
   const t = todayKey();
   const tomorrow = new Date(Date.now() + 864e5).toISOString().slice(0, 10);
-  const base = new Date(`${k}T12:00:00`).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
-  return k === t ? `Aujourd’hui · ${base}` : k === tomorrow ? `Demain · ${base}` : base;
+  const base = new Date(`${k}T12:00:00`).toLocaleDateString(numLocale(), { weekday: 'short', day: 'numeric', month: 'short' });
+  return k === t ? `${tr('Aujourd’hui')} · ${base}` : k === tomorrow ? `${tr('Demain')} · ${base}` : base;
 };
 const rowsOf = (s) => s.input?.rows ?? [];
 const m3 = (s) => rowsOf(s).reduce((t, r) => t + ((r.length * r.width * r.height) / 1e6) * r.quantity, 0);
@@ -49,19 +50,19 @@ function SuggestionCard({ s, byCode, onMerge, onIgnore, busy, tour, destLabel })
       </div>
       <div className="px-4 py-3 grid sm:grid-cols-[1fr_auto_1fr] gap-3 items-center text-sm">
         <div>
-          <div className="text-[11px] font-jetbrains text-slate-400 uppercase">Séparément</div>
-          <div className="text-slate-700">{s.trucksBefore} véhicule{s.trucksBefore > 1 ? 's' : ''} · <b>{eur(s.separate)}</b></div>
+          <div className="text-[11px] font-jetbrains text-slate-400 uppercase">{tr('Séparément')}</div>
+          <div className="text-slate-700">{tr('{n} véhicule(s)', { n: s.trucksBefore })} · <b>{eur(s.separate)}</b></div>
         </div>
         <ArrowRight size={18} className="hidden sm:block text-slate-300" />
         <div>
-          <div className="text-[11px] font-jetbrains text-slate-400 uppercase">Ensemble</div>
-          <div className="text-slate-900">{trucksText(s.together)} · <b>{eur(s.together.cost)}</b> <span className="text-slate-500">· rempli à {Math.round(fill * 100)} %</span></div>
+          <div className="text-[11px] font-jetbrains text-slate-400 uppercase">{tr('Ensemble')}</div>
+          <div className="text-slate-900">{trucksText(s.together)} · <b>{eur(s.together.cost)}</b> <span className="text-slate-500">· {tr('rempli à {p} %', { p: Math.round(fill * 100) })}</span></div>
         </div>
       </div>
       <div className="px-4 py-2.5 bg-slate-50 text-xs text-slate-500 flex flex-wrap items-center gap-x-4 gap-y-2">
-        <span className="flex-1 min-w-[200px]">Arrêts : {[...new Map([...s.rows].sort((x, y) => x.stop - y.stop).map((r) => [r.stop, destLabel(r.destination)])).values()].join(' → ') || 'destinations non renseignées'}</span>
-        <button onClick={onIgnore} className="inline-flex items-center gap-1 hover:text-slate-800"><X size={13} /> Ignorer</button>
-        <Btn onClick={onMerge} disabled={busy}>{busy ? <Loader2 size={15} className="animate-spin" /> : <Combine size={15} />} Regrouper</Btn>
+        <span className="flex-1 min-w-[200px]">{tr('Arrêts :')} {[...new Map([...s.rows].sort((x, y) => x.stop - y.stop).map((r) => [r.stop, destLabel(r.destination)])).values()].join(' → ') || tr('destinations non renseignées')}</span>
+        <button onClick={onIgnore} className="inline-flex items-center gap-1 hover:text-slate-800"><X size={13} /> {tr('Ignorer')}</button>
+        <Btn onClick={onMerge} disabled={busy}>{busy ? <Loader2 size={15} className="animate-spin" /> : <Combine size={15} />} {tr('Regrouper')}</Btn>
       </div>
     </div>
   );
@@ -86,7 +87,7 @@ export default function ConsolidationPage() {
   const [ignored, setIgnored] = useState(() => new Set());
   const [busy, setBusy] = useState(null);
   const worker = useRef(null);
-  useEffect(() => { document.title = 'Regrouper des chargements | Atelier Logistique'; }, []);
+  useEffect(() => { document.title = `${tr('Regrouper des chargements')} | Atelier Logistique`; }, []);
   useEffect(() => { datedShipments(org.id).then(setShips).catch((e) => { setError(e.message); setShips([]); }); }, [org.id]);
 
   const mode = refs.tools?.consolidation.mode ?? 'free';
@@ -126,7 +127,7 @@ export default function ConsolidationPage() {
     w.postMessage({ shipments: list.map(({ id, code, label, status, departure_at, tour, carrier, input }) => ({ id, code, label, status, departure_at, tour, carrier, input })), vehicles, mode, agencies });
     return () => w.terminate();
   }, [list, vehicles, mode, agencies]);
-  const tourText = (code) => { const t = run.analysis?.tours?.[code]; return t === '*' ? 'plusieurs tournées' : t ? (tourName[t] ?? t) : null; };
+  const tourText = (code) => { const t = run.analysis?.tours?.[code]; return t === '*' ? tr('plusieurs tournées') : t ? (tourName[t] ?? t) : null; };
 
   const suggestions = (run.analysis?.suggestions ?? []).filter((s) => !ignored.has(s.codes.join('+')));
   const totalSaving = suggestions.reduce((t, s) => t + s.saving, 0);
@@ -134,10 +135,10 @@ export default function ConsolidationPage() {
   const merge = async (s) => {
     const items = s.codes.map((c) => byCode[c]);
     const api = items.filter((x) => x.external_id);
-    const msg = `Créer un chargement avec les lignes de ${s.codes.join(' et ')} (tournée : ${s.codes.join(' puis ')}, flotte déjà calculée), `
-      + `y rattacher leurs palettisations et annuler ${s.codes.join(' et ')} ?`
-      + (api.length ? `\n\n${api.map((x) => x.external_id).join(', ')} vien${api.length > 1 ? 'nent' : 't'} de votre WMS / ERP : il sera prévenu de l’annulation (webhook).` : '')
-      + (items.some((x) => x.status === 'validated') ? '\n\nAttention : un des chargements est déjà validé (camion peut-être réservé).' : '');
+    const and = ` ${tr('et')} `;
+    const msg = tr('Créer un chargement avec les lignes de {codes} (tournée : {order}, flotte déjà calculée), y rattacher leurs palettisations et annuler {codes} ?', { codes: s.codes.join(and), order: s.codes.join(` ${tr('puis')} `) })
+      + (api.length ? `\n\n${tr('{refs} : vient de votre WMS / ERP, il sera prévenu de l’annulation (webhook).', { refs: api.map((x) => x.external_id).join(', ') })}` : '')
+      + (items.some((x) => x.status === 'validated') ? `\n\n${tr('Attention : un des chargements est déjà validé (camion peut-être réservé).')}` : '');
     if (!window.confirm(msg)) return;
     setBusy(s.codes.join('+')); setError('');
     try {
@@ -165,25 +166,25 @@ export default function ConsolidationPage() {
   };
 
   const columns = [
-    { key: 'code', h: 'N°', cell: (s) => <Link to={`/app/chargements/${s.code}`} onClick={(e) => e.stopPropagation()} className="font-jetbrains text-xs text-blue-700 hover:underline">{s.code}</Link> },
-    { key: 'label', h: 'Libellé', min: 120, cell: (s) => <span className="text-slate-900">{s.label || '—'}</span> },
-    { key: 'dest', h: 'Destinations', cell: (s) => <span className="text-xs">{dests(s).join(', ') || '—'}</span> },
-    { key: 'tour', h: 'Tournée', cell: (s) => { const t = tourText(s.code); return t ? <span className="text-xs">{t}</span> : <span className="text-xs text-slate-400">{run.analysis ? 'hors tournée' : '…'}</span>; } },
-    { key: 'vol', h: 'Volume', cell: (s) => `${m3(s).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} m³` },
-    { key: 'kg', h: 'Poids', cell: (s) => `${Math.round(kg(s)).toLocaleString('fr-FR')} kg` },
-    { key: 'sep', h: 'Seul (calcul)', cell: (s) => { const ev = run.analysis?.separate?.[s.code]; return ev?.ok ? <span className="text-xs">{trucksText(ev)} · {eur(ev.cost)}</span> : <span className="text-xs text-slate-400">{run.status === 'running' ? '…' : rowsOf(s).length ? 'trop gros pour un regroupement' : 'aucune ligne'}</span>; } },
+    { key: 'code', h: tr('N°'), cell: (s) => <Link to={`/app/chargements/${s.code}`} onClick={(e) => e.stopPropagation()} className="font-jetbrains text-xs text-blue-700 hover:underline">{s.code}</Link> },
+    { key: 'label', h: tr('Libellé'), min: 120, cell: (s) => <span className="text-slate-900">{s.label || '—'}</span> },
+    { key: 'dest', h: tr('Destinations'), cell: (s) => <span className="text-xs">{dests(s).join(', ') || '—'}</span> },
+    { key: 'tour', h: tr('Tournée'), cell: (s) => { const t = tourText(s.code); return t ? <span className="text-xs">{t}</span> : <span className="text-xs text-slate-400">{run.analysis ? tr('hors tournée') : '…'}</span>; } },
+    { key: 'vol', h: tr('Volume'), cell: (s) => `${m3(s).toLocaleString(numLocale(), { maximumFractionDigits: 1 })} m³` },
+    { key: 'kg', h: tr('Poids'), cell: (s) => `${Math.round(kg(s)).toLocaleString(numLocale())} kg` },
+    { key: 'sep', h: tr('Seul (calcul)'), cell: (s) => { const ev = run.analysis?.separate?.[s.code]; return ev?.ok ? <span className="text-xs">{trucksText(ev)} · {eur(ev.cost)}</span> : <span className="text-xs text-slate-400">{run.status === 'running' ? '…' : rowsOf(s).length ? tr('trop gros pour un regroupement') : tr('aucune ligne')}</span>; } },
     { key: 'status', h: 'Statut', cell: (s) => <StatusBadge status={s.status} /> },
   ];
 
   return (
     <>
-      <PageHeader title="Regrouper des chargements"
-        subtitle="Les chargements d’un même jour qui coûtent moins cher dans les mêmes véhicules." />
+      <PageHeader title={tr('Regrouper des chargements')}
+        subtitle={tr('Les chargements d’un même jour qui coûtent moins cher dans les mêmes véhicules.')} />
       <div className="px-5 sm:px-8 py-5 space-y-4">
         {refs.error ? <ReferencesError error={refs.error} onRetry={refs.reload} /> : ships === null || vehicles === null ? <div className="p-10 flex justify-center text-slate-400"><Loader2 className="animate-spin" /></div> : days.length === 0 ? (
           <div className="rounded-xl bg-white border border-slate-200 p-8 text-center text-slate-500">
             <CalendarDays className="mx-auto text-slate-300" size={32} />
-            <div className="mt-2 text-sm">Aucun chargement daté à venir. Renseignez la date de départ de vos chargements : ceux du même jour sont comparés ici.</div>
+            <div className="mt-2 text-sm">{tr('Aucun chargement daté à venir. Renseignez la date de départ de vos chargements : ceux du même jour sont comparés ici.')}</div>
           </div>
         ) : (<>
           <div className="flex gap-1.5 overflow-x-auto pb-1">
@@ -195,21 +196,21 @@ export default function ConsolidationPage() {
             ))}
           </div>
 
-          <div className="text-xs text-slate-500">Regroupement : <b>{mode === 'tour' ? 'par tournée' : 'libre'}</b>
-            {mode === 'tour' ? ' — seuls les chargements dont toutes les destinations sont dans la même tournée sont comparés.' : ' — tous les chargements du jour sont comparés.'}
-            {' '}<Link to="/app/parametres/references/regroupement" className="text-blue-700 hover:underline">Modifier</Link></div>
-          {list.length < 2 ? <div className="rounded-xl bg-white border border-slate-200 p-5 text-sm text-slate-500">Un seul chargement ce jour-là : rien à regrouper.</div>
+          <div className="text-xs text-slate-500">{tr('Regroupement :')} <b>{mode === 'tour' ? tr('par tournée') : tr('libre')}</b>
+            {' — '}{mode === 'tour' ? tr('seuls les chargements dont toutes les destinations sont dans la même tournée sont comparés.') : tr('tous les chargements du jour sont comparés.')}
+            {' '}<Link to="/app/parametres/references/regroupement" className="text-blue-700 hover:underline">{tr('Modifier')}</Link></div>
+          {list.length < 2 ? <div className="rounded-xl bg-white border border-slate-200 p-5 text-sm text-slate-500">{tr('Un seul chargement ce jour-là : rien à regrouper.')}</div>
             : run.status === 'running' ? (
               <div className="rounded-xl bg-white border border-slate-200 p-5 text-sm text-slate-600 space-y-2">
-                <div className="flex items-center gap-2"><Loader2 size={15} className="animate-spin" /> Calcul des combinaisons ({run.progress[0]}/{run.progress[1] || '…'})…</div>
+                <div className="flex items-center gap-2"><Loader2 size={15} className="animate-spin" /> {tr('Calcul des combinaisons')} ({run.progress[0]}/{run.progress[1] || '…'})…</div>
                 <div className="h-1.5 rounded bg-slate-100 overflow-hidden"><div className="h-full bg-blue-600 transition-all" style={{ width: `${run.progress[1] ? (run.progress[0] / run.progress[1]) * 100 : 5}%` }} /></div>
               </div>
             ) : run.status === 'error' ? <div className="text-sm text-red-700">{run.error}</div>
               : suggestions.length === 0 ? (
-                <div className="rounded-xl bg-white border border-slate-200 p-5 text-sm text-slate-600 flex items-center gap-2"><Truck size={16} className="text-slate-400" /> Aucun regroupement moins cher : vos chargements de ce jour sont déjà bien répartis.</div>
+                <div className="rounded-xl bg-white border border-slate-200 p-5 text-sm text-slate-600 flex items-center gap-2"><Truck size={16} className="text-slate-400" /> {tr('Aucun regroupement moins cher : vos chargements de ce jour sont déjà bien répartis.')}</div>
               ) : (
                 <div className="space-y-3">
-                  <div className="text-sm text-slate-700"><b>{suggestions.length} regroupement{suggestions.length > 1 ? 's' : ''} possible{suggestions.length > 1 ? 's' : ''}</b> · jusqu’à <b className="text-emerald-700">{eur(totalSaving)}</b> de transport en moins ce jour-là</div>
+                  <div className="text-sm text-slate-700"><b>{tr('{n} regroupement(s) possible(s)', { n: suggestions.length })}</b> · {tr('jusqu’à {amount} de transport en moins ce jour-là', { amount: eur(totalSaving) })}</div>
                   {suggestions.map((s) => (
                     <SuggestionCard key={s.codes.join('+')} s={s} byCode={byCode} busy={busy === s.codes.join('+')}
                       tour={mode === 'tour' || run.analysis?.tours?.[s.codes[0]] === run.analysis?.tours?.[s.codes[1]] ? tourText(s.codes[0]) : null}
@@ -221,13 +222,13 @@ export default function ConsolidationPage() {
           {error && <div className="text-sm text-red-700">{error}</div>}
 
           <section className="rounded-xl bg-white border border-slate-200 overflow-hidden">
-            <div className="px-4 py-3 border-b border-slate-200 font-semibold text-slate-900">Chargements du jour <span className="text-slate-400 font-normal">· {list.length}</span></div>
+            <div className="px-4 py-3 border-b border-slate-200 font-semibold text-slate-900">{tr('Chargements du jour')} <span className="text-slate-400 font-normal">· {list.length}</span></div>
             <ResizableTable id="consolidation-day" rows={list} columns={columns} onRowClick={(s) => navigate(`/app/chargements/${s.code}`)}
               theadClass="bg-slate-50 text-left text-xs text-slate-500" thClass="px-4 py-2 font-medium" />
           </section>
           <p className="text-xs text-slate-400 flex gap-1.5"><Info size={14} className="shrink-0" />
-            Les deux montants sont calculés par l’outil (même moteur 3D, véhicules et coûts de vos tables de référence), pour les chargements {Object.values(STATUS).slice(0, 3).map((x) => x.label.toLowerCase()).join(', ')}.
-            Ordre des arrêts : celui des agences dans la tournée (Paramètres › Tables de référence) quand toutes les destinations en font partie, sinon le premier chargement puis le second ; modifiable ensuite.</p>
+            {tr('Les deux montants sont calculés par l’outil (même moteur 3D, véhicules et coûts de vos tables de référence), pour les chargements {st}.', { st: Object.values(STATUS).slice(0, 3).map((x) => x.label.toLowerCase()).join(', ') })}
+            {' '}{tr('Ordre des arrêts : celui des agences dans la tournée (Paramètres › Tables de référence) quand toutes les destinations en font partie, sinon le premier chargement puis le second ; modifiable ensuite.')}</p>
         </>)}
       </div>
     </>

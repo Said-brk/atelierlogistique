@@ -8,8 +8,9 @@ import {
 } from './data';
 import { Btn, fmtDateTime } from './ui';
 import ResizableTable from './ResizableTable';
+import { t as tr } from '../shared/i18n/core';
 
-const EVENT_LABEL = Object.fromEntries([...WEBHOOK_EVENTS.map((e) => [e.id, e.label]), ['ping', 'Test']]);
+const eventLabel = (id) => (id === 'ping' ? tr('Test') : WEBHOOK_EVENTS.find((e) => e.id === id)?.label ?? id);
 
 function Secret({ value }) {
   const [show, setShow] = useState(false);
@@ -18,8 +19,8 @@ function Secret({ value }) {
   return (
     <span className="inline-flex items-center gap-1.5">
       <code className="font-jetbrains text-xs text-slate-700">{show ? value : `${value.slice(0, 6)}••••••••`}</code>
-      <button type="button" onClick={() => setShow(!show)} title={show ? 'Masquer' : 'Afficher'} className="text-slate-400 hover:text-slate-700">{show ? <EyeOff size={13} /> : <Eye size={13} />}</button>
-      <button type="button" onClick={copy} title="Copier le secret" className="text-slate-400 hover:text-slate-700">{ok ? <Check size={13} /> : <Copy size={13} />}</button>
+      <button type="button" onClick={() => setShow(!show)} title={show ? tr('Masquer') : tr('Afficher')} className="text-slate-400 hover:text-slate-700">{show ? <EyeOff size={13} /> : <Eye size={13} />}</button>
+      <button type="button" onClick={copy} title={tr('Copier le secret')} className="text-slate-400 hover:text-slate-700">{ok ? <Check size={13} /> : <Copy size={13} />}</button>
     </span>
   );
 }
@@ -41,7 +42,7 @@ export default function WebhooksSection({ orgId }) {
       setHooks(h); setDeliveries(d);
     } catch (e) {
       setHooks([]);
-      setError(/does not exist|schema cache/i.test(e.message) ? 'La base n’a pas encore les notifications : exécutez le script 20261124000005_webhooks.sql dans Supabase.' : e.message);
+      setError(/does not exist|schema cache/i.test(e.message) ? tr('La base n’a pas encore les notifications : exécutez le script {f} dans Supabase.', { f: '20261124000005_webhooks.sql' }) : e.message);
     }
   }, [orgId]);
   useEffect(() => { load(); }, [load]);
@@ -58,17 +59,17 @@ export default function WebhooksSection({ orgId }) {
   return (
     <section className="rounded-xl bg-white border border-slate-200 overflow-hidden">
       <div className="px-4 py-3 border-b border-slate-200 flex items-center gap-2 font-semibold text-slate-900">
-        <Bell size={17} /> Notifications automatiques (webhooks)
-        <button onClick={load} title="Actualiser" className="ml-auto text-slate-400 hover:text-slate-700"><RefreshCw size={15} /></button>
+        <Bell size={17} /> {tr('Notifications automatiques (webhooks)')}
+        <button onClick={load} title={tr('Actualiser')} className="ml-auto text-slate-400 hover:text-slate-700"><RefreshCw size={15} /></button>
       </div>
       <div className="p-4 space-y-4">
-        <p className="text-sm text-slate-600">Votre WMS / ERP est prévenu tout de suite quand un chargement est validé, envoyé au quai, annulé ou rouvert : plus besoin d’interroger l’API. Chaque envoi est signé avec le secret du webhook (voir la <a href="/api#notifications" target="_blank" rel="noreferrer" className="text-blue-700 underline">documentation</a>).</p>
+        <p className="text-sm text-slate-600">{tr('Votre WMS / ERP est prévenu tout de suite quand un chargement est validé, envoyé au quai, annulé ou rouvert : plus besoin d’interroger l’API. Chaque envoi est signé avec le secret du webhook.')} <a href="/api#notifications" target="_blank" rel="noreferrer" className="text-blue-700 underline">{tr('Documentation')}</a></p>
 
         <form onSubmit={add} className="space-y-2">
           <div className="flex flex-wrap items-center gap-2">
             <input type="url" required value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://wms.mon-entreprise.fr/atelier-logistique"
               className="flex-1 min-w-[260px] rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" />
-            <Btn type="submit" disabled={busy || events.length === 0}>{busy ? <Loader2 size={15} className="animate-spin" /> : <Plus size={15} />} Ajouter</Btn>
+            <Btn type="submit" disabled={busy || events.length === 0}>{busy ? <Loader2 size={15} className="animate-spin" /> : <Plus size={15} />} {tr('Ajouter')}</Btn>
           </div>
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-600">
             {WEBHOOK_EVENTS.map((ev) => (
@@ -84,36 +85,36 @@ export default function WebhooksSection({ orgId }) {
               <span className="font-jetbrains text-sm text-slate-900 break-all flex-1 min-w-[200px]">{h.url}</span>
               {h.last_status != null && (
                 <span className={`text-xs rounded-full px-2 py-0.5 ${h.last_status >= 200 && h.last_status < 300 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
-                  {h.last_status || 'sans réponse'} · {fmtDateTime(h.last_delivery_at)}
+                  {h.last_status || tr('sans réponse')} · {fmtDateTime(h.last_delivery_at)}
                 </span>
               )}
-              {h.failure_count >= 3 && <span className="text-xs text-red-700">{h.failure_count} échecs de suite</span>}
+              {h.failure_count >= 3 && <span className="text-xs text-red-700">{tr('{n} échecs de suite', { n: h.failure_count })}</span>}
             </div>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
-              <span>Évènements : {h.events.map((e) => EVENT_LABEL[e] ?? e).join(', ')}</span>
-              <span>Secret : <Secret value={h.secret} /></span>
+              <span>{tr('Évènements :')} {h.events.map(eventLabel).join(', ')}</span>
+              <span>{tr('Secret :')} <Secret value={h.secret} /></span>
             </div>
             <div className="flex flex-wrap gap-3 text-xs">
-              <button onClick={() => run(() => testWebhook(h.id))} disabled={!h.active} className="inline-flex items-center gap-1 text-blue-700 hover:underline disabled:opacity-40"><Send size={13} /> Envoyer un test</button>
-              <button onClick={() => run(() => updateWebhook(h.id, { active: !h.active }))} className="text-slate-600 hover:underline">{h.active ? 'Désactiver' : 'Réactiver'}</button>
-              <button onClick={() => window.confirm('Supprimer ce webhook ?') && run(() => deleteWebhook(h.id))} className="inline-flex items-center gap-1 text-slate-500 hover:text-red-700"><Trash2 size={13} /> Supprimer</button>
+              <button onClick={() => run(() => testWebhook(h.id))} disabled={!h.active} className="inline-flex items-center gap-1 text-blue-700 hover:underline disabled:opacity-40"><Send size={13} /> {tr('Envoyer un test')}</button>
+              <button onClick={() => run(() => updateWebhook(h.id, { active: !h.active }))} className="text-slate-600 hover:underline">{h.active ? tr('Désactiver') : tr('Réactiver')}</button>
+              <button onClick={() => window.confirm(tr('Supprimer ce webhook ?')) && run(() => deleteWebhook(h.id))} className="inline-flex items-center gap-1 text-slate-500 hover:text-red-700"><Trash2 size={13} /> {tr('Supprimer')}</button>
             </div>
           </div>
         ))}
 
         {deliveries.length > 0 && (
           <div>
-            <div className="text-xs font-jetbrains text-slate-400 mb-1.5">DERNIERS ENVOIS</div>
+            <div className="text-xs font-jetbrains text-slate-400 mb-1.5">{tr('DERNIERS ENVOIS')}</div>
             <div className="rounded-lg border border-slate-200 overflow-hidden">
               <ResizableTable id="webhook-deliveries" rows={deliveries}
                 theadClass="bg-slate-50 text-left text-xs text-slate-500" thClass="px-3 py-1.5 font-medium" tdClass="px-3 py-1.5 text-slate-600"
                 columns={[
-                  { key: 'event', h: 'Évènement', cell: (d) => <span className="inline-flex items-center gap-1.5 text-slate-800"><StatusIcon d={d} />{EVENT_LABEL[d.event] ?? d.event}</span> },
-                  { key: 'code', h: 'Chargement', cell: (d) => <span className="font-jetbrains text-xs text-slate-500">{d.shipment_code ?? '—'}</span> },
-                  { key: 'date', h: 'Date', tdClass: 'text-xs text-slate-400 whitespace-nowrap', cell: (d) => fmtDateTime(d.created_at) },
-                  { key: 'result', h: 'Résultat', tdClass: 'text-xs', cell: (d) => (<>
-                    {d.status === 'ok' ? `HTTP ${d.http_status}` : d.status === 'failed' ? `échec : ${d.error ?? ''}` : d.status === 'pending' ? `nouvel essai ${fmtDateTime(d.next_attempt_at)} (${d.error ?? ''})` : 'envoyé, réponse attendue'}
-                    {d.attempt > 1 && ` · ${d.attempt} essais`}</>) },
+                  { key: 'event', h: tr('Évènement'), cell: (d) => <span className="inline-flex items-center gap-1.5 text-slate-800"><StatusIcon d={d} />{eventLabel(d.event)}</span> },
+                  { key: 'code', h: tr('Chargement'), cell: (d) => <span className="font-jetbrains text-xs text-slate-500">{d.shipment_code ?? '—'}</span> },
+                  { key: 'date', h: tr('Date'), tdClass: 'text-xs text-slate-400 whitespace-nowrap', cell: (d) => fmtDateTime(d.created_at) },
+                  { key: 'result', h: tr('Résultat'), tdClass: 'text-xs', cell: (d) => (<>
+                    {d.status === 'ok' ? `HTTP ${d.http_status}` : d.status === 'failed' ? tr('échec : {e}', { e: d.error ?? '' }) : d.status === 'pending' ? tr('nouvel essai {d} ({e})', { d: fmtDateTime(d.next_attempt_at), e: d.error ?? '' }) : tr('envoyé, réponse attendue')}
+                    {d.attempt > 1 && ` · ${tr('{n} essais', { n: d.attempt })}`}</>) },
                 ]} />
             </div>
           </div>

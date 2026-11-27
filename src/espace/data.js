@@ -1,21 +1,22 @@
 // Accès aux données de l'espace connecté (Supabase). Toutes les requêtes passent par les règles
 // d'accès de la base : un utilisateur ne lit et n'écrit que dans son entreprise.
 
-import { N_ } from '../shared/i18n/core';
+import { t as tr, numLocale } from '../shared/i18n/core';
 import { getSupabase } from '../shared/account/supabase';
 import { recordsToColisRows } from '../outils/optimiseur-chargement/import/colisSchema';
 import { newRowId } from '../outils/optimiseur-chargement/uiHelpers';
 
+// Libellés traduits à la lecture (langue de l'utilisateur) : accesseurs « get ».
 export const STATUS = {
-  new: { label: 'Nouveau', color: '#1D4ED8', bg: '#EFF6FF' },
-  in_progress: { label: 'En cours', color: '#B45309', bg: '#FFFBEB' },
-  validated: { label: 'Validé', color: '#15803D', bg: '#F0FDF4' },
-  sent: { label: 'Envoyé', color: '#0F766E', bg: '#F0FDFA' },
-  partially_loaded: { label: 'Chargé en partie', color: '#7C3AED', bg: '#FAF5FF' },
-  loaded: { label: 'Chargé', color: '#6D28D9', bg: '#F5F3FF' },
-  cancelled: { label: 'Annulé', color: '#64748B', bg: '#F1F5F9' },
+  new: { get label() { return tr('Nouveau'); }, color: '#1D4ED8', bg: '#EFF6FF' },
+  in_progress: { get label() { return tr('En cours'); }, color: '#B45309', bg: '#FFFBEB' },
+  validated: { get label() { return tr('Validé'); }, color: '#15803D', bg: '#F0FDF4' },
+  sent: { get label() { return tr('Envoyé'); }, color: '#0F766E', bg: '#F0FDFA' },
+  partially_loaded: { get label() { return tr('Chargé en partie'); }, color: '#7C3AED', bg: '#FAF5FF' },
+  loaded: { get label() { return tr('Chargé'); }, color: '#6D28D9', bg: '#F5F3FF' },
+  cancelled: { get label() { return tr('Annulé'); }, color: '#64748B', bg: '#F1F5F9' },
 };
-export const SOURCE = { api: 'API', file: 'Fichier', web: 'Saisie' };
+export const SOURCE = { api: 'API', get file() { return tr('Fichier'); }, get web() { return tr('Saisie'); } };
 
 const fail = (error) => { if (error) throw new Error(error.message); };
 
@@ -63,7 +64,7 @@ export async function getShipment(code) {
 
 export async function createShipment(orgId, fields = {}) {
   const sb = await getSupabase();
-  const label = fields.label ?? `Chargement du ${new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}`;
+  const label = fields.label ?? tr('Chargement du {d}', { d: new Date().toLocaleDateString(numLocale(), { day: 'numeric', month: 'long' }) });
   const { data, error } = await sb.from('shipments')
     .insert({ org_id: orgId, source: 'web', label, input: { rows: [] }, ...fields }).select('code').single();
   fail(error);
@@ -72,7 +73,7 @@ export async function createShipment(orgId, fields = {}) {
 
 /** Le document a changé en base depuis sa lecture (autre onglet, collègue, WMS) : remote = version en base. */
 export class ConflictError extends Error {
-  constructor(remote) { super('Document modifié ailleurs'); this.name = 'ConflictError'; this.remote = remote; }
+  constructor(remote) { super(tr('Document modifié ailleurs')); this.name = 'ConflictError'; this.remote = remote; }
 }
 
 /**
@@ -87,7 +88,7 @@ async function guardedUpdate(table, id, patch, expected, select, reload) {
   fail(error);
   if (data?.length) return data[0];
   const remote = await reload();
-  if (!remote) throw new Error('Document introuvable (supprimé ?).');
+  if (!remote) throw new Error(tr('Document introuvable (supprimé ?).'));
   throw new ConflictError(remote);
 }
 
@@ -123,7 +124,7 @@ export async function getPalletization(code) {
 
 export async function createPalletization(orgId, fields = {}) {
   const sb = await getSupabase();
-  const label = fields.label ?? `Palettisation du ${new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}`;
+  const label = fields.label ?? tr('Palettisation du {d}', { d: new Date().toLocaleDateString(numLocale(), { day: 'numeric', month: 'long' }) });
   const { data, error } = await sb.from('palletizations')
     .insert({ org_id: orgId, source: 'web', label, input: { rows: [] }, ...fields }).select('code').single();
   fail(error);
@@ -161,21 +162,21 @@ export async function putPalletsInShipment(shipmentId, pzCode, rows) {
   for (let attempt = 0; attempt < 2; attempt++) {
     const { data: s, error } = await sb.from('shipments').select('id, code, status, input, updated_at').eq('id', shipmentId).single();
     fail(error);
-    if (!OPEN_STATUSES.includes(s.status)) throw new Error(`Le chargement ${s.code} n’est plus modifiable (${STATUS[s.status]?.label ?? s.status}).`); // eslint-disable-line no-use-before-define
+    if (!OPEN_STATUSES.includes(s.status)) throw new Error(tr('Le chargement {code} n’est plus modifiable ({status}).', { code: s.code, status: STATUS[s.status]?.label ?? s.status })); // eslint-disable-line no-use-before-define
     const kept = (s.input?.rows ?? []).filter((r) => r.origin !== pzCode && (r.reference || r.length));
     const input = { ...(s.input ?? {}), rows: [...kept, ...rows], excludedStops: [] };
     const { data, error: e2 } = await sb.from('shipments').update({ input, result: null }).eq('id', s.id).eq('updated_at', s.updated_at).select('code');
     fail(e2);
     if (data?.length) return s.code;
   }
-  throw new Error('Le chargement vient d’être modifié par ailleurs : réessayez.');
+  throw new Error(tr('Le chargement vient d’être modifié par ailleurs : réessayez.'));
 }
 
 /** Crée un chargement avec les palettes d'une palettisation et les relie ; renvoie le n° du chargement. */
 export async function createShipmentForPalletization(orgId, pz, rows) {
   const sb = await getSupabase();
   const { data, error } = await sb.from('shipments')
-    .insert({ org_id: orgId, source: 'web', label: pz.label ? `Chargement — ${pz.label}` : undefined, input: { rows } })
+    .insert({ org_id: orgId, source: 'web', label: pz.label ? tr('Chargement — {label}', { label: pz.label }) : undefined, input: { rows } })
     .select('id, code').single();
   fail(error);
   return linkPalletization(pz, data, null); // eslint-disable-line no-use-before-define
@@ -230,12 +231,12 @@ export async function setPassword(password) {
   const sb = await getSupabase();
   const { error } = await sb.auth.updateUser({ password, data: { has_password: true } });
   if (error && /different from the old/i.test(error.message)) return; // même mot de passe : rien à faire
-  if (error && /weak|at least/i.test(error.message)) throw new Error('Mot de passe trop simple : 8 caractères minimum, avec lettres et chiffres.');
+  if (error && /weak|at least/i.test(error.message)) throw new Error(tr('Mot de passe trop simple : 8 caractères minimum, avec lettres et chiffres.'));
   fail(error);
 }
 
 // ---------------------------------------------------------------- Équipe et invitations
-export const ROLES = { owner: N_('Propriétaire'), admin: N_('Administrateur'), member: N_('Membre') };
+export const ROLES = { get owner() { return tr('Propriétaire'); }, get admin() { return tr('Administrateur'); }, get member() { return tr('Membre'); } };
 
 export async function orgMembers(orgId) {
   const sb = await getSupabase();
@@ -299,11 +300,14 @@ export async function declineInvitation(id) {
 /** Lien et message d'invitation à envoyer au collègue (la création du compte se fait avec son adresse). */
 export function invitationMessage(orgName, email) {
   const url = `${window.location.origin}/connexion?mode=inscription&email=${encodeURIComponent(email)}`;
-  const text = `Bonjour,\n\nJe t’invite à rejoindre « ${orgName} » sur Atelier Logistique (chargements, palettisations, plans 3D).\n\n`
-    + `1. Ouvre ce lien et crée ton compte avec l’adresse ${email} :\n${url}\n`
-    + '2. Choisis ton mot de passe, connecte-toi et accepte l’invitation.\n\n'
-    + 'Tu as déjà un compte avec cette adresse ? Connecte-toi simplement : l’invitation t’attend.';
-  return { url, text, subject: `Invitation à rejoindre ${orgName} sur Atelier Logistique` };
+  const text = [
+    tr('Bonjour,'), '',
+    tr('Je t’invite à rejoindre « {org} » sur Atelier Logistique (chargements, palettisations, plans 3D).', { org: orgName }), '',
+    tr('1. Ouvre ce lien et crée ton compte avec l’adresse {email} :', { email }), url,
+    tr('2. Choisis ton mot de passe, connecte-toi et accepte l’invitation.'), '',
+    tr('Tu as déjà un compte avec cette adresse ? Connecte-toi simplement : l’invitation t’attend.'),
+  ].join('\n');
+  return { url, text, subject: tr('Invitation à rejoindre {org} sur Atelier Logistique', { org: orgName }) };
 }
 
 // ---------------------------------------------------------------- Clés d'API
@@ -340,12 +344,12 @@ export async function apiUsage(orgId) {
 
 // ---------------------------------------------------------------- Notifications (webhooks)
 export const WEBHOOK_EVENTS = [
-  { id: 'shipment.validated', label: 'Chargement validé' },
-  { id: 'shipment.sent', label: 'Envoyé au quai' },
-  { id: 'shipment.partially_loaded', label: 'Chargé en partie (flotte)' },
-  { id: 'shipment.loaded', label: 'Chargé (photo du cariste)' },
-  { id: 'shipment.cancelled', label: 'Annulé' },
-  { id: 'shipment.reopened', label: 'Rouvert (après validation)' },
+  { id: 'shipment.validated', get label() { return tr('Chargement validé'); } },
+  { id: 'shipment.sent', get label() { return tr('Envoyé au quai'); } },
+  { id: 'shipment.partially_loaded', get label() { return tr('Chargé en partie (flotte)'); } },
+  { id: 'shipment.loaded', get label() { return tr('Chargé (photo du cariste)'); } },
+  { id: 'shipment.cancelled', get label() { return tr('Annulé'); } },
+  { id: 'shipment.reopened', get label() { return tr('Rouvert (après validation)'); } },
 ];
 
 export async function listWebhooks(orgId) {
@@ -358,7 +362,7 @@ export async function listWebhooks(orgId) {
 export async function createWebhook(orgId, url, events, description) {
   const sb = await getSupabase();
   const { data, error } = await sb.from('webhooks').insert({ org_id: orgId, url: url.trim(), events, description: description?.trim() || null }).select('id').single();
-  if (error && /check constraint/i.test(error.message)) throw new Error('Adresse refusée : elle doit commencer par https:// et être publique (pas d’adresse locale).');
+  if (error && /check constraint/i.test(error.message)) throw new Error(tr('Adresse refusée : elle doit commencer par https:// et être publique (pas d’adresse locale).'));
   fail(error);
   return data;
 }
@@ -398,7 +402,7 @@ export async function confirmLoadingWithPhotos(token, truck, name, blobs) {
   for (const b of blobs) {
     const path = `${token}/${crypto.randomUUID()}.jpg`;
     const { error } = await sb.storage.from(PROOF_BUCKET).upload(path, b, { contentType: 'image/jpeg', upsert: false });
-    if (error) throw new Error(`Photo non envoyée : ${error.message}`);
+    if (error) throw new Error(tr('Photo non envoyée : {msg}', { msg: error.message }));
     paths.push(path);
   }
   const { data, error } = await sb.rpc('confirm_loading', { p_token: token, p_truck: truck, p_name: name || null, p_photos: paths });
@@ -447,7 +451,7 @@ export async function saveReference(orgId, item) {
   const row = { kind: item.kind, code: item.code.trim(), label: item.label.trim(), data: item.data, active: item.active, sort: Number(item.sort) || 0 };
   const q = item.id ? sb.from('reference_items').update(row).eq('id', item.id) : sb.from('reference_items').insert({ org_id: orgId, ...row });
   const { data, error } = await q.select(REF_COLS).single();
-  if (error?.code === '23505') throw new Error(`Le code « ${row.code} » existe déjà.`);
+  if (error?.code === '23505') throw new Error(tr('Le code « {code} » existe déjà.', { code: row.code }));
   fail(error);
   return data;
 }
@@ -489,14 +493,14 @@ export async function consolidateShipments(orgId, list, { rows, plan, summary, f
   const { data, error } = await sb.rpc('consolidate_shipments', {
     p_org: orgId,
     p_sources: list.map((s) => ({ id: s.id, updated_at: s.updated_at })),
-    p_label: label || `Regroupement ${list.map((s) => s.code).join(' + ')}`,
+    p_label: label || tr('Regroupement {codes}', { codes: list.map((s) => s.code).join(' + ') }),
     p_departure: list[0].departure_at,
     p_input: { rows, vehicleMode: 'fleet', deliveryMode: 'STRICT', excludedStops: [], containerId: 'semi',
-      custom: { label: 'Mon contenant', length: 600, width: 240, height: 240, maxWeight: '' }, fleetVehicles },
+      custom: { label: tr('Mon contenant'), length: 600, width: 240, height: 240, maxWeight: '' }, fleetVehicles },
     p_result: { summary, plan: { fleet: plan, guides: null } },
   });
   if (error && /consolidate_shipments|schema cache|does not exist/i.test(error.message)) {
-    throw new Error('Regroupement indisponible : exécutez le script SQL 20261125000010 dans Supabase.');
+    throw new Error(tr('Regroupement indisponible : exécutez le script SQL {n} dans Supabase.', { n: '20261125000010' }));
   }
   fail(error);
   // Tournée commune aux chargements regroupés : reportée sur le nouveau chargement.
@@ -541,7 +545,7 @@ export async function deleteShipment(id) {
   const photos = (loads ?? []).flatMap((l) => l.photos ?? []);
   if (photos.length) await sb.storage.from('preuves').remove(photos).catch(() => {}); // photos : au mieux
   const { data, error } = await sb.rpc('delete_shipment', { p_id: id });
-  if (missingFn(error, 'delete_shipment')) throw new Error('Suppression indisponible : exécutez le script SQL 20261125000012 dans Supabase.');
+  if (missingFn(error, 'delete_shipment')) throw new Error(tr('Suppression indisponible : exécutez le script SQL {n} dans Supabase.', { n: '20261125000012' }));
   fail(error);
   return { ...data, photos: photos.length };
 }
@@ -550,7 +554,7 @@ export async function deleteShipment(id) {
 export async function deletePalletization(id) {
   const sb = await getSupabase();
   const { data, error } = await sb.rpc('delete_palletization', { p_id: id });
-  if (missingFn(error, 'delete_palletization')) throw new Error('Suppression indisponible : exécutez le script SQL 20261125000012 dans Supabase.');
+  if (missingFn(error, 'delete_palletization')) throw new Error(tr('Suppression indisponible : exécutez le script SQL {n} dans Supabase.', { n: '20261125000012' }));
   fail(error);
   return data;
 }
@@ -560,7 +564,7 @@ async function duplicate(table, doc) {
   const sb = await getSupabase();
   const { data, error } = await sb.from(table).insert({
     org_id: doc.org_id, source: 'web', status: 'new',
-    label: `Copie de ${doc.label || doc.code}`.slice(0, 200),
+    label: tr('Copie de {label}', { label: doc.label || doc.code }).slice(0, 200),
     // Les lignes ne sont plus « reçues » d'une palettisation : la copie est indépendante.
     input: { ...(doc.input ?? {}), rows: (doc.input?.rows ?? []).map(({ origin, fromShipment, ...r }) => r) },
     result: doc.result ?? null,

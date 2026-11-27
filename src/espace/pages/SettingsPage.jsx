@@ -43,7 +43,7 @@ function CompanyTab() {
       <label className="block text-xs text-slate-500">{t('Nom')}
         <input value={name} onChange={(e) => setName(e.target.value)} disabled={!admin}
           className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-50" /></label>
-      <div className="text-sm text-slate-600">{t('Votre rôle :')} <b>{ROLES[org.role] ? t(ROLES[org.role]) : org.role}</b></div>
+      <div className="text-sm text-slate-600">{t('Votre rôle :')} <b>{ROLES[org.role] ?? org.role}</b></div>
       <div className="text-sm text-slate-600">{t('Chargements conservés {n} jours, puis supprimés automatiquement.', { n: org.retention_days })}</div>
       {admin && <Btn onClick={save} disabled={busy || name.trim().length < 2}>{busy ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />} {t('Enregistrer')}</Btn>}
       {msg && <div className="text-sm text-slate-600">{msg}</div>}
@@ -72,7 +72,7 @@ function LanguageSetting() {
         {msg?.ok && <span className="text-sm text-emerald-700 flex items-center gap-1"><CheckCircle2 size={14} /> {t('Langue enregistrée.')}</span>}
         {msg && !msg.ok && <span className="text-sm text-red-700">{msg.text}</span>}
       </div>
-      <div className="text-xs text-slate-500">{t('Menus, paramètres, optimiseur de chargement, palettisation et guide cariste (QR code). Les autres écrans restent pour l’instant en français.')}</div>
+      <div className="text-xs text-slate-500">{t('Tout l’espace, y compris le guide cariste (QR code). Les petits outils du catalogue (ZPL, DDMRP…) restent en français.')}</div>
     </div>
   );
 }

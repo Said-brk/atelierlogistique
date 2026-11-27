@@ -1,3 +1,4 @@
+import { t as tr } from '../../shared/i18n/core';
 // Contrôle transport : coût théorique (grille du transporteur) vs montant facturé, par chargement et par transporteur.
 // Pur (sans base ni React) : testé dans control.test.ts.
 
@@ -99,7 +100,7 @@ export interface InvoiceLine { ref: string; amount: number; qty: number | null; 
 
 const norm = (h: string) => h.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
 const COLS: Record<'ref' | 'amount' | 'qty' | 'invoice', RegExp> = {
-  ref: /^(ref|reference|code|chargement|expedition|n\W{0,3}expedition|commande|external|wms|erp|bl|recepisse|n\W{0,3}recepisse)/,
+  ref: /^(ref|reference|code|chargement|shipment|load|expedition|n\W{0,3}expedition|commande|external|wms|erp|bl|recepisse|n\W{0,3}recepisse)/,
   amount: /^(montant|amount|total|prix|ht|cout|net)/,
   qty: /^(qte|quantite|qty|mpl|ldm|metres? plancher|palettes?|unites?)/,
   invoice: /^(facture|invoice|n\W{0,3}facture|no\W{0,3}facture)/,
@@ -114,7 +115,7 @@ const toNum = (s: string) => {
 /** Lignes d'une facture transport : séparateur ; , ou tabulation, en-tête reconnu (référence, montant, quantité, n° facture). */
 export function parseInvoiceCsv(text: string): { lines: InvoiceLine[]; errors: string[] } {
   const raw = text.replace(/^﻿/, '').split(/\r?\n/).filter((l) => l.trim());
-  if (!raw.length) return { lines: [], errors: ['Fichier vide'] };
+  if (!raw.length) return { lines: [], errors: [tr('Fichier vide')] };
   const sep = raw[0].includes('\t') ? '\t' : raw[0].split(';').length >= raw[0].split(',').length ? ';' : ',';
   // Découpe en respectant les guillemets ("1,100.50", "F;1", "" pour un guillemet).
   const split = (l: string) => {
@@ -131,13 +132,13 @@ export function parseInvoiceCsv(text: string): { lines: InvoiceLine[]; errors: s
   };
   const head = split(raw[0]).map(norm);
   const idx = Object.fromEntries((Object.keys(COLS) as (keyof typeof COLS)[]).map((k) => [k, head.findIndex((h) => COLS[k].test(h))])) as Record<keyof typeof COLS, number>;
-  if (idx.ref < 0 || idx.amount < 0) return { lines: [], errors: ['Colonnes « Référence » et « Montant » introuvables dans l’en-tête.'] };
+  if (idx.ref < 0 || idx.amount < 0) return { lines: [], errors: [tr('Colonnes « Référence » et « Montant » introuvables dans l’en-tête.')] };
   const lines: InvoiceLine[] = []; const errors: string[] = [];
   raw.slice(1).forEach((l, i) => {
     const c = split(l);
     const ref = c[idx.ref] ?? ''; const amount = toNum(c[idx.amount] ?? '');
     if (!ref) return;
-    if (amount == null) { errors.push(`Ligne ${i + 2} : montant illisible (${c[idx.amount] ?? ''})`); return; }
+    if (amount == null) { errors.push(tr('Ligne {n} : montant illisible ({v})', { n: i + 2, v: c[idx.amount] ?? '' })); return; }
     lines.push({ ref, amount, qty: idx.qty >= 0 ? toNum(c[idx.qty] ?? '') : null, invoice: idx.invoice >= 0 ? (c[idx.invoice] || null) : null, line: i + 2 });
   });
   return { lines, errors };

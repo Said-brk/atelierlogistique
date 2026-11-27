@@ -6,6 +6,7 @@
 // Recharger (version en base) ou Garder mes modifications (écrase la version en base).
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { t as tr } from '../shared/i18n/core';
 
 const toDateInput = (d) => (d ? new Date(d).toISOString().slice(0, 10) : '');
 // Empreinte du plan 3D (calcul + retouches) pour savoir s'il a changé depuis l'enregistrement.
@@ -138,7 +139,7 @@ export default function useDocEditor({ code, load, update, titleOf, autosaveMs =
       return d;
     } catch (e) {
       if (e.name === 'ConflictError') { setConflict(e.remote); return null; }
-      setError(/duplicate key|unique/i.test(e.message) ? 'Cette référence WMS / ERP existe déjà sur un autre document.' : e.message);
+      setError(/duplicate key|unique/i.test(e.message) ? tr('Cette référence WMS / ERP existe déjà sur un autre document.') : e.message);
       return null;
     } finally {
       inFlight.current = null;

@@ -1,3 +1,4 @@
+import { t as tr } from '../i18n/core';
 // Coût théorique d'un chargement d'après la grille d'un transporteur (tables de référence, kind = 'carrier').
 // Modes de facturation courants en transport routier :
 //  - ldm    : au mètre plancher (MPL), arrondi au 0,1 MPL supérieur ;
@@ -35,7 +36,7 @@ export interface CarrierData {
 
 export type Scope = 'agency' | 'tour' | 'zone';
 export interface GridLine { scope?: Scope; key?: string; zone?: string; rate: number | null }
-export const SCOPE_LABELS: Record<Scope, string> = { agency: 'Agence', tour: 'Tournée', zone: 'Zone' };
+export const SCOPE_LABELS: Record<Scope, string> = { get agency() { return tr('Agence'); }, get tour() { return tr('Tournée'); }, get zone() { return tr('Zone'); } };
 
 /** Une destination du chargement : agence, sa tournée et sa zone tarifaire. */
 export interface Dest { agency: string; tour: string | null; zone: string | null }
@@ -84,13 +85,14 @@ export interface Quote {
 
 export type QuoteResult = Quote | { error: string };
 
+// Libellés traduits à la lecture (langue de l'interface).
 export const BILLING_LABELS: Record<Billing, string> = {
-  ldm: 'Au mètre plancher (MPL)',
-  pallet: 'À la palette / unité',
-  weight: 'Aux 100 kg taxables',
-  ftl: 'Forfait par véhicule (lot complet)',
+  get ldm() { return tr('Au mètre plancher (MPL)'); },
+  get pallet() { return tr('À la palette / unité'); },
+  get weight() { return tr('Aux 100 kg taxables'); },
+  get ftl() { return tr('Forfait par véhicule (lot complet)'); },
 };
-export const RATE_UNIT: Record<Billing, string> = { ldm: '€/MPL', pallet: '€/palette', weight: '€/100 kg', ftl: '' };
+export const RATE_UNIT: Record<Billing, string> = { get ldm() { return tr('€/MPL'); }, get pallet() { return tr('€/palette'); }, get weight() { return tr('€/100 kg'); }, ftl: '' };
 
 const num = (v: unknown, d = 0) => { const n = Number(v); return Number.isFinite(n) ? n : d; };
 const r2 = (v: number) => Math.round(v * 100) / 100;
@@ -114,15 +116,15 @@ export function rateFor(c: CarrierData, dests: Dest[] = []): { rate: number; zon
   const grid = new Map<string, number>();
   for (const l of c.zones ?? []) { const { scope, key } = lineOf(l); if (key && l.rate != null && Number.isFinite(Number(l.rate))) grid.set(`${scope}:${key}`, Number(l.rate)); }
   const base = c.rate == null || (c.rate as unknown) === '' ? null : Number(c.rate);
-  if (!grid.size) return base == null ? { error: 'Tarif manquant pour ce transporteur.' } : { rate: base, zone: null };
+  if (!grid.size) return base == null ? { error: tr('Tarif manquant pour ce transporteur.') } : { rate: base, zone: null };
   let best: { rate: number; zone: string | null } | null = null;
   for (const d of dests) {
     const r = destRate(grid, base, d);
-    if (!r) return { error: `${d.agency} : ni agence, ni tournée, ni zone dans la grille de ce transporteur.` };
+    if (!r) return { error: tr('{agency} : ni agence, ni tournée, ni zone dans la grille de ce transporteur.', { agency: d.agency }) };
     if (!best || r.rate > best.rate) best = { rate: r.rate, zone: r.via };
   }
   if (best) return best;
-  return base == null ? { error: 'Destinations inconnues : choisissez les agences dans les lignes.' } : { rate: base, zone: null };
+  return base == null ? { error: tr('Destinations inconnues : choisissez les agences dans les lignes.') } : { rate: base, zone: null };
 }
 
 /** Surcharge gazole du mois (ou du dernier mois publié avant), sinon le taux par défaut. */
@@ -146,14 +148,14 @@ export function quote(facts: LoadFacts, c: CarrierData): QuoteResult {
   let taxable: Quote['taxable']; let lines: Quote['lines'];
   switch (c.billing) {
     case 'ldm': {
-      if (facts.ldm == null) return { error: 'Mètres plancher non calculés : lancez le calcul du plan.' };
-      qty = r2(ceilTo(facts.ldm, 0.1)); unit = 'MPL'; base = qty * rate; break;
+      if (facts.ldm == null) return { error: tr('Mètres plancher non calculés : lancez le calcul du plan.') };
+      qty = r2(ceilTo(facts.ldm, 0.1)); unit = tr('MPL'); base = qty * rate; break;
     }
     case 'pallet': {
       // Palettes chargées ; sans palette (cartons seuls) : équivalent palettes au sol (MPL ÷ 0,4) ; ancien résumé : unités.
-      if (facts.pallets == null) { qty = facts.units; unit = qty > 1 ? 'palettes' : 'palette'; }
-      else if (facts.pallets > 0) { qty = facts.pallets; unit = qty > 1 ? 'palettes' : 'palette'; }
-      else { qty = facts.ldm ? Math.ceil(Math.round((facts.ldm / 0.4) * 1e6) / 1e6) : 0; unit = 'équiv. palettes'; }
+      if (facts.pallets == null) { qty = facts.units; unit = qty > 1 ? tr('palettes') : tr('palette'); }
+      else if (facts.pallets > 0) { qty = facts.pallets; unit = qty > 1 ? tr('palettes') : tr('palette'); }
+      else { qty = facts.ldm ? Math.ceil(Math.round((facts.ldm / 0.4) * 1e6) / 1e6) : 0; unit = tr('équiv. palettes'); }
       base = qty * rate; break;
     }
     case 'weight': {
@@ -162,20 +164,20 @@ export function quote(facts: LoadFacts, c: CarrierData): QuoteResult {
       const floor = facts.ldm == null ? 0 : facts.ldm * num(c.kgPerLdm, 0);
       const kg = Math.max(real, vol, floor);
       taxable = { kg: Math.round(kg), by: kg === real ? 'real' : kg === floor ? 'floor' : 'volume' };
-      qty = Math.ceil(Math.round(kg) / 100); unit = '× 100 kg'; base = qty * rate; break;
+      qty = Math.ceil(Math.round(kg) / 100); unit = tr('× 100 kg'); base = qty * rate; break;
     }
     case 'ftl': {
-      if (!facts.vehicles.length) return { error: 'Aucun véhicule : lancez le calcul du plan.' };
+      if (!facts.vehicles.length) return { error: tr('Aucun véhicule : lancez le calcul du plan.') };
       lines = [];
       for (const v of facts.vehicles) {
         const p = c.prices?.[v.code];
-        if (p == null || !Number.isFinite(Number(p))) return { error: `Pas de forfait pour « ${v.label} » chez ce transporteur.` };
+        if (p == null || !Number.isFinite(Number(p))) return { error: tr('Pas de forfait pour « {v} » chez ce transporteur.', { v: v.label }) };
         lines.push({ label: v.label, count: v.count, price: Number(p) });
       }
-      qty = lines.reduce((s, l) => s + l.count, 0); unit = qty > 1 ? 'véhicules' : 'véhicule';
+      qty = lines.reduce((s, l) => s + l.count, 0); unit = qty > 1 ? tr('véhicules') : tr('véhicule');
       base = lines.reduce((s, l) => s + l.count * l.price, 0); break;
     }
-    default: return { error: 'Mode de facturation inconnu.' };
+    default: return { error: tr('Mode de facturation inconnu.') };
   }
   const stopsFee = r2(Math.max(0, (facts.stops ?? 1) - 1) * num(c.stopFee));
   base += stopsFee;

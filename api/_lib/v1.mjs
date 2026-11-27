@@ -4,6 +4,18 @@
 import { createClient } from "@supabase/supabase-js";
 
 // src/shared/i18n/core.ts
+var DEFAULT_LANG = "fr";
+var dictionaries = { fr: {}, en: {} };
+function interpolate(text, vars) {
+  if (!vars) return text;
+  return text.replace(/\{(\w+)\}/g, (m, k) => vars[k] === void 0 || vars[k] === null ? m : String(vars[k]));
+}
+function translate(lang, key, vars) {
+  const text = lang === "fr" ? key : dictionaries[lang][key] ?? key;
+  return interpolate(text, vars);
+}
+var current = DEFAULT_LANG;
+var t = (key, vars) => translate(current, key, vars);
 var N_ = (key) => key;
 
 // src/outils/optimiseur-chargement/constants/containers.ts
@@ -249,7 +261,13 @@ function toToolReferences(items) {
 }
 
 // src/shared/carriers/pricing.ts
-var SCOPE_LABELS = { agency: "Agence", tour: "Tourn\xE9e", zone: "Zone" };
+var SCOPE_LABELS = { get agency() {
+  return t("Agence");
+}, get tour() {
+  return t("Tourn\xE9e");
+}, get zone() {
+  return t("Zone");
+} };
 var num2 = (v, d = 0) => {
   const n2 = Number(v);
   return Number.isFinite(n2) ? n2 : d;
@@ -272,15 +290,15 @@ function rateFor(c, dests = []) {
     if (key && l.rate != null && Number.isFinite(Number(l.rate))) grid.set(`${scope}:${key}`, Number(l.rate));
   }
   const base = c.rate == null || c.rate === "" ? null : Number(c.rate);
-  if (!grid.size) return base == null ? { error: "Tarif manquant pour ce transporteur." } : { rate: base, zone: null };
+  if (!grid.size) return base == null ? { error: t("Tarif manquant pour ce transporteur.") } : { rate: base, zone: null };
   let best = null;
   for (const d of dests) {
     const r = destRate(grid, base, d);
-    if (!r) return { error: `${d.agency} : ni agence, ni tourn\xE9e, ni zone dans la grille de ce transporteur.` };
+    if (!r) return { error: t("{agency} : ni agence, ni tourn\xE9e, ni zone dans la grille de ce transporteur.", { agency: d.agency }) };
     if (!best || r.rate > best.rate) best = { rate: r.rate, zone: r.via };
   }
   if (best) return best;
-  return base == null ? { error: "Destinations inconnues : choisissez les agences dans les lignes." } : { rate: base, zone: null };
+  return base == null ? { error: t("Destinations inconnues : choisissez les agences dans les lignes.") } : { rate: base, zone: null };
 }
 function fuelFor(c, month) {
   const table = Object.entries(c.fuelByMonth ?? {}).filter(([, v]) => v != null && Number.isFinite(Number(v))).sort(([a], [b]) => a.localeCompare(b));
@@ -308,22 +326,22 @@ function quote(facts, c) {
   let lines;
   switch (c.billing) {
     case "ldm": {
-      if (facts.ldm == null) return { error: "M\xE8tres plancher non calcul\xE9s : lancez le calcul du plan." };
+      if (facts.ldm == null) return { error: t("M\xE8tres plancher non calcul\xE9s : lancez le calcul du plan.") };
       qty = r2(ceilTo(facts.ldm, 0.1));
-      unit = "MPL";
+      unit = t("MPL");
       base = qty * rate;
       break;
     }
     case "pallet": {
       if (facts.pallets == null) {
         qty = facts.units;
-        unit = qty > 1 ? "palettes" : "palette";
+        unit = qty > 1 ? t("palettes") : t("palette");
       } else if (facts.pallets > 0) {
         qty = facts.pallets;
-        unit = qty > 1 ? "palettes" : "palette";
+        unit = qty > 1 ? t("palettes") : t("palette");
       } else {
         qty = facts.ldm ? Math.ceil(Math.round(facts.ldm / 0.4 * 1e6) / 1e6) : 0;
-        unit = "\xE9quiv. palettes";
+        unit = t("\xE9quiv. palettes");
       }
       base = qty * rate;
       break;
@@ -335,25 +353,25 @@ function quote(facts, c) {
       const kg = Math.max(real, vol, floor);
       taxable = { kg: Math.round(kg), by: kg === real ? "real" : kg === floor ? "floor" : "volume" };
       qty = Math.ceil(Math.round(kg) / 100);
-      unit = "\xD7 100 kg";
+      unit = t("\xD7 100 kg");
       base = qty * rate;
       break;
     }
     case "ftl": {
-      if (!facts.vehicles.length) return { error: "Aucun v\xE9hicule : lancez le calcul du plan." };
+      if (!facts.vehicles.length) return { error: t("Aucun v\xE9hicule : lancez le calcul du plan.") };
       lines = [];
       for (const v of facts.vehicles) {
         const p = c.prices?.[v.code];
-        if (p == null || !Number.isFinite(Number(p))) return { error: `Pas de forfait pour \xAB ${v.label} \xBB chez ce transporteur.` };
+        if (p == null || !Number.isFinite(Number(p))) return { error: t("Pas de forfait pour \xAB {v} \xBB chez ce transporteur.", { v: v.label }) };
         lines.push({ label: v.label, count: v.count, price: Number(p) });
       }
       qty = lines.reduce((s, l) => s + l.count, 0);
-      unit = qty > 1 ? "v\xE9hicules" : "v\xE9hicule";
+      unit = qty > 1 ? t("v\xE9hicules") : t("v\xE9hicule");
       base = lines.reduce((s, l) => s + l.count * l.price, 0);
       break;
     }
     default:
-      return { error: "Mode de facturation inconnu." };
+      return { error: t("Mode de facturation inconnu.") };
   }
   const stopsFee = r2(Math.max(0, (facts.stops ?? 1) - 1) * num2(c.stopFee));
   base += stopsFee;

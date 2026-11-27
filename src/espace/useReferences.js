@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useEspace } from './useEspace';
 import { listReferences } from './data';
 import { toToolReferences } from '../shared/references/defaults';
+import { t as tr } from '../shared/i18n/core';
 
 const cache = new Map(); // orgId → Promise<items | null | { error }>
 const missingTable = (e) => /reference_items/.test(e?.message ?? '') && /does not exist|schema cache|not find/i.test(e.message);
@@ -17,7 +18,7 @@ const fetchRefs = (orgId) => {
     cache.set(orgId, listReferences(orgId).catch((e) => {
       if (missingTable(e)) return null;
       cache.delete(orgId); // nouvel essai au prochain affichage
-      return { error: e.message || 'Erreur réseau' };
+      return { error: e.message || tr('Erreur réseau') };
     }));
   }
   return cache.get(orgId);
