@@ -28,6 +28,7 @@ import { palletsToLoadRecords, palletLabel, palletStackingLabel, HEAVY_PALLET_KG
 import { t, tText, numLocale, getCurrentLang, N_ } from '../../shared/i18n/core';
 import { dimUnit, weightUnit, cmToDim, fmtMoney } from '../../shared/units/units';
 import { wU, lU, dU, vU } from '../optimiseur-chargement/uiHelpers';
+import { SignupNudge } from '../../shared/account/SignupPrompt';
 
 const LoadView3D = lazy(() => import('../optimiseur-chargement/LoadView3D.jsx'));
 const ImportWizard = lazy(() => import('../../shared/import/ImportWizard.jsx'));
@@ -547,6 +548,7 @@ export default function Palletizer({ onBack, embedded: embeddedProp = false, onL
         </section>
       </SeoFold>}
 
+      {!embedded && <SignupNudge id="palettisation" show={!!result} />}
       {result && createPortal(
         <div className="pz-print-root"><PrintSheet result={result} colorOf={colorOf} /></div>,
         document.body,

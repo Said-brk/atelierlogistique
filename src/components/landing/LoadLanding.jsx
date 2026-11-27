@@ -2,18 +2,25 @@
 // Contenu seul (l'en-tête et le pied de page du site sont fournis par App.jsx). Animations en CSS pur,
 // figées si l'utilisateur réduit les animations ; simulateurs calculés dans le navigateur.
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ArrowRight, Package, Truck, Ruler, Receipt, ScanLine, Route as RouteIcon, Plug, ShieldCheck, Layers, CheckCircle2,
   AlertTriangle, Sparkles, ChevronDown, CalendarDays,
 } from 'lucide-react';
 import { defaultReferences } from '../../shared/references/defaults';
+import { useSignupGate } from '../../shared/account/SignupPrompt';
 import { t as tr, tText, numLocale, getCurrentLang } from '../../shared/i18n/core';
 
 // Liens selon la langue de la page (/chargement-palettisation ou /en).
 const isEn = () => getCurrentLang() === 'en';
 const LOAD_HREF = () => (isEn() ? '/en/truck-load-planner' : '/outils/optimiseur-chargement');
+/** Lien vers un outil : propose d'abord l'espace gratuit (« continuer sans compte » possible). */
+const GateContext = createContext(null);
+function ToolLink({ to, children, ...rest }) {
+  const ask = useContext(GateContext);
+  return <Link to={to} onClick={(e) => { if (ask) { e.preventDefault(); ask(to); } }} {...rest}>{children}</Link>;
+}
 const PALLET_HREF = () => (isEn() ? '/en/palletizing-calculator' : '/outils/pallet');
 
 const BLUE = '#2563EB';
@@ -175,12 +182,12 @@ function Hero() {
           {tr('Des cartons au camion plein, puis jusqu’à la facture du transporteur : palettes optimisées, plan de chargement 3D, mètres plancher, transporteur le moins cher et contrôle des factures. Dans votre navigateur.')}
         </p>
         <div className="ll-in flex flex-col sm:flex-row items-center justify-center gap-3 mt-9" style={{ animationDelay: '.3s' }}>
-          <Link to={LOAD_HREF()} className="inline-flex items-center gap-2 px-6 py-3.5 rounded-lg font-jetbrains text-sm font-semibold shadow-xl transition-all hover:-translate-y-0.5" style={{ background: AMBER, color: NAVY }}>
+          <ToolLink to={LOAD_HREF()} className="inline-flex items-center gap-2 px-6 py-3.5 rounded-lg font-jetbrains text-sm font-semibold shadow-xl transition-all hover:-translate-y-0.5" style={{ background: AMBER, color: NAVY }}>
             {tr('CHARGER MON CAMION')} <ArrowRight size={15} />
-          </Link>
-          <Link to={PALLET_HREF()} className="inline-flex items-center gap-2 px-6 py-3.5 rounded-lg font-jetbrains text-sm font-semibold text-white transition-all hover:-translate-y-0.5 hover:bg-white/10" style={{ border: '1px solid rgba(255,255,255,0.4)' }}>
+          </ToolLink>
+          <ToolLink to={PALLET_HREF()} className="inline-flex items-center gap-2 px-6 py-3.5 rounded-lg font-jetbrains text-sm font-semibold text-white transition-all hover:-translate-y-0.5 hover:bg-white/10" style={{ border: '1px solid rgba(255,255,255,0.4)' }}>
             {tr('PALETTISER MES CARTONS')} <ArrowRight size={15} />
-          </Link>
+          </ToolLink>
         </div>
         <p className="ll-in font-jetbrains text-[11px] text-slate-400 mt-4" style={{ animationDelay: '.4s' }}>{tr('Gratuit · sans installation · outils utilisables sans compte')}</p>
       </div>
@@ -350,9 +357,9 @@ function TruckSimulator() {
           </Reveal>
         </div>
         <Reveal className="text-center mt-10">
-          <Link to={LOAD_HREF()} className="inline-flex items-center gap-2 px-6 py-3.5 rounded-lg font-jetbrains text-sm font-semibold text-white shadow-lg transition-all hover:-translate-y-0.5" style={{ background: BLUE }}>
+          <ToolLink to={LOAD_HREF()} className="inline-flex items-center gap-2 px-6 py-3.5 rounded-lg font-jetbrains text-sm font-semibold text-white shadow-lg transition-all hover:-translate-y-0.5" style={{ background: BLUE }}>
             {tr('CALCULER MON VRAI CHARGEMENT EN 3D')} <ArrowRight size={15} />
-          </Link>
+          </ToolLink>
         </Reveal>
       </div>
     </section>
@@ -442,9 +449,9 @@ function PalletSimulator() {
             <div className="mt-3 text-center font-jetbrains text-xs text-slate-600">{tr('Remplissage du volume :')} <b style={{ color: calc.fill > 0.85 ? '#047857' : '#B45309' }}>{Math.round(calc.fill * 100)} %</b></div>
           </div>
           <div className="text-center mt-6">
-            <Link to={PALLET_HREF()} className="inline-flex items-center gap-2 px-6 py-3.5 rounded-lg font-jetbrains text-sm font-semibold shadow-lg transition-all hover:-translate-y-0.5" style={{ background: AMBER, color: NAVY }}>
+            <ToolLink to={PALLET_HREF()} className="inline-flex items-center gap-2 px-6 py-3.5 rounded-lg font-jetbrains text-sm font-semibold shadow-lg transition-all hover:-translate-y-0.5" style={{ background: AMBER, color: NAVY }}>
               {tr('OUVRIR LA PALETTISATION 3D')} <ArrowRight size={15} />
-            </Link>
+            </ToolLink>
           </div>
         </Reveal>
       </div>
@@ -677,8 +684,10 @@ function FinalCta() {
 }
 
 export default function LoadLanding() {
+  const gate = useSignupGate();
   return (
-    <>
+    <GateContext.Provider value={gate.ask}>
+      {gate.node}
       <style>{CSS}</style>
       <Hero />
       <TruckSimulator />
@@ -688,6 +697,6 @@ export default function LoadLanding() {
       <Journey />
       <Faq />
       <FinalCta />
-    </>
+    </GateContext.Provider>
   );
 }

@@ -68,6 +68,7 @@ import { homeHref } from '../../shared/i18n/paths';
 import GuidedTour from '../../shared/tour/GuidedTour';
 import { mToL, cmToDim, dimToCm, kgToW, wToKg, m3ToV, imperial, ldmToU, ldmUnit } from '../../shared/units/units';
 import { wU, lU, dU, vU } from './uiHelpers';
+import { SignupNudge } from '../../shared/account/SignupPrompt';
 
 const importProfiles = createLocalProfileStore();
 const IMPORT_EXTRA_OPTIONS = [
@@ -1059,6 +1060,7 @@ export default function LoadOptimizer({ onBack, workspace = null }) {
               <Sparkles size={13} style={{ color: '#F59E0B' }} />{' '}{tr('Visite guidée')}</button>
           </div>
         )}
+        {!embedded && <SignupNudge id="chargement" show={status === 'done' && !!result} />}
         <GuidedTour id={workspace ? 'chargement-espace' : 'chargement'} enabled={!locked} restartKey={tourKey}
           onEvent={(n) => track(`load_optimizer_${n}`)} steps={tourSteps}
           labels={{
