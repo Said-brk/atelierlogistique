@@ -1,0 +1,40 @@
+// Traductions anglaises (clé = texte français affiché dans le code).
+// Une clé manquante s'affiche en français ; le test src/shared/i18n/i18n.test.ts signale les oublis.
+
+const en: Record<string, string> = {
+  "E-mail ou mot de passe incorrect.": "Incorrect email or password.",
+  "Adresse pas encore confirmée : ouvrez l’e-mail reçu et cliquez sur le lien.": "Address not confirmed yet: open the email you received and click the link.",
+  "Aucun compte avec cette adresse : créez-en un.": "No account with this address: create one.",
+  "Trop de demandes : réessayez dans quelques minutes.": "Too many requests: try again in a few minutes.",
+  "Échec. Vérifiez l’adresse et réessayez.": "Failed. Check the address and try again.",
+  "Votre organisation exige l’accord de son administrateur pour cette application. Demandez-le à votre service informatique, ou connectez-vous par e-mail.": "Your organisation requires admin consent for this app. Ask your IT department, or sign in with email.",
+  "Le fournisseur n’a pas transmis votre adresse e-mail. Réessayez ou utilisez l’e-mail et le mot de passe.": "The provider did not share your email address. Try again or use email and password.",
+  "Connexion annulée.": "Sign-in cancelled.",
+  "Connexion impossible : {d}.": "Unable to sign in: {d}.",
+  "Continuer avec Microsoft": "Continue with Microsoft",
+  "Connexion impossible pour le moment. Réessayez ou utilisez l’e-mail.": "Unable to sign in right now. Try again or use email.",
+  "ou avec votre e-mail": "or with your email",
+  "Se connecter": "Sign in",
+  "Retrouvez vos chargements et palettisations. Les outils restent utilisables sans compte.": "Get back to your loads and palletisations. The tools remain usable without an account.",
+  "Créer un compte": "Create an account",
+  "Saisissez votre adresse : vous recevez un lien pour choisir votre mot de passe.": "Enter your address: you will receive a link to choose your password.",
+  "Mot de passe oublié": "Forgot password",
+  "Saisissez votre adresse : vous recevez un lien pour choisir un nouveau mot de passe.": "Enter your address: you will receive a link to choose a new password.",
+  "Connexion": "Sign in",
+  "Langue": "Language",
+  "Mot de passe enregistré. Connectez-vous.": "Password saved. Sign in.",
+  "Lien envoyé à {email}. Ouvrez l’e-mail et cliquez sur le lien pour choisir votre mot de passe (pensez aux indésirables).": "Link sent to {email}. Open the email and click the link to choose your password (check your spam folder).",
+  "Ouvrez-le sur cet appareil, dans ce même navigateur.": "Open it on this device, in this same browser.",
+  "← Retour à la connexion": "← Back to sign in",
+  "ADRESSE E-MAIL PROFESSIONNELLE": "WORK EMAIL ADDRESS",
+  "prenom.nom@entreprise.com": "firstname.lastname@company.com",
+  "LANGUE DE L’INTERFACE": "INTERFACE LANGUAGE",
+  "Langue de l’interface": "Interface language",
+  "Modifiable ensuite dans Paramètres › Mon compte.": "You can change it later in Settings › My account.",
+  "MOT DE PASSE": "PASSWORD",
+  "Mot de passe oublié ?": "Forgot password?",
+  "Envoyer le lien": "Send the link",
+  "Pas encore de compte ?": "No account yet?",
+};
+
+export default en;

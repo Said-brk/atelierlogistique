@@ -72,3 +72,10 @@ export async function signInWithProvider(provider: SsoProvider): Promise<void> {
   });
   if (error) throw error;
 }
+
+/** Enregistre la langue de l'interface sur le compte (user_metadata.lang). */
+export async function saveAccountLang(lang: 'fr' | 'en'): Promise<void> {
+  const sb = await getSupabase();
+  const { error } = await sb.auth.updateUser({ data: { lang } });
+  if (error) throw error;
+}
