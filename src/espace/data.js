@@ -1,6 +1,7 @@
 // Accès aux données de l'espace connecté (Supabase). Toutes les requêtes passent par les règles
 // d'accès de la base : un utilisateur ne lit et n'écrit que dans son entreprise.
 
+import { N_ } from '../shared/i18n/core';
 import { getSupabase } from '../shared/account/supabase';
 import { recordsToColisRows } from '../outils/optimiseur-chargement/import/colisSchema';
 import { newRowId } from '../outils/optimiseur-chargement/uiHelpers';
@@ -234,7 +235,7 @@ export async function setPassword(password) {
 }
 
 // ---------------------------------------------------------------- Équipe et invitations
-export const ROLES = { owner: 'Propriétaire', admin: 'Administrateur', member: 'Membre' };
+export const ROLES = { owner: N_('Propriétaire'), admin: N_('Administrateur'), member: N_('Membre') };
 
 export async function orgMembers(orgId) {
   const sb = await getSupabase();

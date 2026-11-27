@@ -6,6 +6,10 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Mail, LogOut, Building2, Loader2, CheckCircle2, Truck, KeyRound, ArrowRight } from 'lucide-react';
 import { getSupabase, accountEnabled, passwordStep, SSO_PROVIDERS, signInWithProvider } from './supabase';
+import { translate, N_ } from '../i18n/core';
+import '../i18n/dictionaries';
+import { guestLang, rememberLang } from '../i18n/userLang';
+import LangSwitch from '../i18n/LangSwitch';
 
 const BLUE = '#2563EB';
 
@@ -53,22 +57,23 @@ function useSession() {
 // Connexion : e-mail + mot de passe.
 // Créer un compte / mot de passe oublié : adresse seule → lien par e-mail → page « Choisir mon mot de passe »
 // (dans l'espace) → retour ici pour se connecter avec l'e-mail et le mot de passe.
+// Langue : sélecteur FR / EN (mémorisé dans ce navigateur) ; à l'inscription, elle est enregistrée sur le compte.
 const LOGIN_ERRORS = [
-  [/invalid login credentials/i, 'E-mail ou mot de passe incorrect.'],
-  [/email not confirmed/i, 'Adresse pas encore confirmée : ouvrez l’e-mail reçu et cliquez sur le lien.'],
-  [/signups not allowed|user not found/i, 'Aucun compte avec cette adresse : créez-en un.'],
-  [/rate|limit|security purposes/i, 'Trop de demandes : réessayez dans quelques minutes.'],
+  [/invalid login credentials/i, N_('E-mail ou mot de passe incorrect.')],
+  [/email not confirmed/i, N_('Adresse pas encore confirmée : ouvrez l’e-mail reçu et cliquez sur le lien.')],
+  [/signups not allowed|user not found/i, N_('Aucun compte avec cette adresse : créez-en un.')],
+  [/rate|limit|security purposes/i, N_('Trop de demandes : réessayez dans quelques minutes.')],
 ];
-const loginError = (err) => LOGIN_ERRORS.find(([re]) => re.test(err?.message ?? ''))?.[1] ?? 'Échec. Vérifiez l’adresse et réessayez.';
+const loginError = (err) => LOGIN_ERRORS.find(([re]) => re.test(err?.message ?? ''))?.[1] ?? N_('Échec. Vérifiez l’adresse et réessayez.');
 
-// Retour de Microsoft / Google en erreur (?error=…&error_description=…).
+// Retour de Microsoft / Google en erreur (?error=…&error_description=…) : [clé, variables].
 function ssoError(params) {
   const code = params.get('error'); const desc = params.get('error_description') ?? '';
-  if (!code && !desc) return '';
-  if (/consent|admin/i.test(desc)) return 'Votre organisation exige l’accord de son administrateur pour cette application. Demandez-le à votre service informatique, ou connectez-vous par e-mail.';
-  if (/email/i.test(desc)) return 'Le fournisseur n’a pas transmis votre adresse e-mail. Réessayez ou utilisez l’e-mail et le mot de passe.';
-  if (/access_denied|cancel/i.test(code + desc)) return 'Connexion annulée.';
-  return `Connexion impossible : ${desc || code}.`;
+  if (!code && !desc) return null;
+  if (/consent|admin/i.test(desc)) return [N_('Votre organisation exige l’accord de son administrateur pour cette application. Demandez-le à votre service informatique, ou connectez-vous par e-mail.')];
+  if (/email/i.test(desc)) return [N_('Le fournisseur n’a pas transmis votre adresse e-mail. Réessayez ou utilisez l’e-mail et le mot de passe.')];
+  if (/access_denied|cancel/i.test(code + desc)) return [N_('Connexion annulée.')];
+  return [N_('Connexion impossible : {d}.'), { d: desc || code }];
 }
 
 /** Logos officiels (couleurs de marque) des fournisseurs. */
@@ -80,13 +85,13 @@ function MicrosoftLogo() {
     </svg>
   );
 }
-const PROVIDERS = { azure: { label: 'Continuer avec Microsoft', Logo: MicrosoftLogo } };
+const PROVIDERS = { azure: { label: N_('Continuer avec Microsoft'), Logo: MicrosoftLogo } };
 
-function SsoButtons({ onError }) {
+function SsoButtons({ onError, t }) {
   const [busy, setBusy] = useState('');
   const go = async (p) => {
-    setBusy(p); onError('');
-    try { await signInWithProvider(p); } catch { setBusy(''); onError('Connexion impossible pour le moment. Réessayez ou utilisez l’e-mail.'); }
+    setBusy(p); onError(null);
+    try { await signInWithProvider(p); } catch { setBusy(''); onError([N_('Connexion impossible pour le moment. Réessayez ou utilisez l’e-mail.')]); }
   };
   const list = SSO_PROVIDERS.filter((p) => PROVIDERS[p]);
   if (!list.length) return null;
@@ -97,24 +102,26 @@ function SsoButtons({ onError }) {
         return (
           <button key={p} type="button" onClick={() => go(p)} disabled={!!busy}
             className="w-full inline-flex items-center justify-center gap-2.5 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 hover:bg-slate-50 disabled:opacity-60">
-            {busy === p ? <Loader2 size={18} className="animate-spin" /> : <Logo />} {label}
+            {busy === p ? <Loader2 size={18} className="animate-spin" /> : <Logo />} {t(label)}
           </button>
         );
       })}
-      <div className="flex items-center gap-3 pt-2 text-xs text-slate-400"><span className="h-px flex-1 bg-slate-200" />ou avec votre e-mail<span className="h-px flex-1 bg-slate-200" /></div>
+      <div className="flex items-center gap-3 pt-2 text-xs text-slate-400"><span className="h-px flex-1 bg-slate-200" />{t('ou avec votre e-mail')}<span className="h-px flex-1 bg-slate-200" /></div>
     </div>
   );
 }
 
 const fieldCls = 'w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200';
 const TITLES = {
-  login: ['Se connecter', 'Retrouvez vos chargements et palettisations. Les outils restent utilisables sans compte.'],
-  signup: ['Créer un compte', 'Saisissez votre adresse : vous recevez un lien pour choisir votre mot de passe.'],
-  forgot: ['Mot de passe oublié', 'Saisissez votre adresse : vous recevez un lien pour choisir un nouveau mot de passe.'],
+  login: [N_('Se connecter'), N_('Retrouvez vos chargements et palettisations. Les outils restent utilisables sans compte.')],
+  signup: [N_('Créer un compte'), N_('Saisissez votre adresse : vous recevez un lien pour choisir votre mot de passe.')],
+  forgot: [N_('Mot de passe oublié'), N_('Saisissez votre adresse : vous recevez un lien pour choisir un nouveau mot de passe.')],
 };
 
 export function LoginPage() {
-  useNoIndex('Connexion');
+  const [lang, setLangState] = useState(guestLang);
+  const t = (key, vars) => translate(lang, key, vars);
+  useNoIndex(t('Connexion'));
   const navigate = useNavigate();
   const session = useSession();
   const params = new URLSearchParams(window.location.search);
@@ -123,17 +130,19 @@ export function LoginPage() {
   const [email, setEmail] = useState(params.get('email') ?? '');
   const [password, setPassword] = useState('');
   const [state, setState] = useState(() => (ssoError(params) ? 'error' : 'idle')); // idle | sending | sent | error
-  const [error, setError] = useState(() => ssoError(params));
+  const [error, setError] = useState(() => ssoError(params)); // [clé, variables] | null
   // Nettoie l'URL après un retour en erreur de Microsoft / Google.
   useEffect(() => { if (params.get('error') || params.get('error_description')) window.history.replaceState(null, '', '/connexion'); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { document.documentElement.lang = lang; }, [lang]);
 
   useEffect(() => { if (session) navigate('/app', { replace: true }); }, [session, navigate]);
   if (!accountEnabled) return <Disabled />;
 
-  const switchTo = (m) => { setMode(m); setState('idle'); setError(''); };
+  const setLang = (l) => { setLangState(l); rememberLang(l); };
+  const switchTo = (m) => { setMode(m); setState('idle'); setError(null); };
   const submit = async (e) => {
     e.preventDefault();
-    setState('sending'); setError('');
+    setState('sending'); setError(null);
     try {
       const sb = await getSupabase();
       if (mode === 'login') {
@@ -143,15 +152,17 @@ export function LoginPage() {
         return;
       }
       // Créer un compte (ou adresse déjà inscrite) / mot de passe oublié : lien → choisir le mot de passe.
+      // La langue choisie est enregistrée sur le nouveau compte (sans effet sur un compte existant).
       const { error: err } = await sb.auth.signInWithOtp({
-        email: email.trim(), options: { emailRedirectTo: `${window.location.origin}/app`, shouldCreateUser: mode === 'signup' },
+        email: email.trim(),
+        options: { emailRedirectTo: `${window.location.origin}/app`, shouldCreateUser: mode === 'signup', data: mode === 'signup' ? { lang } : undefined },
       });
       if (err) throw err;
       passwordStep.set();
       setState('sent');
     } catch (err) {
       setState('error');
-      setError(loginError(err));
+      setError([loginError(err)]);
     }
   };
 
@@ -160,43 +171,53 @@ export function LoginPage() {
   return (
     <Shell>
       <Card>
-        <h1 className="font-bricolage font-bold text-2xl text-slate-900 mb-1">{title}</h1>
-        <p className="text-sm text-slate-500 mb-6">{subtitle}</p>
+        <div className="flex items-start justify-between gap-3 mb-1">
+          <h1 className="font-bricolage font-bold text-2xl text-slate-900">{t(title)}</h1>
+          {mode !== 'signup' && <LangSwitch value={lang} onChange={setLang} label={t('Langue')} />}
+        </div>
+        <p className="text-sm text-slate-500 mb-6">{t(subtitle)}</p>
         {ready && mode === 'login' && state !== 'error' && (
           <div className="mb-4 rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-sm text-emerald-800 flex gap-2">
-            <CheckCircle2 size={18} className="shrink-0" /> Mot de passe enregistré. Connectez-vous.
+            <CheckCircle2 size={18} className="shrink-0" /> {t('Mot de passe enregistré. Connectez-vous.')}
           </div>
         )}
         {state === 'sent' ? (
           <div className="space-y-3">
             <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-4 text-sm text-emerald-800 flex gap-2">
               <CheckCircle2 size={18} className="shrink-0 mt-0.5" />
-              <div>Lien envoyé à <b>{email}</b>. Ouvrez l’e-mail et cliquez sur le lien pour choisir votre mot de passe (pensez aux indésirables).
-                <span className="block mt-1 text-emerald-700/80 text-xs">Ouvrez-le sur cet appareil, dans ce même navigateur.</span></div>
+              <div>{t('Lien envoyé à {email}. Ouvrez l’e-mail et cliquez sur le lien pour choisir votre mot de passe (pensez aux indésirables).', { email })}
+                <span className="block mt-1 text-emerald-700/80 text-xs">{t('Ouvrez-le sur cet appareil, dans ce même navigateur.')}</span></div>
             </div>
-            <p className="text-sm text-slate-500">{link('login', '← Retour à la connexion')}</p>
+            <p className="text-sm text-slate-500">{link('login', t('← Retour à la connexion'))}</p>
           </div>
         ) : (<>
-          {mode !== 'forgot' && <SsoButtons onError={(m) => { setError(m); setState(m ? 'error' : 'idle'); }} />}
+          {mode !== 'forgot' && <SsoButtons t={t} onError={(m) => { setError(m); setState(m ? 'error' : 'idle'); }} />}
           <form onSubmit={submit} className="space-y-3">
-            <label className="block text-xs font-jetbrains text-slate-500" htmlFor="email">ADRESSE E-MAIL PROFESSIONNELLE</label>
+            <label className="block text-xs font-jetbrains text-slate-500" htmlFor="email">{t('ADRESSE E-MAIL PROFESSIONNELLE')}</label>
             <input id="email" type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)}
-              placeholder="prenom.nom@entreprise.com" className={fieldCls} />
+              placeholder={t('prenom.nom@entreprise.com')} className={fieldCls} />
+            {mode === 'signup' && (
+              <div className="space-y-1.5 pt-1">
+                <div className="block text-xs font-jetbrains text-slate-500">{t('LANGUE DE L’INTERFACE')}</div>
+                <LangSwitch value={lang} onChange={setLang} full label={t('Langue de l’interface')} />
+                <div className="text-[11px] text-slate-400">{t('Modifiable ensuite dans Paramètres › Mon compte.')}</div>
+              </div>
+            )}
             {mode === 'login' && (<>
               <div className="flex items-center justify-between">
-                <label className="block text-xs font-jetbrains text-slate-500" htmlFor="password">MOT DE PASSE</label>
-                <button type="button" onClick={() => switchTo('forgot')} className="text-xs hover:underline" style={{ color: BLUE }}>Mot de passe oublié ?</button>
+                <label className="block text-xs font-jetbrains text-slate-500" htmlFor="password">{t('MOT DE PASSE')}</label>
+                <button type="button" onClick={() => switchTo('forgot')} className="text-xs hover:underline" style={{ color: BLUE }}>{t('Mot de passe oublié ?')}</button>
               </div>
               <input id="password" type="password" required autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} className={fieldCls} />
             </>)}
             <button type="submit" disabled={state === 'sending'}
               className="w-full inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60" style={{ background: BLUE }}>
               {state === 'sending' ? <Loader2 size={16} className="animate-spin" /> : mode === 'login' ? <ArrowRight size={16} /> : <Mail size={16} />}
-              {mode === 'login' ? 'Se connecter' : 'Envoyer le lien'}
+              {mode === 'login' ? t('Se connecter') : t('Envoyer le lien')}
             </button>
-            {error && <div className="text-sm text-red-700">{error}</div>}
+            {error && <div className="text-sm text-red-700">{t(error[0], error[1])}</div>}
             <div className="pt-2 border-t border-slate-100 text-sm text-slate-500">
-              {mode === 'login' ? <p>Pas encore de compte ? {link('signup', 'Créer un compte')}</p> : <p>{link('login', '← Retour à la connexion')}</p>}
+              {mode === 'login' ? <p>{t('Pas encore de compte ?')} {link('signup', t('Créer un compte'))}</p> : <p>{link('login', t('← Retour à la connexion'))}</p>}
             </div>
           </form>
         </>)}

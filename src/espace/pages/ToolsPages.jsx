@@ -5,7 +5,7 @@ import { useEffect } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Monitor, ArrowRight } from 'lucide-react';
 import { TOOL_COMPONENTS, TOOL_EMBED_CSS } from '../../App.jsx';
-import { I18nProvider } from '../../shared/i18n/I18nProvider.jsx';
+import { I18nProvider, useLang } from '../../shared/i18n/I18nProvider.jsx';
 import { APP_TOOLS, TOOL_GROUPS } from '../tools';
 import { PageHeader } from '../ui';
 
@@ -49,6 +49,7 @@ export function ToolInApp() {
   const navigate = useNavigate();
   const tool = APP_TOOLS.find((t) => t.id === id);
   const Comp = TOOL_COMPONENTS[id];
+  const lang = useLang();
   useEffect(() => { if (tool) document.title = `${tool.name} | Atelier Logistique`; }, [tool]);
   if (!tool || !Comp) return <div className="p-10 text-center text-slate-500">Outil introuvable. <Link to="/app/outils" className="text-blue-700">Tous les outils</Link></div>;
   return (
@@ -58,7 +59,7 @@ export function ToolInApp() {
         <span className="font-bricolage font-semibold text-slate-900 flex items-center gap-2"><tool.icon size={17} className="text-blue-700" /> {tool.name}</span>
         <LocalNote />
       </div>
-      <I18nProvider lang="fr"><Comp onBack={() => navigate('/app/outils')} /></I18nProvider>
+      <I18nProvider lang={lang}><Comp onBack={() => navigate('/app/outils')} /></I18nProvider>
     </div>
   );
 }
