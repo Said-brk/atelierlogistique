@@ -28,6 +28,7 @@ import { toolSeoEn, LOAD_LANDING_PAGE_EN } from './seo/pages-en';
 import { I18nProvider } from './shared/i18n/I18nProvider.jsx';
 import { TOOL_PATHS, toolFromEnPath } from './shared/i18n/paths';
 import SiteNav from './components/SiteNav.jsx';
+import { aboutPage, LINKEDIN_URL } from './seo/about.js';
 import LoadHeroBanner from './components/home/LoadHeroBanner.jsx';
 import AuditBanner from './components/home/AuditBanner.jsx';
 import { BRAND_COLORS, TAGLINE } from './seo/brand';
@@ -238,6 +239,8 @@ export default function App() {
         <Route path="/g" element={<QrGuideRoute />} />
         <Route path="/q/:token" element={<Suspense fallback={null}><QuaiGuide /></Suspense>} />
         <Route path="/en" element={<LoadLandingPage lang="en" />} />
+        <Route path="/a-propos" element={<AboutPage />} />
+        <Route path="/en/about" element={<AboutPage lang="en" />} />
         <Route path="/en/loading" element={<I18nProvider lang="en"><Suspense fallback={null}><LoadingGuide /></Suspense></I18nProvider>} />
         <Route path="/en/:page" element={<EnToolRoute />} />
         <Route path="/connexion" element={<AccountShell><LoginPage /></AccountShell>} />
@@ -258,7 +261,7 @@ function ScrollToTop() {
 }
 
 // En-tête de site partagé (accueil, ressources, 404)
-function SiteHeader({ lang = 'fr' }) {
+function SiteHeader({ lang = 'fr', alt = null }) {
   const en = lang === 'en';
   return (
     <nav className="border-b border-slate-200 sticky top-0 z-30 bg-white/90 backdrop-blur-sm">
@@ -276,7 +279,7 @@ function SiteHeader({ lang = 'fr' }) {
         </Link>
         <div className="flex items-center gap-2 sm:gap-4 shrink-0">
           <SiteNav lang={lang} />
-          {en && <a href="/chargement-palettisation" hrefLang="fr" title="Version française" className="font-jetbrains text-[11px] px-2 py-1 rounded-md border border-slate-300 text-slate-600 hover:text-slate-900">FR</a>}
+          {(en || alt) && <a href={alt ?? '/chargement-palettisation'} hrefLang={en ? 'fr' : 'en'} title={en ? 'Version française' : 'English version'} className="font-jetbrains text-[11px] px-2 py-1 rounded-md border border-slate-300 text-slate-600 hover:text-slate-900">{en ? 'FR' : 'EN'}</a>}
         </div>
       </div>
     </nav>
@@ -294,6 +297,7 @@ function SiteFooter({ lang = 'fr' }) {
             <a href="/en/truck-load-planner" className="hover:text-slate-800">Load planner</a>
             <a href="/en/palletizing-calculator" className="hover:text-slate-800">Pallet calculator</a>
             <a href="/en/capacity" className="hover:text-slate-800">Capacity tables</a>
+            <a href="/en/about" className="hover:text-slate-800">About</a>
             <span>Contact: <a href="mailto:contact@atelierlogistique.com" className="hover:text-slate-800 hover:underline">contact@atelierlogistique.com</a></span>
           </div>
         </div>
@@ -311,6 +315,7 @@ function SiteFooter({ lang = 'fr' }) {
           <Link to="/outils" className="hover:text-slate-800 transition-colors">Outils</Link>
           <a href="/api" className="hover:text-slate-800 transition-colors">API</a>
           <Link to="/ressources" className="hover:text-slate-800 transition-colors">Ressources</Link>
+          <Link to="/a-propos" className="hover:text-slate-800 transition-colors">À propos</Link>
           <span>Contact : <a href="mailto:contact@atelierlogistique.com" className="hover:text-slate-800 transition-colors underline-offset-2 hover:underline">contact@atelierlogistique.com</a></span>
         </div>
       </div>
@@ -586,6 +591,40 @@ function LoadLandingPage({ lang = 'fr' }) {
         <SiteFooter lang={lang} />
       </div>
     </I18nProvider>
+  );
+}
+
+// Page « À propos » : /a-propos et /en/about. Textes : src/seo/about.js (partagés avec le pré-rendu).
+function AboutPage({ lang = 'fr' }) {
+  const A = aboutPage(lang);
+  useSeoMeta(A, A.path);
+  useEffect(() => { document.documentElement.lang = lang; }, [lang]);
+  return (
+    <div className="min-h-screen text-slate-900" style={{ background: '#FFFFFF', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+      <FontsAndStyles />
+      <SiteHeader lang={lang} alt={A.alt} />
+      <main className="max-w-3xl mx-auto px-6 md:px-10 pt-14 md:pt-20 pb-20">
+        <div className="font-jetbrains text-xs mb-5 flex items-center gap-2 tracking-wider" style={{ color: BLUE }}><span>●</span><span>{A.kicker}</span></div>
+        <h1 className="font-bricolage font-bold text-4xl md:text-5xl leading-tight mb-6 tracking-tight">{A.h1}</h1>
+        <p className="text-lg text-slate-800 leading-relaxed mb-4">{A.definition}</p>
+        <p className="text-slate-600 leading-relaxed mb-10 pl-4 border-l-4" style={{ borderColor: '#F59E0B' }}>{A.disambiguation}</p>
+        {A.sections.map((x) => (
+          <section key={x.h} className="mb-8">
+            <h2 className="font-bricolage font-semibold text-2xl mb-3">{x.h}</h2>
+            {x.items
+              ? <ul className="space-y-2">{x.items.map((i) => <li key={i} className="flex gap-2 text-slate-700 leading-relaxed"><span style={{ color: BLUE }}>✓</span><span>{i}</span></li>)}</ul>
+              : <p className="text-slate-700 leading-relaxed">{x.text}</p>}
+          </section>
+        ))}
+        <section className="mb-10">
+          <h2 className="font-bricolage font-semibold text-2xl mb-3">{A.contactH}</h2>
+          <p className="text-slate-700">{A.contact} <a className="underline" href="mailto:contact@atelierlogistique.com">contact@atelierlogistique.com</a></p>
+          <p className="mt-2"><a className="underline" style={{ color: BLUE }} href={LINKEDIN_URL} target="_blank" rel="me noopener noreferrer">{A.linkedin}</a></p>
+        </section>
+        <a href={A.ctaHref} className="inline-flex items-center gap-2 px-6 py-3.5 rounded-lg font-jetbrains text-sm font-semibold" style={{ background: '#F59E0B', color: '#0F172A' }}>{A.cta} →</a>
+      </main>
+      <SiteFooter lang={lang} />
+    </div>
   );
 }
 

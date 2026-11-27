@@ -71,6 +71,10 @@
       "destination": "/outils/:id/index.html"
     },
     {
+      "source": "/a-propos",
+      "destination": "/a-propos/index.html"
+    },
+    {
       "source": "/capacite",
       "destination": "/capacite/index.html"
     },

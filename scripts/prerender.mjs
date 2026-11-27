@@ -19,6 +19,7 @@ import { wordmarkHtml } from '../src/seo/brand.js';
 import { writeCapacityPages, CAPACITY_HUB } from './capacity-pages.mjs';
 import { writeEnPages, enToolPages, EN_TOOL_ALTERNATES } from './en-pages.mjs';
 import { LOAD_LANDING_PAGE_EN } from '../src/seo/pages-en.js';
+import { BRAND, aboutPage } from '../src/seo/about.js';
 const L_FR_PATH = '/chargement-palettisation';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -167,8 +168,32 @@ const ORG = {
   '@id': `${SITE}/#organization`,
   name: SITE_NAME,
   url: `${SITE}/`,
+  alternateName: BRAND.alternateNames,
+  description: BRAND.definition.fr,
+  slogan: BRAND.slogan.fr,
   logo: `${SITE}/favicon_atelierlogistique.png`,
   email: 'contact@atelierlogistique.com',
+  sameAs: BRAND.sameAs,
+  knowsAbout: BRAND.knowsAbout,
+};
+// Le produit lui-même : « Atelier Logistique » est un logiciel (et non un lieu).
+const APP = {
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareApplication',
+  '@id': `${SITE}/#software`,
+  name: SITE_NAME,
+  alternateName: BRAND.alternateNames,
+  description: BRAND.definition.fr,
+  url: `${SITE}/`,
+  applicationCategory: 'BusinessApplication',
+  applicationSubCategory: 'Logistique et transport',
+  operatingSystem: 'Web',
+  inLanguage: ['fr', 'en'],
+  isAccessibleForFree: true,
+  offers: { '@type': 'Offer', price: '0', priceCurrency: 'EUR' },
+  featureList: ['Palettisation 3D', 'Plan de chargement camion et conteneur 3D', 'Mètres plancher', 'Transporteur le moins cher', 'Contrôle des factures transport', 'QR code cariste', 'Import ERP / WMS', 'API'],
+  publisher: { '@id': `${SITE}/#organization` },
+  sameAs: BRAND.sameAs,
 };
 {
   const structured = [
@@ -184,6 +209,7 @@ const ORG = {
       publisher: { '@id': `${SITE}/#organization` },
     },
     ORG,
+    APP,
     {
       '@context': 'https://schema.org',
       '@type': 'ItemList',
@@ -193,7 +219,7 @@ const ORG = {
     },
   ];
   const inner = `
-    <div><h1 class="font-bold text-3xl">${esc(HOME_PAGE.h1)}</h1><p class="text-slate-600 mt-2">${esc(HOME_PAGE.intro)}</p></div>
+    <div><h1 class="font-bold text-3xl">${esc(HOME_PAGE.h1)}</h1><p class="text-slate-600 mt-2">${esc(HOME_PAGE.intro)}</p><p class="mt-2">${esc(BRAND.definition.fr)} <a class="underline" href="/a-propos">À propos</a></p></div>
     <section><h2 class="font-bold text-xl mb-2">Outils phares</h2>${links(featured.map((t) => ({ href: toolPath(t.id), label: t.name, desc: t.intro })))}</section>
     <section><h2 class="font-bold text-xl mb-2"><a class="underline" href="${ALL_TOOLS_PAGE.path}">${esc(ALL_TOOLS_PAGE.h1)}</a></h2>${links(others.map((t) => ({ href: toolPath(t.id), label: t.name })))}</section>`;
   write('/', page(head({ path: '/', title: HOME_PAGE.title, description: HOME_PAGE.description, structured }), shell([], inner)));
@@ -233,7 +259,7 @@ const ORG = {
   const structured = [{
     '@context': 'https://schema.org', '@type': 'WebPage', name: L.title, url: SITE + L.path, inLanguage: 'en', description: L.description,
     isPartOf: { '@id': `${SITE}/#website` }, about: ['Palletising', 'Truck load planning', 'Loading meters', 'Freight invoice audit'],
-  }];
+  }, { ...ORG, description: BRAND.definition.en, slogan: BRAND.slogan.en }];
   const inner = `
     <div><h1 class="font-bold text-3xl">${esc(L.h1)}</h1><p class="text-slate-600 mt-2">${esc(L.intro)}</p></div>
     <section><h2 class="font-bold text-xl mb-2">The tools</h2>${links([
@@ -271,6 +297,23 @@ const ORG = {
     <section>${links([{ href: LOAD_LANDING_PAGE.path, label: 'Chargement camion 3D + palettisation 3D', desc: LOAD_LANDING_PAGE.intro }])}</section>
     <section>${links([...featured, ...others].map((t) => ({ href: toolPath(t.id), label: t.name, desc: t.intro })))}</section>`;
   write(ALL_TOOLS_PAGE.path, page(head({ path: ALL_TOOLS_PAGE.path, title: ALL_TOOLS_PAGE.title, description: ALL_TOOLS_PAGE.description, structured }), shell([{ label: ALL_TOOLS_PAGE.h1 }], inner)));
+}
+
+// ---------- À propos (/a-propos) et About (/en/about) ----------
+const aboutPaths = [];
+for (const lang of ['fr', 'en']) {
+  const A = aboutPage(lang);
+  const structured = [{
+    '@context': 'https://schema.org', '@type': 'AboutPage', name: A.title, url: SITE + A.path, inLanguage: lang, description: A.description,
+    isPartOf: { '@id': `${SITE}/#website` }, about: { '@id': `${SITE}/#organization` }, mainEntity: { '@id': `${SITE}/#software` },
+  }, lang === 'en' ? { ...ORG, description: BRAND.definition.en, slogan: BRAND.slogan.en } : ORG,
+  lang === 'en' ? { ...APP, description: BRAND.definition.en, applicationSubCategory: 'Logistics and transport' } : APP];
+  const inner = `
+    <div><h1 class="font-bold text-3xl">${esc(A.h1)}</h1><p class="mt-2">${esc(A.definition)}</p><p class="text-slate-600 mt-2">${esc(A.disambiguation)}</p></div>
+    ${A.sections.map((x) => `<section><h2 class="font-bold text-xl mb-2">${esc(x.h)}</h2>${x.items ? `<ul class="list-disc pl-5 space-y-1">${x.items.map((i) => `<li>${esc(i)}</li>`).join('')}</ul>` : `<p>${esc(x.text)}</p>`}</section>`).join('')}
+    <section><h2 class="font-bold text-xl mb-2">${esc(A.contactH)}</h2><p>${esc(A.contact)} <a class="underline" href="mailto:contact@atelierlogistique.com">contact@atelierlogistique.com</a> · <a class="underline" href="${BRAND.sameAs[0]}" rel="me">${esc(A.linkedin)}</a></p></section>`;
+  write(A.path, page(head({ path: A.path, title: A.title, description: A.description, structured, alternate: A.alt, lang }), shell([{ label: A.kicker === 'ABOUT' ? 'About' : 'À propos' }], inner, A.alt, lang), lang));
+  aboutPaths.push(A.path);
 }
 
 // ---------- Ressources ----------
@@ -330,6 +373,7 @@ console.log(`Pages anglaises : ${enPaths.length + enTools.length}`);
     { loc: SITE + LOAD_LANDING_PAGE.path, lastmod: today, freq: 'weekly', prio: '0.95' },
     ...TOOL_PAGES.map((t) => ({ loc: SITE + toolPath(t.id), lastmod: today, freq: 'monthly', prio: ['optimiseur-chargement', 'pallet'].includes(t.id) ? '0.9' : '0.7' })),
     { loc: `${SITE}/ressources`, lastmod: today, freq: 'weekly', prio: '0.8' },
+    ...aboutPaths.map((p) => ({ loc: SITE + p, lastmod: today, freq: 'monthly', prio: '0.7' })),
     ...ARTICLE_PAGES.map((a) => ({ loc: `${SITE}/ressources/${a.slug}`, lastmod: lastmodOf(`${SITE}/ressources/${a.slug}`), freq: 'monthly', prio: '0.8' })),
     ...capacityPaths.map((p) => ({ loc: SITE + p, lastmod: today, freq: 'monthly', prio: p === CAPACITY_HUB.path || p === '/en/capacity' ? '0.8' : '0.6' })),
     ...[...enPaths, ...enTools.map((p) => p.path)].map((p) => ({ loc: SITE + p, lastmod: today, freq: 'monthly', prio: '0.8' })),
