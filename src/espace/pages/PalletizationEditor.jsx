@@ -14,6 +14,7 @@ import { EditorHeader, DocChip, ConflictBanner, ReferencesError, DocMenu } from 
 import useDocEditor, { initialOf } from '../useDocEditor';
 import useReferences from '../useReferences';
 import { t as tr, numLocale } from '../../shared/i18n/core';
+import { fmtWeight } from '../../shared/units/units';
 
 export function NewPalletization() {
   const { org } = useEspace();
@@ -85,7 +86,7 @@ export default function PalletizationEditor() {
         links={<span className="flex items-center gap-1.5 text-slate-500 text-xs">{tr('Chargement')} {ed.doc.shipments?.code
           ? <DocChip kind="shipment" to={`/app/chargements/${ed.doc.shipments.code}`} code={ed.doc.shipments.code} title={ed.doc.shipments.label ?? ''} />
           : <span className="text-slate-400">{tr('— choisi au clic sur « Charger le camion »')}</span>}</span>}
-        summary={s && `${tr('{n} palette(s) · {full} complète(s) · {mixed} mixte(s)', { n: s.pallets, full: s.full, mixed: s.mixed })} · ${Math.round(s.weight).toLocaleString(numLocale())} kg${s.unplaced ? ` · ${tr('{n} colis non palettisé(s)', { n: s.unplaced })}` : ''}`} />
+        summary={s && `${tr('{n} palette(s) · {full} complète(s) · {mixed} mixte(s)', { n: s.pallets, full: s.full, mixed: s.mixed })} · ${fmtWeight(s.weight)}${s.unplaced ? ` · ${tr('{n} colis non palettisé(s)', { n: s.unplaced })}` : ''}`} />
       <ConflictBanner conflict={ed.conflict} saving={ed.saving} onReload={ed.reload} onOverwrite={ed.overwrite} />
       <Palletizer key={`${ed.doc.id}:${ed.instance}`} workspace={{ initial: initialOf(ed.doc), references: refs.tools, onChange: ed.onChange, origin: ed.doc.code }} onLoadTruck={loadTruck} />
       {choosing && <LoadTruckDialog orgId={org.id} pz={choosing.pz} onNew={toNew} onExisting={toExisting} onClose={() => setChoosing(null)} />}

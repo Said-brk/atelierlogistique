@@ -260,6 +260,9 @@ function toToolReferences(items) {
   return { vehicles, pallets, lashing, agencies, tours, carriers, consolidation: { mode: cons?.mode === "tour" ? "tour" : "free" } };
 }
 
+// src/shared/units/units.ts
+var IN_PER_CM = 1 / 2.54;
+
 // src/shared/carriers/pricing.ts
 var SCOPE_LABELS = { get agency() {
   return t("Agence");

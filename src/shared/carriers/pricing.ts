@@ -1,4 +1,5 @@
 import { t as tr } from '../i18n/core';
+import { currencySymbol } from '../units/units';
 // Coût théorique d'un chargement d'après la grille d'un transporteur (tables de référence, kind = 'carrier').
 // Modes de facturation courants en transport routier :
 //  - ldm    : au mètre plancher (MPL), arrondi au 0,1 MPL supérieur ;
@@ -92,7 +93,8 @@ export const BILLING_LABELS: Record<Billing, string> = {
   get weight() { return tr('Aux 100 kg taxables'); },
   get ftl() { return tr('Forfait par véhicule (lot complet)'); },
 };
-export const RATE_UNIT: Record<Billing, string> = { get ldm() { return tr('€/MPL'); }, get pallet() { return tr('€/palette'); }, get weight() { return tr('€/100 kg'); }, ftl: '' };
+// Unités des tarifs, avec le symbole de la devise de l'entreprise (la facturation reste au MPL, à la palette ou aux 100 kg).
+export const RATE_UNIT: Record<Billing, string> = { get ldm() { return `${currencySymbol()}/${tr('MPL')}`; }, get pallet() { return `${currencySymbol()}/${tr('palette')}`; }, get weight() { return `${currencySymbol()}/100 kg`; }, ftl: '' };
 
 const num = (v: unknown, d = 0) => { const n = Number(v); return Number.isFinite(n) ? n : d; };
 const r2 = (v: number) => Math.round(v * 100) / 100;

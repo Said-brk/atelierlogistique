@@ -597,6 +597,18 @@ const en: Record<string, string> = {
   "Planification & stocks": "Planning & inventory",
   "Transport & documents": "Transport & documents",
   "Utilitaires": "Utilities",
+  "Devise": "Currency",
+  "Devise et unités indisponibles : exécutez le script SQL {n} dans Supabase.": "Currency and units unavailable: run the SQL script {n} in Supabase.",
+  "L × l": "L × W",
+  "L × l × H": "L × W × H",
+  "Métrique": "Metric",
+  "Poids taxable : {w} ({by})": "Chargeable weight: {w} ({by})",
+  "Saisie et affichage des dimensions, poids, volumes et montants. Les données enregistrées ne changent pas.": "Input and display of dimensions, weights, volumes and amounts. Saved data doesn't change.",
+  "US": "US",
+  "Unités et devise": "Units and currency",
+  "modifiables ensuite dans Paramètres › Entreprise": "can be changed later in Settings › Company",
+  "par véhicule": "per vehicle",
+  "Unités": "Units",
 };
 
 export default en;

@@ -5,7 +5,9 @@ import { useEffect, useState } from 'react';
 import { NavLink, Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import { Building2, UserRound, LogOut, Save, Loader2, Users, KeyRound, Database, Languages, CheckCircle2 } from 'lucide-react';
 import { useEspace } from '../useEspace';
-import { renameOrganization, signOut, ROLES } from '../data';
+import { renameOrganization, saveOrganizationUnits, signOut, ROLES } from '../data';
+import UnitsPicker from '../UnitsPicker';
+import { prefsOf } from '../../shared/units/units';
 import { PageHeader, Btn } from '../ui';
 import PasswordForm, { hasPassword } from '../PasswordForm';
 import { usesSso, saveAccountLang } from '../../shared/account/supabase';
@@ -29,12 +31,18 @@ function CompanyTab() {
   const { org, reloadOrgs } = useEspace();
   const t = useT();
   const [name, setName] = useState(org.name);
+  const [prefs, setPrefs] = useState(() => prefsOf(org, t.lang));
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
   const admin = org.role === 'owner' || org.role === 'admin';
   const save = async () => {
     setBusy(true); setMsg('');
-    try { await renameOrganization(org.id, name); await reloadOrgs(); setMsg(t('Enregistré.')); } catch (e) { setMsg(e.message); }
+    try {
+      await renameOrganization(org.id, name);
+      const before = prefsOf(org, t.lang);
+      if (prefs.units !== before.units || prefs.currency !== before.currency || org.units == null) await saveOrganizationUnits(org.id, prefs);
+      await reloadOrgs(); setMsg(t('Enregistré.'));
+    } catch (e) { setMsg(e.message); }
     setBusy(false);
   };
   return (
@@ -43,6 +51,11 @@ function CompanyTab() {
       <label className="block text-xs text-slate-500">{t('Nom')}
         <input value={name} onChange={(e) => setName(e.target.value)} disabled={!admin}
           className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-50" /></label>
+      <div className="space-y-1.5 pt-1">
+        <div className="text-xs text-slate-500">{t('Unités et devise')}</div>
+        <UnitsPicker value={prefs} onChange={setPrefs} disabled={!admin} />
+        <div className="text-xs text-slate-400">{t('Saisie et affichage des dimensions, poids, volumes et montants. Les données enregistrées ne changent pas.')}</div>
+      </div>
       <div className="text-sm text-slate-600">{t('Votre rôle :')} <b>{ROLES[org.role] ?? org.role}</b></div>
       <div className="text-sm text-slate-600">{t('Chargements conservés {n} jours, puis supprimés automatiquement.', { n: org.retention_days })}</div>
       {admin && <Btn onClick={save} disabled={busy || name.trim().length < 2}>{busy ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />} {t('Enregistrer')}</Btn>}

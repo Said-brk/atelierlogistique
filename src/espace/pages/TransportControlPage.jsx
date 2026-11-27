@@ -13,15 +13,16 @@ import { PageHeader, Btn, ReferencesError } from '../ui';
 import ResizableTable from '../ResizableTable';
 import { controlRows, carrierStats, parseInvoiceCsv, matchInvoice, tolerance, TOLERANCE_KEY as TOL_KEY } from '../transport/control';
 import { t as tr, numLocale } from '../../shared/i18n/core';
+import { fmtMoney, currencySymbol, parseNumber } from '../../shared/units/units';
 
-const eur = (v, d = 0) => (v == null ? '—' : `${Number(v).toLocaleString(numLocale(), { minimumFractionDigits: d, maximumFractionDigits: 2 })} €`);
+const eur = (v, d = 0) => fmtMoney(v, { min: d });
 const num1 = (v) => (v == null ? '—' : Number(v).toLocaleString(numLocale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 }));
 const pctTxt = (v) => (v == null ? '—' : `${v > 0 ? '+' : ''}${v.toLocaleString(numLocale(), { maximumFractionDigits: 1 })} %`);
 const monthKey = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 const shiftMonth = (k, by) => { const [y, m] = k.split('-').map(Number); return monthKey(new Date(y, m - 1 + by, 1)); };
 const monthLabel = (k) => { const [y, m] = k.split('-').map(Number); const s = new Date(y, m - 1, 1).toLocaleDateString(numLocale(), { month: 'long', year: 'numeric' }); return s[0].toUpperCase() + s.slice(1); };
 const dayTxt = (s) => new Date(s.departure_at ?? s.created_at).toLocaleDateString(numLocale(), { day: '2-digit', month: '2-digit' });
-const parseAmount = (s) => { const t = String(s).replace(/[€\s ]/g, '').replace(',', '.'); if (t === '') return null; const v = Number(t); return Number.isFinite(v) && v >= 0 ? Math.round(v * 100) / 100 : undefined; };
+const parseAmount = (s) => { const v = parseNumber(s); if (v == null) return null; return Number.isFinite(v) && v >= 0 ? Math.round(v * 100) / 100 : undefined; };
 
 const FLAG = {
   over: { cls: 'bg-red-50 text-red-700', get label() { return tr('Surfacturé'); } },
@@ -147,8 +148,8 @@ export default function TransportControlPage() {
     { key: 'th', h: tr('Coût théorique'), cell: (s) => nw(eur(s.theoretical)) },
     { key: 'inv', h: tr('Facturé'), cell: (s) => <b className="whitespace-nowrap">{eur(s.invoiced)}</b> },
     { key: 'gap', h: tr('Écart'), cell: (s) => <span className={`whitespace-nowrap ${s.gap > 0 ? 'text-red-700 font-semibold' : s.gap < 0 ? 'text-emerald-700' : ''}`}>{s.invoicedCount ? `${eur(s.gap)} (${pctTxt(s.gapPct)})` : '—'}</span> },
-    { key: 'cpl', h: '€ / MPL', cell: (s) => nw(eur(s.costPerLdm, 2)) },
-    { key: 'cpp', h: '€ / palette', cell: (s) => nw(eur(s.costPerPallet, 2)) },
+    { key: 'cpl', h: `${currencySymbol()} / ${tr('MPL')}`, cell: (s) => nw(eur(s.costPerLdm, 2)) },
+    { key: 'cpp', h: `${currencySymbol()} / ${tr('palette')}`, cell: (s) => nw(eur(s.costPerPallet, 2)) },
     { key: 'fill', h: tr('Remplissage'), cell: (s) => (s.fill == null ? '—' : `${Math.round(s.fill * 100)} %`) },
     { key: 'fl', h: tr('Écarts'), cell: (s) => (s.flagged ? <span className="rounded-full bg-red-50 text-red-700 text-xs font-semibold px-2 py-0.5">{s.flagged}</span> : '0') },
   ];

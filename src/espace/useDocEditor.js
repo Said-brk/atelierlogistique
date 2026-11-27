@@ -6,7 +6,8 @@
 // Recharger (version en base) ou Garder mes modifications (écrase la version en base).
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { t as tr } from '../shared/i18n/core';
+import { t as tr, numLocale } from '../shared/i18n/core';
+import { parseNumber } from '../shared/units/units';
 
 const toDateInput = (d) => (d ? new Date(d).toISOString().slice(0, 10) : '');
 // Empreinte du plan 3D (calcul + retouches) pour savoir s'il a changé depuis l'enregistrement.
@@ -49,7 +50,7 @@ export default function useDocEditor({ code, load, update, titleOf, autosaveMs =
   const apply = (d, keepMeta = false) => {
     setDoc(d);
     if (!d) return;
-    if (!keepMeta) setMetaState({ label: d.label ?? '', external_id: d.external_id ?? '', departure_at: toDateInput(d.departure_at), tour: d.tour ?? '', carrier: d.carrier ?? '', invoiced_amount: d.invoiced_amount == null ? '' : String(d.invoiced_amount).replace('.', ',') });
+    if (!keepMeta) setMetaState({ label: d.label ?? '', external_id: d.external_id ?? '', departure_at: toDateInput(d.departure_at), tour: d.tour ?? '', carrier: d.carrier ?? '', invoiced_amount: d.invoiced_amount == null ? '' : Number(d.invoiced_amount).toLocaleString(numLocale(), { maximumFractionDigits: 2, useGrouping: false }) });
     savedInput.current = stable(d.input ?? {});
     savedPlan.current = planSig(d.result?.plan);
     savedGuide.current = hasGuide(d.result?.plan);
@@ -111,8 +112,7 @@ export default function useDocEditor({ code, load, update, titleOf, autosaveMs =
       if ('tour' in base) patch.tour = usedMeta.tour || null;
       if ('carrier' in base) patch.carrier = usedMeta.carrier || null;
       if ('invoiced_amount' in base) {
-        const t = String(usedMeta.invoiced_amount ?? '').replace(/[€\s\u00a0]/g, '').replace(',', '.');
-        const a = t === '' ? null : Number(t);
+        const a = parseNumber(usedMeta.invoiced_amount);
         if (a === null || (Number.isFinite(a) && a >= 0)) {
           const v = a === null ? null : Math.round(a * 100) / 100;
           if (v !== (base.invoiced_amount == null ? null : Number(base.invoiced_amount))) {

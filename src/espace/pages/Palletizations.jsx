@@ -4,6 +4,7 @@ import { listPalletizations, SOURCE } from '../data';
 import DocList from '../DocList';
 import { DocChip } from '../ui';
 import { t as tr, N_, numLocale } from '../../shared/i18n/core';
+import { fmtWeight } from '../../shared/units/units';
 
 export default function Palletizations() {
   const { org } = useEspace();
@@ -14,7 +15,7 @@ export default function Palletizations() {
       columns={[
         { h: N_('Origine'), cell: (r) => SOURCE[r.source] ?? r.source },
         { h: N_('Palettes'), cell: (r) => r.result?.summary?.pallets ?? '—' },
-        { h: N_('Poids'), cell: (r) => (r.result?.summary ? `${Math.round(r.result.summary.weight).toLocaleString(numLocale())} kg` : '—') },
+        { h: N_('Poids'), cell: (r) => (r.result?.summary ? fmtWeight(r.result.summary.weight) : '—') },
         { h: N_('Chargement'), cell: (r) => (r.shipments?.code ? <DocChip kind="shipment" to={`/app/chargements/${r.shipments.code}`} code={r.shipments.code} /> : '—') },
       ]} />
   );

@@ -27,14 +27,24 @@ const withSummary = (rows) => rows.map(({ summary, ...r }) => ({ ...r, result: s
 export async function myOrganizations(userId) {
   const sb = await getSupabase();
   const { data, error } = await sb.from('organization_members')
-    .select('role, organizations(id, name, retention_days, created_at)').eq('user_id', userId);
+    .select('role, organizations(*)').eq('user_id', userId);
   fail(error);
   return data.filter((m) => m.organizations).map((m) => ({ ...m.organizations, role: m.role }));
 }
 
-export async function createOrganization(name) {
+/** Crée l'entreprise ; prefs = { currency, units } (ignorées si la base n'a pas encore ces colonnes). */
+export async function createOrganization(name, prefs = null) {
   const sb = await getSupabase();
-  const { error } = await sb.rpc('create_organization', { p_name: name.trim() });
+  const { data: id, error } = await sb.rpc('create_organization', { p_name: name.trim() });
+  fail(error);
+  if (prefs && id) await sb.from('organizations').update(prefs).eq('id', id);
+}
+
+/** Devise et unités de l'entreprise (administrateurs). */
+export async function saveOrganizationUnits(id, prefs) {
+  const sb = await getSupabase();
+  const { error } = await sb.from('organizations').update(prefs).eq('id', id);
+  if (error && /column|schema cache/i.test(error.message)) throw new Error(tr('Devise et unités indisponibles : exécutez le script SQL {n} dans Supabase.', { n: '20261127000016' }));
   fail(error);
 }
 
