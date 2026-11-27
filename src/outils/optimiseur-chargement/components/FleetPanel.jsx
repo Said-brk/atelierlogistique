@@ -3,11 +3,13 @@
 
 import { Truck, Eye, AlertCircle, Check, Camera, Lock } from 'lucide-react';
 import { t as tr, tText, numLocale } from '../../../shared/i18n/core';
+import { fmtMoney, currencySymbol, mToL, imperial, ldmToU, ldmUnit, kgToW } from '../../../shared/units/units';
+import { wU, lU, dU, vU } from '../uiHelpers';
 
 const BLUE = '#2563EB';
-const fmtEur = (n) => `${Math.round(n).toLocaleString(numLocale())} €`;
+const fmtEur = (n) => fmtMoney(Math.round(n), { max: 0 });
 const fmtPct = (r) => `${Math.round((r ?? 0) * 100)} %`;
-const dims = (c) => `${(c.length / 1000).toFixed(1)}×${(c.width / 1000).toFixed(2)}×${(c.height / 1000).toFixed(2)} m`;
+const dims = (c) => { const d = imperial() ? 1 : 2; return `${mToL(c.length / 1000).toFixed(1)}×${mToL(c.width / 1000).toFixed(d)}×${mToL(c.height / 1000).toFixed(d)} ${lU()}`; };
 
 /** Véhicules proposés : case à cocher + coût par voyage. props : vehicles, onChange */
 export function FleetVehicles({ vehicles, onChange, note = null }) {
@@ -21,13 +23,13 @@ export function FleetVehicles({ vehicles, onChange, note = null }) {
             <input type="checkbox" checked={v.enabled} onChange={(e) => set(v.container.id, { enabled: e.target.checked })} />
             <span className="flex-1 min-w-0">
               <span className="block text-xs font-medium text-slate-800">{tText(v.container.label)}</span>
-              <span className="block font-jetbrains text-[10px] text-slate-500">{dims(v.container)} · {Math.round(v.container.maxWeight ?? 0).toLocaleString(numLocale())} kg</span>
+              <span className="block font-jetbrains text-[10px] text-slate-500">{dims(v.container)} · {Math.round(kgToW(v.container.maxWeight ?? 0)).toLocaleString(numLocale())} {wU()}</span>
             </span>
             <span className="flex items-center gap-1 shrink-0">
               <input type="number" min="0" step="10" value={v.cost} onChange={(e) => set(v.container.id, { cost: Math.max(0, Number(e.target.value) || 0) })}
                 onClick={(e) => e.preventDefault()}
                 className="w-20 px-2 py-1.5 border border-slate-200 rounded-md text-right font-jetbrains text-base sm:text-xs" aria-label={tr('Coût {label}', { label: v.container.label })} />
-              <span className="font-jetbrains text-[10px] text-slate-400">€</span>
+              <span className="font-jetbrains text-[10px] text-slate-400">{currencySymbol()}</span>
             </span>
           </label>
         ))}
@@ -89,9 +91,9 @@ export function FleetResult({ plan, viewing, onView, trucks = null, locked = fal
               <div className="font-jetbrains text-[10px] text-slate-500 mt-0.5">
                 {t.stops.length > 1 ? tr('Arrêts {v1} à {v2}', { v1: t.stops[0], v2: t.stops[t.stops.length - 1] }) : tr('Arrêt {v1}', { v1: t.stops[0] })}{t.destinations.length ? ` · ${t.destinations.slice(0, 3).join(', ')}${t.destinations.length > 3 ? '…' : ''}` : ''}{t.split ? tr(' · arrêt partagé') : ''}
               </div>
-              <div className="font-jetbrains text-[10px] text-slate-500">{tr('{units} colis · {v1} kg · volume {v2}{v3}', { units: t.units, v1: t.weight.toLocaleString(numLocale()), v2: fmtPct(t.volumeUtilization), v3: t.weightUtilization != null ? tr(' · poids {v1}', { v1: fmtPct(t.weightUtilization) }) : '' })}</div>
+              <div className="font-jetbrains text-[10px] text-slate-500">{tr('{units} colis · {v1} {wu} · volume {v2}{v3}', { wu: wU(), lu: lU(), du: dU(), vu: vU(),  units: t.units, v1: Math.round(kgToW(t.weight)).toLocaleString(numLocale()), v2: fmtPct(t.volumeUtilization), v3: t.weightUtilization != null ? tr(' · poids {v1}', { v1: fmtPct(t.weightUtilization) }) : '' })}</div>
               {floors && (floors[t.index]
-                ? <div className="font-jetbrains text-[10px] text-slate-500">{tr('Plancher occupé {v1} / {v2} m · {v3} MPL', { v1: fmt1(floors[t.index].occupiedLength), v2: fmt1(floors[t.index].containerLength), v3: fmt1(floors[t.index].ldm) })}</div>
+                ? <div className="font-jetbrains text-[10px] text-slate-500">{tr('Plancher occupé {v1} / {v2} {lu} · {v3} {mu}', { wu: wU(), lu: lU(), du: dU(), vu: vU(), mu: imperial() ? ldmUnit() : tr('MPL'), v1: fmt1(mToL(floors[t.index].occupiedLength)), v2: fmt1(mToL(floors[t.index].containerLength)), v3: fmt1(ldmToU(floors[t.index].ldm)) })}</div>
                 : <div className="font-jetbrains text-[10px] text-slate-400">{tr('Plancher : calcul…')}</div>)}
               <button onClick={() => onView(t)} className="mt-2 inline-flex items-center gap-1.5 font-jetbrains text-[11px] px-2.5 py-1.5 rounded-md"
                 style={viewing === t.index ? { background: BLUE, color: '#fff' } : { background: '#F1F5F9', color: '#475569' }}>

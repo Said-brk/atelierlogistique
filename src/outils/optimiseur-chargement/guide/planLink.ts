@@ -7,6 +7,7 @@
 // Positions en cm (x depuis la cabine, y depuis la gauche, z depuis le plancher), ordre = séquence de chargement.
 
 import type { ContainerDefinition, PlacedItem } from '../engine/types';
+import { imperial } from '../../../shared/units/units';
 
 export const GUIDE_PATH = '/chargement';
 /** Guide en anglais (même page, interface anglaise). */
@@ -20,7 +21,8 @@ export interface GuideItem {
   ref: string; x: number; y: number; z: number; l: number; w: number; h: number; // mm
   stop: number; wall: number; unitId: string | null; destination: string;
 }
-export interface GuidePlan { label: string; container: { length: number; width: number; height: number }; items: GuideItem[]; }
+/** imperial : plan créé par une entreprise en unités US (affichage en pieds / pouces). */
+export interface GuidePlan { label: string; container: { length: number; width: number; height: number }; items: GuideItem[]; imperial?: boolean; }
 
 const cm = (mm: number) => Math.round(mm / 10);
 
@@ -97,6 +99,7 @@ export async function encodePlan(
   }
   const head: Record<string, unknown> = { n: container.label, c: [cm(container.length), cm(container.width), cm(container.height)], r: refs, d: dest, t: types, N: ordered.length };
   if (anyId) head.u = ids;
+  if (imperial()) head.U = 1; // unités US de l'entreprise : le guide cariste affiche pieds / pouces
   const body: number[] = [];
   for (const k of ['t', 'o', 's', 'w'] as const) col[k].forEach((v) => pushVarint(body, v));
   for (const k of ['x', 'y', 'z'] as const) { let prev = 0; col[k].forEach((v) => { pushVarint(body, zig(v - prev)); prev = v; }); }
@@ -136,6 +139,7 @@ function decodeV2(raw: Uint8Array): GuidePlan {
   const mm = (v: number) => v * 10;
   return {
     label: String(head.n ?? 'Véhicule'),
+    imperial: head.U === 1,
     container: { length: mm(head.c[0]), width: mm(head.c[1]), height: mm(head.c[2]) },
     items: Array.from({ length: N }, (_, i) => {
       const [ri, a, b, c] = head.t[cols.t[i]]; const dims = [a, b, c]; const pm = PERMS[cols.o[i]] ?? PERMS[0];

@@ -4,6 +4,7 @@
 import { applyMapping, suggestMapping } from '../../shared/import';
 import { COLIS_SCHEMA, recordsToColisRows } from './import/colisSchema';
 import { t, numLocale, N_ } from '../../shared/i18n/core';
+import { imperial, kgToW, m3ToV } from '../../shared/units/units';
 
 let seq = 0;
 export const newRowId = () => `row_${Date.now().toString(36)}_${(seq++).toString(36)}`;
@@ -184,6 +185,8 @@ export function bulkToRows(json) {
 }
 
 export const mm3ToM3 = (mm3) => mm3 / 1e9;
-export const formatM3 = (mm3) => mm3ToM3(mm3).toLocaleString(numLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-export const formatKg = (kg) => Math.round(kg).toLocaleString(numLocale());
+// Valeurs dans les unités de l'entreprise (m³ ou ft³, kg ou lb) ; l'unité s'affiche avec vU() / wU().
+export const formatM3 = (mm3) => m3ToV(mm3ToM3(mm3)).toLocaleString(numLocale(), { minimumFractionDigits: imperial() ? 0 : 2, maximumFractionDigits: imperial() ? 0 : 2 });
+export const formatKg = (kg) => Math.round(kgToW(kg)).toLocaleString(numLocale());
+export { weightUnit as wU, volumeUnit as vU, lengthUnit as lU, dimUnit as dU } from '../../shared/units/units';
 export const formatPct = (ratio) => (ratio * 100).toLocaleString(numLocale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 });

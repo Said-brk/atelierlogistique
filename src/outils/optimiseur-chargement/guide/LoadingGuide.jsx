@@ -7,6 +7,8 @@ import { decodePlan } from './planLink';
 import ConfirmLoading from './ConfirmLoading';
 import { refColor, stopColor } from '../uiHelpers';
 import { t, numLocale } from '../../../shared/i18n/core';
+import { mToL, setUnits, getUnits, lengthUnit } from '../../../shared/units/units';
+import { wU, lU, dU, vU } from '../uiHelpers';
 
 const LoadView3D = lazy(() => import('../LoadView3D.jsx'));
 const BLUE = '#2563EB';
@@ -19,15 +21,15 @@ class Boundary extends Component {
   render() { return this.state.failed ? this.props.fallback : this.props.children; }
 }
 
-const m = (mm) => (mm / 1000).toLocaleString(numLocale(), { maximumFractionDigits: 1 });
+const m = (mm) => mToL(mm / 1000).toLocaleString(numLocale(), { maximumFractionDigits: 1 });
 const hash = (s) => { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return (h >>> 0).toString(36); };
 
 /** Position lisible pour le cariste (vu depuis les portes, tourné vers la cabine). */
 function where(it, W) {
   const cy = it.y + it.w / 2;
   const side = cy < W / 3 ? t('à droite') : cy > (2 * W) / 3 ? t('à gauche') : t('au centre');
-  const level = it.z < 10 ? t('au sol') : t('en hauteur (sur {v1} m)', { v1: m(it.z) });
-  return t('{v1} m depuis la cabine · {side} · {level}', { v1: m(it.x), side: side, level: level });
+  const level = it.z < 10 ? t('au sol') : t('en hauteur (sur {v1} {lu})', { wu: wU(), lu: lU(), du: dU(), vu: vU(),  v1: m(it.z) });
+  return t('{v1} {lu} depuis la cabine · {side} · {level}', { wu: wU(), lu: lU(), du: dU(), vu: vU(),  v1: m(it.x), side: side, level: level });
 }
 
 /**
@@ -53,7 +55,7 @@ export default function LoadingGuide({ payload: given = null, notice = null, war
 
   useEffect(() => {
     if (!payload) { setError(t('Aucun plan dans ce lien. Scannez le QR code de la fiche de chargement.')); return; }
-    decodePlan(payload).then((p) => { setPlan(p); if (p.items.length > 40) setByWall(true); }).catch(() => setError(t('Ce lien de chargement est incomplet ou abîmé.')));
+    decodePlan(payload).then((p) => { setUnits({ ...getUnits(), units: p.imperial ? 'imperial' : 'metric' }); setPlan(p); if (p.items.length > 40) setByWall(true); }).catch(() => setError(t('Ce lien de chargement est incomplet ou abîmé.')));
   }, [payload]);
 
   // Étapes : un colis par étape, ou un mur entier par étape (gros chargements).
@@ -137,13 +139,13 @@ export default function LoadingGuide({ payload: given = null, notice = null, war
             </div>
             {items.length === 1 && first.unitId && <div className="text-sm text-slate-600">{first.ref}</div>}
             {first.destination && <div className="text-sm text-slate-600">{first.destination}</div>}
-            <div className="mt-2 text-sm text-slate-800">{items.length > 1 ? t('Mur {wall} · à partir de {v1} m depuis la cabine', { wall: first.wall, v1: m(first.x) }) : where(first, plan.container.width)}</div>
+            <div className="mt-2 text-sm text-slate-800">{items.length > 1 ? t('Mur {wall} · à partir de {v1} {lu} depuis la cabine', { wu: wU(), lu: lU(), du: dU(), vu: vU(),  wall: first.wall, v1: m(first.x) }) : where(first, plan.container.width)}</div>
             {items.length > 1 && (
               <ul className="mt-2 text-xs text-slate-600 space-y-0.5 max-h-28 overflow-y-auto">
                 {Object.entries(items.reduce((acc, i) => { acc[i.ref] = (acc[i.ref] ?? 0) + 1; return acc; }, {})).map(([r, n]) => <li key={r}>{r} × {n}</li>)}
               </ul>
             )}
-            <div className="mt-1 font-jetbrains text-[11px] text-slate-500">{t('{v1}en orange sur la vue', { v1: items.length === 1 ? `${m(first.l)} × ${m(first.w)} × ${m(first.h)} m · ` : '' })}</div>
+            <div className="mt-1 font-jetbrains text-[11px] text-slate-500">{t('{v1}en orange sur la vue', { v1: items.length === 1 ? `${m(first.l)} × ${m(first.w)} × ${m(first.h)} ${lengthUnit()} · ` : '' })}</div>
           </div>
         )}
 

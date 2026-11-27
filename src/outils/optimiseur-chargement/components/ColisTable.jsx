@@ -2,7 +2,9 @@
 // Partagé par l'optimiseur de chargement et la palettisation 3D : même modèle de ligne
 // (uiHelpers : emptyRow, validateRow, stackingOf…), même ergonomie.
 
+import { useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
+import { imperial, cmToDim, dimToCm, kgToW, wToKg, dimUnit, weightUnit } from '../../../shared/units/units';
 import { validateRow, refColor, ROTATION_OPTIONS, STACKING_OPTIONS, stackingOf } from '../uiHelpers';
 import { t, tText } from '../../../shared/i18n/core';
 
@@ -10,13 +12,30 @@ export function Th({ children, className = '', title }) {
   return <th title={title} className={`font-normal text-slate-400 px-1 py-2 text-[10px] tracking-wider ${className}`}>{children}</th>;
 }
 
+/**
+ * Saisie dans les unités de l'entreprise (kind : 'dim' cm ↔ in, 'weight' kg ↔ lb) ; la ligne reste en cm / kg.
+ * En US, le texte tapé est gardé tel quel pendant la saisie (« 12. ») et converti à chaque frappe.
+ */
+function useUnitInput(value, onChange, kind) {
+  const [text, setText] = useState(null);
+  if (!kind || !imperial()) return { value, onChange, onBlur: undefined };
+  const [toUi, fromUi] = kind === 'dim' ? [cmToDim, dimToCm] : [kgToW, wToKg];
+  const shown = text ?? (value === '' || value == null ? '' : String(Math.round(toUi(Number(value)) * 100) / 100));
+  return {
+    value: shown,
+    onChange: (v) => { setText(v); const n = parseFloat(String(v).replace(',', '.')); onChange(v === '' ? '' : Number.isFinite(n) ? fromUi(n) : v); },
+    onBlur: () => setText(null),
+  };
+}
+
 // Champ numérique libellé, version mobile (police 16 px : évite le zoom iOS).
-export function MobileNum({ label, value, onChange, error, step = '1' }) {
+export function MobileNum({ label, value: raw, onChange: change, error, step = '1', kind = null }) {
+  const { value, onChange, onBlur } = useUnitInput(raw, change, kind);
   return (
     <label className="block min-w-0">
       <span className="block font-jetbrains text-[10px] text-slate-400 mb-0.5">{label}</span>
       <input type="number" inputMode="decimal" value={value} min="0" step={step}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => onChange(e.target.value)} onBlur={onBlur}
         className="w-full px-2 py-2 bg-white border rounded-md outline-none font-jetbrains text-base text-center text-slate-800 focus:border-slate-400"
         style={{ borderColor: error ? '#FCA5A5' : '#E2E8F0' }} />
       {error && <span className="block text-[10px] text-red-500 mt-0.5 leading-tight">{error}</span>}
@@ -24,12 +43,13 @@ export function MobileNum({ label, value, onChange, error, step = '1' }) {
   );
 }
 
-export function NumCell({ value, onChange, error, width = 'w-14', step = '1' }) {
+export function NumCell({ value: raw, onChange: change, error, width = 'w-14', step = '1', kind = null }) {
+  const { value, onChange, onBlur } = useUnitInput(raw, change, kind);
   return (
     <div className={width}>
       <input
         type="number" value={value} min="0" step={step}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => onChange(e.target.value)} onBlur={onBlur}
         className="w-full px-1 py-1.5 bg-white border rounded-md outline-none font-jetbrains text-xs text-center text-slate-800 focus:border-slate-400 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
         style={{ borderColor: error ? '#FCA5A5' : '#E2E8F0' }}
       />
@@ -81,7 +101,7 @@ export function agencyStop(code, agencies) {
 }
 
 /** agencies (facultatif, espace) : [{ code, label, city, tour, order }] — liste des destinations. */
-export default function ColisTable({ rows, updateRow, updateStacking, removeRow, addRow, footerHint = t('dimensions en cm · poids en kg · arrêt 1 = livré en premier'), extraSelect = null, agencies = null }) {
+export default function ColisTable({ rows, updateRow, updateStacking, removeRow, addRow, footerHint = t('dimensions en {d} · poids en {w} · arrêt 1 = livré en premier', { d: dimUnit(), w: weightUnit() }), extraSelect = null, agencies = null }) {
   // Destination = agence d'une tournée : l'arrêt suit son rang dans la tournée (Paramètres › Tables de référence).
   const setDestination = (r, v) => {
     updateRow(r.id, 'destination', v);
@@ -112,10 +132,10 @@ export default function ColisTable({ rows, updateRow, updateStacking, removeRow,
               </div>
               <div className="grid grid-cols-5 gap-1.5">
                 <MobileNum label={t('Qté')} value={r.quantity} onChange={(v) => updateRow(r.id, 'quantity', v)} error={err.quantity} />
-                <MobileNum label="L cm" value={r.length} onChange={(v) => updateRow(r.id, 'length', v)} error={err.length} />
-                <MobileNum label="l cm" value={r.width} onChange={(v) => updateRow(r.id, 'width', v)} error={err.width} />
-                <MobileNum label="H cm" value={r.height} onChange={(v) => updateRow(r.id, 'height', v)} error={err.height} />
-                <MobileNum label="kg" value={r.weight} onChange={(v) => updateRow(r.id, 'weight', v)} error={err.weight} step="0.1" />
+                <MobileNum label={`L ${dimUnit()}`} kind="dim" value={r.length} onChange={(v) => updateRow(r.id, 'length', v)} error={err.length} />
+                <MobileNum label={`${t('l')} ${dimUnit()}`} kind="dim" value={r.width} onChange={(v) => updateRow(r.id, 'width', v)} error={err.width} />
+                <MobileNum label={`H ${dimUnit()}`} kind="dim" value={r.height} onChange={(v) => updateRow(r.id, 'height', v)} error={err.height} />
+                <MobileNum label={weightUnit()} kind="weight" value={r.weight} onChange={(v) => updateRow(r.id, 'weight', v)} error={err.weight} step="0.1" />
               </div>
               <div className="grid grid-cols-2 gap-1.5 items-end">
                 <label className="block min-w-0">
@@ -164,7 +184,7 @@ export default function ColisTable({ rows, updateRow, updateStacking, removeRow,
           <thead>
             <tr className="border-b border-slate-100">
               <Th className="text-left">{t('Référence')}</Th>
-              <Th>{t('Qté')}</Th><Th>L</Th><Th>l</Th><Th>H</Th><Th>{t('Poids')}</Th>
+              <Th>{t('Qté')}</Th><Th title={dimUnit()}>L</Th><Th title={dimUnit()}>{t('l')}</Th><Th title={dimUnit()}>H</Th><Th title={weightUnit()}>{t('Poids')}</Th>
               <Th>{t('Rotation')}</Th><Th title={t('Libre · Dessus uniquement (rien dessus) · Au sol · Au sol, rien dessus')}>{t('Empilage')}</Th>
               <Th title={t('1 = livré en premier')}>{t('Arrêt')}</Th><Th className="text-left">{t('Destination')}</Th>{extraSelect && <Th title={extraSelect.title}>{extraSelect.label}</Th>}<Th></Th>
             </tr>
@@ -187,10 +207,10 @@ export default function ColisTable({ rows, updateRow, updateStacking, removeRow,
                     </div>
                   </td>
                   <td className="px-0.5 py-1.5"><NumCell value={r.quantity} onChange={(v) => updateRow(r.id, 'quantity', v)} error={err.quantity} width="w-12" /></td>
-                  <td className="px-0.5 py-1.5"><NumCell value={r.length} onChange={(v) => updateRow(r.id, 'length', v)} error={err.length} width="w-12" /></td>
-                  <td className="px-0.5 py-1.5"><NumCell value={r.width} onChange={(v) => updateRow(r.id, 'width', v)} error={err.width} width="w-12" /></td>
-                  <td className="px-0.5 py-1.5"><NumCell value={r.height} onChange={(v) => updateRow(r.id, 'height', v)} error={err.height} width="w-12" /></td>
-                  <td className="px-0.5 py-1.5"><NumCell value={r.weight} onChange={(v) => updateRow(r.id, 'weight', v)} error={err.weight} step="0.1" width="w-12" /></td>
+                  <td className="px-0.5 py-1.5"><NumCell kind="dim" value={r.length} onChange={(v) => updateRow(r.id, 'length', v)} error={err.length} width="w-12" /></td>
+                  <td className="px-0.5 py-1.5"><NumCell kind="dim" value={r.width} onChange={(v) => updateRow(r.id, 'width', v)} error={err.width} width="w-12" /></td>
+                  <td className="px-0.5 py-1.5"><NumCell kind="dim" value={r.height} onChange={(v) => updateRow(r.id, 'height', v)} error={err.height} width="w-12" /></td>
+                  <td className="px-0.5 py-1.5"><NumCell kind="weight" value={r.weight} onChange={(v) => updateRow(r.id, 'weight', v)} error={err.weight} step="0.1" width="w-12" /></td>
                   <td className="px-0.5 py-1.5">
                     <select value={r.rotationMode} onChange={(e) => updateRow(r.id, 'rotationMode', e.target.value)}
                       className="px-1.5 py-1.5 bg-white border border-slate-200 rounded-md outline-none font-jetbrains text-[11px] text-slate-700">

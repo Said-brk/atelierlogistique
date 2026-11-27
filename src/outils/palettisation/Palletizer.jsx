@@ -26,6 +26,8 @@ import SupportsPanel from './SupportsPanel';
 import { loadSupports, saveSupports, matchSupport } from './supportsStore';
 import { palletsToLoadRecords, palletLabel, palletStackingLabel, HEAVY_PALLET_KG } from './engine/toLoad';
 import { t, tText, numLocale, getCurrentLang, N_ } from '../../shared/i18n/core';
+import { dimUnit, weightUnit, cmToDim, fmtMoney } from '../../shared/units/units';
+import { wU, lU, dU, vU } from '../optimiseur-chargement/uiHelpers';
 
 const LoadView3D = lazy(() => import('../optimiseur-chargement/LoadView3D.jsx'));
 const ImportWizard = lazy(() => import('../../shared/import/ImportWizard.jsx'));
@@ -60,7 +62,7 @@ function exampleRows() {
 }
 
 const mmToCm = (v) => Math.round(v) / 10;
-const fmtCm = (mm) => mmToCm(mm).toLocaleString(numLocale(), { maximumFractionDigits: 1 });
+const fmtCm = (mm) => cmToDim(mmToCm(mm)).toLocaleString(numLocale(), { maximumFractionDigits: 1 }); // cm ou pouces
 const pct = (r) => `${Math.round(r * 100)} %`;
 /** Type affiché : complète (couches pleines), mono-référence incomplète, ou mixte. */
 const kindLabel = (p) => (p.kind === 'FULL' ? t('complète') : p.contents.length === 1 ? t('mono-référence') : t('mixte'));
@@ -125,7 +127,7 @@ function PrintSheet({ result, colorOf }) {
         <div style={{ fontSize: 18, fontWeight: 700 }}>{t('Plan de palettisation')}</div>
         <div style={{ fontSize: 10, color: '#475569' }}>{t('{date} · {used} · atelierlogistique.com', { date: date, used: used })}</div>
       </div>
-      <div style={{ fontSize: 11, marginBottom: 10 }}>{t('{length} palette(s) · {palletizedItems} colis · {v1} kg (tare incluse)', { length: result.pallets.length, palletizedItems: result.palletizedItems, v1: formatKg(result.pallets.reduce((s, p) => s + p.totalWeight, 0)) })}{result.unplaced.length > 0 && <span style={{ color: '#B91C1C' }}>{' '}{t('· {v1} colis non palettisés', { v1: result.unplaced.reduce((s, u) => s + u.quantity, 0) })}</span>}
+      <div style={{ fontSize: 11, marginBottom: 10 }}>{t('{length} palette(s) · {palletizedItems} colis · {v1} {wu} (tare incluse)', { wu: wU(), lu: lU(), du: dU(), vu: vU(),  length: result.pallets.length, palletizedItems: result.palletizedItems, v1: formatKg(result.pallets.reduce((s, p) => s + p.totalWeight, 0)) })}{result.unplaced.length > 0 && <span style={{ color: '#B91C1C' }}>{' '}{t('· {v1} colis non palettisés', { v1: result.unplaced.reduce((s, u) => s + u.quantity, 0) })}</span>}
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
         {result.pallets.map((p) => (
@@ -135,7 +137,7 @@ function PrintSheet({ result, colorOf }) {
               <span>{t('Arrêt {stop}{v1}', { stop: p.stop, v1: p.destination ? ` · ${p.destination}` : '' })}</span>
             </div>
             <div style={{ fontSize: 10, color: '#475569', margin: '2px 0 6px' }}>
-              H {fmtCm(p.totalHeight)} cm · {formatKg(p.totalWeight)} kg{p.kind === 'FULL' ? t(' · {layers} couches × {perLayer} (alternées)', { layers: p.layers, perLayer: p.perLayer }) : ''} · {p.stackable ? t('gerbable') : t('non gerbable')}
+              H {fmtCm(p.totalHeight)} {dU()} · {formatKg(p.totalWeight)} {wU()}{p.kind === 'FULL' ? t(' · {layers} couches × {perLayer} (alternées)', { layers: p.layers, perLayer: p.perLayer }) : ''} · {p.stackable ? t('gerbable') : t('non gerbable')}
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
               <TopView pallet={p} spec={specOf(p)} colorOf={colorOf} size={130} />
@@ -361,7 +363,7 @@ export default function Palletizer({ onBack, embedded: embeddedProp = false, onL
           )}
           <ColisTable rows={rows} updateRow={updateRow} updateStacking={updateStacking} removeRow={removeRow} addRow={addRow}
             extraSelect={available.length > 1 ? supportSelect : null} agencies={workspace?.references?.agencies}
-            footerHint={t('dimensions en cm · poids en kg · un arrêt = des palettes séparées')} />
+            footerHint={t('dimensions en {d} · poids en {w} · un arrêt = des palettes séparées', { d: dimUnit(), w: weightUnit() })} />
         </div>
 
         {/* 2. Palette + options */}
@@ -442,9 +444,9 @@ export default function Palletizer({ onBack, embedded: embeddedProp = false, onL
                   <div className="px-4 py-3 border-t border-slate-100 grid sm:grid-cols-2 gap-3">
                     <div>
                       <div className="font-bricolage font-semibold text-slate-900">{t('{id} · palette {v1} · {label}', { id: pallet.id, v1: kindLabel(pallet), label: tText(spec.label) })}</div>
-                      <div className="font-jetbrains text-[11px] text-slate-500">{t('Arrêt {stop}{v1} · H {v2} cm · {v3} kg · remplissage {v4}', { stop: pallet.stop, v1: pallet.destination ? ` · ${pallet.destination}` : '', v2: fmtCm(pallet.totalHeight), v3: formatKg(pallet.totalWeight), v4: pct(pallet.volumeFill) })}</div>
+                      <div className="font-jetbrains text-[11px] text-slate-500">{t('Arrêt {stop}{v1} · H {v2} {du} · {v3} {wu} · remplissage {v4}', { wu: wU(), lu: lU(), du: dU(), vu: vU(),  stop: pallet.stop, v1: pallet.destination ? ` · ${pallet.destination}` : '', v2: fmtCm(pallet.totalHeight), v3: formatKg(pallet.totalWeight), v4: pct(pallet.volumeFill) })}</div>
                       {pallet.kind === 'FULL' && <div className="font-jetbrains text-[11px] text-slate-500">{t('{layers} couche(s) × {perLayer} colis · couches alternées à 180°', { layers: pallet.layers, perLayer: pallet.perLayer })}</div>}
-                      <div className="font-jetbrains text-[11px]" style={{ color: pallet.stackable ? '#15803D' : '#B45309' }}>{pallet.stackable ? t('Gerbable (tous les colis acceptent une charge)') : t('Non gerbable (colis fragiles)')}{pallet.totalWeight > HEAVY_PALLET_KG ? t(' · plus de {HEAVY_PALLET_KG} kg : reste au sol du camion', { HEAVY_PALLET_KG: HEAVY_PALLET_KG }) : ''}</div>
+                      <div className="font-jetbrains text-[11px]" style={{ color: pallet.stackable ? '#15803D' : '#B45309' }}>{pallet.stackable ? t('Gerbable (tous les colis acceptent une charge)') : t('Non gerbable (colis fragiles)')}{pallet.totalWeight > HEAVY_PALLET_KG ? t(' · plus de {HEAVY_PALLET_KG} {wu} : reste au sol du camion', { wu: wU(), lu: lU(), du: dU(), vu: vU(),  HEAVY_PALLET_KG: formatKg(HEAVY_PALLET_KG) }) : ''}</div>
                     </div>
                     <div className="space-y-1">
                       {pallet.contents.map((c) => (
@@ -464,10 +466,10 @@ export default function Palletizer({ onBack, embedded: embeddedProp = false, onL
               <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
                 <div className="font-jetbrains text-xs text-slate-600">{t('RÉSULTAT')}</div>
                 <div className="grid grid-cols-2 gap-2">
-                  <Kpi label={t('Palettes')} value={result.pallets.length} sub={`${totals.bySupport.map(([l, n]) => `${n} ${l}`).join(' · ')}${totals.cost ? ` · ${totals.cost.toLocaleString(numLocale())} €` : ''}`} />
+                  <Kpi label={t('Palettes')} value={result.pallets.length} sub={`${totals.bySupport.map(([l, n]) => `${n} ${l}`).join(' · ')}${totals.cost ? ` · ${fmtMoney(totals.cost)}` : ''}`} />
                   <Kpi label={t('Colis palettisés')} value={`${result.palletizedItems}/${result.totalItems}`} sub={totals.unplaced ? t('{unplaced} non palettisé(s)', { unplaced: totals.unplaced }) : t('tout est palettisé')} />
-                  <Kpi label={t('Poids total')} value={`${formatKg(totals.weight)} kg`} sub={t('tare incluse')} />
-                  <Kpi label={t('Remplissage moyen')} value={pct(totals.fill)} sub={t('hauteur maxi {v1} cm', { v1: fmtCm(totals.maxH) })} />
+                  <Kpi label={t('Poids total')} value={`${formatKg(totals.weight)} ${wU()}`} sub={t('tare incluse')} />
+                  <Kpi label={t('Remplissage moyen')} value={pct(totals.fill)} sub={t('hauteur maxi {v1} {du}', { wu: wU(), lu: lU(), du: dU(), vu: vU(),  v1: fmtCm(totals.maxH) })} />
                 </div>
                 {result.choices.length > 0 && result.specs.length > 1 && (
                   <div className="rounded-md px-3 py-2 space-y-1" style={{ background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
@@ -513,7 +515,7 @@ export default function Palletizer({ onBack, embedded: embeddedProp = false, onL
                       style={i === active ? { background: BLUE_LIGHT } : undefined}>
                       <span className="font-jetbrains text-[11px] text-slate-500 w-14 shrink-0">{p.id}</span>
                       <span className="flex-1 min-w-0 text-xs text-slate-800 truncate">{palletLabel(p)}{p.destination ? ` · ${p.destination}` : ''}</span>
-                      <span className="font-jetbrains text-[10px] text-slate-500 shrink-0">{fmtCm(p.totalHeight)} cm · {formatKg(p.totalWeight)} kg</span>
+                      <span className="font-jetbrains text-[10px] text-slate-500 shrink-0">{fmtCm(p.totalHeight)} {dU()} · {formatKg(p.totalWeight)} {wU()}</span>
                       {p.stackable ? <Check size={12} className="text-green-600 shrink-0" /> : <span className="w-3 shrink-0" />}
                     </button>
                   ))}
