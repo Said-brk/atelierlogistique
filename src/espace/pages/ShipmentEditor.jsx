@@ -3,10 +3,10 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { Loader2, QrCode, PackageCheck, X, Copy, Trash2 } from 'lucide-react';
+import { Loader2, QrCode, PackageCheck, X, Copy, Trash2, CheckCircle2, RotateCcw } from 'lucide-react';
 import LoadOptimizer from '../../outils/optimiseur-chargement/LoadOptimizer.jsx';
 import { useEspace } from '../useEspace';
-import { getShipment, createShipment, updateShipment, palletizationsOfShipment, shareUrlOf, shipmentStatus, deleteShipment, duplicateShipment, mergedCount, DOCK_STATUSES, SOURCE } from '../data';
+import { getShipment, createShipment, updateShipment, palletizationsOfShipment, shareUrlOf, shipmentStatus, markShipmentLoaded, deleteShipment, duplicateShipment, mergedCount, DOCK_STATUSES, SOURCE } from '../data';
 import { useLoadingProofs, proofsByTruck, ProofButton, ProofViewer } from '../LoadingProof';
 import GuideQrModal from '../../outils/optimiseur-chargement/guide/GuideQrModal';
 import { EditorHeader, DocChip, Btn, editorInputCls, pct, ConflictBanner, ReferencesError, DocMenu } from '../ui';
@@ -146,6 +146,34 @@ export default function ShipmentEditor() {
   const invoiceGap = invoiced != null && Number.isFinite(invoiced) && liveQuote && !liveQuote.error && liveQuote.amount
     ? (() => { const g = invoiced - liveQuote.amount; const pct = (g / liveQuote.amount) * 100; return { pct, text: `${g >= 0 ? '+' : ''}${pct.toLocaleString(numLocale(), { maximumFractionDigits: 1 })} %` }; })()
     : null;
+  // « Marquer chargé » depuis le bureau (sans QR code) : tous les camions pas encore confirmés au quai.
+  const nTrucks = Math.max(1, plan?.guides?.length ?? 1);
+  const nDone = Object.keys(byTruck).length;
+  const markLoaded = async () => {
+    const msg = tr('Marquer {code} comme chargé ?', { code: ed.doc.code })
+      + (nTrucks > 1 ? `\n\n${tr('Les {n} camions passent « chargé » ({done} déjà confirmé(s) au quai).', { n: nTrucks, done: nDone })}` : '')
+      + `\n\n${tr('Sans scanner le QR code : la confirmation est enregistrée à votre nom.')}`;
+    if (!window.confirm(msg)) return; // eslint-disable-line no-alert
+    const d = ed.dirty ? await ed.save() : ed.doc;
+    if (!d) return;
+    try { await markShipmentLoaded(d.id); await ed.refreshStatus(() => shipmentStatus(d.id)); } catch (e) { alert(e.message); } // eslint-disable-line no-alert
+  };
+  // Un seul bouton d'étape (la suite logique), tout le reste dans « Actions ».
+  const st = ed.doc.status;
+  const reopenable = ['validated', ...DOCK_STATUSES].includes(st);
+  const noPlan = tr('Lancez d’abord l’optimisation');
+  const step = ['new', 'in_progress'].includes(st) ? 'validate' : st === 'validated' ? 'dock' : st === 'loaded' ? 'reopen' : 'loaded';
+  const doValidate = () => ed.save('validated');
+  const doReopen = () => ed.save('in_progress');
+  const quaiLabel = sent ? tr('QR code du quai') : tr('Envoyer au quai (QR code)');
+  const statusAction = {
+    validate: <Btn variant="success" onClick={doValidate} disabled={ed.saving || !s} title={s ? '' : noPlan}><CheckCircle2 size={15} /> {tr('Valider')}</Btn>,
+    dock: <Btn variant="amber" onClick={sendToDock} disabled={ed.saving || !s} title={s ? tr('QR code et lien du plan pour le cariste, sans compte') : noPlan}>
+      <QrCode size={15} /> <span className="sm:hidden">{tr('Quai')}</span><span className="hidden sm:inline">{tr('Envoyer au quai')}</span></Btn>,
+    loaded: <Btn variant="ghost" onClick={markLoaded} disabled={ed.saving || !s} title={tr('Sans passer par le QR code')} className="!text-violet-700 !border-violet-300">
+      <PackageCheck size={15} /> {tr('Marquer chargé')}</Btn>,
+    reopen: <Btn variant="ghost" onClick={doReopen} disabled={ed.saving}><RotateCcw size={15} /> {tr('Rouvrir')}</Btn>,
+  }[step];
   const duplicate = async () => {
     const d = ed.dirty ? await ed.save() : ed.doc;
     if (d) navigate(`/app/chargements/${await duplicateShipment(d)}`);
@@ -170,9 +198,12 @@ export default function ShipmentEditor() {
       <EditorHeader backTo="/app/chargements" backTitle={tr('Retour aux chargements')} doc={ed.doc} meta={ed.meta} onMeta={ed.setMeta}
         dirty={ed.dirty} savedAt={ed.savedAt} saving={ed.saving} onSave={ed.save} canValidate={!!s} validateHint={tr('Lancez d’abord l’optimisation')}
         sourceLabel={SOURCE[ed.doc.source]} error={ed.error}
-        actions={<Btn variant="amber" onClick={sendToDock} disabled={ed.saving || !s} title={s ? tr('QR code et lien du plan pour le cariste, sans compte') : tr('Lancez d’abord l’optimisation')}>
-          <QrCode size={15} /> {sent ? tr('QR quai') : <><span className="sm:hidden">{tr('Quai')}</span><span className="hidden sm:inline">{tr('Envoyer au quai')}</span></>}</Btn>}
-        menu={<DocMenu disabled={ed.saving} items={[
+        statusAction={statusAction}
+        menu={<DocMenu disabled={ed.saving} label={tr('Actions')} items={[
+          step !== 'dock' && { label: quaiLabel, icon: QrCode, color: '#D97706', onClick: sendToDock, disabled: !s, hint: s ? '' : noPlan },
+          step !== 'loaded' && st !== 'loaded' && { label: tr('Marquer chargé (sans QR code)'), icon: PackageCheck, color: '#6D28D9', onClick: markLoaded, disabled: !s, hint: s ? '' : noPlan },
+          step !== 'reopen' && reopenable && { label: tr('Rouvrir'), icon: RotateCcw, onClick: doReopen },
+          { divider: true },
           { label: tr('Dupliquer'), icon: Copy, onClick: duplicate },
           { label: tr('Supprimer…'), icon: Trash2, danger: true, onClick: remove },
         ]} />}

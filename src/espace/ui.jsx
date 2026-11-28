@@ -1,7 +1,7 @@
 // Petits éléments d'interface communs aux pages de l'espace.
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Save, CheckCircle2, RotateCcw, Loader2, Truck, Package, AlertTriangle, MoreHorizontal } from 'lucide-react';
+import { ArrowLeft, Save, CheckCircle2, RotateCcw, Loader2, Truck, Package, AlertTriangle, MoreHorizontal, ChevronDown } from 'lucide-react';
 import { STATUS } from './data';
 import { t as tr, numLocale } from '../shared/i18n/core';
 
@@ -49,6 +49,7 @@ const inputCls = 'rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text
 export function EditorHeader({
   backTo, backTitle, doc, kindColor = '#1D4ED8', kindBg = '#EFF6FF', meta, onMeta, dirty, saving, onSave,
   canValidate, validateHint, extraFields = null, links = null, summary = null, error = '', sourceLabel = '', actions = null, menu = null, savedAt = null,
+  statusAction, // optionnel : remplace le bouton Valider / Rouvrir (null = aucun)
 }) {
   const validated = ['validated', 'sent', 'partially_loaded', 'loaded'].includes(doc.status);
   return (
@@ -71,7 +72,7 @@ export function EditorHeader({
           <Btn variant="ghost" onClick={() => onSave()} disabled={saving} title={dirty ? tr('Modifications non enregistrées') : ''}>
             {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />} {tr('Enregistrer')}
             {dirty && <span className="w-2 h-2 rounded-full bg-amber-500 lg:hidden" aria-label={tr('Modifications non enregistrées')} />}</Btn>
-          {validated
+          {statusAction !== undefined ? statusAction : validated
             ? <Btn variant="ghost" onClick={() => onSave('in_progress')} disabled={saving}><RotateCcw size={15} /> {tr('Rouvrir')}</Btn>
             : <Btn variant="success" onClick={() => onSave('validated')} disabled={saving || !canValidate} title={canValidate ? '' : validateHint}><CheckCircle2 size={15} /> {tr('Valider')}</Btn>}
           {menu && <div className="flex-none">{menu}</div>}
@@ -130,8 +131,11 @@ export function ReferencesError({ error, onRetry }) {
   );
 }
 
-/** Menu « … » d'un document : items = [{ label, icon, onClick, danger }]. */
-export function DocMenu({ items, disabled = false }) {
+/**
+ * Menu d'un document : items = [{ label, icon, onClick, danger, disabled, hint }] ; { divider: true } = séparateur.
+ * label : bouton « Actions ▾ » au lieu de « … ».
+ */
+export function DocMenu({ items, disabled = false, label = null }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   useEffect(() => {
@@ -143,15 +147,18 @@ export function DocMenu({ items, disabled = false }) {
   }, [open]);
   return (
     <div ref={ref} className="relative">
-      <Btn variant="ghost" onClick={() => setOpen((o) => !o)} disabled={disabled} aria-label={tr('Plus d’actions')} title={tr('Plus d’actions')}><MoreHorizontal size={16} /></Btn>
+      <Btn variant="ghost" onClick={() => setOpen((o) => !o)} disabled={disabled} aria-haspopup="menu" aria-expanded={open} aria-label={label ?? tr('Plus d’actions')} title={label ? '' : tr('Plus d’actions')}>
+        {label ? <>{label}<ChevronDown size={14} className={`transition-transform ${open ? 'rotate-180' : ''}`} /></> : <MoreHorizontal size={16} />}</Btn>
       {open && (
-        <div className="absolute right-0 top-full mt-1 z-40 w-52 rounded-xl border border-slate-200 bg-white shadow-lg py-1">
-          {items.map((it) => (
-            <button key={it.label} onClick={() => { setOpen(false); it.onClick(); }}
-              className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-slate-50 ${it.danger ? 'text-red-700' : 'text-slate-700'}`}>
-              <it.icon size={15} /> {it.label}
-            </button>
-          ))}
+        <div role="menu" className="absolute right-0 top-full mt-1 z-40 w-64 rounded-xl border border-slate-200 bg-white shadow-lg py-1">
+          {items.filter(Boolean).map((it, i) => (it.divider
+            ? <div key={`d${i}`} className="my-1 border-t border-slate-100" />
+            : (
+              <button key={it.label} role="menuitem" disabled={it.disabled} title={it.hint ?? ''} onClick={() => { setOpen(false); it.onClick(); }}
+                className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-slate-50 disabled:opacity-40 disabled:hover:bg-white ${it.danger ? 'text-red-700' : 'text-slate-700'}`}>
+                <it.icon size={15} className="shrink-0" style={it.color ? { color: it.color } : undefined} /> {it.label}
+              </button>
+            )))}
         </div>
       )}
     </div>

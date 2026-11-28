@@ -433,6 +433,15 @@ export async function loadingProofs(shipmentId) {
   return data.map((l) => ({ ...l, urls: l.photos.map((p) => urlOf[p]).filter(Boolean) }));
 }
 
+/** « Marquer chargé » depuis l'espace, sans passer par le QR code (tous les camions restants). */
+export async function markShipmentLoaded(id) {
+  const sb = await getSupabase();
+  const { data, error } = await sb.rpc('mark_shipment_loaded', { p_id: id });
+  if (error && /mark_shipment_loaded/.test(error.message)) throw new Error(tr('Fonction absente de la base : exécutez la migration 20261128000017 dans Supabase.'));
+  fail(error);
+  return data;
+}
+
 /** Statut seul (léger) : suivi du chargement au quai pendant que la page est ouverte. */
 export async function shipmentStatus(id) {
   const sb = await getSupabase();
