@@ -50,9 +50,12 @@ function quoteDetail(q) {
   if (!q || q.error) return q?.error ?? '';
   const lines = [];
   if (q.lines) q.lines.forEach((l) => lines.push(tr('{n} × {label} à {price}', { n: l.count, label: l.label, price: eur(l.price) })));
-  else lines.push(`${q.qty.toLocaleString(numLocale())} ${tr(q.unit)} → ${eur(q.base)}`);
-  if (q.taxable) lines.push(tr('Poids taxable : {w} ({by})', { w: fmtWeight(q.taxable.kg), by: { real: tr('poids réel'), volume: tr('volume'), floor: tr('plancher') }[q.taxable.by] }));
-  if (q.minApplied) lines.push(tr('Minimum de perception appliqué'));
+  else if (q.byDest) {
+    q.byDest.forEach((d) => lines.push(`${d.agency} · ${d.zone} · ${d.qty.toLocaleString(numLocale())} ${tr(d.unit)} → ${eur(d.price)}${d.minApplied ? ` (${tr('minimum')})` : ''}`));
+    if (q.byDest.length > 1) lines.push(`${tr('Total transport')} → ${eur(q.base)}`);
+  } else lines.push(`${q.qty.toLocaleString(numLocale())} ${tr(q.unit)} → ${eur(q.base)}`);
+  if (q.taxable && !q.byDest) lines.push(tr('Poids taxable : {w} ({by})', { w: fmtWeight(q.taxable.kg), by: { real: tr('poids réel'), volume: tr('volume'), floor: tr('plancher') }[q.taxable.by] }));
+  if (q.minApplied && !q.byDest) lines.push(tr('Minimum de perception appliqué'));
   if (q.fuel) lines.push(tr('Surcharge gazole : {v}', { v: eur(q.fuel) }));
   return lines.join('\n');
 }

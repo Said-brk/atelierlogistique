@@ -254,7 +254,15 @@ function toToolReferences(items) {
   const tourCodes = new Set(tours.map((t2) => t2.code));
   const agencies = by("agency").filter((i) => i.active).map((i) => {
     const d = i.data;
-    return { code: i.code, label: i.label, city: d.city ?? "", tour: d.tour && tourCodes.has(d.tour) ? d.tour : null, order: n(d.order), zone: d.zone ? String(d.zone).trim() : null };
+    return {
+      code: i.code,
+      label: i.label,
+      city: d.city ?? "",
+      tour: d.tour && tourCodes.has(d.tour) ? d.tour : null,
+      order: n(d.order),
+      zone: d.zone ? String(d.zone).trim() : null,
+      postalCode: d.postalCode ? String(d.postalCode).trim() : null
+    };
   });
   const cons = items.find((i) => i.kind === "setting" && i.code === "consolidation")?.data;
   return { vehicles, pallets, lashing, agencies, tours, carriers, consolidation: { mode: cons?.mode === "tour" ? "tour" : "free" } };
@@ -264,6 +272,93 @@ function toToolReferences(items) {
 var current2 = { units: "metric", currency: "EUR" };
 var imperial = () => current2.units === "imperial";
 var IN_PER_CM = 1 / 2.54;
+
+// src/shared/carriers/tariff.ts
+var usableTariff = (t2) => !!t2 && Array.isArray(t2.zones) && t2.zones.length > 0 && Array.isArray(t2.bands) && t2.bands.length > 0;
+var R = {
+  "ile-de-france": "75 77 78 91 92 93 94 95",
+  "centre-val de loire": "18 28 36 37 41 45",
+  "bourgogne-franche-comte": "21 25 39 58 70 71 89 90",
+  normandie: "14 27 50 61 76",
+  "hauts-de-france": "02 59 60 62 80",
+  "grand est": "08 10 51 52 54 55 57 67 68 88",
+  "pays de la loire": "44 49 53 72 85",
+  bretagne: "22 29 35 56",
+  "nouvelle-aquitaine": "16 17 19 23 24 33 40 47 64 79 86 87",
+  occitanie: "09 11 12 30 31 32 34 46 48 65 66 81 82",
+  "auvergne-rhone-alpes": "01 03 07 15 26 38 42 43 63 69 73 74",
+  "provence-alpes-cote d'azur": "04 05 06 13 83 84",
+  corse: "2A 2B"
+};
+var norm = (s) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[’`]/g, "'").replace(/\s+/g, " ").replace(/\s*-\s*/g, "-").trim();
+var REGIONS = new Map(Object.entries(R).map(([k, v]) => [norm(k), v.split(" ")]));
+var REGION_NAMES = Object.keys(R);
+function deptOf(postal) {
+  const p = String(postal ?? "").replace(/\s/g, "").toUpperCase();
+  if (/^2[AB]/.test(p)) return p.slice(0, 2);
+  if (!/^\d{5}$/.test(p)) return null;
+  if (p.startsWith("20")) return Number(p.slice(0, 3)) < 202 ? "2A" : "2B";
+  if (p.startsWith("97") || p.startsWith("98")) return p.slice(0, 3);
+  return p.slice(0, 2);
+}
+function tokensOf(match) {
+  const out = [];
+  for (const raw of String(match ?? "").split(/[,;\n]+/)) {
+    const t2 = raw.trim();
+    if (!t2) continue;
+    const reg = REGIONS.get(norm(t2));
+    if (reg) out.push(...reg);
+    else out.push(...t2.split(/\s+/).filter(Boolean).map((x) => x.toUpperCase()));
+  }
+  return out;
+}
+function score(token, postal, dept) {
+  if (token === "*") return 0.5;
+  const range = /^(\d+)-(\d+)$/.exec(token);
+  if (range) {
+    const [a, b] = [range[1], range[2]];
+    if (a.length !== b.length) return 0;
+    const v = Number(postal.slice(0, a.length));
+    return /^\d+$/.test(postal) && v >= Number(a) && v <= Number(b) ? a.length : 0;
+  }
+  if (/^2[AB]$/.test(token)) return dept === token ? 2 : 0;
+  if (!/^\d+$/.test(token)) return 0;
+  return postal.startsWith(token) ? token.length : 0;
+}
+function zoneIndex(t2, postal, forced) {
+  const f = String(forced ?? "").trim().toUpperCase();
+  if (f) {
+    const i = t2.zones.findIndex((z) => z.code.trim().toUpperCase() === f);
+    if (i >= 0) return i;
+  }
+  const p = String(postal ?? "").replace(/\s/g, "").toUpperCase();
+  if (!p) return t2.zones.findIndex((z) => tokensOf(z.match).includes("*"));
+  const dept = deptOf(p);
+  let best = -1;
+  let bestScore = 0;
+  t2.zones.forEach((z, i) => {
+    for (const tok of tokensOf(z.match)) {
+      const s = score(tok, p, dept);
+      if (s > bestScore) {
+        bestScore = s;
+        best = i;
+      }
+    }
+  });
+  return best;
+}
+function tariffPrice(t2, zone, qty, units, basis) {
+  const band = t2.bands.findIndex((b) => b.upTo == null || qty <= Number(b.upTo) + 1e-9);
+  if (band < 0) {
+    const max = Math.max(...t2.bands.map((b) => Number(b.upTo) || 0));
+    const u = basis === "weight" ? "kg" : basis === "pallet" ? t("palettes") : t("MPL");
+    return { error: t("Au-del\xE0 de la grille ({max} {u} au plus).", { max, u }) };
+  }
+  const p = t2.bands[band].prices?.[zone];
+  if (p == null || !Number.isFinite(Number(p))) return { error: t("Pas de tarif dans la grille pour la zone {zone}, tranche {n}.", { zone: t2.zones[zone]?.code ?? "?", n: band + 1 }) };
+  const flat = !!t2.bands[band].flat;
+  return { price: flat ? Number(p) : Number(p) * units, band, perUnit: flat ? null : Number(p) };
+}
 
 // src/shared/carriers/pricing.ts
 var SCOPE_LABELS = { get agency() {
@@ -316,7 +411,112 @@ function fuelFor(c, month) {
   }
   return { pct: num2(c.fuelPct), month: null };
 }
+function basisQty(basis, l, c) {
+  if (basis === "weight") {
+    const kg = Math.max(l.weightKg, l.volumeM3 * num2(c.kgPerM3, 0), l.ldm == null ? 0 : l.ldm * num2(c.kgPerLdm, 0));
+    const kgR = Math.round(kg);
+    return { qty: kgR, units: Math.ceil(kgR / 100), unit: "kg", by: kg === l.weightKg ? "real" : l.ldm != null && kg === l.ldm * num2(c.kgPerLdm, 0) ? "floor" : "volume" };
+  }
+  if (basis === "pallet") {
+    const n2 = l.pallets == null ? l.units : l.pallets > 0 ? l.pallets : l.ldm ? Math.ceil(Math.round(l.ldm / 0.4 * 1e6) / 1e6) : 0;
+    return { qty: n2, units: n2, unit: n2 > 1 ? t("palettes") : t("palette") };
+  }
+  if (l.ldm == null) return null;
+  const q = r2(ceilTo(l.ldm, 0.1));
+  return { qty: q, units: q, unit: t("MPL") };
+}
+function destLoads(facts, dests) {
+  const tot = { weightKg: facts.weightKg, volumeM3: facts.volumeM3, ldm: facts.ldm, pallets: facts.pallets ?? null, units: facts.units };
+  if (dests.length <= 1) return dests.map(() => tot);
+  const sum = (k) => dests.reduce((a, d) => a + (d.load?.[k] ?? 0), 0);
+  const S = { weightKg: sum("weightKg"), volumeM3: sum("volumeM3"), floorM2: sum("floorM2"), pallets: sum("pallets"), units: sum("units") };
+  const share = (d, k) => S[k] > 0 ? (d.load?.[k] ?? 0) / S[k] : 1 / dests.length;
+  return dests.map((d) => ({
+    weightKg: tot.weightKg * share(d, "weightKg"),
+    volumeM3: tot.volumeM3 * share(d, "volumeM3"),
+    ldm: tot.ldm == null ? null : tot.ldm * share(d, "floorM2"),
+    pallets: tot.pallets == null ? null : Math.round(tot.pallets * share(d, "pallets")),
+    units: Math.round(tot.units * share(d, "units"))
+  }));
+}
+function tariffQuote(facts, c, t2) {
+  const basis = c.billing;
+  const dests = facts.dests ?? [];
+  if (!dests.length) return { error: t("Destinations inconnues : choisissez les agences dans les lignes.") };
+  const zoneOf = (d) => zoneIndex(t2, d.postal, d.zone);
+  for (const d of dests) {
+    if (zoneOf(d) < 0) {
+      return { error: d.postal ? t("{agency} ({cp}) : aucune zone de la grille ne couvre ce code postal.", { agency: d.agency || d.tour || "?", cp: d.postal }) : t("{agency} : code postal manquant sur l\u2019agence (Param\xE8tres \u203A Agences) pour trouver sa zone.", { agency: d.agency || d.tour || "?" }) };
+    }
+  }
+  const minOf = (z) => {
+    const m = t2.min?.[z];
+    return m != null && Number.isFinite(Number(m)) ? Number(m) : num2(c.minCharge);
+  };
+  const byDest = [];
+  let base = 0;
+  let qty = 0;
+  let unit = "";
+  let taxable;
+  if (t2.mode === "whole") {
+    const b = basisQty(basis, { ...facts, pallets: facts.pallets ?? null }, c);
+    if (!b) return { error: t("M\xE8tres plancher non calcul\xE9s : lancez le calcul du plan.") };
+    let best = null;
+    for (const d of dests) {
+      const z = zoneOf(d);
+      const p = tariffPrice(t2, z, b.qty, b.units, basis);
+      if ("error" in p) return p;
+      const m = minOf(z);
+      const price = Math.max(p.price, m);
+      if (!best || price > best.price) best = { z, price, min: m > p.price };
+    }
+    base = best.price;
+    qty = b.qty;
+    unit = b.unit;
+    if (basis === "weight") taxable = { kg: b.qty, by: b.by };
+    byDest.push({ agency: dests.length > 1 ? t("{n} destinations", { n: dests.length }) : dests[0].agency || dests[0].tour || "", zone: t2.zones[best.z].code, qty: b.qty, unit: b.unit, price: r2(best.price), minApplied: best.min });
+  } else {
+    const loads = destLoads(facts, dests);
+    for (let i = 0; i < dests.length; i += 1) {
+      const d = dests[i];
+      const z = zoneOf(d);
+      const b = basisQty(basis, loads[i], c);
+      if (!b) return { error: t("M\xE8tres plancher non calcul\xE9s : lancez le calcul du plan.") };
+      const p = tariffPrice(t2, z, b.qty, b.units, basis);
+      if ("error" in p) return { error: `${d.agency || d.tour || ""} : ${p.error}` };
+      const m = minOf(z);
+      const price = Math.max(p.price, m);
+      byDest.push({ agency: d.agency || d.tour || "", zone: t2.zones[z].code, qty: b.qty, unit: b.unit, price: r2(price), minApplied: m > p.price });
+      base += price;
+      qty += b.qty;
+      unit = b.unit;
+    }
+    if (basis === "weight") taxable = { kg: qty, by: "real" };
+  }
+  const stopsFee = t2.mode === "whole" ? r2(Math.max(0, (facts.stops ?? 1) - 1) * num2(c.stopFee)) : 0;
+  base = r2(base + stopsFee);
+  const f = fuelFor(c, facts.month);
+  const fuel = r2(base * f.pct / 100);
+  const zones = [...new Set(byDest.map((x) => x.zone))];
+  return {
+    basis: c.billing,
+    qty: r2(qty),
+    unit,
+    base,
+    minApplied: byDest.some((x) => x.minApplied),
+    fuel,
+    amount: r2(base + fuel),
+    taxable,
+    zone: zones.length === 1 ? zones[0] : t("{n} zones", { n: zones.length }),
+    stopsFee,
+    fuelPct: f.pct,
+    fuelMonth: f.month,
+    byDest,
+    mode: t2.mode
+  };
+}
 function quote(facts, c) {
+  if (c.billing !== "ftl" && usableTariff(c.tariff)) return tariffQuote(facts, c, c.tariff);
   let rate = 0;
   let zone = null;
   if (c.billing !== "ftl") {
@@ -417,11 +617,28 @@ function factsOf(summary, extra = {}) {
   };
 }
 function routeOf(rows, agencies) {
-  const codes = [...new Set((rows ?? []).filter((r) => (r.quantity ?? 1) > 0).map((r) => String(r.destination ?? "").trim()).filter(Boolean))];
+  const live = (rows ?? []).filter((r) => (r.quantity ?? 1) > 0);
+  const codes = [...new Set(live.map((r) => String(r.destination ?? "").trim()).filter(Boolean))];
   const by = new Map(agencies.map((a) => [a.code.toUpperCase(), a]));
+  const loads = /* @__PURE__ */ new Map();
+  for (const r of live) {
+    const k = String(r.destination ?? "").trim().toUpperCase();
+    if (!k) continue;
+    const q = r.quantity ?? 1;
+    const L = num2(r.length);
+    const W = num2(r.width);
+    const H = num2(r.height);
+    const l = loads.get(k) ?? { weightKg: 0, volumeM3: 0, floorM2: 0, pallets: 0, units: 0 };
+    l.weightKg += q * num2(r.weight);
+    l.volumeM3 += q * L * W * H / 1e6;
+    l.floorM2 += q * L * W / 1e4;
+    l.units += q;
+    if (L * W / 1e4 >= 0.3) l.pallets += q;
+    loads.set(k, l);
+  }
   const dests = codes.map((c) => {
     const a = by.get(c.toUpperCase());
-    return { agency: a?.code ?? c, tour: a?.tour ?? null, zone: a?.zone ?? null };
+    return { agency: a?.code ?? c, tour: a?.tour ?? null, zone: a?.zone ?? null, postal: a?.postalCode ?? null, load: loads.get(c.toUpperCase()) };
   });
   return { dests, stops: Math.max(1, codes.length) };
 }
@@ -814,15 +1031,15 @@ function findBestPlacement(item, container, index, candidates, currentWeight, de
         if (sr < MIN_SUPPORT_RATIO - EPS) continue;
       }
       if (load.cfg.mode === "WALLS" && box.x + box.length < load.maxX - EPS && index.anyInFront(box, container.length)) continue;
-      let score = scorePlacement(box, container, nearby, sr, load.cfg.scoring);
+      let score2 = scorePlacement(box, container, nearby, sr, load.cfg.scoring);
       const blockers = countBlockers(box, delivery.later, delivery.laterMaxX);
       if (blockers > 0) {
         if (delivery.mode === "STRICT") continue;
-        score += DELIVERY.blockedPenalty * blockers;
+        score2 += DELIVERY.blockedPenalty * blockers;
       }
-      if (best === null || score < best.score) {
+      if (best === null || score2 < best.score) {
         best = {
-          score,
+          score: score2,
           point: pt,
           placed: {
             id: item.id,
@@ -1072,8 +1289,8 @@ function solve(groups, vehicles, ctx) {
         if (r.packedItems === 0) continue;
         const split = definitionsOfPlaced(rest, r);
         const loaded = split.packed.reduce((s, d) => s + volOf(d), 0);
-        const score = loaded / Math.max(1, v.cost);
-        if (!best || score > best.score) best = { v, ...split, r, score };
+        const score2 = loaded / Math.max(1, v.cost);
+        if (!best || score2 > best.score) best = { v, ...split, r, score: score2 };
       }
       if (!best) return { trucks: [], cost: Infinity, ok: false };
       trucks.push(summarize(best.packed, best.v, best.r, true));

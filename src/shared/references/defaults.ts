@@ -66,7 +66,7 @@ export interface ToolReferences {
   pallets: (PalletSpec & { available: boolean })[];
   lashing: LashingParams;
   /** Destinations connues (code = valeur saisie dans les lignes), avec leur tournée et leur rang dans la tournée. */
-  agencies: { code: string; label: string; city: string; tour: string | null; order: number; zone: string | null }[];
+  agencies: { code: string; label: string; city: string; tour: string | null; order: number; zone: string | null; postalCode: string | null }[];
   /** days : jours de préparation / expédition (1 = lundi … 7 = dimanche). */
   tours: { code: string; label: string; days: number[]; carrier: string | null }[];
   /** Transporteurs actifs et leur grille (src/shared/carriers/pricing.ts). */
@@ -108,8 +108,9 @@ export function toToolReferences(items: RefItem[]): ToolReferences {
   const carriers = by('carrier').filter((i) => i.active).map((i) => ({ code: i.code, label: i.label, data: i.data as unknown as CarrierData }));
   const tourCodes = new Set(tours.map((t) => t.code));
   const agencies = by('agency').filter((i) => i.active).map((i) => {
-    const d = i.data as { city?: string; tour?: string | null; order?: number; zone?: string | null };
-    return { code: i.code, label: i.label, city: d.city ?? '', tour: d.tour && tourCodes.has(d.tour) ? d.tour : null, order: n(d.order), zone: d.zone ? String(d.zone).trim() : null };
+    const d = i.data as { city?: string; tour?: string | null; order?: number; zone?: string | null; postalCode?: string | null };
+    return { code: i.code, label: i.label, city: d.city ?? '', tour: d.tour && tourCodes.has(d.tour) ? d.tour : null, order: n(d.order), zone: d.zone ? String(d.zone).trim() : null,
+      postalCode: d.postalCode ? String(d.postalCode).trim() : null };
   });
   const cons = items.find((i) => i.kind === 'setting' && i.code === 'consolidation')?.data as { mode?: string } | undefined;
   return { vehicles, pallets, lashing, agencies, tours, carriers, consolidation: { mode: cons?.mode === 'tour' ? 'tour' : 'free' } };

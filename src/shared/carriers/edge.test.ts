@@ -42,7 +42,7 @@ describe('tarification : arrondis et bornes', () => {
   });
   it('destinations : agence inconnue gardée telle quelle, lignes à quantité 0 ignorées', () => {
     expect(routeOf([{ destination: 'ZZZ', quantity: 1 }, { destination: 'LYO', quantity: 0 }], [{ code: 'LYO', zone: '69' }]))
-      .toEqual({ dests: [{ agency: 'ZZZ', tour: null, zone: null }], stops: 1 });
+      .toMatchObject({ dests: [{ agency: 'ZZZ', tour: null, zone: null }], stops: 1 });
   });
 });
 
