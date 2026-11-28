@@ -14,6 +14,7 @@ import { Btn } from '../ui';
 import ResizableTable from '../ResizableTable';
 import { defaultReferences } from '../../shared/references/defaults';
 import { BILLING_LABELS, RATE_UNIT, SCOPE_LABELS, fuelFor } from '../../shared/carriers/pricing';
+import TariffEditor, { tariffForm, tariffData } from '../TariffEditor';
 import { t as tr, N_, numLocale } from '../../shared/i18n/core';
 import { fmtMoney, fmtWeight, fmtDim, mToL, cmToDim, dimToCm, kgToW, wToKg, dimUnit, weightUnit, lengthUnit, currencySymbol } from '../../shared/units/units';
 
@@ -96,7 +97,8 @@ const AGENCY_FIELDS = [
   { key: 'code', label: N_('Code agence / ville'), type: 'text', hint: N_('Valeur choisie dans la colonne Destination des lignes (ex. LYO01).') },
   { key: 'label', label: N_('Description'), type: 'text', wide: true },
   { key: 'city', label: N_('Ville'), type: 'text', optional: true },
-  { key: 'zone', label: N_('Zone tarifaire'), type: 'text', optional: true, hint: N_('Département ou zone des grilles transporteurs (ex. 69, Z2).') },
+  { key: 'postalCode', label: N_('Code postal'), type: 'text', optional: true, hint: N_('Sert à trouver la zone de chaque grille transporteur.') },
+  { key: 'zone', label: N_('Zone tarifaire (forcée)'), type: 'text', optional: true, hint: N_('Facultatif : nom d’une zone de grille (ex. Zone 2) ou zone des anciennes grilles (ex. 69). Sinon la zone vient du code postal.') },
   { key: 'tour', label: N_('Tournée'), type: 'select', optional: true, options: (items) => [['', tr('— aucune')], ...items.filter((i) => i.kind === 'tour').map((t) => [t.code, `${t.code} · ${t.label}`])] },
   { key: 'order', label: N_('Rang dans la tournée'), type: 'num', hint: N_('1 = livrée en premier.') },
   { key: 'sort', label: N_('Ordre d’affichage'), type: 'num' },
@@ -122,14 +124,16 @@ const CARRIER_FIELDS = [
   { key: 'code', label: N_('Code'), type: 'text', hint: N_('Ex. GEODIS, TRANS-SUD.') },
   { key: 'label', label: N_('Raison sociale'), type: 'text', wide: true },
   { key: 'billing', label: N_('Mode de facturation'), type: 'select', wide: true, options: Object.entries(BILLING_LABELS) },
-  { key: 'rate', label: N_('Tarif de base'), type: 'num', optional: true, if: (f) => f.billing !== 'ftl', unitOf: (f) => RATE_UNIT[f.billing], hint: N_('Pour les destinations absentes de la grille (vide = grille seulement).') },
-  { key: 'zones', label: N_('Grille tarifaire'), type: 'zones', if: (f) => f.billing !== 'ftl', wide: true, unitOf: (f) => RATE_UNIT[f.billing],
+  { key: 'tariff', label: N_('Grille par zones et tranches'), type: 'tariff', wide: true, if: (f) => f.billing !== 'ftl' },
+  { key: 'rate', label: N_('Tarif de base'), type: 'num', optional: true, if: (f) => f.billing !== 'ftl' && !f.tariff?.on, unitOf: (f) => RATE_UNIT[f.billing], hint: N_('Pour les destinations absentes de la grille (vide = grille seulement).') },
+  { key: 'zones', label: N_('Tarifs par agence, tournée ou zone'), type: 'zones', if: (f) => f.billing !== 'ftl' && !f.tariff?.on, wide: true, unitOf: (f) => RATE_UNIT[f.billing],
     hint: N_('Par agence, par tournée ou par zone (Paramètres › Agences). Priorité : agence, puis tournée, puis zone. Plusieurs destinations : la plus chère s’applique.') },
   { key: 'kgPerM3', label: N_('Équivalence volume'), unit: 'kg/m³', type: 'num', if: (f) => f.billing === 'weight', hint: N_('Souvent 250 à 333.') },
   { key: 'kgPerLdm', label: N_('Équivalence plancher'), unit: 'kg/MPL', type: 'num', if: (f) => f.billing === 'weight', hint: N_('Souvent 1 500 à 1 850.') },
+
   { key: 'prices', label: N_('Forfait par véhicule'), type: 'prices', if: (f) => f.billing === 'ftl', wide: true, hint: N_('Laissez vide un véhicule que ce transporteur ne fournit pas.') },
-  { key: 'minCharge', label: N_('Minimum de perception'), unit: '€', type: 'num', optional: true },
-  { key: 'stopFee', label: N_('Frais par arrêt supplémentaire'), unit: '€', type: 'num', optional: true, hint: N_('Au-delà de la première destination.') },
+  { key: 'minCharge', label: N_('Minimum de perception'), unit: '€', type: 'num', optional: true, hintOf: (f) => (f.tariff?.on ? N_('Pour les zones sans minimum dans la grille.') : null) },
+  { key: 'stopFee', label: N_('Frais par arrêt supplémentaire'), unit: '€', type: 'num', optional: true, hint: N_('Au-delà de la première destination.'), if: (f) => !(f.tariff?.on && f.tariff.mode === 'per_dest') },
   { key: 'fuelPct', label: N_('Surcharge gazole par défaut'), unit: '%', type: 'num', optional: true },
   { key: 'fuelByMonth', label: N_('Surcharge gazole publiée chaque mois'), type: 'months', wide: true, hint: N_('Le taux du mois de départ s’applique (à défaut, le dernier mois publié, puis le taux par défaut).') },
   { key: 'sort', label: N_('Ordre d’affichage'), type: 'num' },
@@ -145,6 +149,7 @@ const tariffText = (d) => {
     const p = Object.entries(d.prices ?? {}).filter(([, v]) => v != null && v !== '');
     return p.length ? tr('{n} forfait(s) véhicule', { n: p.length }) : tr('aucun forfait');
   }
+  if (d.tariff?.zones?.length) return tr('{z} zones × {b} tranches · {m}', { z: d.tariff.zones.length, b: d.tariff.bands?.length ?? 0, m: d.tariff.mode === 'whole' ? tr('affrètement') : tr('messagerie') });
   const z = (d.zones ?? []).length;
   const baseTxt = d.rate == null ? '' : `${fmt(Number(d.rate), 2)} ${RATE_UNIT[d.billing] ?? ''}`;
   return [baseTxt, z ? tr('grille {n} ligne(s)', { n: z }) : ''].filter(Boolean).join(' · ') || '—';
@@ -166,6 +171,7 @@ const AGENCY_COLUMNS = (admin, patch, items) => [
   { key: 'code', h: N_('Code'), cell: (i) => <span className="font-jetbrains text-xs text-blue-700">{i.code}</span> },
   { key: 'label', h: N_('Description'), min: 120, cell: (i) => <span className="font-medium text-slate-900">{i.label}</span> },
   { key: 'city', h: N_('Ville'), cell: (i) => i.data.city || '—' },
+  { key: 'cp', h: N_('CP'), cell: (i) => <span className="font-jetbrains text-xs">{i.data.postalCode || '—'}</span> },
   { key: 'zone', h: N_('Zone'), cell: (i) => <span className="font-jetbrains text-xs">{i.data.zone || '—'}</span> },
   { key: 'tour', h: N_('Tournée'), cell: (i) => { const t = items.find((x) => x.kind === 'tour' && x.code === i.data.tour); return t ? <span className="text-xs">{t.code} · {t.label}</span> : <span className="text-xs text-slate-400">—</span>; } },
   { key: 'order', h: N_('Rang'), cell: (i) => (i.data.tour ? i.data.order ?? '—' : '—') },
@@ -196,7 +202,7 @@ const TABLES = {
   agency: {
     title: N_('Agences et destinations'), icon: MapPin, fields: AGENCY_FIELDS, columns: AGENCY_COLUMNS, noun: N_('destination'), feminine: true, noReset: true,
     intro: N_('Les destinations de vos chargements et palettisations : choisies dans une liste (code ou description) au lieu d’une saisie libre. Une agence appartient au plus à une tournée.'),
-    blank: () => ({ kind: 'agency', code: '', label: '', active: true, sort: 100, data: { city: '', tour: null, order: 1 } }),
+    blank: () => ({ kind: 'agency', code: '', label: '', active: true, sort: 100, data: { city: '', postalCode: '', tour: null, order: 1 } }),
   },
   tour: {
     title: N_('Tournées'), icon: RouteIcon, fields: TOUR_FIELDS, columns: TOUR_COLUMNS, noun: N_('tournée'), feminine: true, noReset: true,
@@ -221,6 +227,7 @@ function formOf(item, fields) {
   for (const f of fields) {
     if (f.key === 'axleMode') continue;
     const raw = TOP.includes(f.key) ? item[f.key] : f.key.startsWith('axle.') ? axle[f.key.slice(5)] : item.data?.[f.key];
+    if (f.type === 'tariff') { v[f.key] = tariffForm(raw); continue; }
     if (f.type === 'zones') { v[f.key] = (Array.isArray(raw) ? raw : []).map((z) => ({ scope: z.scope ?? 'zone', key: z.key ?? z.zone ?? '', rate: z.rate == null ? '' : String(z.rate) })); continue; }
     if (f.type === 'months') { v[f.key] = Object.entries(raw ?? {}).sort(([a], [b]) => b.localeCompare(a)).map(([month, x]) => ({ month, pct: x == null ? '' : String(x) })); continue; }
     if (f.type === 'prices') { v[f.key] = Object.fromEntries(Object.entries(raw ?? {}).map(([k, x]) => [k, x == null ? '' : String(x)])); continue; }
@@ -238,6 +245,7 @@ function itemOf(base, form, fields) {
     if (f.key === 'axleMode' || (f.if && !f.if(form))) continue;
     let val = form[f.key];
     if (f.type === 'select') val = val === '' ? null : val;
+    if (f.type === 'tariff') { const r = tariffData(val); if (r.error) errors[f.key] = r.error; val = r.value ?? null; }
     if (f.type === 'zones') {
       const seen = new Set(); const list = [];
       for (const z of val ?? []) {
@@ -293,13 +301,15 @@ function itemOf(base, form, fields) {
   if (out.kind === 'vehicle' && !(out.data.length > 0 && out.data.width > 0 && out.data.height > 0)) errors.length = errors.length ?? tr('Dimensions > 0');
   if (out.kind === 'pallet' && !(out.data.length > 0 && out.data.width > 0)) errors.length = errors.length ?? tr('Dimensions > 0');
   if (out.kind === 'carrier' && out.data.billing === 'ftl' && !Object.keys(out.data.prices ?? {}).length) errors.prices = tr('Au moins un forfait');
-  if (out.kind === 'carrier' && out.data.billing !== 'ftl' && out.data.rate == null && !(out.data.zones ?? []).length) errors.rate = tr('Tarif de base ou grille par zone');
+  if (out.kind === 'carrier' && out.data.billing === 'ftl') out.data.tariff = null;
+  if (out.kind === 'carrier' && out.data.billing !== 'ftl' && !out.data.tariff && out.data.rate == null && !(out.data.zones ?? []).length) errors.rate = tr('Tarif de base ou grille par zone');
   return { item: out, errors };
 }
 
-function Field({ f, value, onChange, error, disabled, items = [], form = {} }) {
+function Field({ f, value, onChange, onPatch, error, disabled, items = [], form = {} }) {
   const unit = unitLabel(f.unitOf ? f.unitOf(form) : f.unit);
-  const label = tr(f.label); const hint = f.hint && tr(f.hint);
+  const label = tr(f.label); const hintKey = f.hintOf?.(form) ?? f.hint; const hint = hintKey && tr(hintKey);
+  if (f.type === 'tariff') return <TariffEditor value={value} onChange={onChange} onFuel={(pct) => onPatch?.({ fuelPct: pct })} billing={form.billing} disabled={disabled} error={error} />;
   const options = typeof f.options === 'function' ? f.options(items) : f.options;
   if (f.type === 'days') {
     const set = new Set(value ?? []);
@@ -442,7 +452,7 @@ function EditDialog({ table, item, admin, onClose, onSaved, items }) {
         <div className="p-5 grid sm:grid-cols-2 gap-x-4 gap-y-3">
           {table.fields.filter((f) => !f.if || f.if(form)).map((f) => (
             <Field key={f.key} f={f} value={form[f.key]} error={errors[f.key]} disabled={!admin} items={items} form={form}
-              onChange={(v) => setForm((x) => ({ ...x, [f.key]: v }))} />
+              onChange={(v) => setForm((x) => ({ ...x, [f.key]: v }))} onPatch={(p) => setForm((x) => ({ ...x, ...p }))} />
           ))}
         </div>
         <div className="sticky bottom-0 bg-white px-5 py-3 border-t border-slate-200 flex items-center gap-2">

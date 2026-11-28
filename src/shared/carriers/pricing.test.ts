@@ -57,7 +57,7 @@ describe('grille par zone, gazole mensuel, arrêts, comparaison', () => {
     ]);
     expect(r.map((x) => x.code)).toEqual(['C', 'A', 'B']);
     expect(routeOf([{ destination: 'LYO', quantity: 2 }, { destination: 'mar', quantity: 1 }, { destination: 'LYO' }], [{ code: 'LYO', zone: '69', tour: 'T1' }, { code: 'MAR', zone: '13' }]))
-      .toEqual({ dests: [{ agency: 'LYO', tour: 'T1', zone: '69' }, { agency: 'MAR', tour: null, zone: '13' }], stops: 2 });
+      .toMatchObject({ dests: [{ agency: 'LYO', tour: 'T1', zone: '69' }, { agency: 'MAR', tour: null, zone: '13' }], stops: 2 });
   });
 });
 
