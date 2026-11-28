@@ -290,6 +290,22 @@ var R = {
   "provence-alpes-cote d'azur": "04 05 06 13 83 84",
   corse: "2A 2B"
 };
+var REGION_GROUPS = [
+  ["\xCEle-de-France", "ile-de-france"],
+  ["Hauts-de-France", "hauts-de-france"],
+  ["Normandie", "normandie"],
+  ["Grand Est", "grand est"],
+  ["Centre-Val de Loire", "centre-val de loire"],
+  ["Bourgogne-Franche-Comt\xE9", "bourgogne-franche-comte"],
+  ["Pays de la Loire", "pays de la loire"],
+  ["Bretagne", "bretagne"],
+  ["Nouvelle-Aquitaine", "nouvelle-aquitaine"],
+  ["Auvergne-Rh\xF4ne-Alpes", "auvergne-rhone-alpes"],
+  ["Occitanie", "occitanie"],
+  ["Provence-Alpes-C\xF4te d\u2019Azur", "provence-alpes-cote d'azur"],
+  ["Corse", "corse"]
+].map(([name, key]) => ({ name, depts: R[key].split(" ") })).concat([{ name: "Outre-mer", depts: ["971", "972", "973", "974", "976"] }]);
+var ALL_DEPTS = REGION_GROUPS.flatMap((r) => r.depts);
 var norm = (s) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[’`]/g, "'").replace(/\s+/g, " ").replace(/\s*-\s*/g, "-").trim();
 var REGIONS = new Map(Object.entries(R).map(([k, v]) => [norm(k), v.split(" ")]));
 var REGION_NAMES = Object.keys(R);

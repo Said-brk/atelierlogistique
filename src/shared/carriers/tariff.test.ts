@@ -82,3 +82,15 @@ describe('grille zones × tranches', () => {
     expect((quote(f, { billing: 'weight', tariff: t }) as any).error).toMatch(/code postal manquant/);
   });
 });
+
+describe('sélection des départements', () => {
+  it('motifs ↔ départements cochés, reste de la France, codes postaux ; départements sans zone', async () => {
+    const { splitMatch, joinMatch, uncoveredDepts } = await import('./tariff');
+    expect(splitMatch('Île-de-France, 28 69001-69009 *')).toEqual({ depts: ['75', '77', '78', '91', '92', '93', '94', '95', '28'], rest: true, other: ['69001-69009'] });
+    expect(joinMatch({ depts: ['75', '2A'], rest: false, other: ['13100'] })).toBe('75 2A 13100');
+    expect(splitMatch('1 2a').depts).toEqual(['01', '2A']);
+    expect(uncoveredDepts([{ code: 'Z1', match: '*' }])).toEqual([]);
+    const miss = uncoveredDepts([{ code: 'Z1', match: 'Île-de-France' }]);
+    expect(miss.length).toBe(96 - 8); expect(miss).not.toContain('974');
+  });
+});

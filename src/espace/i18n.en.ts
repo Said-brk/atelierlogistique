@@ -668,6 +668,18 @@ const en: Record<string, string> = {
   "CP": "ZIP",
   "minimum": "minimum",
   "Total transport": "Freight total",
+  "Départements de {z}": "Départements in {z}",
+  "Reste de la France": "Rest of France",
+  "déjà dans {z}": "already in {z}",
+  "tous les départements non choisis ailleurs": "every département not chosen elsewhere",
+  "Codes postaux précis (facultatif)": "Specific postal codes (optional)",
+  "Pour une partie de département : début de code postal ou plage. Prioritaire sur le département.": "For part of a département: postal code prefix or range. Takes priority over the département.",
+  "Aucun département": "No département",
+  "Nom de la zone": "Zone name",
+  "{n} département(s) sans zone : {list}. Ajoutez-les ou cochez « Reste de la France » sur une zone.": "{n} département(s) without a zone: {list}. Add them or tick “Rest of France” on a zone.",
+  "— d’après le code postal": "— from the postal code",
+  "ancienne grille": "older grid",
+  "Facultatif : sinon la zone de chaque grille vient du code postal.": "Optional: otherwise each rate table's zone comes from the postal code.",
 };
 
 export default en;

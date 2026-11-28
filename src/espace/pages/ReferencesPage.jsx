@@ -93,12 +93,26 @@ const PALLET_COLUMNS = (admin, patch) => [
   { key: 'active', h: N_('Coché'), cell: (i) => toggle(i.active, () => patch(i, { active: !i.active }), !admin, tr('Coché par défaut')) },
 ];
 
+/** Zones proposées sur une agence : zones des grilles transporteurs (et anciennes zones déjà saisies). */
+function zoneOptions(items) {
+  const by = new Map();
+  for (const c of items.filter((i) => i.kind === 'carrier')) {
+    for (const z of c.data?.tariff?.zones ?? []) {
+      const k = String(z.code ?? '').trim(); if (!k) continue;
+      by.set(k, [...(by.get(k) ?? []), c.label]);
+    }
+  }
+  for (const a of items.filter((i) => i.kind === 'agency' && i.data?.zone)) { const k = String(a.data.zone).trim(); if (!by.has(k)) by.set(k, null); }
+  return [['', tr('— d’après le code postal')], ...[...by.entries()].sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true }))
+    .map(([k, cs]) => [k, cs ? `${k} (${[...new Set(cs)].join(', ')})` : `${k} (${tr('ancienne grille')})`])];
+}
+
 const AGENCY_FIELDS = [
   { key: 'code', label: N_('Code agence / ville'), type: 'text', hint: N_('Valeur choisie dans la colonne Destination des lignes (ex. LYO01).') },
   { key: 'label', label: N_('Description'), type: 'text', wide: true },
   { key: 'city', label: N_('Ville'), type: 'text', optional: true },
   { key: 'postalCode', label: N_('Code postal'), type: 'text', optional: true, hint: N_('Sert à trouver la zone de chaque grille transporteur.') },
-  { key: 'zone', label: N_('Zone tarifaire (forcée)'), type: 'text', optional: true, hint: N_('Facultatif : nom d’une zone de grille (ex. Zone 2) ou zone des anciennes grilles (ex. 69). Sinon la zone vient du code postal.') },
+  { key: 'zone', label: N_('Zone tarifaire (forcée)'), type: 'select', optional: true, options: zoneOptions, hint: N_('Facultatif : sinon la zone de chaque grille vient du code postal.') },
   { key: 'tour', label: N_('Tournée'), type: 'select', optional: true, options: (items) => [['', tr('— aucune')], ...items.filter((i) => i.kind === 'tour').map((t) => [t.code, `${t.code} · ${t.label}`])] },
   { key: 'order', label: N_('Rang dans la tournée'), type: 'num', hint: N_('1 = livrée en premier.') },
   { key: 'sort', label: N_('Ordre d’affichage'), type: 'num' },

@@ -34,6 +34,50 @@ const R: Record<string, string> = {
   "provence-alpes-cote d'azur": '04 05 06 13 83 84',
   corse: '2A 2B',
 };
+/** Départements (code → nom), pour la sélection des zones. */
+export const DEPARTMENTS: Record<string, string> = {
+  '01': 'Ain', '02': 'Aisne', '03': 'Allier', '04': 'Alpes-de-Haute-Provence', '05': 'Hautes-Alpes', '06': 'Alpes-Maritimes', '07': 'Ardèche', '08': 'Ardennes',
+  '09': 'Ariège', 10: 'Aube', 11: 'Aude', 12: 'Aveyron', 13: 'Bouches-du-Rhône', 14: 'Calvados', 15: 'Cantal', 16: 'Charente', 17: 'Charente-Maritime', 18: 'Cher',
+  19: 'Corrèze', '2A': 'Corse-du-Sud', '2B': 'Haute-Corse', 21: 'Côte-d’Or', 22: 'Côtes-d’Armor', 23: 'Creuse', 24: 'Dordogne', 25: 'Doubs', 26: 'Drôme', 27: 'Eure',
+  28: 'Eure-et-Loir', 29: 'Finistère', 30: 'Gard', 31: 'Haute-Garonne', 32: 'Gers', 33: 'Gironde', 34: 'Hérault', 35: 'Ille-et-Vilaine', 36: 'Indre', 37: 'Indre-et-Loire',
+  38: 'Isère', 39: 'Jura', 40: 'Landes', 41: 'Loir-et-Cher', 42: 'Loire', 43: 'Haute-Loire', 44: 'Loire-Atlantique', 45: 'Loiret', 46: 'Lot', 47: 'Lot-et-Garonne',
+  48: 'Lozère', 49: 'Maine-et-Loire', 50: 'Manche', 51: 'Marne', 52: 'Haute-Marne', 53: 'Mayenne', 54: 'Meurthe-et-Moselle', 55: 'Meuse', 56: 'Morbihan', 57: 'Moselle',
+  58: 'Nièvre', 59: 'Nord', 60: 'Oise', 61: 'Orne', 62: 'Pas-de-Calais', 63: 'Puy-de-Dôme', 64: 'Pyrénées-Atlantiques', 65: 'Hautes-Pyrénées', 66: 'Pyrénées-Orientales',
+  67: 'Bas-Rhin', 68: 'Haut-Rhin', 69: 'Rhône', 70: 'Haute-Saône', 71: 'Saône-et-Loire', 72: 'Sarthe', 73: 'Savoie', 74: 'Haute-Savoie', 75: 'Paris', 76: 'Seine-Maritime',
+  77: 'Seine-et-Marne', 78: 'Yvelines', 79: 'Deux-Sèvres', 80: 'Somme', 81: 'Tarn', 82: 'Tarn-et-Garonne', 83: 'Var', 84: 'Vaucluse', 85: 'Vendée', 86: 'Vienne',
+  87: 'Haute-Vienne', 88: 'Vosges', 89: 'Yonne', 90: 'Territoire de Belfort', 91: 'Essonne', 92: 'Hauts-de-Seine', 93: 'Seine-Saint-Denis', 94: 'Val-de-Marne', 95: 'Val-d’Oise',
+  971: 'Guadeloupe', 972: 'Martinique', 973: 'Guyane', 974: 'La Réunion', 976: 'Mayotte',
+};
+/** Régions (nom affiché → départements), pour la sélection groupée. */
+export const REGION_GROUPS: { name: string; depts: string[] }[] = [
+  ['Île-de-France', 'ile-de-france'], ['Hauts-de-France', 'hauts-de-france'], ['Normandie', 'normandie'], ['Grand Est', 'grand est'],
+  ['Centre-Val de Loire', 'centre-val de loire'], ['Bourgogne-Franche-Comté', 'bourgogne-franche-comte'], ['Pays de la Loire', 'pays de la loire'], ['Bretagne', 'bretagne'],
+  ['Nouvelle-Aquitaine', 'nouvelle-aquitaine'], ['Auvergne-Rhône-Alpes', 'auvergne-rhone-alpes'], ['Occitanie', 'occitanie'],
+  ['Provence-Alpes-Côte d’Azur', "provence-alpes-cote d'azur"], ['Corse', 'corse'],
+].map(([name, key]) => ({ name, depts: R[key].split(' ') })).concat([{ name: 'Outre-mer', depts: ['971', '972', '973', '974', '976'] }]);
+const ALL_DEPTS = REGION_GROUPS.flatMap((r) => r.depts);
+
+/** Motifs d'une zone → départements cochés, « reste de la France », autres motifs (codes postaux, plages). */
+export function splitMatch(match: string): { depts: string[]; rest: boolean; other: string[] } {
+  const depts = new Set<string>(); const other: string[] = []; let rest = false;
+  for (const t of tokensOf(match)) {
+    if (t === '*') rest = true;
+    else if (ALL_DEPTS.includes(t)) depts.add(t);
+    else if (/^\d$/.test(t) && ALL_DEPTS.includes(`0${t}`)) depts.add(`0${t}`);
+    else other.push(t);
+  }
+  return { depts: ALL_DEPTS.filter((d) => depts.has(d)), rest, other };
+}
+/** Inverse de splitMatch : texte enregistré. */
+export const joinMatch = (p: { depts: string[]; rest: boolean; other: string[] }) => [...p.depts, ...p.other, ...(p.rest ? ['*'] : [])].join(' ');
+/** Départements sans zone (aucun « reste de la France »). */
+export function uncoveredDepts(zones: TariffZone[]): string[] {
+  const parts = zones.map((z) => splitMatch(z.match));
+  if (parts.some((p) => p.rest)) return [];
+  const taken = new Set(parts.flatMap((p) => p.depts));
+  return ALL_DEPTS.filter((d) => !taken.has(d) && !d.startsWith('97'));
+}
+
 const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[’`]/g, "'").replace(/\s+/g, ' ').replace(/\s*-\s*/g, '-').trim();
 const REGIONS = new Map(Object.entries(R).map(([k, v]) => [norm(k), v.split(' ')]));
 export const REGION_NAMES = Object.keys(R);
