@@ -192,9 +192,10 @@ function tariffQuote(facts: LoadFacts, c: CarrierData, t: Tariff): QuoteResult {
   const zoneOf = (d: Dest) => zoneIndex(t, d.postal, d.zone);
   for (const d of dests) {
     if (zoneOf(d) < 0) {
-      return { error: d.postal
-        ? tr('{agency} ({cp}) : aucune zone de la grille ne couvre ce code postal.', { agency: d.agency || d.tour || '?', cp: d.postal })
-        : tr('{agency} : code postal manquant sur l’agence (Paramètres › Agences) pour trouver sa zone.', { agency: d.agency || d.tour || '?' }) };
+      const who = d.agency || d.tour || tr('Chargement');
+      return { error: d.zone
+        ? tr('{agency} : zone {z} absente de la grille de ce transporteur.', { agency: who, z: d.zone })
+        : tr('{agency} : pas de zone. Choisissez la zone de l’agence (Paramètres › Agences) ou celle du chargement.', { agency: who }) };
     }
   }
   const minOf = (z: number) => { const m = t.min?.[z]; return m != null && Number.isFinite(Number(m)) ? Number(m) : num(c.minCharge); };

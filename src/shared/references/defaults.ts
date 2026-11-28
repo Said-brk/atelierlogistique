@@ -12,7 +12,7 @@ import type { ContainerDefinition } from '../../outils/optimiseur-chargement/eng
 import { PALLET_PRESETS } from '../../outils/palettisation/engine/presets';
 import type { PalletSpec } from '../../outils/palettisation/engine/types';
 
-export type RefKind = 'vehicle' | 'pallet' | 'agency' | 'tour' | 'carrier' | 'setting';
+export type RefKind = 'vehicle' | 'pallet' | 'agency' | 'tour' | 'zone' | 'carrier' | 'setting';
 
 export interface RefItem {
   id?: string;
@@ -69,6 +69,8 @@ export interface ToolReferences {
   agencies: { code: string; label: string; city: string; tour: string | null; order: number; zone: string | null; postalCode: string | null }[];
   /** days : jours de préparation / expédition (1 = lundi … 7 = dimanche). */
   tours: { code: string; label: string; days: number[]; carrier: string | null }[];
+  /** Zones tarifaires (colonnes des grilles transporteurs). */
+  zones: { code: string; label: string }[];
   /** Transporteurs actifs et leur grille (src/shared/carriers/pricing.ts). */
   carriers: { code: string; label: string; data: CarrierData }[];
   /** free : regroupement libre ; tour : seulement des chargements d'une même tournée. */
@@ -113,5 +115,6 @@ export function toToolReferences(items: RefItem[]): ToolReferences {
       postalCode: d.postalCode ? String(d.postalCode).trim() : null };
   });
   const cons = items.find((i) => i.kind === 'setting' && i.code === 'consolidation')?.data as { mode?: string } | undefined;
-  return { vehicles, pallets, lashing, agencies, tours, carriers, consolidation: { mode: cons?.mode === 'tour' ? 'tour' : 'free' } };
+  const zones = by('zone').filter((i) => i.active).sort((a, b) => a.sort - b.sort || a.label.localeCompare(b.label)).map((i) => ({ code: i.code, label: i.label }));
+  return { vehicles, pallets, lashing, agencies, tours, zones, carriers, consolidation: { mode: cons?.mode === 'tour' ? 'tour' : 'free' } };
 }

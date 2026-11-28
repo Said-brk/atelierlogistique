@@ -265,7 +265,8 @@ function toToolReferences(items) {
     };
   });
   const cons = items.find((i) => i.kind === "setting" && i.code === "consolidation")?.data;
-  return { vehicles, pallets, lashing, agencies, tours, carriers, consolidation: { mode: cons?.mode === "tour" ? "tour" : "free" } };
+  const zones = by("zone").filter((i) => i.active).sort((a, b) => a.sort - b.sort || a.label.localeCompare(b.label)).map((i) => ({ code: i.code, label: i.label }));
+  return { vehicles, pallets, lashing, agencies, tours, zones, carriers, consolidation: { mode: cons?.mode === "tour" ? "tour" : "free" } };
 }
 
 // src/shared/units/units.ts
@@ -290,22 +291,6 @@ var R = {
   "provence-alpes-cote d'azur": "04 05 06 13 83 84",
   corse: "2A 2B"
 };
-var REGION_GROUPS = [
-  ["\xCEle-de-France", "ile-de-france"],
-  ["Hauts-de-France", "hauts-de-france"],
-  ["Normandie", "normandie"],
-  ["Grand Est", "grand est"],
-  ["Centre-Val de Loire", "centre-val de loire"],
-  ["Bourgogne-Franche-Comt\xE9", "bourgogne-franche-comte"],
-  ["Pays de la Loire", "pays de la loire"],
-  ["Bretagne", "bretagne"],
-  ["Nouvelle-Aquitaine", "nouvelle-aquitaine"],
-  ["Auvergne-Rh\xF4ne-Alpes", "auvergne-rhone-alpes"],
-  ["Occitanie", "occitanie"],
-  ["Provence-Alpes-C\xF4te d\u2019Azur", "provence-alpes-cote d'azur"],
-  ["Corse", "corse"]
-].map(([name, key]) => ({ name, depts: R[key].split(" ") })).concat([{ name: "Outre-mer", depts: ["971", "972", "973", "974", "976"] }]);
-var ALL_DEPTS = REGION_GROUPS.flatMap((r) => r.depts);
 var norm = (s) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[’`]/g, "'").replace(/\s+/g, " ").replace(/\s*-\s*/g, "-").trim();
 var REGIONS = new Map(Object.entries(R).map(([k, v]) => [norm(k), v.split(" ")]));
 var REGION_NAMES = Object.keys(R);
@@ -462,7 +447,8 @@ function tariffQuote(facts, c, t2) {
   const zoneOf = (d) => zoneIndex(t2, d.postal, d.zone);
   for (const d of dests) {
     if (zoneOf(d) < 0) {
-      return { error: d.postal ? t("{agency} ({cp}) : aucune zone de la grille ne couvre ce code postal.", { agency: d.agency || d.tour || "?", cp: d.postal }) : t("{agency} : code postal manquant sur l\u2019agence (Param\xE8tres \u203A Agences) pour trouver sa zone.", { agency: d.agency || d.tour || "?" }) };
+      const who = d.agency || d.tour || t("Chargement");
+      return { error: d.zone ? t("{agency} : zone {z} absente de la grille de ce transporteur.", { agency: who, z: d.zone }) : t("{agency} : pas de zone. Choisissez la zone de l\u2019agence (Param\xE8tres \u203A Agences) ou celle du chargement.", { agency: who }) };
     }
   }
   const minOf = (z) => {

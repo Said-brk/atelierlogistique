@@ -34,11 +34,11 @@ export function NewShipment() {
 
 /** Devis d'un transporteur pour un résumé de plan (null sans plan). */
 /** Faits d'un chargement pour la tarification : résumé du plan + zones / arrêts des destinations + mois de départ. */
-function factsFor(summary, rows, agencies, departure, tour) {
+function factsFor(summary, rows, agencies, departure, tour, zone) {
   const route = routeOf(rows, agencies);
-  // Destination sans tournée : celle choisie sur le chargement.
-  const dests = route.dests.map((d) => (d.tour || !tour ? d : { ...d, tour }));
-  return factsOf(summary, { ...route, dests: dests.length || !tour ? dests : [{ agency: '', tour, zone: null }], month: departure ? String(departure).slice(0, 7) : new Date().toISOString().slice(0, 7) });
+  // Destination sans tournée / sans zone : celles choisies sur le chargement.
+  const dests = route.dests.map((d) => ({ ...d, tour: d.tour || tour || null, zone: d.zone || zone || null }));
+  return factsOf(summary, { ...route, dests: dests.length || !(tour || zone) ? dests : [{ agency: '', tour: tour || null, zone: zone || null }], month: departure ? String(departure).slice(0, 7) : new Date().toISOString().slice(0, 7) });
 }
 function quoteOf(c, facts) {
   if (!facts) return null;
@@ -46,12 +46,13 @@ function quoteOf(c, facts) {
 }
 const eur = (v) => fmtMoney(v);
 /** Détail lisible d'un devis (infobulle). */
-function quoteDetail(q) {
+function quoteDetail(q, zones = []) {
+  const zl = (c) => zones.find((z) => z.code === c)?.label ?? c;
   if (!q || q.error) return q?.error ?? '';
   const lines = [];
   if (q.lines) q.lines.forEach((l) => lines.push(tr('{n} × {label} à {price}', { n: l.count, label: l.label, price: eur(l.price) })));
   else if (q.byDest) {
-    q.byDest.forEach((d) => lines.push(`${d.agency} · ${d.zone} · ${d.qty.toLocaleString(numLocale())} ${tr(d.unit)} → ${eur(d.price)}${d.minApplied ? ` (${tr('minimum')})` : ''}`));
+    q.byDest.forEach((d) => lines.push(`${d.agency} · ${zl(d.zone)} · ${d.qty.toLocaleString(numLocale())} ${tr(d.unit)} → ${eur(d.price)}${d.minApplied ? ` (${tr('minimum')})` : ''}`));
     if (q.byDest.length > 1) lines.push(`${tr('Total transport')} → ${eur(q.base)}`);
   } else lines.push(`${q.qty.toLocaleString(numLocale())} ${tr(q.unit)} → ${eur(q.base)}`);
   if (q.taxable && !q.byDest) lines.push(tr('Poids taxable : {w} ({by})', { w: fmtWeight(q.taxable.kg), by: { real: tr('poids réel'), volume: tr('volume'), floor: tr('plancher') }[q.taxable.by] }));
@@ -69,7 +70,7 @@ export default function ShipmentEditor() {
   const derive = (patch, base) => {
     if (!('carrier_cost' in base) || DOCK_STATUSES.includes(base.status)) return {};
     const c = carriers.find((x) => x.code === patch.carrier);
-    const q = c ? quoteOf(c, factsFor(patch.result?.summary, patch.input?.rows, refs.tools?.agencies ?? [], patch.departure_at, patch.tour)) : null;
+    const q = c ? quoteOf(c, factsFor(patch.result?.summary, patch.input?.rows, refs.tools?.agencies ?? [], patch.departure_at, patch.tour, patch.zone)) : null;
     return { carrier_cost: q && !q.error ? q.amount : null, carrier_quote: q };
   };
   const ed = useDocEditor({ code, load: getShipment, update: updateShipment, titleOf: (d) => d.label ?? tr('Chargement'), derive });
@@ -85,6 +86,7 @@ export default function ShipmentEditor() {
   const [received, setReceived] = useState(location.state?.received ?? null);
   // Tournée choisie : seules ses agences sont proposées comme destinations (dans l'ordre de la tournée).
   const tours = refs.tools?.tours ?? [];
+  const zones = refs.tools?.zones ?? [];
   const tour = ed.meta.tour;
   const agencies = useMemo(() => {
     const all = refs.tools?.agencies ?? [];
@@ -139,7 +141,7 @@ export default function ShipmentEditor() {
   const carrierMissing = !!carrier && !carriers.some((c) => c.code === carrier);
   // Au quai : coût figé (enregistré) ; sinon calcul en direct sur le plan affiché.
   const invoiced = parseNumber(ed.meta.invoiced_amount);
-  const facts = factsFor(s, liveRows.current ?? ed.doc.input?.rows, refs.tools?.agencies ?? [], ed.meta.departure_at, ed.meta.tour);
+  const facts = factsFor(s, liveRows.current ?? ed.doc.input?.rows, refs.tools?.agencies ?? [], ed.meta.departure_at, ed.meta.tour, ed.meta.zone);
   const liveQuote = locked ? ed.doc.carrier_quote : (carriers.find((c) => c.code === carrier) ? quoteOf(carriers.find((c) => c.code === carrier), facts) : null);
   // Transporteur le moins cher pour ce plan (comparaison des grilles).
   const ranking = !locked && facts && carriers.length > 1 ? rankCarriers(facts, carriers).filter((x) => !('error' in x.q)) : [];
@@ -226,6 +228,14 @@ export default function ShipmentEditor() {
                 {tourMissing && <option value={tour}>{tour} ({tr('inconnue')})</option>}
               </select></label>
           )}
+          {'zone' in ed.doc && (zones.length > 0 || ed.meta.zone) && (
+            <label className="flex items-center gap-2 text-slate-500" title={tr('Zone tarifaire des destinations qui n’en ont pas (grilles transporteurs)')}>{tr('Zone')}
+              <select value={ed.meta.zone} onChange={(e) => ed.setMeta({ ...ed.meta, zone: e.target.value })} disabled={!!locked} className={`${editorInputCls} max-w-[11rem]`}>
+                <option value="">{tr('— selon les agences —')}</option>
+                {zones.map((z) => <option key={z.code} value={z.code}>{z.label}</option>)}
+                {ed.meta.zone && !zones.some((z) => z.code === ed.meta.zone) && <option value={ed.meta.zone}>{ed.meta.zone} ({tr('inconnue')})</option>}
+              </select></label>
+          )}
           {'carrier' in ed.doc && !carriers.length && !carrier && (
             <span className="flex items-center gap-2 text-slate-500">{tr('Transporteur')}
               <Link to="/app/parametres/references/transporteurs" className="text-xs font-medium text-blue-700 hover:underline whitespace-nowrap"
@@ -241,7 +251,7 @@ export default function ShipmentEditor() {
                 </select></label>
               {liveQuote && (liveQuote.error
                 ? <span className="text-xs text-amber-700" title={tr(liveQuote.error)}>{tr('coût : —')}</span>
-                : <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-1 font-jetbrains text-xs text-slate-800 whitespace-pre" title={quoteDetail(liveQuote)}>
+                : <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-1 font-jetbrains text-xs text-slate-800 whitespace-pre" title={quoteDetail(liveQuote, zones)}>
                     ≈ {eur(liveQuote.amount)}{locked && <span className="ml-1 text-slate-400">{tr('figé')}</span>}</span>)}
               {(saving > 0 || (!carrier && cheapest)) && (
                 <button type="button" onClick={() => ed.setMeta({ ...ed.meta, carrier: cheapest.code })}

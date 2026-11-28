@@ -26,7 +26,7 @@ export const initialOf = (d) => ({ rows: [], ...(d.input ?? {}), plan: d.result?
 export default function useDocEditor({ code, load, update, titleOf, autosaveMs = 2000, derive = null }) {
   const deriveRef = useRef(derive); deriveRef.current = derive;
   const [doc, setDoc] = useState(undefined);
-  const [meta, setMetaState] = useState({ label: '', external_id: '', departure_at: '', tour: '', carrier: '', invoiced_amount: '' });
+  const [meta, setMetaState] = useState({ label: '', external_id: '', departure_at: '', tour: '', zone: '', carrier: '', invoiced_amount: '' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [dirty, setDirty] = useState(false);
@@ -50,7 +50,7 @@ export default function useDocEditor({ code, load, update, titleOf, autosaveMs =
   const apply = (d, keepMeta = false) => {
     setDoc(d);
     if (!d) return;
-    if (!keepMeta) setMetaState({ label: d.label ?? '', external_id: d.external_id ?? '', departure_at: toDateInput(d.departure_at), tour: d.tour ?? '', carrier: d.carrier ?? '', invoiced_amount: d.invoiced_amount == null ? '' : Number(d.invoiced_amount).toLocaleString(numLocale(), { maximumFractionDigits: 2, useGrouping: false }) });
+    if (!keepMeta) setMetaState({ label: d.label ?? '', external_id: d.external_id ?? '', departure_at: toDateInput(d.departure_at), tour: d.tour ?? '', zone: d.zone ?? '', carrier: d.carrier ?? '', invoiced_amount: d.invoiced_amount == null ? '' : Number(d.invoiced_amount).toLocaleString(numLocale(), { maximumFractionDigits: 2, useGrouping: false }) });
     savedInput.current = stable(d.input ?? {});
     savedPlan.current = planSig(d.result?.plan);
     savedGuide.current = hasGuide(d.result?.plan);
@@ -110,6 +110,7 @@ export default function useDocEditor({ code, load, update, titleOf, autosaveMs =
         ...extra,
       };
       if ('tour' in base) patch.tour = usedMeta.tour || null;
+      if ('zone' in base) patch.zone = usedMeta.zone || null;
       if ('carrier' in base) patch.carrier = usedMeta.carrier || null;
       if ('invoiced_amount' in base) {
         const a = parseNumber(usedMeta.invoiced_amount);

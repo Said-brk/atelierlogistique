@@ -79,18 +79,23 @@ describe('grille zones × tranches', () => {
   it('agence sans code postal ni zone « * » : message clair', () => {
     const t = { ...grid(), zones: grid().zones.slice(0, 3) };
     const f = factsOf({ ldm: 1, weight: 100, volume: 1, packed: 1 }, routeOf([{ destination: 'X', quantity: 1, weight: 100 }], [{ code: 'X' }]))!;
-    expect((quote(f, { billing: 'weight', tariff: t }) as any).error).toMatch(/code postal manquant/);
+    expect((quote(f, { billing: 'weight', tariff: t }) as any).error).toMatch(/pas de zone/);
   });
 });
 
-describe('sélection des départements', () => {
-  it('motifs ↔ départements cochés, reste de la France, codes postaux ; départements sans zone', async () => {
-    const { splitMatch, joinMatch, uncoveredDepts } = await import('./tariff');
-    expect(splitMatch('Île-de-France, 28 69001-69009 *')).toEqual({ depts: ['75', '77', '78', '91', '92', '93', '94', '95', '28'], rest: true, other: ['69001-69009'] });
-    expect(joinMatch({ depts: ['75', '2A'], rest: false, other: ['13100'] })).toBe('75 2A 13100');
-    expect(splitMatch('1 2a').depts).toEqual(['01', '2A']);
-    expect(uncoveredDepts([{ code: 'Z1', match: '*' }])).toEqual([]);
-    const miss = uncoveredDepts([{ code: 'Z1', match: 'Île-de-France' }]);
-    expect(miss.length).toBe(96 - 8); expect(miss).not.toContain('974');
+
+describe('zones de la table de référence (comme les tournées)', () => {
+  it('zone de l’agence, sinon zone du chargement ; zone absente de la grille : message', () => {
+    const t: Tariff = { mode: 'per_dest', zones: [{ code: 'Z1', match: '' }, { code: 'Z2', match: '' }], bands: [{ upTo: null, prices: [10, 20] }], min: [30, 40] };
+    const agencies = [{ code: 'A', zone: 'Z1' }, { code: 'B', zone: null }];
+    const rows = [{ destination: 'A', quantity: 1, weight: 500 }, { destination: 'B', quantity: 1, weight: 500 }];
+    const route = routeOf(rows, agencies);
+    const f = factsOf({ ldm: 1, weight: 1000, volume: 1, packed: 2 }, { ...route, dests: route.dests.map((d) => ({ ...d, zone: d.zone || 'Z2' })) })!;
+    const q = quote(f, { billing: 'weight', tariff: t }) as any;
+    expect(q.byDest.map((d: any) => [d.agency, d.zone, d.price])).toEqual([['A', 'Z1', 50], ['B', 'Z2', 100]]);
+    const g = factsOf({ ldm: 1, weight: 1000, volume: 1, packed: 2 }, { ...route, dests: route.dests.map((d) => ({ ...d, zone: d.zone || 'Z9' })) })!;
+    expect((quote(g, { billing: 'weight', tariff: t }) as any).error).toMatch(/zone Z9 absente/);
+    const h = factsOf({ ldm: 1, weight: 1000, volume: 1, packed: 2 }, route)!;
+    expect((quote(h, { billing: 'weight', tariff: t }) as any).error).toMatch(/pas de zone/);
   });
 });
