@@ -6,7 +6,7 @@
 
 import { useMemo, useState } from 'react';
 import { NavLink, Navigate, Route, Routes } from 'react-router-dom';
-import { Truck, Package, Link2, Plus, Pencil, Trash2, RotateCcw, Loader2, X, Save, Check, MapPin, Route as RouteIcon, Combine, Receipt } from 'lucide-react';
+import { Truck, Package, Link2, Plus, Pencil, Trash2, RotateCcw, Loader2, X, Save, Check, MapPin, Route as RouteIcon, Combine, Receipt, Layers } from 'lucide-react';
 import { useEspace } from '../useEspace';
 import useReferences from '../useReferences';
 import { saveReference, deleteReference, resetReferences } from '../data';
@@ -93,26 +93,35 @@ const PALLET_COLUMNS = (admin, patch) => [
   { key: 'active', h: N_('Coché'), cell: (i) => toggle(i.active, () => patch(i, { active: !i.active }), !admin, tr('Coché par défaut')) },
 ];
 
-/** Zones proposées sur une agence : zones des grilles transporteurs (et anciennes zones déjà saisies). */
+/** Zones proposées sur une agence : table des zones (et anciennes zones déjà saisies). */
 function zoneOptions(items) {
-  const by = new Map();
-  for (const c of items.filter((i) => i.kind === 'carrier')) {
-    for (const z of c.data?.tariff?.zones ?? []) {
-      const k = String(z.code ?? '').trim(); if (!k) continue;
-      by.set(k, [...(by.get(k) ?? []), c.label]);
-    }
-  }
-  for (const a of items.filter((i) => i.kind === 'agency' && i.data?.zone)) { const k = String(a.data.zone).trim(); if (!by.has(k)) by.set(k, null); }
-  return [['', tr('— d’après le code postal')], ...[...by.entries()].sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true }))
-    .map(([k, cs]) => [k, cs ? `${k} (${[...new Set(cs)].join(', ')})` : `${k} (${tr('ancienne grille')})`])];
+  const zones = items.filter((i) => i.kind === 'zone').sort((a, b) => a.sort - b.sort || a.label.localeCompare(b.label));
+  const known = new Set(zones.map((z) => z.code));
+  const legacy = [...new Set(items.filter((i) => i.kind === 'agency' && i.data?.zone && !known.has(i.data.zone)).map((a) => String(a.data.zone)))];
+  return [['', tr('— aucune')], ...zones.map((z) => [z.code, z.label]), ...legacy.map((z) => [z, `${z} (${tr('ancienne grille')})`])];
 }
+
+const ZONE_FIELDS = [
+  { key: 'code', label: N_('Code'), type: 'text', hint: N_('Ex. Z1, IDF, SUD.') },
+  { key: 'label', label: N_('Nom de la zone'), type: 'text', wide: true, hint: N_('Ex. Zone 1 · Île-de-France.') },
+  { key: 'description', label: N_('Description'), type: 'text', optional: true, wide: true, hint: N_('Ex. 0–100 km de Rungis, départements couverts…') },
+  { key: 'sort', label: N_('Ordre d’affichage'), type: 'num' },
+  { key: 'active', label: N_('Active'), type: 'bool' },
+];
+const ZONE_COLUMNS = (admin, patch, items) => [
+  { key: 'code', h: N_('Code'), cell: (i) => <span className="font-jetbrains text-xs text-blue-700">{i.code}</span> },
+  { key: 'label', h: N_('Zone'), min: 120, cell: (i) => <span className="font-medium text-slate-900">{i.label}</span> },
+  { key: 'description', h: N_('Description'), min: 140, cell: (i) => <span className="text-xs text-slate-600">{i.data.description || '—'}</span> },
+  { key: 'agencies', h: N_('Agences'), cell: (i) => items.filter((a) => a.kind === 'agency' && a.data?.zone === i.code).length },
+  { key: 'carriers', h: N_('Grilles'), cell: (i) => { const c = items.filter((x) => x.kind === 'carrier' && (x.data?.tariff?.zones ?? []).some((z) => z.code === i.code)); return c.length ? <span className="text-xs">{c.map((x) => x.code).join(', ')}</span> : <span className="text-xs text-slate-400">—</span>; } },
+  { key: 'active', h: N_('Active'), cell: (i) => toggle(i.active, () => patch(i, { active: !i.active }), !admin, tr('Active')) },
+];
 
 const AGENCY_FIELDS = [
   { key: 'code', label: N_('Code agence / ville'), type: 'text', hint: N_('Valeur choisie dans la colonne Destination des lignes (ex. LYO01).') },
   { key: 'label', label: N_('Description'), type: 'text', wide: true },
   { key: 'city', label: N_('Ville'), type: 'text', optional: true },
-  { key: 'postalCode', label: N_('Code postal'), type: 'text', optional: true, hint: N_('Sert à trouver la zone de chaque grille transporteur.') },
-  { key: 'zone', label: N_('Zone tarifaire (forcée)'), type: 'select', optional: true, options: zoneOptions, hint: N_('Facultatif : sinon la zone de chaque grille vient du code postal.') },
+  { key: 'zone', label: N_('Zone tarifaire'), type: 'select', optional: true, options: zoneOptions, hint: N_('Colonne des grilles transporteurs (Paramètres › Zones).') },
   { key: 'tour', label: N_('Tournée'), type: 'select', optional: true, options: (items) => [['', tr('— aucune')], ...items.filter((i) => i.kind === 'tour').map((t) => [t.code, `${t.code} · ${t.label}`])] },
   { key: 'order', label: N_('Rang dans la tournée'), type: 'num', hint: N_('1 = livrée en premier.') },
   { key: 'sort', label: N_('Ordre d’affichage'), type: 'num' },
@@ -185,8 +194,7 @@ const AGENCY_COLUMNS = (admin, patch, items) => [
   { key: 'code', h: N_('Code'), cell: (i) => <span className="font-jetbrains text-xs text-blue-700">{i.code}</span> },
   { key: 'label', h: N_('Description'), min: 120, cell: (i) => <span className="font-medium text-slate-900">{i.label}</span> },
   { key: 'city', h: N_('Ville'), cell: (i) => i.data.city || '—' },
-  { key: 'cp', h: N_('CP'), cell: (i) => <span className="font-jetbrains text-xs">{i.data.postalCode || '—'}</span> },
-  { key: 'zone', h: N_('Zone'), cell: (i) => <span className="font-jetbrains text-xs">{i.data.zone || '—'}</span> },
+  { key: 'zone', h: N_('Zone'), cell: (i) => { const z = items.find((x) => x.kind === 'zone' && x.code === i.data.zone); return <span className="text-xs">{z ? z.label : (i.data.zone || '—')}</span>; } },
   { key: 'tour', h: N_('Tournée'), cell: (i) => { const t = items.find((x) => x.kind === 'tour' && x.code === i.data.tour); return t ? <span className="text-xs">{t.code} · {t.label}</span> : <span className="text-xs text-slate-400">—</span>; } },
   { key: 'order', h: N_('Rang'), cell: (i) => (i.data.tour ? i.data.order ?? '—' : '—') },
   { key: 'active', h: N_('Proposée'), cell: (i) => toggle(i.active, () => patch(i, { active: !i.active }), !admin, tr('Proposée dans les listes')) },
@@ -216,12 +224,17 @@ const TABLES = {
   agency: {
     title: N_('Agences et destinations'), icon: MapPin, fields: AGENCY_FIELDS, columns: AGENCY_COLUMNS, noun: N_('destination'), feminine: true, noReset: true,
     intro: N_('Les destinations de vos chargements et palettisations : choisies dans une liste (code ou description) au lieu d’une saisie libre. Une agence appartient au plus à une tournée.'),
-    blank: () => ({ kind: 'agency', code: '', label: '', active: true, sort: 100, data: { city: '', postalCode: '', tour: null, order: 1 } }),
+    blank: () => ({ kind: 'agency', code: '', label: '', active: true, sort: 100, data: { city: '', tour: null, order: 1, zone: null } }),
   },
   tour: {
     title: N_('Tournées'), icon: RouteIcon, fields: TOUR_FIELDS, columns: TOUR_COLUMNS, noun: N_('tournée'), feminine: true, noReset: true,
     intro: N_('Vos tournées habituelles. Elles servent au regroupement des chargements (mode « par tournée ») et à l’ordre des arrêts ; la saisie reste libre ailleurs.'),
     blank: () => ({ kind: 'tour', code: '', label: '', active: true, sort: 100, data: {} }),
+  },
+  zone: {
+    title: N_('Zones tarifaires'), icon: Layers, fields: ZONE_FIELDS, columns: ZONE_COLUMNS, noun: N_('zone'), feminine: true, noReset: true,
+    intro: N_('Vos zones de tarification (comme les tournées) : colonnes des grilles transporteurs, choisies sur les agences et sur les chargements.'),
+    blank: () => ({ kind: 'zone', code: '', label: '', active: true, sort: 100, data: { description: '' } }),
   },
   carrier: {
     title: N_('Transporteurs'), icon: Receipt, fields: CARRIER_FIELDS, columns: CARRIER_COLUMNS, noun: N_('transporteur'), noReset: true,
@@ -259,7 +272,7 @@ function itemOf(base, form, fields) {
     if (f.key === 'axleMode' || (f.if && !f.if(form))) continue;
     let val = form[f.key];
     if (f.type === 'select') val = val === '' ? null : val;
-    if (f.type === 'tariff') { const r = tariffData(val); if (r.error) errors[f.key] = r.error; val = r.value ?? null; }
+    if (f.type === 'tariff') { const r = tariffData(val); if (r.error) errors[f.key] = r.error; val = r.value ?? null; if (r.create?.length) out.createZones = r.create; }
     if (f.type === 'zones') {
       const seen = new Set(); const list = [];
       for (const z of val ?? []) {
@@ -323,7 +336,10 @@ function itemOf(base, form, fields) {
 function Field({ f, value, onChange, onPatch, error, disabled, items = [], form = {} }) {
   const unit = unitLabel(f.unitOf ? f.unitOf(form) : f.unit);
   const label = tr(f.label); const hintKey = f.hintOf?.(form) ?? f.hint; const hint = hintKey && tr(hintKey);
-  if (f.type === 'tariff') return <TariffEditor value={value} onChange={onChange} onFuel={(pct) => onPatch?.({ fuelPct: pct })} billing={form.billing} disabled={disabled} error={error} />;
+  if (f.type === 'tariff') {
+    const zoneItems = items.filter((i) => i.kind === 'zone' && i.active).sort((a, b) => a.sort - b.sort || a.label.localeCompare(b.label));
+    return <TariffEditor value={value} onChange={onChange} onFuel={(pct) => onPatch?.({ fuelPct: pct })} billing={form.billing} disabled={disabled} error={error} zoneItems={zoneItems} />;
+  }
   const options = typeof f.options === 'function' ? f.options(items) : f.options;
   if (f.type === 'days') {
     const set = new Set(value ?? []);
@@ -452,7 +468,14 @@ function EditDialog({ table, item, admin, onClose, onSaved, items }) {
     setErrors(errs); setMsg('');
     if (Object.keys(errs).length) return;
     setBusy(true);
-    try { await saveReference(org.id, next); onSaved(); } catch (err) { setMsg(err.message); setBusy(false); }
+    try {
+      // Grille collée avec des zones nouvelles : créées d'abord dans Paramètres › Zones.
+      const { createZones, ...rest } = next;
+      for (const [k, z] of (createZones ?? []).entries()) {
+        await saveReference(org.id, { kind: 'zone', code: z.code, label: z.label.slice(0, 80), active: true, sort: 10 + k, data: { description: '' } });
+      }
+      await saveReference(org.id, rest); onSaved();
+    } catch (err) { setMsg(err.message); setBusy(false); }
   };
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/40 flex items-end sm:items-center justify-center p-0 sm:p-6" onClick={onClose}>
@@ -597,6 +620,7 @@ const SUB = [
   { to: `${BASE}/supports`, label: N_('Supports de palettisation'), icon: Package },
   { to: `${BASE}/agences`, label: N_('Agences et destinations'), icon: MapPin },
   { to: `${BASE}/tournees`, label: N_('Tournées'), icon: RouteIcon },
+  { to: `${BASE}/zones`, label: N_('Zones'), icon: Layers },
   { to: `${BASE}/transporteurs`, label: N_('Transporteurs'), icon: Receipt },
   { to: `${BASE}/regroupement`, label: N_('Regroupement'), icon: Combine },
   { to: `${BASE}/arrimage`, label: N_('Arrimage'), icon: Link2 },
@@ -620,6 +644,7 @@ export default function ReferencesPage() {
         <Route path="supports" element={<RefTable kind="pallet" />} />
         <Route path="agences" element={<RefTable kind="agency" />} />
         <Route path="tournees" element={<RefTable kind="tour" />} />
+        <Route path="zones" element={<RefTable kind="zone" />} />
         <Route path="transporteurs" element={<RefTable kind="carrier" />} />
         <Route path="regroupement" element={<SettingSection key="consolidation" code="consolidation" />} />
         <Route path="arrimage" element={<SettingSection key="lashing" code="lashing" />} />
