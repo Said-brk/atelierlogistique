@@ -2,8 +2,8 @@
 // Valeur de formulaire : { on, mode, zones: [{ code, match }], bands: [{ upTo, prices: [], flat }], min: [] } (textes saisis).
 
 import { useState } from 'react';
-import { Plus, X, ClipboardPaste } from 'lucide-react';
-import { parseTariffTable } from '../shared/carriers/tariff';
+import { Plus, X, ClipboardPaste, MapPin, AlertTriangle, ChevronDown } from 'lucide-react';
+import { parseTariffTable, splitMatch, joinMatch, uncoveredDepts, DEPARTMENTS, REGION_GROUPS } from '../shared/carriers/tariff';
 import { t as tr } from '../shared/i18n/core';
 import { currencySymbol } from '../shared/units/units';
 
@@ -61,8 +61,93 @@ export function tariffData(f) {
 const UNIT = { weight: 'kg', pallet: 'palettes', ldm: 'MPL' };
 const PRICE_UNIT = { weight: '/100 kg', pallet: '/palette', ldm: '/MPL' };
 
+/** Sélection des départements d'une zone : par région ou un par un ; ceux d'une autre zone sont grisés. */
+function DeptPicker({ zoneIdx, zones, onChange, onClose }) {
+  const me = splitMatch(zones[zoneIdx].match);
+  const owner = new Map();
+  zones.forEach((z, i) => { if (i !== zoneIdx) splitMatch(z.match).depts.forEach((d) => owner.set(d, z.code)); });
+  const restOwner = zones.findIndex((z, i) => i !== zoneIdx && splitMatch(z.match).rest);
+  const sel = new Set(me.depts);
+  const save = (patch) => onChange(joinMatch({ ...me, depts: [...sel], ...patch }));
+  const toggle = (d) => { if (sel.has(d)) sel.delete(d); else sel.add(d); save({}); };
+  const toggleRegion = (list) => {
+    const free = list.filter((d) => !owner.has(d));
+    const all = free.every((d) => sel.has(d));
+    free.forEach((d) => (all ? sel.delete(d) : sel.add(d)));
+    save({});
+  };
+  return (
+    <div className="fixed inset-0 z-[60] bg-slate-900/40 flex items-end sm:items-center justify-center p-0 sm:p-6" onClick={onClose}>
+      <div className="bg-white w-full sm:max-w-3xl max-h-[88vh] flex flex-col rounded-t-2xl sm:rounded-2xl shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="px-5 py-3 border-b border-slate-200 flex items-center gap-2">
+          <MapPin size={16} className="text-blue-700" />
+          <div className="font-semibold text-slate-900 flex-1">{tr('Départements de {z}', { z: zones[zoneIdx].code })} <span className="text-slate-400 font-normal text-sm">· {sel.size}</span></div>
+          <button type="button" onClick={onClose} className="p-1 text-slate-400 hover:text-slate-700" aria-label={tr('Fermer')}><X size={18} /></button>
+        </div>
+        <div className="p-4 overflow-y-auto space-y-3">
+          <label className={`flex items-center gap-2 text-sm ${restOwner >= 0 ? 'text-slate-400' : 'text-slate-800'}`}>
+            <input type="checkbox" checked={me.rest} disabled={restOwner >= 0} onChange={(e) => save({ rest: e.target.checked })} />
+            <b>{tr('Reste de la France')}</b>
+            <span className="text-xs text-slate-500">{restOwner >= 0 ? tr('déjà dans {z}', { z: zones[restOwner].code }) : tr('tous les départements non choisis ailleurs')}</span>
+          </label>
+          <div className="grid sm:grid-cols-2 gap-3">
+            {REGION_GROUPS.map((r) => {
+              const free = r.depts.filter((d) => !owner.has(d));
+              const n = free.filter((d) => sel.has(d)).length;
+              return (
+                <div key={r.name} className="rounded-lg border border-slate-200 p-2.5">
+                  <label className="flex items-center gap-2 text-sm font-semibold text-slate-800 mb-1.5">
+                    <input type="checkbox" checked={free.length > 0 && n === free.length} disabled={!free.length}
+                      ref={(el) => { if (el) el.indeterminate = n > 0 && n < free.length; }} onChange={() => toggleRegion(r.depts)} />
+                    {r.name}
+                  </label>
+                  <div className="flex flex-wrap gap-1">
+                    {r.depts.map((d) => {
+                      const taken = owner.get(d);
+                      const on = sel.has(d);
+                      return (
+                        <button key={d} type="button" disabled={!!taken} onClick={() => toggle(d)} title={`${d} · ${DEPARTMENTS[d] ?? ''}${taken ? ` (${taken})` : ''}`}
+                          className={`font-jetbrains text-[11px] rounded px-1.5 py-1 border ${on ? 'bg-blue-600 border-blue-600 text-white' : taken ? 'bg-slate-100 border-slate-200 text-slate-300 line-through' : 'bg-white border-slate-300 text-slate-700 hover:border-blue-400'}`}>
+                          {d}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <label className="block text-xs text-slate-500">{tr('Codes postaux précis (facultatif)')}
+            <input value={me.other.join(' ')} onChange={(e) => save({ other: e.target.value.split(/[\s,;]+/).map((x) => x.trim().toUpperCase()).filter(Boolean) })}
+              placeholder="69001-69009 13100" className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm font-jetbrains" />
+            <span className="block mt-0.5 text-slate-400">{tr('Pour une partie de département : début de code postal ou plage. Prioritaire sur le département.')}</span>
+          </label>
+        </div>
+        <div className="px-5 py-3 border-t border-slate-200 flex justify-end">
+          <button type="button" onClick={onClose} className="rounded-lg bg-blue-600 text-white text-sm font-semibold px-4 py-2">{tr('Valider')}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Résumé d'une zone : pastilles (régions entières regroupées). */
+function ZoneChips({ match }) {
+  const p = splitMatch(match);
+  const set = new Set(p.depts);
+  const chips = [];
+  for (const r of REGION_GROUPS) {
+    if (r.depts.every((d) => set.has(d))) { chips.push(r.name); r.depts.forEach((d) => set.delete(d)); }
+  }
+  chips.push(...p.depts.filter((d) => set.has(d)), ...p.other);
+  if (p.rest) chips.push(tr('Reste de la France'));
+  if (!chips.length) return <span className="text-slate-400 text-sm">{tr('Aucun département')}</span>;
+  return chips.map((c) => <span key={c} className="inline-block rounded bg-slate-100 text-slate-700 text-[11px] font-jetbrains px-1.5 py-0.5 mr-1 mb-1">{c}</span>);
+}
+
 export default function TariffEditor({ value, onChange, onFuel, billing, disabled, error }) {
   const v = value ?? EMPTY_TARIFF;
+  const [picking, setPicking] = useState(null); // zone dont on choisit les départements
   const [paste, setPaste] = useState(null);
   const [pasteErr, setPasteErr] = useState('');
   const set = (patch) => onChange({ ...v, ...patch });
@@ -133,17 +218,32 @@ export default function TariffEditor({ value, onChange, onFuel, billing, disable
           )}
 
           <div className="space-y-1.5">
-            <div className="text-xs text-slate-500">{tr('Zones')} <span className="text-slate-400">· {tr('départements, codes postaux, plages (91-95), régions, ou * pour le reste')}</span></div>
+            <div className="text-xs text-slate-500">{tr('Zones')}</div>
             {v.zones.map((z, i) => (
-              <div key={i} className="flex items-center gap-2">
-                <input value={z.code} onChange={(e) => setZone(i, { code: e.target.value })} disabled={disabled} className="w-24 shrink-0 rounded-md border border-slate-300 px-2 py-1.5 text-sm" />
-                <input value={z.match} onChange={(e) => setZone(i, { match: e.target.value })} disabled={disabled}
-                  placeholder={i === 0 ? 'Île-de-France, 28, 60' : '59 62 80, Normandie'} className="flex-1 min-w-0 rounded-md border border-slate-300 px-2 py-1.5 text-sm" />
-                {!disabled && n > 1 && <button type="button" onClick={() => delZone(i)} className="p-1 text-slate-400 hover:text-red-700" aria-label={tr('Retirer')}><X size={15} /></button>}
+              <div key={i} className="flex items-start gap-2">
+                <input value={z.code} onChange={(e) => setZone(i, { code: e.target.value })} disabled={disabled} aria-label={tr('Nom de la zone')} className="w-24 shrink-0 rounded-md border border-slate-300 px-2 py-1.5 text-sm" />
+                <button type="button" disabled={disabled} onClick={() => setPicking(i)} data-zone-pick={i}
+                  className="flex-1 min-w-0 text-left rounded-md border border-slate-300 px-2 pt-1.5 pb-0.5 hover:border-blue-400 disabled:bg-slate-50 flex items-start gap-1">
+                  <span className="flex-1 min-w-0"><ZoneChips match={z.match} /></span>
+                  {!disabled && <ChevronDown size={15} className="text-slate-400 mt-0.5 shrink-0" />}
+                </button>
+                {!disabled && n > 1 && <button type="button" onClick={() => delZone(i)} className="p-1 mt-1 text-slate-400 hover:text-red-700" aria-label={tr('Retirer')}><X size={15} /></button>}
               </div>
             ))}
             {!disabled && <button type="button" onClick={addZone} className="inline-flex items-center gap-1 text-sm text-blue-700 hover:underline"><Plus size={14} /> {tr('Ajouter une zone')}</button>}
+            {(() => {
+              const miss = uncoveredDepts(v.zones);
+              return miss.length > 0 && (
+                <div className="flex items-start gap-1.5 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-2 py-1.5" title={miss.map((d) => `${d} ${DEPARTMENTS[d]}`).join('\n')}>
+                  <AlertTriangle size={13} className="shrink-0 mt-0.5" />
+                  <span>{tr('{n} département(s) sans zone : {list}. Ajoutez-les ou cochez « Reste de la France » sur une zone.', { n: miss.length, list: miss.length > 8 ? `${miss.slice(0, 8).join(', ')}…` : miss.join(', ') })}</span>
+                </div>
+              );
+            })()}
           </div>
+          {picking != null && v.zones[picking] && (
+            <DeptPicker zoneIdx={picking} zones={v.zones} onChange={(match) => setZone(picking, { match })} onClose={() => setPicking(null)} />
+          )}
 
           <div className="overflow-x-auto">
             <table className="text-xs">
