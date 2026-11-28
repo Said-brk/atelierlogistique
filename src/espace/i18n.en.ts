@@ -609,6 +609,16 @@ const en: Record<string, string> = {
   "modifiables ensuite dans Paramètres › Entreprise": "can be changed later in Settings › Company",
   "par véhicule": "per vehicle",
   "Unités": "Units",
+  "Fonction absente de la base : exécutez la migration 20261128000017 dans Supabase.": "Missing database function: run migration 20261128000017 in Supabase.",
+  "Marquer {code} comme chargé ?": "Mark {code} as loaded?",
+  "Les {n} camions passent « chargé » ({done} déjà confirmé(s) au quai).": "All {n} trucks become “loaded” ({done} already confirmed at the dock).",
+  "Sans scanner le QR code : la confirmation est enregistrée à votre nom.": "No QR code scan needed: the confirmation is recorded under your name.",
+  "QR code du quai": "Dock QR code",
+  "Envoyer au quai (QR code)": "Send to dock (QR code)",
+  "Sans passer par le QR code": "Without the QR code",
+  "Marquer chargé": "Mark loaded",
+  "Actions": "Actions",
+  "Marquer chargé (sans QR code)": "Mark loaded (no QR code)",
 };
 
 export default en;

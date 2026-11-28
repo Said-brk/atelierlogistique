@@ -17,7 +17,7 @@ describe('schéma Supabase', () => {
     // Ce que Supabase fournit déjà : rôles, schéma auth, auth.uid().
     await db.exec(`
     create role anon nologin; create role authenticated nologin; create role service_role nologin bypassrls;
-    create schema auth; create table auth.users(id uuid primary key, email text);
+    create schema auth; create table auth.users(id uuid primary key, email text, raw_user_meta_data jsonb);
     create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub', true),'')::uuid $$;
     grant usage on schema auth to anon, authenticated; grant execute on function auth.uid() to anon, authenticated;
     -- Comme Supabase : pgcrypto installé dans le schéma « extensions » (pas dans public).
@@ -224,12 +224,33 @@ describe('schéma Supabase', () => {
     ok((await as(A, `select status from shipments where code = $1`, [fl.code])).rows[0].status === 'in_progress', 'rouvrir : de nouveau modifiable');
     // Lien quai fiabilisé : pas de confirmation sur un chargement rouvert ni pour un camion inexistant.
     const quaiErr = async (truck) => { try { await as(null, `select confirm_loading($1, $2, null, '{}')`, [fl.share_token, truck]); return null; } catch (e) { return e; } };
-    ok(/en cours de modification/.test((await quaiErr(1))?.message), 'quai : confirmation refusée sur un chargement rouvert');
+    const ro = (await as(null, 'select reopened_by, reopened_at, sent_at from shipment_by_token($1)', [fl.share_token])).rows[0];
+    ok(ro.reopened_by === 'alice' && ro.reopened_at && ro.sent_at, 'quai : le cariste voit qui a rouvert et quand');
     await as(A, `update shipments set status = 'sent', result = '{"plan":{"guides":[{"index":1},{"index":2}]}}' where code = $1`, [fl.code]);
     ok((await as(null, 'select loaded_trucks from shipment_by_token($1)', [fl.share_token])).rows[0].loaded_trucks.length === 0, 'quai : renvoi au quai = nouveau tour de confirmations');
     ok(/Camion 3 inconnu/.test((await quaiErr(3))?.message), 'quai : n° de camion hors du plan refusé');
     await as(null, `select confirm_loading($1, 1, null, '{}')`, [fl.share_token]);
     ok((await as(A, `select status from shipments where code = $1`, [fl.code])).rows[0].status === 'partially_loaded', 'quai : anciennes confirmations ignorées');
+    // Rouvert après un envoi au quai : alerte seulement, le cariste peut confirmer (le terrain fait foi).
+    const ro2 = (await as(A, `insert into shipments(org_id, input, result, status) values ($1, '{}', '{"plan":{"guides":[{"index":1},{"index":2}]}}', 'sent') returning id, code, share_token`, [orgA])).rows[0];
+    await as(A, `update shipments set status = 'in_progress' where id = $1`, [ro2.id]);
+    await as(null, `select confirm_loading($1, 1, 'Karim', '{}')`, [ro2.share_token]);
+    ok((await as(A, `select status from shipments where id = $1`, [ro2.id])).rows[0].status === 'partially_loaded', 'rouvert : confirmation du cariste acceptée');
+    const never = (await as(A, `insert into shipments(org_id, input, result, status) values ($1, '{}', '{"plan":{}}', 'validated') returning id, share_token`, [orgA])).rows[0];
+    err = null; try { await as(null, `select confirm_loading($1, 1, null, '{}')`, [never.share_token]); } catch (e) { err = e; }
+    ok(/pas encore été envoyé/.test(err?.message), 'jamais envoyé au quai : pas de confirmation');
+    // « Marquer chargé » depuis le bureau : tous les camions restants, au nom de l'utilisateur.
+    err = null; try { await as(B, 'select mark_shipment_loaded($1)', [ro2.id]); } catch (e) { err = e; }
+    ok(err, 'marquer chargé : autre entreprise refusée');
+    err = null; try { await as(null, 'select mark_shipment_loaded($1)', [ro2.id]); } catch (e) { err = e; }
+    ok(err, 'marquer chargé : sans compte refusé');
+    await as(A, 'select mark_shipment_loaded($1)', [ro2.id]);
+    const mk2 = (await as(A, `select status, loaded_at from shipments where id = $1`, [ro2.id])).rows[0];
+    ok(mk2.status === 'loaded' && mk2.loaded_at, 'marquer chargé : statut « Chargé »');
+    const lds = (await as(A, 'select truck, loaded_by from shipment_loadings where shipment_id = $1 order by truck', [ro2.id])).rows;
+    ok(lds.length === 2 && lds[0].loaded_by === 'Karim' && lds[1].loaded_by === 'Bureau · alice', 'marquer chargé : seul le camion restant, au nom du bureau');
+    await as(A, 'select mark_shipment_loaded($1)', [never.id]);
+    ok((await as(A, `select status from shipments where id = $1`, [never.id])).rows[0].status === 'loaded', 'marquer chargé : possible sans envoi au quai');
     await db.exec(`update shipments set expires_at = now() + interval '1 day'`);
     await as(A, `update shipments set label = 'Toujours actif' where code = $1`, [fl.code]);
     ok((await as(A, `select expires_at > now() + interval '30 days' as ok from shipments where code = $1`, [fl.code])).rows[0].ok, 'expiration repoussée à chaque modification');
